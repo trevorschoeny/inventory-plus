@@ -48,6 +48,7 @@ public class ContainerPeekClient {
                 .showIn(MKContext.ALL)
                 .posLeft()
                 .hidden()
+                .exclusive()
                 .autoSize()
                 .style(MKPanel.Style.RAISED)
                 // Root layout: column (title above slot grid)
