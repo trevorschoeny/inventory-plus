@@ -213,10 +213,10 @@ public class PocketsPanel {
         // Default position for SURVIVAL_INVENTORY (standard layout)
         int defaultPanelX = calcPanelX(hotbarIndex, MKContext.SURVIVAL_INVENTORY);
 
-        var builder = MKPanel.builder("pocket_" + hotbarIndex)
+        // Panel-level config BEFORE entering the layout group
+        var panelBuilder = MKPanel.builder("pocket_" + hotbarIndex)
                 .showIn(POCKET_CONTEXTS)
                 .pos(defaultPanelX, panelY(166))
-                .row().gap(0)
                 .padding(4)
                 .style(MKPanel.Style.RAISED)
                 .hidden()
@@ -228,14 +228,12 @@ public class PocketsPanel {
             int px = calcPanelX(hotbarIndex, ctx);
             int py = panelY(ctx.containerHeight());
             if (px != defaultPanelX || py != panelY(166)) {
-                builder = builder.posFor(ctx, px, py);
+                panelBuilder = panelBuilder.posFor(ctx, px, py);
             }
         }
 
-        // 3 pocket storage slots from this hotbar slot's container.
-        // Each slot has:
-        //   - Dynamic ghost icon: shows barrier when slot is disabled
-        //   - onEmptyClick: toggles the disabled state
+        // Enter row layout group, add 3 pocket slots
+        var builder = panelBuilder.row().gap(0);
         final int hIdx = hotbarIndex;
         for (int j = 0; j < POCKET_SIZE; j++) {
             final int pIdx = j;

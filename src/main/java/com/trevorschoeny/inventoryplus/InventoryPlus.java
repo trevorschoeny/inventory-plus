@@ -38,6 +38,11 @@ public class InventoryPlus implements ModInitializer {
         // Feature 2: Pockets (hotbar extension — extra items per hotbar slot)
         PocketsPanel.register();
 
+        // Feature 3: Container Peek — common registration (container + packets)
+        // Panel registration is in InventoryPlusClient (client-only classes)
+        ContainerPeek.registerContainer();
+        ContainerPeek.registerPackets();
+
         LOGGER.info("[InventoryPlus] Initialized");
     }
 }

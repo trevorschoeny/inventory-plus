@@ -11,7 +11,9 @@
     "IPDeathDropsMixin"
   ],
   "client": [
-    "IPWingsLayerMixin"
+    "IPWingsLayerMixin",
+    "IPPeekClickMixin",
+    "IPRecipeBookAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

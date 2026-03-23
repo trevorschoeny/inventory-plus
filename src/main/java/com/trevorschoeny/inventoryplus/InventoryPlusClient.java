@@ -37,6 +37,10 @@ public class InventoryPlusClient implements ClientModInitializer {
         // Pocket HUD overlay (shows pocket items next to hotbar)
         PocketHud.register();
 
+        // Container Peek — client-side panel + packet handler
+        ContainerPeekClient.registerPanel();
+        ContainerPeekClient.registerClientHandler();
+
         // Register config category with the family (mod ID enables tab auto-focus)
         family.configCategory(InventoryPlus.MOD_ID, "Inventory Plus",
                 InventoryPlusClient::buildConfigCategory,
