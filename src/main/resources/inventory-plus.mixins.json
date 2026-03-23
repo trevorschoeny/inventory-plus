@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.trevorschoeny.inventoryplus.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "IPCanGlideMixin",
+    "IPFallFlyingMixin",
+    "IPTotemMixin",
+    "IPMendingMixin",
+    "IPDeathDropsMixin"
+  ],
+  "client": [
+    "IPWingsLayerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

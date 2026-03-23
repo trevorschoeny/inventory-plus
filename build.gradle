@@ -1,0 +1,22 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// Inventory Plus — equipment slots + pockets for the player inventory.
+// Depends on MenuKit for panels, slots, buttons, HUD, and families.
+// ═══════════════════════════════════════════════════════════════════════════
+
+base.archivesName = 'inventory-plus'
+
+// No runClient — use trevs-mod:runClient for the full dev environment
+loom {
+    runs {
+        client { ideConfigGenerated = false }
+        server { ideConfigGenerated = false }
+    }
+}
+
+dependencies {
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${rootProject.property('fabric_version')}"
+    modImplementation "dev.isxander:yet-another-config-lib:${rootProject.property('yacl_version')}"
+
+    // MenuKit — use namedElements for unmapped project outputs (Loom requirement)
+    implementation project(path: ':menukit', configuration: 'namedElements')
+}

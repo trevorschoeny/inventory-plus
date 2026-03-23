@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "inventory-plus",
+  "version": "1.0.0",
+  "name": "Inventory Plus",
+  "description": "Extra equipment slots and pocket storage for your hotbar.",
+  "authors": ["trevorschoeny"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.trevorschoeny.inventoryplus.InventoryPlus"],
+    "client": ["com.trevorschoeny.inventoryplus.InventoryPlusClient"]
+  },
+  "mixins": ["inventory-plus.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "fabric-api": "*",
+    "minecraft": "~1.21",
+    "menukit": ">=0.1.0"
+  }
+}
