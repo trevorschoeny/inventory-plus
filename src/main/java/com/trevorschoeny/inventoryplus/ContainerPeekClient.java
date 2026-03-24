@@ -11,6 +11,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractRecipeBookScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 
 /**
  * Client-side logic for Container Peek — panel registration, S2C handler,
@@ -51,6 +52,8 @@ public class ContainerPeekClient {
                 .exclusive()
                 .autoSize()
                 .style(MKPanel.Style.RAISED)
+                .shiftClickIn(true)              // allow shift-clicking items into peek container
+                .shiftClickOut(true)             // allow shift-clicking items out of peek container
                 // Root layout: column (title above slot grid)
                 .column();
 
@@ -133,9 +136,22 @@ public class ContainerPeekClient {
                 ContainerPeek.CONTAINER_NAME, mc.player.getUUID(), false);
         if (container == null) return activeSlots;
 
+        // Count occupied slots and compute bundle weight
         int occupied = 0;
+        int totalWeight = 0;
         for (int i = 0; i < container.getContainerSize(); i++) {
-            if (!container.getItem(i).isEmpty()) occupied++;
+            ItemStack item = container.getItem(i);
+            if (!item.isEmpty()) {
+                occupied++;
+                // Bundle weight: each item contributes 64/maxStackSize per unit
+                totalWeight += (64 / item.getMaxStackSize()) * item.getCount();
+            }
+        }
+
+        // If the bundle is full (weight >= 64), no extra empty slot
+        boolean isFull = totalWeight >= 64;
+        if (isFull) {
+            return occupied;
         }
         return Math.min(Math.max(occupied + 1, 1), ContainerPeek.MAX_SLOTS);
     }

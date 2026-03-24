@@ -55,6 +55,8 @@ public class EquipmentPanel {
                 .padding(0)                      // no padding — exact placement
                 .autoSize()
                 .style(MKPanel.Style.NONE)       // invisible background — blends with inventory
+                .shiftClickIn(true)              // allow shift-clicking elytra/totem into these slots
+                .shiftClickOut(true)             // allow shift-clicking items out of equipment slots
 
                 // Slot 0: Passive elytra — grants flight without wearing in chest slot
                 .slot(0, 0)
