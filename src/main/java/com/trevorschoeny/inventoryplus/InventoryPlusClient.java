@@ -8,8 +8,12 @@ import dev.isxander.yacl3.api.OptionDescription;
 import dev.isxander.yacl3.api.OptionGroup;
 import dev.isxander.yacl3.api.controller.BooleanControllerBuilder;
 import dev.isxander.yacl3.api.controller.IntegerSliderControllerBuilder;
+import dev.isxander.yacl3.api.controller.TickBoxControllerBuilder;
+import com.trevorschoeny.menukit.MKContext;
+import com.trevorschoeny.menukit.MKPanel;
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -41,10 +45,51 @@ public class InventoryPlusClient implements ClientModInitializer {
         ContainerPeekClient.registerPanel();
         ContainerPeekClient.registerClientHandler();
 
+        // General option: toggle the settings gear button visibility
+        family.generalOption("show_settings_button",
+                Option.<Boolean>createBuilder()
+                        .name(Component.literal("Show Settings Button"))
+                        .description(OptionDescription.of(
+                                Component.literal("Show the ⚙ button above the inventory screen.")))
+                        .binding(true,
+                                () -> family.getGeneralBool("show_settings_button", true),
+                                val -> family.setGeneral("show_settings_button", val))
+                        .controller(TickBoxControllerBuilder::create)
+                        .build());
+
         // Register config category with the family (mod ID enables tab auto-focus)
         family.configCategory(InventoryPlus.MOD_ID, "Inventory Plus",
                 InventoryPlusClient::buildConfigCategory,
                 () -> { InventoryPlusConfig.save(); PocketsPanel.applyConfig(); });
+
+        // Settings button — shared across the family, hidden when general option is off
+        family.sharedPanel("trevmods_settings", () -> registerSettingsButton(family));
+    }
+
+    // ── Settings Button ────────────────────────────────────────────────────
+
+    /**
+     * Registers a small gear button above the personal inventory, right-aligned.
+     * Opens the family's unified YACL config screen when clicked.
+     */
+    private static void registerSettingsButton(MKFamily family) {
+        MKPanel.builder("trevmods_settings")
+                .showIn(MKContext.PERSONAL)
+                .posAboveRight()
+                .autoSize()
+                .style(MKPanel.Style.NONE)
+                // Hide when the general option is toggled off
+                .disabledWhen(() -> !family.getGeneralBool("show_settings_button", true))
+                .column()
+                    .button()
+                        .label("⚙")
+                        .onClick(btn -> {
+                            var mc = Minecraft.getInstance();
+                            var screen = family.buildConfigScreen(mc.screen);
+                            if (screen != null) mc.setScreen(screen);
+                        })
+                        .done()
+                .build();
     }
 
     // ── Config ──────────────────────────────────────────────────────────────
