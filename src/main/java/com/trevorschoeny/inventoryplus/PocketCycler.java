@@ -126,11 +126,11 @@ public class PocketCycler {
             // Need at least 2 enabled positions to cycle
             if (enabledIndices.size() < 2) return;
 
-            // Read items at enabled positions
+            // Read items at enabled positions (copy to avoid reference issues)
             ItemStack[] allItems = new ItemStack[1 + POCKET_SIZE];
-            allItems[0] = inventory.getItem(slot);
+            allItems[0] = inventory.getItem(slot).copy();
             for (int i = 0; i < POCKET_SIZE; i++) {
-                allItems[i + 1] = pocket.getItem(i);
+                allItems[i + 1] = pocket.getItem(i).copy();
             }
 
             // Extract the enabled items into a list, rotate, write back
@@ -160,6 +160,7 @@ public class PocketCycler {
                     pocket.setItem(pos - 1, item);
                 }
             }
+
         });
     }
 }

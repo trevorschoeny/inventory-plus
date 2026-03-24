@@ -13,6 +13,7 @@
   "client": [
     "IPWingsLayerMixin",
     "IPPeekClickMixin",
+    "IPCreativePeekMixin",
     "IPRecipeBookAccessor"
   ],
   "injectors": {

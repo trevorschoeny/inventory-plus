@@ -3,6 +3,7 @@ package com.trevorschoeny.inventoryplus;
 import com.trevorschoeny.inventoryplus.network.PeekC2SPayload;
 import com.trevorschoeny.inventoryplus.network.PeekS2CPayload;
 import com.trevorschoeny.menukit.MKContainer;
+import com.trevorschoeny.menukit.MKInventory;
 import com.trevorschoeny.menukit.MenuKit;
 import com.trevorschoeny.menukit.source.MKContainerSource;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
@@ -87,7 +88,7 @@ public class ContainerPeek {
 
     // ── Server-Side Handler ─────────────────────────────────────────────────
 
-    private static void handlePeekRequest(ServerPlayer player, int slotIndex) {
+    private static void handlePeekRequest(ServerPlayer player, int unifiedPos) {
         MKContainer container = MenuKit.getContainerForPlayer(
                 CONTAINER_NAME, player.getUUID(), true);
         if (container == null) {
@@ -96,20 +97,21 @@ public class ContainerPeek {
         }
 
         // Close request
-        if (slotIndex < 0) {
+        if (unifiedPos < 0) {
             container.unbind();
             ServerPlayNetworking.send(player, PeekS2CPayload.closed());
             return;
         }
 
-        // Validate slot index
-        var menu = player.containerMenu;
-        if (slotIndex < 0 || slotIndex >= menu.slots.size()) {
-            InventoryPlus.LOGGER.warn("[ContainerPeek] Invalid slot index: {}", slotIndex);
+        // Validate unified position — must be within player inventory range (0-40)
+        if (unifiedPos > MKInventory.OFFHAND) {
+            InventoryPlus.LOGGER.warn("[ContainerPeek] Invalid unified position: {}", unifiedPos);
             return;
         }
 
-        ItemStack stack = menu.slots.get(slotIndex).getItem();
+        // Read directly from player's inventory — bypasses menu slot system entirely
+        // This works identically for survival, creative, and any other context
+        ItemStack stack = MKInventory.getPlayerItem(player, unifiedPos);
         if (stack.isEmpty()) return;
 
         // Unbind any existing peek first
@@ -154,6 +156,6 @@ public class ContainerPeek {
 
         container.bind(source);
         ServerPlayNetworking.send(player,
-                new PeekS2CPayload(slotIndex, srcType, slots, title));
+                new PeekS2CPayload(unifiedPos, srcType, slots, title));
     }
 }
