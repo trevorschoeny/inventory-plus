@@ -9,6 +9,7 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.lwjgl.glfw.GLFW;
 
@@ -95,13 +96,19 @@ public class PocketCycler {
         int selectedSlot = mc.player.getInventory().getSelectedSlot(); // 0-8
         String containerName = "pocket_" + selectedSlot;
 
-        // Execute the actual swap on the server thread (authoritative)
-        var server = mc.getSingleplayerServer();
-        if (server == null) return;
-
+        // Execute the actual swap on the server thread (authoritative).
+        // MenuKit.executeOnServer() handles finding the server instance and
+        // submitting the runnable — works for both integrated and dedicated servers.
         final int slot = selectedSlot;
-        server.execute(() -> {
-            ServerPlayer sp = server.getPlayerList().getPlayer(mc.player.getUUID());
+        final Player clientPlayer = mc.player;
+        MenuKit.executeOnServer(clientPlayer, () -> {
+            // Resolve the ServerPlayer from the server's player list.
+            // Inside executeOnServer's runnable, we're on the server thread,
+            // so level().getServer() is guaranteed non-null.
+            var server = clientPlayer.level().getServer();
+            ServerPlayer sp = server != null
+                    ? server.getPlayerList().getPlayer(clientPlayer.getUUID())
+                    : null;
             if (sp == null) return;
 
             Inventory inventory = sp.getInventory();

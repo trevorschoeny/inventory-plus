@@ -1,15 +1,14 @@
 package com.trevorschoeny.inventoryplus;
 
-import com.trevorschoeny.inventoryplus.mixin.IPRecipeBookAccessor;
 import com.trevorschoeny.inventoryplus.network.PeekC2SPayload;
 import com.trevorschoeny.inventoryplus.network.PeekS2CPayload;
 import com.trevorschoeny.menukit.MKContainer;
 import com.trevorschoeny.menukit.MKContext;
 import com.trevorschoeny.menukit.MKPanel;
 import com.trevorschoeny.menukit.MenuKit;
+import com.trevorschoeny.menukit.MenuKitClient;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.inventory.AbstractRecipeBookScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
@@ -18,8 +17,7 @@ import net.minecraft.world.item.ItemStack;
  * recipe book management, and dynamic slot count computation.
  *
  * <p>Separated from {@link ContainerPeek} because this class imports client-only
- * classes ({@link Minecraft}, {@link AbstractRecipeBookScreen}) that cannot be
- * loaded on the server-side classloader.
+ * classes ({@link Minecraft}) that cannot be loaded on the server-side classloader.
  *
  * <p>Part of <b>Inventory Plus</b>.
  */
@@ -99,7 +97,7 @@ public class ContainerPeekClient {
             peekTitle = Component.empty();
             MenuKit.hidePanel(ContainerPeek.PANEL_NAME);
             if (wasRecipeBookOpen) {
-                toggleRecipeBook(true);
+                MenuKitClient.setRecipeBookOpen(true);
             }
             wasRecipeBookOpen = false;
         } else {
@@ -107,9 +105,9 @@ public class ContainerPeekClient {
             sourceType = payload.sourceType();
             activeSlots = payload.activeSlots();
             peekTitle = payload.title();
-            wasRecipeBookOpen = isRecipeBookOpen();
+            wasRecipeBookOpen = MenuKitClient.isRecipeBookOpen();
             if (wasRecipeBookOpen) {
-                toggleRecipeBook(false);
+                MenuKitClient.setRecipeBookOpen(false);
             }
             MenuKit.showPanel(ContainerPeek.PANEL_NAME);
         }
@@ -156,24 +154,4 @@ public class ContainerPeekClient {
         return Math.min(Math.max(occupied + 1, 1), ContainerPeek.MAX_SLOTS);
     }
 
-    // ── Recipe Book Helpers ─────────────────────────────────────────────────
-
-    private static boolean isRecipeBookOpen() {
-        var mc = Minecraft.getInstance();
-        if (mc.screen instanceof AbstractRecipeBookScreen<?>) {
-            var accessor = (IPRecipeBookAccessor) mc.screen;
-            return accessor.inventoryPlus$getRecipeBookComponent().isVisible();
-        }
-        return false;
-    }
-
-    private static void toggleRecipeBook(boolean open) {
-        var mc = Minecraft.getInstance();
-        if (!(mc.screen instanceof AbstractRecipeBookScreen<?>)) return;
-        var accessor = (IPRecipeBookAccessor) mc.screen;
-        var recipeBook = accessor.inventoryPlus$getRecipeBookComponent();
-        if (recipeBook.isVisible() != open) {
-            recipeBook.toggleVisibility();
-        }
-    }
 }

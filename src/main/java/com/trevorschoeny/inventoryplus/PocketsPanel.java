@@ -3,12 +3,10 @@ package com.trevorschoeny.inventoryplus;
 
 import com.trevorschoeny.menukit.MKContext;
 import com.trevorschoeny.menukit.MKPanel;
-import com.trevorschoeny.menukit.MKSlot;
 import com.trevorschoeny.menukit.MenuKit;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -56,16 +54,8 @@ public class PocketsPanel {
             Identifier.withDefaultNamespace("item/barrier");
 
     // Contexts where pockets show — all screens with player inventory visible.
-    private static final Set<MKContext> POCKET_CONTEXTS = EnumSet.of(
-            MKContext.SURVIVAL_INVENTORY, MKContext.CREATIVE_INVENTORY, MKContext.CREATIVE_TABS,
-            MKContext.CHEST, MKContext.DOUBLE_CHEST, MKContext.ENDER_CHEST,
-            MKContext.BARREL, MKContext.SHULKER_BOX, MKContext.HOPPER, MKContext.DISPENSER,
-            MKContext.CRAFTING_TABLE, MKContext.STONECUTTER, MKContext.SMITHING_TABLE,
-            MKContext.LOOM, MKContext.CARTOGRAPHY_TABLE, MKContext.GRINDSTONE, MKContext.CRAFTER,
-            MKContext.FURNACE, MKContext.BLAST_FURNACE, MKContext.SMOKER, MKContext.BREWING_STAND,
-            MKContext.ANVIL, MKContext.ENCHANTING_TABLE, MKContext.HORSE_INVENTORY,
-            MKContext.VILLAGER_TRADING, MKContext.BEACON
-    );
+    // Uses MKContext.ALL_WITH_PLAYER_INVENTORY directly via .showInAll() on each panel builder.
+    private static final Set<MKContext> POCKET_CONTEXTS = MKContext.ALL_WITH_PLAYER_INVENTORY;
 
     // ── Disabled Slots ───────────────────────────────────────────────────────
     // Per-hotbar-slot sets of pocket indices (0–2) that are disabled.
@@ -132,49 +122,32 @@ public class PocketsPanel {
     }
 
     // ── Layout helpers ──────────────────────────────────────────────────────
+    //
+    // All hotbar position data now lives in MKContextLayout.getHotbarX/Y.
+    // These local constants express the pocket-specific offsets relative to
+    // the hotbar row — the only layout knowledge PocketsPanel needs.
+
+    // Buttons sit one slot-height below the hotbar row
+    private static final int BUTTON_Y_OFFSET = SLOT_SPACING;
+
+    // Panels sit below the button row: slot spacing + button height + 2px gap
+    private static final int PANEL_Y_OFFSET = SLOT_SPACING + BUTTON_HEIGHT + 2;
+
+    // Half-width of the pocket panel (3 slots + padding ≈ 63px), for centering
+    private static final int PANEL_HALF_WIDTH = 32;
+
+    // Center of a slot within the slot spacing (18 / 2 = 9px)
+    private static final int SLOT_CENTER = SLOT_SPACING / 2;
 
     /**
-     * Returns the hotbar X start position for a given context.
-     * Most screens use x=8, but wider screens (villager trading, beacon)
-     * have the player inventory offset to the right.
+     * X offset from hotbar left edge for centering a pocket panel under
+     * a specific hotbar slot. The panel is wider than one slot, so we
+     * center it under the slot's midpoint.
      */
-    private static int hotbarXStart(MKContext ctx) {
-        return switch (ctx) {
-            case VILLAGER_TRADING -> 108;
-            case BEACON -> 36;
-            case CREATIVE_INVENTORY, CREATIVE_TABS -> 9; // creative uses x=9
-            default -> 8; // standard 176px-wide layout
-        };
-    }
-
-    /**
-     * Calculates the hotbar Y position for a given container height.
-     * The hotbar is always 24px from the bottom of the container in vanilla.
-     */
-    private static int hotbarY(int containerHeight) {
-        return containerHeight - 24;
-    }
-
-    /** Y position of pocket buttons (just below the hotbar row). */
-    private static int buttonY(int containerHeight) {
-        return hotbarY(containerHeight) + SLOT_SPACING;
-    }
-
-    /** Y position of pocket panel (below the buttons). */
-    private static int panelY(int containerHeight) {
-        return buttonY(containerHeight) + BUTTON_HEIGHT + 2;
-    }
-
-    /** X position for the pocket panel, centered under the button. */
-    private static int calcPanelX(int hotbarIndex, MKContext ctx) {
-        int xStart = hotbarXStart(ctx);
-        // Button center: slot start + half of slot width (18/2 = 9)
-        int buttonCenterX = xStart + hotbarIndex * SLOT_SPACING + 9;
-        // Panel width: padding(4) + 3 slots × 18px + padding(4) = 62px
-        // But computeSize accounts for content offset too. Approximate:
-        // 3 * 18 = 54 content + 4*2 padding + 2 content offset = 62
-        int panelHalfWidth = 32; // 63 / 2 (rounded up for centering)
-        return buttonCenterX - panelHalfWidth;
+    private static int panelXOffset(int hotbarIndex) {
+        // Slot center relative to hotbar: index * 18 + 9
+        // Panel left edge: center - halfWidth
+        return hotbarIndex * SLOT_SPACING + SLOT_CENTER - PANEL_HALF_WIDTH;
     }
 
     // ── Registration ────────────────────────────────────────────────────────
@@ -210,27 +183,16 @@ public class PocketsPanel {
      * Contains 3 pocket storage slots in a row.
      */
     private static void registerPocketPanel(int hotbarIndex) {
-        // Default position for SURVIVAL_INVENTORY (standard layout)
-        int defaultPanelX = calcPanelX(hotbarIndex, MKContext.SURVIVAL_INVENTORY);
-
-        // Panel-level config BEFORE entering the layout group
+        // Position the panel relative to the hotbar — MenuKit resolves the
+        // hotbar's actual screen position per-context automatically. No more
+        // per-context override loops!
         var panelBuilder = MKPanel.builder("pocket_" + hotbarIndex)
                 .showIn(POCKET_CONTEXTS)
-                .pos(defaultPanelX, panelY(166))
+                .posRelativeToHotbar(panelXOffset(hotbarIndex), PANEL_Y_OFFSET)
                 .padding(4)
                 .style(MKPanel.Style.RAISED)
                 .hidden()
                 .allowOverlap();
-
-        // Per-context overrides for non-standard layouts
-        for (MKContext ctx : POCKET_CONTEXTS) {
-            if (ctx == MKContext.SURVIVAL_INVENTORY) continue; // already the default
-            int px = calcPanelX(hotbarIndex, ctx);
-            int py = panelY(ctx.containerHeight());
-            if (px != defaultPanelX || py != panelY(166)) {
-                panelBuilder = panelBuilder.posFor(ctx, px, py);
-            }
-        }
 
         // Enter row layout group, add 3 pocket slots
         var builder = panelBuilder.row().gap(0);
@@ -260,26 +222,16 @@ public class PocketsPanel {
      */
     private static void registerButtonForSlot(int hotbarIndex) {
         final int index = hotbarIndex;
-        int defaultBtnX = hotbarXStart(MKContext.SURVIVAL_INVENTORY) + hotbarIndex * SLOT_SPACING;
-        int defaultBtnY = buttonY(166);
 
+        // Button sits directly under its hotbar slot — posRelativeToHotbarSlot
+        // handles per-context hotbar position automatically.
         var builder = MKPanel.builder("pocket_btn_" + hotbarIndex)
                 .showIn(POCKET_CONTEXTS)
-                .pos(defaultBtnX, defaultBtnY)
+                .posRelativeToHotbarSlot(hotbarIndex, 0, BUTTON_Y_OFFSET)
                 .padding(0)
                 .autoSize()
                 .allowOverlap()
                 .style(MKPanel.Style.NONE);
-
-        // Per-context overrides for non-standard layouts
-        for (MKContext ctx : POCKET_CONTEXTS) {
-            if (ctx == MKContext.SURVIVAL_INVENTORY) continue;
-            int ctxBtnX = hotbarXStart(ctx) + hotbarIndex * SLOT_SPACING;
-            int ctxBtnY = buttonY(ctx.containerHeight());
-            if (ctxBtnX != defaultBtnX || ctxBtnY != defaultBtnY) {
-                builder = builder.posFor(ctx, ctxBtnX, ctxBtnY);
-            }
-        }
 
         builder
                 .button(0, 0)
@@ -294,21 +246,18 @@ public class PocketsPanel {
     }
 
     /**
-     * Persists disabled slot state via a dedicated panel's onSave/onLoad.
-     * We use a "pocket_disabled" panel (hidden, no slots) purely as a
-     * persistence hook — MenuKit calls onSave/onLoad on all panels.
+     * Persists disabled slot state using MenuKit's standalone persistence API.
+     * No dummy panel needed — registerPersistence hooks directly into the
+     * same player NBT save/load lifecycle that panels use.
+     *
+     * Key is "panel_pocket_disabled" for backward compatibility — the old
+     * dummy-panel approach wrote to output.child("panel_" + panelName).
      */
     private static void registerDisabledSlotPersistence() {
-        MKPanel.builder("pocket_disabled")
-                .showIn(MKContext.SURVIVAL_INVENTORY) // must show in at least one context to exist
-                .pos(0, 0)
-                .padding(0)
-                .style(MKPanel.Style.NONE)
-                .hidden()       // never visible
-                .allowOverlap()
-                .onSave(output -> {
-                    // Save each hotbar slot's disabled set as comma-separated string
-                    // e.g., hotbar 3 with slots 0 and 2 disabled → "0,2"
+        MenuKit.registerPersistence("panel_pocket_disabled",
+                // Save: write each hotbar slot's disabled set as comma-separated string.
+                // e.g., hotbar 3 with slots 0 and 2 disabled → "0,2"
+                output -> {
                     for (int h = 0; h < 9; h++) {
                         Set<Integer> disabled = disabledSlots[h];
                         if (!disabled.isEmpty()) {
@@ -320,9 +269,9 @@ public class PocketsPanel {
                             output.putString("pocket_" + h, sb.toString());
                         }
                     }
-                })
-                .onLoad(input -> {
-                    // Restore disabled sets from saved strings
+                },
+                // Load: restore disabled sets from saved comma-separated strings.
+                input -> {
                     for (int h = 0; h < 9; h++) {
                         final int hotbar = h;
                         disabledSlots[hotbar].clear();
@@ -335,8 +284,8 @@ public class PocketsPanel {
                         });
                     }
                     InventoryPlus.LOGGER.info("[Pockets] Loaded disabled slots");
-                })
-                .build();
+                }
+        );
     }
 
     /**

@@ -1,7 +1,10 @@
 package com.trevorschoeny.inventoryplus;
 
+import com.trevorschoeny.menukit.MKEventResult;
 import com.trevorschoeny.menukit.MKFamily;
+import com.trevorschoeny.menukit.MKSlotEvent;
 import com.trevorschoeny.menukit.MenuKit;
+import com.trevorschoeny.inventoryplus.network.PeekC2SPayload;
 import dev.isxander.yacl3.api.ConfigCategory;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.OptionDescription;
@@ -12,6 +15,7 @@ import dev.isxander.yacl3.api.controller.TickBoxControllerBuilder;
 import com.trevorschoeny.menukit.MKContext;
 import com.trevorschoeny.menukit.MKPanel;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -44,6 +48,40 @@ public class InventoryPlusClient implements ClientModInitializer {
         // Container Peek — client-side panel + packet handler
         ContainerPeekClient.registerPanel();
         ContainerPeekClient.registerClientHandler();
+
+        // Container Peek — right-click handler via MenuKit event system.
+        // This single handler replaces both IPPeekClickMixin (standard screens)
+        // and IPCreativePeekMixin (creative inventory). The event system
+        // normalizes slot detection across all screen types, so we don't need
+        // separate mixins for creative vs. survival.
+        MenuKit.on(MKSlotEvent.Type.RIGHT_CLICK)
+                .playerInventory()  // only fire for slots in the player's own inventory
+                .handler(event -> {
+                    // Only peek items that are peekable (shulker boxes, bundles, ender chests)
+                    if (!ContainerPeek.isPeekable(event.getSlotStack())) {
+                        return MKEventResult.PASS;
+                    }
+
+                    // Resolve the unified player inventory position.
+                    // This works identically for survival, creative, and any other
+                    // screen type — the event system handles the mapping for us.
+                    int unifiedPos = event.getUnifiedPlayerPos();
+                    if (unifiedPos < 0) {
+                        return MKEventResult.PASS;
+                    }
+
+                    // Toggle: if already peeking at this position, close the peek;
+                    // otherwise open a peek at the new position.
+                    if (ContainerPeekClient.getPeekedSlot() == unifiedPos) {
+                        ClientPlayNetworking.send(new PeekC2SPayload(-1));
+                    } else {
+                        ClientPlayNetworking.send(new PeekC2SPayload(unifiedPos));
+                    }
+
+                    // CONSUMED cancels vanilla right-click behavior (which would
+                    // normally pick up half the stack)
+                    return MKEventResult.CONSUMED;
+                });
 
         // General option: toggle the settings gear button visibility
         family.generalOption("show_settings_button",
