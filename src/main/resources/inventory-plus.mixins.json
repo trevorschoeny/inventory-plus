@@ -8,7 +8,9 @@
     "IPFallFlyingMixin",
     "IPTotemMixin",
     "IPMendingMixin",
-    "IPDeathDropsMixin"
+    "IPDeathDropsMixin",
+    "IPAutoRestockMixin",
+    "IPAutoReplaceMixin"
   ],
   "client": [
     "IPWingsLayerMixin"

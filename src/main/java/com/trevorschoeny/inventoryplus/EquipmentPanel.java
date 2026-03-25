@@ -2,6 +2,7 @@ package com.trevorschoeny.inventoryplus;
 
 import com.trevorschoeny.menukit.MKContext;
 import com.trevorschoeny.menukit.MKPanel;
+import com.trevorschoeny.menukit.MenuKit;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Items;
 
@@ -55,7 +56,7 @@ public class EquipmentPanel {
                 .padding(0)                      // no padding — exact placement
                 .autoSize()
                 .style(MKPanel.Style.NONE)       // invisible background — blends with inventory
-                .shiftClickIn(true)              // allow shift-clicking elytra/totem into these slots
+                .shiftClickIn(false)             // equipment slots are destination-only; items reach here via custom routing
                 .shiftClickOut(true)             // allow shift-clicking items out of equipment slots
 
                 // Slot 0: Passive elytra — grants flight without wearing in chest slot
@@ -77,6 +78,18 @@ public class EquipmentPanel {
                     .done()
 
                 .build();
+
+        // ── Shift-click priority routes ─────────────────────────────────────
+        // Without these, shift-clicking an elytra or totem would send them to
+        // a random inventory slot because the equipment panel has shiftClickIn=false
+        // (to prevent arbitrary items from landing here). Priority routes bypass
+        // that flag for specific item types that have a "natural home" in this panel.
+
+        // Elytra → equipment slot 0 (the passive elytra slot)
+        MenuKit.shiftClickPriority(EquipmentPanel::isElytra, "equipment", 0);
+
+        // Totem of Undying → equipment slot 1 (the passive totem slot)
+        MenuKit.shiftClickPriority(stack -> stack.is(Items.TOTEM_OF_UNDYING), "equipment", 1);
     }
 
     /** Checks if an item is any type of elytra (vanilla or modded). */

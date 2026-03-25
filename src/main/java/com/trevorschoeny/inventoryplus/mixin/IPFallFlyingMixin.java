@@ -51,7 +51,12 @@ public class IPFallFlyingMixin {
         // Save whatever is in the chest slot (armor or empty) and put elytra copy in.
         // Using a copy so saves mid-method always capture the elytra in our container.
         inventoryPlus$savedChestItem = player.getItemBySlot(EquipmentSlot.CHEST);
-        player.setItemSlot(EquipmentSlot.CHEST, elytra.copy());
+        // Write directly via Inventory.setItem() instead of setItemSlot() — setItemSlot triggers
+        // onEquipItem(), which fires the elytra equip sound and equipment change packets.
+        // This swap is purely mechanical: vanilla just needs to see the elytra in the slot
+        // during updateFallFlying(). Unified inventory slot 38 = chestplate (36=boots, 37=leggings,
+        // 38=chestplate, 39=helmet). setItem() writes to the backing list directly, no equip event.
+        player.getInventory().setItem(38, elytra.copy());
         inventoryPlus$isSwapped = true;
     }
 
@@ -82,8 +87,9 @@ public class IPFallFlyingMixin {
             }
         }
 
-        // Restore original chest contents (armor or empty)
-        player.setItemSlot(EquipmentSlot.CHEST, inventoryPlus$savedChestItem);
+        // Restore original chest contents (armor or empty).
+        // Again using setItem() directly to avoid the equip sound from setItemSlot().
+        player.getInventory().setItem(38, inventoryPlus$savedChestItem);
         inventoryPlus$savedChestItem = ItemStack.EMPTY;
         inventoryPlus$isSwapped = false;
     }
