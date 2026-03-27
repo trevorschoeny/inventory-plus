@@ -10,7 +10,8 @@
     "IPMendingMixin",
     "IPDeathDropsMixin",
     "IPAutoRestockMixin",
-    "IPAutoReplaceMixin"
+    "IPAutoReplaceMixin",
+    "IPAutoRouteMixin"
   ],
   "client": [
     "IPWingsLayerMixin"

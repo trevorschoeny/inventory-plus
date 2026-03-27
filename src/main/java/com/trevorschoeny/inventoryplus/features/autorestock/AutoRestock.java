@@ -1,10 +1,19 @@
 package com.trevorschoeny.inventoryplus.features.autorestock;
 
 import com.trevorschoeny.inventoryplus.InventoryPlus;
+import net.minecraft.core.NonNullList;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.BundleContents;
+import net.minecraft.world.item.component.ItemContainerContents;
+import net.minecraft.world.level.block.ShulkerBoxBlock;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Autorestock: when the player's currently selected hotbar slot drops to zero
@@ -54,7 +63,10 @@ public final class AutoRestock {
 
         if (current.isEmpty() && previousItem != null) {
             // Selected slot transitioned from non-empty to empty — try to restock.
-            // Search main inventory (slots 9-35) for a stack of the same Item type.
+            // Priority: loose inventory first, then shulker boxes, then bundles.
+            // This ordering keeps the most accessible items flowing in first.
+
+            // 1. Search main inventory (slots 9-35) for a loose stack
             int sourceSlot = findMatchingSlot(inv, previousItem);
 
             if (sourceSlot >= 0) {
@@ -68,6 +80,32 @@ public final class AutoRestock {
                 InventoryPlus.LOGGER.debug(
                         "[AutoRestock] Restocked slot {} with {} from slot {}",
                         selectedSlot, sourceStack.getHoverName().getString(), sourceSlot);
+            }
+
+            // 2. No loose stack found — try extracting from shulker boxes
+            if (sourceSlot < 0) {
+                ItemStack extracted = extractFromShulker(inv, previousItem);
+                if (!extracted.isEmpty()) {
+                    inv.setItem(selectedSlot, extracted);
+                    current = extracted;
+
+                    InventoryPlus.LOGGER.debug(
+                            "[AutoRestock] Restocked slot {} with {} from shulker box",
+                            selectedSlot, extracted.getHoverName().getString());
+                }
+            }
+
+            // 3. Still nothing — try extracting from bundles
+            if (current.isEmpty()) {
+                ItemStack extracted = extractFromBundle(inv, previousItem);
+                if (!extracted.isEmpty()) {
+                    inv.setItem(selectedSlot, extracted);
+                    current = extracted;
+
+                    InventoryPlus.LOGGER.debug(
+                            "[AutoRestock] Restocked slot {} with {} from bundle",
+                            selectedSlot, extracted.getHoverName().getString());
+                }
             }
         }
 
@@ -91,6 +129,112 @@ public final class AutoRestock {
             }
         }
         return -1;
+    }
+
+    // ── Shulker Extraction ─────────────────────────────────────────────────
+
+    /** Shulker boxes always have 27 slots. */
+    private static final int SHULKER_SIZE = 27;
+
+    /**
+     * Extracts a full stack of the given item type from the first shulker box
+     * in the player's inventory that contains it.
+     *
+     * <p>Uses the same read-modify-write pattern on {@link ItemContainerContents}
+     * as {@code AutoFill.extractFromShulkers}. Matches by Item type only (not
+     * components) — same rationale as {@link #findMatchingSlot}: the player
+     * wants ANY stack of the same item to refill their hotbar.
+     *
+     * @param inv        the player's inventory
+     * @param targetItem the item type to extract
+     * @return the extracted stack, or {@link ItemStack#EMPTY} if none found
+     */
+    private static ItemStack extractFromShulker(Inventory inv, Item targetItem) {
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            ItemStack containerStack = inv.getItem(i);
+            if (!isShulkerBox(containerStack)) continue;
+
+            ItemContainerContents contents = containerStack.get(DataComponents.CONTAINER);
+            if (contents == null) continue;
+
+            // Read shulker items into a mutable list
+            NonNullList<ItemStack> items = NonNullList.withSize(SHULKER_SIZE, ItemStack.EMPTY);
+            contents.copyInto(items);
+
+            // Find the first matching item in this shulker
+            for (int j = 0; j < items.size(); j++) {
+                ItemStack shulkerItem = items.get(j);
+                if (shulkerItem.isEmpty() || !shulkerItem.is(targetItem)) continue;
+
+                // Take the entire slot — move it directly to the hotbar
+                ItemStack result = shulkerItem.copy();
+                items.set(j, ItemStack.EMPTY);
+
+                // Write back modified shulker contents
+                containerStack.set(DataComponents.CONTAINER,
+                        ItemContainerContents.fromItems(items));
+
+                return result;
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    // ── Bundle Extraction ────────────────────────────────────────────────
+
+    /**
+     * Extracts items of the given type from the first bundle in the player's
+     * inventory that contains them.
+     *
+     * <p>Bundles use {@link BundleContents} instead of {@link ItemContainerContents}.
+     * We iterate the bundle's items, collect matching ones (up to max stack size),
+     * and rebuild the BundleContents without the extracted items.
+     *
+     * @param inv        the player's inventory
+     * @param targetItem the item type to extract
+     * @return the extracted stack, or {@link ItemStack#EMPTY} if none found
+     */
+    private static ItemStack extractFromBundle(Inventory inv, Item targetItem) {
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            ItemStack bundleStack = inv.getItem(i);
+            BundleContents contents = bundleStack.get(DataComponents.BUNDLE_CONTENTS);
+            if (contents == null) continue;
+
+            // Collect matching and non-matching items separately
+            ItemStack result = ItemStack.EMPTY;
+            List<ItemStack> remaining = new ArrayList<>();
+            boolean found = false;
+
+            for (ItemStack bundleItem : contents.items()) {
+                if (bundleItem.isEmpty()) continue;
+
+                if (!found && bundleItem.is(targetItem)) {
+                    // Take this entire stack as the restock source
+                    result = bundleItem.copy();
+                    found = true;
+                    // Don't add to remaining — it's been extracted
+                } else {
+                    remaining.add(bundleItem.copy());
+                }
+            }
+
+            if (found) {
+                // Rebuild the bundle without the extracted item
+                bundleStack.set(DataComponents.BUNDLE_CONTENTS,
+                        new BundleContents(remaining));
+                return result;
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────
+
+    /** Returns true if the given ItemStack is a shulker box item. */
+    private static boolean isShulkerBox(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        return stack.getItem() instanceof BlockItem bi
+                && bi.getBlock() instanceof ShulkerBoxBlock;
     }
 
     private AutoRestock() {} // Utility class — no instantiation

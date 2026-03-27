@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.features.autoreplace;
 
 import com.trevorschoeny.inventoryplus.InventoryPlus;
+import net.minecraft.network.chat.Component;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -114,6 +115,13 @@ public final class AutoReplace {
         ItemStack replacement = inv.getItem(bestSlot);
         inv.setItem(selectedSlot, replacement);
         inv.setItem(bestSlot, ItemStack.EMPTY);
+
+        // Notify the player via the action bar (text above hotbar, auto-fades).
+        // displayClientMessage with true = action bar overlay, not chat.
+        // The player is guaranteed to be a ServerPlayer here (mixin guards isClientSide).
+        player.displayClientMessage(
+                Component.literal("Replaced with ").append(replacement.getHoverName()),
+                true);
 
         InventoryPlus.LOGGER.debug(
                 "[AutoReplace] Replaced broken {} with {} from slot {}",

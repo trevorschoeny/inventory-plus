@@ -192,7 +192,8 @@ public class PocketsPanel {
                 .padding(4)
                 .style(MKPanel.Style.RAISED)
                 .hidden()
-                .allowOverlap();
+                .allowOverlap()
+                .shiftClickOut(true);
 
         // Enter row layout group, add 3 pocket slots
         var builder = panelBuilder.row().gap(0);

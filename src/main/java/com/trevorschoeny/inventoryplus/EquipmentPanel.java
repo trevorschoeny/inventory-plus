@@ -51,8 +51,8 @@ public class EquipmentPanel {
 
         MKPanel.builder("equipment")
                 .showIn(MKContext.SURVIVAL_INVENTORY, MKContext.CREATIVE_INVENTORY)
-                .pos(76, 25)                     // survival: above offhand (77,62), same column
-                .posFor(MKContext.CREATIVE_INVENTORY, 15, 10) // creative: left of offhand (35,20), stacked vertically
+                .pos(77, 25)                     // survival: above offhand (77,62), same column
+                .posFor(MKContext.CREATIVE_INVENTORY, 16, 10) // creative: left of offhand (35,20), stacked vertically
                 .padding(0)                      // no padding — exact placement
                 .autoSize()
                 .style(MKPanel.Style.NONE)       // invisible background — blends with inventory

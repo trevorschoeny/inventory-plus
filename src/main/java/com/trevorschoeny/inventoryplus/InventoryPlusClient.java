@@ -1,36 +1,51 @@
 package com.trevorschoeny.inventoryplus;
 
 import com.trevorschoeny.menukit.GeneralOption;
+import com.trevorschoeny.menukit.MKButton;
+import com.trevorschoeny.menukit.MKButtonDef;
+import com.trevorschoeny.menukit.MKContainerType;
+import com.trevorschoeny.menukit.MKContext;
 import com.trevorschoeny.menukit.MKEvent;
 import com.trevorschoeny.menukit.MKEventResult;
 import com.trevorschoeny.menukit.MKFamily;
+import com.trevorschoeny.menukit.MKGroupChild;
 import com.trevorschoeny.menukit.MKItemTips;
+import com.trevorschoeny.menukit.MKKeybind;
+import com.trevorschoeny.menukit.MKKeybindController;
+import com.trevorschoeny.menukit.MKKeybindSync;
+import com.trevorschoeny.menukit.MKKeyMapping;
+import com.trevorschoeny.menukit.MKPanel;
 import com.trevorschoeny.menukit.MKRegion;
+import com.trevorschoeny.menukit.MKRegionGroup;
+import com.trevorschoeny.menukit.MKRegionRegistry;
 import com.trevorschoeny.menukit.MKSlotEvent;
+import com.trevorschoeny.menukit.MKSlotState;
+import com.trevorschoeny.menukit.MKSlotStateRegistry;
 import com.trevorschoeny.menukit.MenuKit;
-import com.trevorschoeny.inventoryplus.network.AutoFillC2SPayload;
 import com.trevorschoeny.inventoryplus.network.BulkMoveC2SPayload;
+import com.trevorschoeny.inventoryplus.network.MoveMatchingC2SPayload;
 import com.trevorschoeny.inventoryplus.network.PeekC2SPayload;
 import com.trevorschoeny.inventoryplus.network.SortC2SPayload;
+import com.trevorschoeny.inventoryplus.network.SortLockC2SPayload;
 import dev.isxander.yacl3.api.ConfigCategory;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.OptionDescription;
 import dev.isxander.yacl3.api.OptionGroup;
-import dev.isxander.yacl3.api.controller.BooleanControllerBuilder;
+import dev.isxander.yacl3.api.controller.EnumControllerBuilder;
 import dev.isxander.yacl3.api.controller.IntegerSliderControllerBuilder;
 import dev.isxander.yacl3.api.controller.TickBoxControllerBuilder;
-import com.trevorschoeny.menukit.MKContext;
-import com.trevorschoeny.menukit.MKPanel;
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.ItemStack;
-import org.lwjgl.glfw.GLFW;
+
+import java.util.List;
 
 /**
  * Client-side entry point for Inventory Plus.
@@ -62,18 +77,22 @@ public class InventoryPlusClient implements ClientModInitializer {
     static final GeneralOption<Boolean> AUTOFILL_ENABLED =
             new GeneralOption<>("autofill_enabled", true, Boolean.class);
 
-    // Sort keybind — default unbound, user assigns in Controls.
-    // Accessible from the KEY_PRESS handler closure.
-    private static KeyMapping sortRegionKey;
+    // Sort keybind — default unbound, user configures in YACL settings.
+    // MKKeyMapping extends vanilla KeyMapping with modifier key support.
+    private static MKKeyMapping sortRegionKey;
 
-    // Autofill keybind — default unbound, user assigns in Controls.
-    // Works from gameplay (no inventory screen needed).
-    private static KeyMapping autoFillKey;
-
-    // Move Matching keybind — default unbound, user assigns in Controls.
+    // Move Matching keybind — default unbound, user configures in YACL settings.
     // When pressed while hovering a slot, moves ALL items of that type
     // out of the hovered region (reuses BulkMoveC2SPayload).
-    private static KeyMapping moveMatchingKey;
+    private static MKKeyMapping moveMatchingKey;
+
+    // Lock Slot keybind — default unbound. Press while hovering a slot to
+    // toggle sort-lock. Sort-locked slots are excluded from sorting and
+    // shift-click-in, but can still be interacted with normally.
+    private static MKKeyMapping lockSlotKey;
+
+    /** Returns the lock slot key mapping so other code can check if it's held. */
+    public static MKKeyMapping getLockSlotKey() { return lockSlotKey; }
 
     @Override
     public void onInitializeClient() {
@@ -86,57 +105,50 @@ public class InventoryPlusClient implements ClientModInitializer {
         // Get the shared keybind category from the family
         KeyMapping.Category category = family.getKeybindCategory();
 
-        // Pocket cycling keybinds (left/right arrow)
-        PocketCycler.registerKeybinds(category);
+        // Load config so keybind values are available for MKKeyMapping creation
+        InventoryPlusConfig cfg = InventoryPlusConfig.get();
+
+        // Pocket cycling keybinds (left/right arrow by default, configurable)
+        PocketCycler.registerKeybinds(category, cfg);
 
         // Sort Region keybind — default unbound. When pressed while hovering
         // a slot in an inventory screen, sends a C2S packet to sort the region
-        // that slot belongs to.
-        sortRegionKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
-                "key.trevs-mod.sort_region",
-                GLFW.GLFW_KEY_UNKNOWN,  // unbound by default — user assigns in Controls
-                category
-        ));
+        // that slot belongs to. Created from the config's MKKeybind value so
+        // modifier keys (e.g., Ctrl+S) work correctly.
+        sortRegionKey = (MKKeyMapping) KeyBindingHelper.registerKeyBinding(
+                MKKeyMapping.fromKeybind(cfg.sortKeybind,
+                        "key.trevs-mod.sort_region", category));
 
         // Move Matching Items keybind — default unbound. When pressed while
         // hovering a slot, moves ALL items of the same type out of that region.
         // Reuses the BulkMoveC2SPayload so no new server-side code is needed.
-        moveMatchingKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
-                "key.trevs-mod.move_matching",
-                GLFW.GLFW_KEY_UNKNOWN,  // unbound by default — user assigns in Controls
-                category
-        ));
+        moveMatchingKey = (MKKeyMapping) KeyBindingHelper.registerKeyBinding(
+                MKKeyMapping.fromKeybind(cfg.moveMatchingKeybind,
+                        "key.trevs-mod.move_matching", category));
 
-        // Autofill keybind — default unbound. Works from gameplay (no inventory
-        // screen required). When pressed, sends a C2S packet to trigger
-        // server-side autofill from shulker boxes in the player's inventory.
-        autoFillKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
-                "key.trevs-mod.autofill",
-                GLFW.GLFW_KEY_UNKNOWN,  // unbound by default — user assigns in Controls
-                category
-        ));
+        // Lock Slot keybind — default unbound. Press while hovering a slot to
+        // toggle sort-lock. Sort-locked slots skip sorting and shift-click-in.
+        lockSlotKey = (MKKeyMapping) KeyBindingHelper.registerKeyBinding(
+                MKKeyMapping.fromKeybind(cfg.lockSlotKeybind,
+                        "key.trevs-mod.lock_slot", category));
 
-        // Autofill — tick-based keybind handler (works outside inventory screens).
-        // Unlike sort/bulk-move which use the MenuKit event system (because they
-        // need a hovered slot), autofill operates on the entire inventory and
-        // doesn't require any screen to be open. So we use ClientTickEvents,
-        // matching the pattern used by PocketCycler.
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            // consumeClick() drains the key press queue — must be called even
-            // when we skip, so presses don't accumulate and fire later.
-            while (autoFillKey.consumeClick()) {
-                // Gate: must be connected to a server (singleplayer or multiplayer)
-                if (client.player == null) continue;
-
-                // Gate: check the family-wide toggle. This is a client-side config
-                // check — if the user disabled autofill in settings, we don't send
-                // the packet at all. The server trusts packets it receives.
-                if (!family.getGeneral(AUTOFILL_ENABLED)) continue;
-
-                // Send the trigger packet — the server does all the work
-                ClientPlayNetworking.send(new AutoFillC2SPayload());
-            }
+        // Register Controls → config sync for all IP keybinds. When the user
+        // changes a keybind in the vanilla Controls screen and closes it, these
+        // callbacks write the new combo back to config and persist to disk.
+        // Without this, keybind changes from Controls are lost on restart.
+        MKKeybindSync.register(sortRegionKey, combo -> {
+            InventoryPlusConfig.get().sortKeybind = combo;
+            InventoryPlusConfig.save();
         });
+        MKKeybindSync.register(moveMatchingKey, combo -> {
+            InventoryPlusConfig.get().moveMatchingKeybind = combo;
+            InventoryPlusConfig.save();
+        });
+        MKKeybindSync.register(lockSlotKey, combo -> {
+            InventoryPlusConfig.get().lockSlotKeybind = combo;
+            InventoryPlusConfig.save();
+        });
+        PocketCycler.registerKeybindSync();
 
         // Sort Region — KEY_PRESS handler via MenuKit event system.
         // Fires on every key press while hovering a slot. We check if the
@@ -144,13 +156,18 @@ public class InventoryPlusClient implements ClientModInitializer {
         // region, and send the sort request to the server.
         MenuKit.on(MKEvent.Type.KEY_PRESS)
                 .slotHandler(event -> {
+                    // Gate: sorting disabled in config — skip entirely
+                    if (!InventoryPlusConfig.get().enableSorting) return MKEventResult.PASS;
+
                     // Check if the pressed key matches the sort keybind.
-                    // KEY_PRESS fires at the moment the key goes down, so
-                    // isDown() will return true for the key that triggered
-                    // this event. This respects rebinds and handles modifiers
-                    // (e.g., Ctrl+S if the user binds that) correctly.
-                    // isUnbound() gate: skip if no key is assigned (default).
-                    if (sortRegionKey.isUnbound() || !sortRegionKey.isDown()) {
+                    // Uses matchesEvent() instead of isDown() because vanilla
+                    // does NOT update KeyMapping state when a screen is open —
+                    // key events go through Screen.keyPressed(), not the GLFW
+                    // callback that drives KeyMapping.set(). matchesEvent()
+                    // compares the event's key code and modifier bitmask
+                    // directly against the keybind's configured values.
+                    if (sortRegionKey.isUnbound()
+                            || !sortRegionKey.matchesEvent(event.getKeyCode(), event.getModifiers())) {
                         return MKEventResult.PASS;
                     }
 
@@ -181,10 +198,15 @@ public class InventoryPlusClient implements ClientModInitializer {
         // so we get the full behavior for free — no new packet or server code.
         MenuKit.on(MKEvent.Type.KEY_PRESS)
                 .slotHandler(event -> {
+                    // Gate: sorting disabled in config — move-matching is part of the sorting feature
+                    if (!InventoryPlusConfig.get().enableSorting) return MKEventResult.PASS;
+
                     // Check if the pressed key matches the move-matching keybind.
-                    // Same pattern as the sort handler: isUnbound() gate prevents
-                    // firing when no key is assigned (the default state).
-                    if (moveMatchingKey.isUnbound() || !moveMatchingKey.isDown()) {
+                    // Same pattern as the sort handler: matchesEvent() checks
+                    // the event's key code + modifiers directly, bypassing
+                    // vanilla's KeyMapping state which is stale in screens.
+                    if (moveMatchingKey.isUnbound()
+                            || !moveMatchingKey.matchesEvent(event.getKeyCode(), event.getModifiers())) {
                         return MKEventResult.PASS;
                     }
 
@@ -217,12 +239,61 @@ public class InventoryPlusClient implements ClientModInitializer {
                     return MKEventResult.CONSUMED;
                 });
 
+        // Lock Slot — KEY_PRESS handler via MenuKit event system.
+        // When the lock keybind is pressed while hovering a slot, we toggle
+        // that slot's sort-lock state. Sort-locked slots are excluded from
+        // sorting and from receiving shift-clicked items, but can still be
+        // interacted with normally (pick up, place, etc.). This is separate
+        // from the Ctrl+click full lock in MKSlotClickBusMixin which blocks
+        // ALL interactions.
+        MenuKit.on(MKEvent.Type.KEY_PRESS)
+                .slotHandler(event -> {
+                    // Gate: lock keybind not configured
+                    if (lockSlotKey.isUnbound()) return MKEventResult.PASS;
+
+                    // Check if the pressed key matches the lock keybind.
+                    // Uses matchesEvent() because vanilla doesn't update
+                    // KeyMapping state when a screen is open.
+                    if (!lockSlotKey.matchesEvent(event.getKeyCode(), event.getModifiers())) {
+                        return MKEventResult.PASS;
+                    }
+
+                    // Need a slot under the cursor to lock
+                    if (event.getSlot() == null) return MKEventResult.PASS;
+
+                    // Toggle the slot's sort-lock state (not the full lock).
+                    // We toggle client-side for immediate visual feedback (overlay),
+                    // then send a C2S packet so the server's MKSlotStateRegistry
+                    // has the same state — sorting and shift-click routing run
+                    // server-side and need to see the lock.
+                    MKSlotState lockState = MKSlotStateRegistry.getOrCreate(event.getSlot());
+                    lockState.toggleSortLocked();
+
+                    // Sync to server — slot index in the menu's slot list
+                    ClientPlayNetworking.send(
+                            new SortLockC2SPayload(event.getSlot().index, lockState.isSortLocked()));
+
+                    InventoryPlus.LOGGER.debug("[InventoryPlus] Sort-lock toggled: slot {} -> {}",
+                            event.getSlot().index, lockState.isSortLocked());
+
+                    // Audio feedback — subtle click so the player knows it toggled
+                    Minecraft.getInstance().getSoundManager().play(
+                            SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+
+                    // CONSUMED prevents vanilla from processing this key press
+                    return MKEventResult.CONSUMED;
+                });
+
         // Pocket HUD overlay (shows pocket items next to hotbar)
         PocketHud.register();
+
+        // Register sort/move button attachment BEFORE panels, so build() can inject
+        registerSortAttachment();
 
         // Container Peek — client-side panel + packet handler
         ContainerPeekClient.registerPanel();
         ContainerPeekClient.registerClientHandler();
+        ContainerPeekClient.registerCloseHandler();
 
         // Container Peek — right-click handler via MenuKit event system.
         // This single handler replaces both IPPeekClickMixin (standard screens)
@@ -235,6 +306,17 @@ public class InventoryPlusClient implements ClientModInitializer {
                     // Only peek items that are peekable (shulker boxes, bundles, ender chests)
                     if (!ContainerPeek.isPeekable(event.getSlotStack())) {
                         return MKEventResult.PASS;
+                    }
+
+                    // If a bundle is being scrolled through (vanilla's tooltip scrub
+                    // animation is active), let vanilla handle the right-click to pop
+                    // the selected item out. Only intercept when the bundle is "idle."
+                    if (ContainerPeek.isBundle(event.getSlotStack())) {
+                        var contents = event.getSlotStack().get(
+                                net.minecraft.core.component.DataComponents.BUNDLE_CONTENTS);
+                        if (contents != null && contents.hasSelectedItem()) {
+                            return MKEventResult.PASS;
+                        }
                     }
 
                     // Resolve the unified player inventory position.
@@ -317,79 +399,91 @@ public class InventoryPlusClient implements ClientModInitializer {
                         .controller(TickBoxControllerBuilder::create)
                         .build());
 
-        // General option: toggle autofill from shulker boxes. When disabled,
-        // the autofill keybind does nothing. Checked client-side before sending
-        // the C2S packet, so the server never receives the request.
-        family.generalOption(AUTOFILL_ENABLED,
-                Option.<Boolean>createBuilder()
-                        .name(Component.literal("Enable Autofill"))
-                        .description(OptionDescription.of(
-                                Component.literal("When enabled, the Autofill keybind tops off partial " +
-                                        "stacks in your inventory from shulker boxes. Also fills empty " +
-                                        "hotbar slots with items matching what's already in the hotbar.")))
-                        .binding(true,
-                                () -> family.getGeneral(AUTOFILL_ENABLED),
-                                val -> family.setGeneral(AUTOFILL_ENABLED, val))
-                        .controller(TickBoxControllerBuilder::create)
-                        .build());
+        // NOTE: The 4 IP-specific general options (autofill, auto-restock,
+        // auto-replace tools, show item tips) are stored via family.getGeneral()
+        // / family.setGeneral() but their UI lives in the Inventory Plus config
+        // category tab — see buildConfigCategory(). Only SHOW_SETTINGS_BUTTON
+        // stays in the family General tab because it's a family-wide UI toggle.
 
-        // General option: auto-restock depleted hotbar items from inventory.
-        // When the last item in a hotbar slot is consumed (block placed, food eaten,
-        // projectile thrown), the same item type is pulled from the main inventory
-        // to refill that slot. Server-side feature — the toggle is checked each tick.
-        family.generalOption(AUTO_RESTOCK,
-                Option.<Boolean>createBuilder()
-                        .name(Component.literal("Auto-Restock"))
-                        .description(OptionDescription.of(
-                                Component.literal("Automatically refill hotbar slots when the last item " +
-                                        "is used. Pulls matching items from your main inventory.")))
-                        .binding(true,
-                                () -> family.getGeneral(AUTO_RESTOCK),
-                                val -> family.setGeneral(AUTO_RESTOCK, val))
-                        .controller(TickBoxControllerBuilder::create)
-                        .build());
-
-        // General option: auto-replace broken tools with the same type from inventory.
-        // When a tool's durability is fully depleted, a replacement tool of the same
-        // category (pickaxe, axe, shovel, sword, hoe) is moved into the hotbar slot.
-        // Prefers higher-tier tools (netherite > diamond > iron > etc.).
-        family.generalOption(AUTO_REPLACE_TOOLS,
-                Option.<Boolean>createBuilder()
-                        .name(Component.literal("Auto-Replace Tools"))
-                        .description(OptionDescription.of(
-                                Component.literal("Automatically equip a replacement tool when your " +
-                                        "current tool breaks. Searches your inventory for the same tool " +
-                                        "type (pickaxe, axe, etc.) and prefers higher-tier replacements.")))
-                        .binding(true,
-                                () -> family.getGeneral(AUTO_REPLACE_TOOLS),
-                                val -> family.setGeneral(AUTO_REPLACE_TOOLS, val))
-                        .controller(TickBoxControllerBuilder::create)
-                        .build());
-
-        // General option: toggle enriched item tooltips (durability, food stats,
-        // inventory totals). The descriptor lives in MKItemTips so MenuKitClient
-        // can read it when the callback fires. We register the YACL option here
-        // because InventoryPlus owns the config UI for this family.
-        family.generalOption(MKItemTips.SHOW_ITEM_TIPS,
-                Option.<Boolean>createBuilder()
-                        .name(Component.literal("Show Item Tips"))
-                        .description(OptionDescription.of(
-                                Component.literal("Show extra info in item tooltips: durability with " +
-                                        "color coding, food nutrition and saturation, and total count " +
-                                        "of the item across your inventory.")))
-                        .binding(true,
-                                () -> family.getGeneral(MKItemTips.SHOW_ITEM_TIPS),
-                                val -> family.setGeneral(MKItemTips.SHOW_ITEM_TIPS, val))
-                        .controller(TickBoxControllerBuilder::create)
-                        .build());
-
-        // Register config category with the family (mod ID enables tab auto-focus)
+        // Register config category with the family (mod ID enables tab auto-focus).
+        // We pass the family reference so buildConfigCategory can create YACL
+        // bindings for general options (stored in the family config file) alongside
+        // IP-specific options (stored in inventory-plus.json).
         family.configCategory(InventoryPlus.MOD_ID, "Inventory Plus",
-                InventoryPlusClient::buildConfigCategory,
-                () -> { InventoryPlusConfig.save(); PocketsPanel.applyConfig(); });
+                () -> buildConfigCategory(family),
+                () -> {
+                    // Persist config to disk
+                    InventoryPlusConfig.save();
+                    PocketsPanel.applyConfig();
+
+                    // Sync YACL keybind values to runtime MKKeyMapping instances.
+                    // This updates both the base key and the modifier bitmask, then
+                    // calls KeyMapping.resetMapping() to rebuild vanilla's lookup table.
+                    InventoryPlusConfig saved = InventoryPlusConfig.get();
+                    sortRegionKey.updateFromKeybind(saved.sortKeybind);
+                    moveMatchingKey.updateFromKeybind(saved.moveMatchingKeybind);
+                    lockSlotKey.updateFromKeybind(saved.lockSlotKeybind);
+                    PocketCycler.syncKeybinds(saved);
+                });
 
         // Settings button — shared across the family, hidden when general option is off
         family.sharedPanel("trevmods_settings", () -> registerSettingsButton(family));
+    }
+
+    // ── Sort / Move Matching Button Attachment ──────────────────────────────
+
+    /**
+     * Registers a unified button attachment for sort + move matching.
+     * One call handles ALL SIMPLE containers:
+     * <ul>
+     *   <li>MenuKit panels (peek, custom): buttons injected into tree at build time</li>
+     *   <li>Vanilla panels (player inv, chests): overlay panels at resolution time</li>
+     * </ul>
+     *
+     * <p>Must be called BEFORE any panels with SIMPLE SlotGroups are built.
+     */
+    private static void registerSortAttachment() {
+        MenuKit.buttonAttachment("ip_sort")
+                .forContainerType(MKContainerType.SIMPLE)
+                .above()
+                .gap(2)
+                .overlayOffset(1, -2)
+                .excludeRegion(name -> name.startsWith("pocket_"))
+                .disabledWhen(() -> !InventoryPlusConfig.get().enableSorting
+                        || !InventoryPlusConfig.get().showSortButton)
+                .buttons(regionName -> java.util.List.of(
+                        // Move matching button (left) — hides when < 2 SIMPLE containers
+                        new MKGroupChild.Button(new MKButtonDef(
+                                0, 0, 9, 9,
+                                net.minecraft.resources.Identifier.fromNamespaceAndPath("inventory-plus",
+                                        "move_matching"),
+                                null, 9,
+                                Component.empty(),
+                                false, false, null,
+                                btn -> onMoveMatchingClick(regionName),
+                                null,
+                                Component.literal("Move Matching Items Here"),
+                                null, null, null,
+                                MKButton.ButtonStyle.NONE,
+                                false, () -> countOpenSimpleContainers() <= 1, null
+                        ), "ip_move:" + regionName),
+                        // Sort button (right)
+                        new MKGroupChild.Button(new MKButtonDef(
+                                0, 0, 9, 9,
+                                net.minecraft.resources.Identifier.fromNamespaceAndPath("inventory-plus",
+                                        "sort_items"),
+                                null, 9,
+                                Component.empty(),
+                                false, false, null,
+                                btn -> ClientPlayNetworking.send(new SortC2SPayload(regionName)),
+                                null,
+                                Component.literal("Sort Items"),
+                                null, null, null,
+                                MKButton.ButtonStyle.NONE,
+                                false, null, null
+                        ), "ip_sort:" + regionName)
+                ))
+                .register();
     }
 
     // ── Settings Button ────────────────────────────────────────────────────
@@ -418,18 +512,242 @@ public class InventoryPlusClient implements ClientModInitializer {
                 .build();
     }
 
+    // ── Conditional Element Helpers ─────────────────────────────────────────
+
+    /**
+     * Handles the move-matching button click for a given region. Resolves
+     * the source and destination groups at click time:
+     * <ul>
+     *   <li>Destination = the first group containing this region</li>
+     *   <li>Source = the first group that does NOT contain this region
+     *       but has at least one SIMPLE region (sortable storage)</li>
+     * </ul>
+     *
+     * @param regionName the destination region (the one whose button was clicked)
+     */
+    static void onMoveMatchingClick(String regionName) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+
+        var menu = mc.player.containerMenu;
+        if (menu == null) return;
+
+        // Find the first group that contains this region (= destination)
+        List<MKRegionGroup> destGroups =
+                MKRegionRegistry.getGroupsForRegion(menu, regionName);
+        if (destGroups.isEmpty()) return;
+
+        String destGroupName = destGroups.get(0).name();
+
+        // Find the "opposite" group: a group that does NOT contain this region.
+        // For chest regions, this finds player_storage. For player regions, this
+        // finds container_storage. The source must have at least one SIMPLE
+        // region (we don't want to pull from armor/crafting groups).
+        List<MKRegionGroup> allGroups = MKRegionRegistry.getGroups(menu);
+        String sourceGroupName = null;
+        for (MKRegionGroup group : allGroups) {
+            if (group.name().equals(destGroupName)) continue;
+
+            boolean hasSortable = false;
+            for (MKRegion r : group.regions()) {
+                if (r.containerType() == MKContainerType.SIMPLE && r.size() >= 4) {
+                    hasSortable = true;
+                    break;
+                }
+            }
+            if (hasSortable) {
+                sourceGroupName = group.name();
+                break;
+            }
+        }
+
+        // Can't move matching without both a source and destination
+        if (sourceGroupName == null) return;
+
+        // Pass the "include hotbar" config so the server can filter accordingly
+        boolean includeHotbar = InventoryPlusConfig.get().includeHotbarInMoveMatching;
+        ClientPlayNetworking.send(
+                new MoveMatchingC2SPayload(sourceGroupName, destGroupName, includeHotbar));
+    }
+
+    /**
+     * Counts how many SIMPLE-typed regions are currently resolved for the
+     * player's active menu. Used by the move-matching conditional rule to
+     * auto-disable when there's only one SIMPLE container (e.g., just the
+     * player inventory with no chest/peek open) — move matching needs both
+     * a source and destination.
+     *
+     * <p>Evaluated at render time via {@code disabledWhen()}, so the button
+     * appears/disappears dynamically as containers open and close.
+     *
+     * @return the number of SIMPLE regions in the current menu, or 0 if
+     *         the player or menu is unavailable
+     */
+    static int countOpenSimpleContainers() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.player.containerMenu == null) return 0;
+
+        int count = 0;
+        for (MKRegion region : MKRegionRegistry.getRegions(mc.player.containerMenu)) {
+            if (region.containerType() == MKContainerType.SIMPLE
+                    && !region.name().startsWith("pocket_")) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     // ── Config ──────────────────────────────────────────────────────────────
 
     /**
      * Builds the YACL config category for Inventory Plus.
      * Called each time the config screen opens to read fresh values.
+     *
+     * <p>Contains both IP-specific options (stored in inventory-plus.json)
+     * and general options (stored in menukit-family-trevmods.json) whose
+     * UI belongs in the IP tab rather than the family General tab.
+     *
+     * @param family the family instance for reading/writing general options
      */
-    static ConfigCategory buildConfigCategory() {
+    static ConfigCategory buildConfigCategory(MKFamily family) {
         InventoryPlusConfig cfg = InventoryPlusConfig.get();
 
         return ConfigCategory.createBuilder()
                 .name(Component.literal("Inventory Plus"))
-                .tooltip(Component.literal("Extra equipment slots and pocket storage"))
+                .tooltip(Component.literal("Inventory automation, sorting, equipment, and pockets"))
+
+                // ── Item Movement group ─────────────────────────────────────
+                // These options control automatic item movement behaviors.
+                // Storage uses family general config (menukit-family-trevmods.json)
+                // so server-side mixins can read them without depending on IP config.
+                .group(OptionGroup.createBuilder()
+                        .name(Component.literal("Item Movement"))
+                        .description(OptionDescription.of(Component.literal(
+                                "Automatic item movement and inventory management features.")))
+                        .option(Option.<Boolean>createBuilder()
+                                .name(Component.literal("Auto-Fill"))
+                                .description(OptionDescription.of(Component.literal(
+                                        "Items you pick up will automatically fill shulker boxes " +
+                                        "and bundles in your inventory with that item.")))
+                                .binding(true,
+                                        () -> family.getGeneral(AUTOFILL_ENABLED),
+                                        val -> family.setGeneral(AUTOFILL_ENABLED, val))
+                                .controller(TickBoxControllerBuilder::create)
+                                .build())
+                        .option(Option.<Boolean>createBuilder()
+                                .name(Component.literal("Enable Auto-Restock"))
+                                .description(OptionDescription.of(Component.literal(
+                                        "Automatically refill hotbar slots when the last item is used. " +
+                                        "Pulls matching items from your inventory, including from " +
+                                        "shulker boxes and bundles.")))
+                                .binding(true,
+                                        () -> family.getGeneral(AUTO_RESTOCK),
+                                        val -> family.setGeneral(AUTO_RESTOCK, val))
+                                .controller(TickBoxControllerBuilder::create)
+                                .build())
+                        .option(Option.<Boolean>createBuilder()
+                                .name(Component.literal("Auto-Replace Tools"))
+                                .description(OptionDescription.of(Component.literal(
+                                        "Automatically equip a replacement tool from your inventory " +
+                                        "when your current one breaks.")))
+                                .binding(true,
+                                        () -> family.getGeneral(AUTO_REPLACE_TOOLS),
+                                        val -> family.setGeneral(AUTO_REPLACE_TOOLS, val))
+                                .controller(TickBoxControllerBuilder::create)
+                                .build())
+                        .option(Option.<Boolean>createBuilder()
+                                .name(Component.literal("Show Item Tips"))
+                                .description(OptionDescription.of(Component.literal(
+                                        "Show extra info in item tooltips.")))
+                                .binding(true,
+                                        () -> family.getGeneral(MKItemTips.SHOW_ITEM_TIPS),
+                                        val -> family.setGeneral(MKItemTips.SHOW_ITEM_TIPS, val))
+                                .controller(TickBoxControllerBuilder::create)
+                                .build())
+                        .option(Option.<Boolean>createBuilder()
+                                .name(Component.literal("Include Hotbar"))
+                                .description(OptionDescription.of(Component.literal(
+                                        "Include hotbar items when moving matching items " +
+                                        "from your inventory.")))
+                                .binding(true,
+                                        () -> cfg.includeHotbarInMoveMatching,
+                                        val -> cfg.includeHotbarInMoveMatching = val)
+                                .controller(TickBoxControllerBuilder::create)
+                                .build())
+                        // Move Matching keybind — inline capture via MKKeybindController.
+                        .option(Option.<MKKeybind>createBuilder()
+                                .name(Component.literal("Move Matching"))
+                                .description(OptionDescription.of(Component.literal(
+                                        "Hover a slot and press this keybind to move all matching items " +
+                                        "out of that region. Click to set a key, Delete to clear.")))
+                                .binding(MKKeybind.UNBOUND,
+                                        () -> cfg.moveMatchingKeybind,
+                                        val -> cfg.moveMatchingKeybind = val)
+                                .customController(opt -> new MKKeybindController(opt, moveMatchingKey))
+                                .build())
+                        // Lock Slot keybind — inline capture via MKKeybindController.
+                        .option(Option.<MKKeybind>createBuilder()
+                                .name(Component.literal("Lock Slot"))
+                                .description(OptionDescription.of(Component.literal(
+                                        "Press while hovering a slot to lock/unlock it. Locked slots " +
+                                        "are excluded from sorting and shift-click-in, but can still " +
+                                        "be interacted with normally. Click to set a key, Delete to clear.")))
+                                .binding(MKKeybind.UNBOUND,
+                                        () -> cfg.lockSlotKeybind,
+                                        val -> cfg.lockSlotKeybind = val)
+                                .customController(opt -> new MKKeybindController(opt, lockSlotKey))
+                                .build())
+                        .build())
+
+                // ── Sorting group ───────────────────────────────────────────
+                .group(OptionGroup.createBuilder()
+                        .name(Component.literal("Sorting"))
+                        .description(OptionDescription.of(Component.literal(
+                                "Container and inventory sorting options.")))
+                        .option(Option.<Boolean>createBuilder()
+                                .name(Component.literal("Enable Sorting"))
+                                .description(OptionDescription.of(Component.literal(
+                                        "Master toggle for sorting. When off, the sort keybind " +
+                                        "does nothing and the sort button is hidden.")))
+                                .binding(true, () -> cfg.enableSorting, val -> cfg.enableSorting = val)
+                                .controller(TickBoxControllerBuilder::create)
+                                .build())
+                        // Sort Region keybind — inline capture via MKKeybindController.
+                        // Click the option to enter capture mode, then press any key
+                        // (with optional modifiers) to set the binding. Supports Ctrl+K,
+                        // Shift+F5, etc. Delete/Backspace clears to unbound.
+                        .option(Option.<MKKeybind>createBuilder()
+                                .name(Component.literal("Sort Region"))
+                                .description(OptionDescription.of(Component.literal(
+                                        "Hover over a container and press this keybind to sort items. " +
+                                        "Click to set a key, Delete to clear.")))
+                                .binding(MKKeybind.UNBOUND,
+                                        () -> cfg.sortKeybind,
+                                        val -> cfg.sortKeybind = val)
+                                .customController(opt -> new MKKeybindController(opt, sortRegionKey))
+                                .build())
+                        .option(Option.<SortMethod>createBuilder()
+                                .name(Component.literal("Sorting Method"))
+                                .description(OptionDescription.of(Component.literal(
+                                        "How items are ordered after sorting. 'Sort by Most Items' " +
+                                        "groups your bulk materials first, then sorts by ID. " +
+                                        "'Sort by ID' sorts alphabetically by Minecraft registry ID.")))
+                                .binding(SortMethod.MOST_ITEMS,
+                                        () -> cfg.sortMethod,
+                                        val -> cfg.sortMethod = val)
+                                .controller(opt -> EnumControllerBuilder.create(opt)
+                                        .enumClass(SortMethod.class)
+                                        .formatValue(v -> Component.literal(v.displayName())))
+                                .build())
+                        .option(Option.<Boolean>createBuilder()
+                                .name(Component.literal("Show Sort Button"))
+                                .description(OptionDescription.of(Component.literal(
+                                        "Show a sort button in inventory screens. Sorting still " +
+                                        "works via keybind regardless of this setting.")))
+                                .binding(true, () -> cfg.showSortButton, val -> cfg.showSortButton = val)
+                                .controller(TickBoxControllerBuilder::create)
+                                .build())
+                        .build())
 
                 // ── Equipment group ─────────────────────────────────────────
                 .group(OptionGroup.createBuilder()
@@ -443,7 +761,7 @@ public class InventoryPlusClient implements ClientModInitializer {
                                         "An elytra placed here grants flight without using the chest armor slot, " +
                                         "so you can wear armor and fly at the same time.")))
                                 .binding(true, () -> cfg.enableElytraSlot, val -> cfg.enableElytraSlot = val)
-                                .controller(BooleanControllerBuilder::create)
+                                .controller(TickBoxControllerBuilder::create)
                                 .build())
                         .option(Option.<Boolean>createBuilder()
                                 .name(Component.literal("Totem Slot"))
@@ -452,7 +770,7 @@ public class InventoryPlusClient implements ClientModInitializer {
                                         "A Totem of Undying placed here saves you from death without " +
                                         "needing to hold it in your hand.")))
                                 .binding(true, () -> cfg.enableTotemSlot, val -> cfg.enableTotemSlot = val)
-                                .controller(BooleanControllerBuilder::create)
+                                .controller(TickBoxControllerBuilder::create)
                                 .build())
                         .build())
 
@@ -469,12 +787,12 @@ public class InventoryPlusClient implements ClientModInitializer {
                                         "Disabling hides all pocket UI — items are preserved and return " +
                                         "when re-enabled.")))
                                 .binding(true, () -> cfg.enablePockets, val -> cfg.enablePockets = val)
-                                .controller(BooleanControllerBuilder::create)
+                                .controller(TickBoxControllerBuilder::create)
                                 .build())
                         .option(Option.<Integer>createBuilder()
                                 .name(Component.literal("Slots per Pocket"))
                                 .description(OptionDescription.of(Component.literal(
-                                        "How many extra slots each hotbar position gets (1–3). " +
+                                        "How many extra slots each hotbar position gets (1-3). " +
                                         "Slots beyond this count are hidden and excluded from cycling. " +
                                         "Items in hidden slots are preserved.")))
                                 .binding(3, () -> cfg.pocketSlotCount, val -> cfg.pocketSlotCount = val)
@@ -488,7 +806,28 @@ public class InventoryPlusClient implements ClientModInitializer {
                                         "Shows a small preview of pocket contents above the hotbar. " +
                                         "Disabling only hides the overlay — cycling still works.")))
                                 .binding(true, () -> cfg.showPocketHud, val -> cfg.showPocketHud = val)
-                                .controller(BooleanControllerBuilder::create)
+                                .controller(TickBoxControllerBuilder::create)
+                                .build())
+                        // Pocket cycle keybinds — inline capture via MKKeybindController.
+                        .option(Option.<MKKeybind>createBuilder()
+                                .name(Component.literal("Cycle Right"))
+                                .description(OptionDescription.of(Component.literal(
+                                        "Keybind to cycle the selected hotbar slot's pocket forward. " +
+                                        "Click to set a key, Delete to clear.")))
+                                .binding(MKKeybind.ofKey(org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT),
+                                        () -> cfg.pocketCycleRightKeybind,
+                                        val -> cfg.pocketCycleRightKeybind = val)
+                                .customController(opt -> new MKKeybindController(opt, PocketCycler.getCycleRightKey()))
+                                .build())
+                        .option(Option.<MKKeybind>createBuilder()
+                                .name(Component.literal("Cycle Left"))
+                                .description(OptionDescription.of(Component.literal(
+                                        "Keybind to cycle the selected hotbar slot's pocket backward. " +
+                                        "Click to set a key, Delete to clear.")))
+                                .binding(MKKeybind.ofKey(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT),
+                                        () -> cfg.pocketCycleLeftKeybind,
+                                        val -> cfg.pocketCycleLeftKeybind = val)
+                                .customController(opt -> new MKKeybindController(opt, PocketCycler.getCycleLeftKey()))
                                 .build())
                         .build())
 

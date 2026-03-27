@@ -1,10 +1,11 @@
 package com.trevorschoeny.inventoryplus;
 
-import com.trevorschoeny.inventoryplus.network.PeekC2SPayload;
 import com.trevorschoeny.inventoryplus.network.PeekS2CPayload;
 import com.trevorschoeny.menukit.MKContainer;
+import com.trevorschoeny.menukit.MKContainerType;
 import com.trevorschoeny.menukit.MKContext;
 import com.trevorschoeny.menukit.MKPanel;
+import com.trevorschoeny.menukit.MKRegionRegistry;
 import com.trevorschoeny.menukit.MenuKit;
 import com.trevorschoeny.menukit.MenuKitClient;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -16,68 +17,169 @@ import net.minecraft.world.item.ItemStack;
  * Client-side logic for Container Peek — panel registration, S2C handler,
  * recipe book management, and dynamic slot count computation.
  *
- * <p>Separated from {@link ContainerPeek} because this class imports client-only
- * classes ({@link Minecraft}) that cannot be loaded on the server-side classloader.
+ * <p>Registers three separate grid panels:
+ * <ul>
+ *   <li>{@code peek_grid_shulker} — 3×9 fixed grid (27 slots)</li>
+ *   <li>{@code peek_grid_ender} — 3×9 fixed grid (27 slots)</li>
+ *   <li>{@code peek_grid_bundle} — variable grid (up to 64 slots)</li>
+ * </ul>
+ *
+ * <p>Plus a shared title panel that shows the container name.
  *
  * <p>Part of <b>Inventory Plus</b>.
  */
 public class ContainerPeekClient {
 
-    // ── Client-Side Peek State ──────────────────────────────────────────────
+    // ── Client-Side Peek State ───────────────────────────────────────────────
 
     /** Which inventory slot is currently being peeked (-1 = none). */
     private static int peekedSlot = -1;
     /** Source type of the current peek (see PeekS2CPayload constants). */
     private static int sourceType = 0;
-    /** How many slots are active (visible) in the current peek. */
-    private static int activeSlots = 0;
+    /** How many slots are active (visible) in the bundle peek. */
+    private static int bundleActiveSlots = 0;
     /** Display name for the panel title. */
     private static Component peekTitle = Component.empty();
     /** Whether the recipe book was open when we started peeking. */
     private static boolean wasRecipeBookOpen = false;
 
-    // ── Registration ────────────────────────────────────────────────────────
+    // ── Panel Names ──────────────────────────────────────────────────────────
+
+    /** Shared title panel (container name text). */
+    static final String TITLE_PANEL = "peek_title";
+    /** Grid panels — one per container type. */
+    static final String GRID_SHULKER = "peek_grid_shulker";
+    static final String GRID_ENDER   = "peek_grid_ender";
+    static final String GRID_BUNDLE  = "peek_grid_bundle";
+    /** All grid panel names for iteration. */
+    private static final String[] ALL_GRIDS = { GRID_SHULKER, GRID_ENDER, GRID_BUNDLE };
+
+    // ── Registration ─────────────────────────────────────────────────────────
 
     /**
-     * Registers the peek panel with MenuKit. Called from client init.
+     * Registers all peek panels with MenuKit. Called from client init.
+     *
+     * <p>Four panels total: shared title + one grid per peek type.
+     * All use LEFT_AUTO stacking and are exclusive.
      */
     public static void registerPanel() {
-        // Panel config
-        var column = MKPanel.builder(ContainerPeek.PANEL_NAME)
+        // ── Title panel (shared across all peek types) ───────────────────────
+        MKPanel.builder(TITLE_PANEL)
                 .showIn(MKContext.ALL)
                 .posLeft()
                 .hidden()
                 .exclusive()
                 .autoSize()
                 .style(MKPanel.Style.RAISED)
-                .shiftClickIn(true)              // allow shift-clicking items into peek container
-                .shiftClickOut(true)             // allow shift-clicking items out of peek container
-                // Root layout: column (title above slot grid)
-                .column();
+                .column()
+                    .text()
+                        .content(ContainerPeekClient::getPeekTitle)
+                        .done()
+                .build();
 
-        // Child 1: title text
-        column = column.text()
-                .content(ContainerPeekClient::getPeekTitle)
-                .done();
+        // ── Shulker grid: 3×9 fixed (27 slots) ──────────────────────────────
+        // Wrapped in column → slotGroup → grid so conditional rules can inject
+        // sort/move-matching buttons before the SlotGroup.
+        registerFixedGrid(GRID_SHULKER, ContainerPeek.SHULKER, ContainerPeek.FIXED_SLOTS);
 
-        // Child 2: grid of 64 slots
-        //   - 9 rows per column, columns extend right-to-left
-        //   - index 0 in rightmost column (closest to inventory)
-        var grid = column.grid()
-                .cellSize(ContainerPeek.SLOT_SIZE)
-                .rows(ContainerPeek.ROWS)
-                .fillRight();
+        // ── Ender chest grid: 3×9 fixed (27 slots) ──────────────────────────
+        registerFixedGrid(GRID_ENDER, ContainerPeek.ENDER, ContainerPeek.FIXED_SLOTS);
 
-        for (int i = 0; i < ContainerPeek.MAX_SLOTS; i++) {
+        // ── Bundle grid: variable slots (up to 64) ──────────────────────────
+        // Uses disabledWhen to hide unused slots dynamically.
+        // Sort/move buttons are injected automatically by the button attachment
+        // system at build time (see InventoryPlusClient.registerSortAttachment).
+        var bundleSlots = MKPanel.builder(GRID_BUNDLE)
+                .showIn(MKContext.ALL)
+                .posLeft()
+                .hidden()
+                .exclusive()
+                .autoSize()
+                .style(MKPanel.Style.RAISED)
+                .shiftClickIn(true)
+                .shiftClickOut(true)
+                .column()
+                    .slotGroup(ContainerPeek.BUNDLE, MKContainerType.SIMPLE)
+                        .grid()
+                            .cellSize(ContainerPeek.SLOT_SIZE)
+                            .rows(ContainerPeek.BUNDLE_ROWS)
+                            .fillRight();
+
+        for (int i = 0; i < ContainerPeek.BUNDLE_MAX_SLOTS; i++) {
             final int slotIndex = i;
-            grid = grid.slot()
-                    .container(ContainerPeek.CONTAINER_NAME, i)
-                    .disabledWhen(() -> slotIndex >= getEffectiveActiveSlots())
+            bundleSlots = bundleSlots.slot()
+                    .container(ContainerPeek.BUNDLE, i)
+                    .disabledWhen(() -> slotIndex >= getEffectiveBundleSlots())
                     .done();
         }
 
-        // Close grid → close column → build panel
-        grid.done().build();
+        bundleSlots.done()    // close grid
+                .done()       // close slotGroup
+                .build();     // close column → build panel
+    }
+
+    /**
+     * Registers a fixed-size 9×3 grid panel for shulker boxes or ender chests.
+     * 9 rows × 3 columns — tall and narrow to fit the left panel area.
+     * Sort/move buttons are injected automatically by the button attachment
+     * system at build time (see InventoryPlusClient.registerSortAttachment).
+     */
+    private static void registerFixedGrid(String panelName, String containerName, int slotCount) {
+        var grid = MKPanel.builder(panelName)
+                .showIn(MKContext.ALL)
+                .posLeft()
+                .hidden()
+                .exclusive()
+                .autoSize()
+                .style(MKPanel.Style.RAISED)
+                .shiftClickIn(true)
+                .shiftClickOut(true)
+                .column()
+                    .slotGroup(containerName, MKContainerType.SIMPLE)
+                        .grid()
+                            .cellSize(ContainerPeek.SLOT_SIZE)
+                            .rows(ContainerPeek.FIXED_COLS);
+
+        for (int i = 0; i < slotCount; i++) {
+            grid = grid.slot()
+                    .container(containerName, i)
+                    .done();
+        }
+
+        grid.done()    // close grid
+                .done()    // close slotGroup
+                .build();  // close column → build panel
+    }
+
+    /**
+     * Registers a MENU_CLOSE listener to clean up client-side peek state
+     * when the inventory screen closes. Without this, peekedSlot stays >= 0
+     * and countOpenSimpleContainers() counts stale peek regions.
+     */
+    public static void registerCloseHandler() {
+        MenuKit.on(com.trevorschoeny.menukit.MKEvent.Type.MENU_CLOSE)
+                .handler(event -> {
+                    if (isPeeking()) {
+                        peekedSlot = -1;
+                        bundleActiveSlots = 0;
+                        peekTitle = net.minecraft.network.chat.Component.empty();
+                        wasRecipeBookOpen = false;
+                        Minecraft mc = Minecraft.getInstance();
+                        if (mc.player != null) {
+                            // Remove dynamic peek regions so they don't persist
+                            // across screen cycles (InventoryMenu is reused)
+                            if (mc.player.containerMenu != null) {
+                                for (String name : ContainerPeek.ALL_CONTAINERS) {
+                                    MKRegionRegistry.removeDynamicRegion(
+                                            mc.player.containerMenu, name);
+                                }
+                            }
+                            // Unbind client-side containers
+                            ContainerPeek.unbindAll(mc.player.getUUID(), false);
+                        }
+                    }
+                    return com.trevorschoeny.menukit.MKEventResult.PASS;
+                });
     }
 
     /**
@@ -88,51 +190,87 @@ public class ContainerPeekClient {
                 (payload, context) -> handlePeekResponse(payload));
     }
 
-    // ── Client-Side Handler ─────────────────────────────────────────────────
+    // ── Client-Side Handler ──────────────────────────────────────────────────
 
     private static void handlePeekResponse(PeekS2CPayload payload) {
         if (payload.slotIndex() < 0) {
+            // ── Close peek ───────────────────────────────────────────────────
             peekedSlot = -1;
-            activeSlots = 0;
+            bundleActiveSlots = 0;
             peekTitle = Component.empty();
-            MenuKit.hidePanel(ContainerPeek.PANEL_NAME);
+
+            // Hide all peek panels
+            MenuKit.hidePanel(TITLE_PANEL);
+            for (String grid : ALL_GRIDS) {
+                MenuKit.hidePanel(grid);
+            }
+
+            // Remove all client-side peek regions
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player != null && mc.player.containerMenu != null) {
+                for (String name : ContainerPeek.ALL_CONTAINERS) {
+                    MKRegionRegistry.removeDynamicRegion(
+                            mc.player.containerMenu, name);
+                }
+            }
+
             if (wasRecipeBookOpen) {
                 MenuKitClient.setRecipeBookOpen(true);
             }
             wasRecipeBookOpen = false;
         } else {
+            // ── Open peek ────────────────────────────────────────────────────
             peekedSlot = payload.slotIndex();
             sourceType = payload.sourceType();
-            activeSlots = payload.activeSlots();
+            bundleActiveSlots = payload.activeSlots();
             peekTitle = payload.title();
+
             wasRecipeBookOpen = MenuKitClient.isRecipeBookOpen();
             if (wasRecipeBookOpen) {
                 MenuKitClient.setRecipeBookOpen(false);
             }
-            MenuKit.showPanel(ContainerPeek.PANEL_NAME);
+
+            // Hide any previously-visible grid, then show the correct one
+            for (String grid : ALL_GRIDS) {
+                MenuKit.hidePanel(grid);
+            }
+
+            MenuKit.showPanel(TITLE_PANEL);
+            MenuKit.showPanel(gridPanelForSourceType(sourceType));
         }
     }
 
-    // ── Accessors ───────────────────────────────────────────────────────────
+    // ── Panel / Container Mapping ────────────────────────────────────────────
+
+    /** Returns the grid panel name for the given source type. */
+    private static String gridPanelForSourceType(int srcType) {
+        return switch (srcType) {
+            case PeekS2CPayload.SOURCE_ITEM_CONTAINER -> GRID_SHULKER;
+            case PeekS2CPayload.SOURCE_ENDER_CHEST -> GRID_ENDER;
+            case PeekS2CPayload.SOURCE_BUNDLE -> GRID_BUNDLE;
+            default -> GRID_SHULKER;
+        };
+    }
+
+    // ── Accessors ────────────────────────────────────────────────────────────
 
     public static int getPeekedSlot() { return peekedSlot; }
     public static Component getPeekTitle() { return peekTitle; }
     public static boolean isPeeking() { return peekedSlot >= 0; }
 
     /**
-     * Effective active slot count. For bundles, dynamically recomputes from
+     * Effective active slot count for bundles. Dynamically recomputes from
      * the client container so the panel grows as items are added.
      */
-    static int getEffectiveActiveSlots() {
+    static int getEffectiveBundleSlots() {
         if (!isPeeking()) return 0;
-        if (sourceType != PeekS2CPayload.SOURCE_BUNDLE) return activeSlots;
 
         var mc = Minecraft.getInstance();
-        if (mc.player == null) return activeSlots;
+        if (mc.player == null) return bundleActiveSlots;
 
         MKContainer container = MenuKit.getContainerForPlayer(
-                ContainerPeek.CONTAINER_NAME, mc.player.getUUID(), false);
-        if (container == null) return activeSlots;
+                ContainerPeek.BUNDLE, mc.player.getUUID(), false);
+        if (container == null) return bundleActiveSlots;
 
         // Count occupied slots and compute bundle weight
         int occupied = 0;
@@ -151,7 +289,6 @@ public class ContainerPeekClient {
         if (isFull) {
             return occupied;
         }
-        return Math.min(Math.max(occupied + 1, 1), ContainerPeek.MAX_SLOTS);
+        return Math.min(Math.max(occupied + 1, 1), ContainerPeek.BUNDLE_MAX_SLOTS);
     }
-
 }
