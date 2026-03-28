@@ -92,7 +92,7 @@ public class InventoryPlusConfig {
     // ── Keybinds ──────────────────────────────────────────────────────────────
     // Stored as MKKeybind records — supports modifier keys (Ctrl+K, Shift+F5).
     // Serialized to config via the KEYBIND_ADAPTER above. At runtime, these are
-    // synced to MKKeyMapping instances via updateFromKeybind().
+    // synced to KeyMapping instances via MKKeybindExt.updateFromKeybind().
 
     /** Sort Region keybind — press while hovering a slot to sort that region */
     public MKKeybind sortKeybind = MKKeybind.UNBOUND;

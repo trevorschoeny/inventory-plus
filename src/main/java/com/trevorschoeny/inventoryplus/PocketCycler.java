@@ -2,8 +2,8 @@ package com.trevorschoeny.inventoryplus;
 
 
 import com.trevorschoeny.inventoryplus.network.PocketCycleC2SPayload;
+import com.trevorschoeny.menukit.MKKeybindExt;
 import com.trevorschoeny.menukit.MKKeybindSync;
-import com.trevorschoeny.menukit.MKKeyMapping;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -29,29 +29,29 @@ public class PocketCycler {
 
     static final int POCKET_SIZE = 3;
 
-    private static MKKeyMapping cycleRightKey;
-    private static MKKeyMapping cycleLeftKey;
+    private static KeyMapping cycleRightKey;
+    private static KeyMapping cycleLeftKey;
 
     /** Returns the cycle-right key mapping for YACL gear icon scroll target. */
-    public static MKKeyMapping getCycleRightKey() { return cycleRightKey; }
+    public static KeyMapping getCycleRightKey() { return cycleRightKey; }
 
     /** Returns the cycle-left key mapping for YACL gear icon scroll target. */
-    public static MKKeyMapping getCycleLeftKey() { return cycleLeftKey; }
+    public static KeyMapping getCycleLeftKey() { return cycleLeftKey; }
 
     /**
      * Registers cycling keybinds. Called from {@link InventoryPlusClient#onInitializeClient}.
-     * Creates MKKeyMapping instances from config values so modifier keys work correctly.
+     * Creates KeyMapping instances with multi-key combos from config values.
      *
      * @param category the shared "Trev's Mod" keybind category
      * @param cfg      the config containing persisted keybind values
      */
     public static void registerKeybinds(KeyMapping.Category category, InventoryPlusConfig cfg) {
-        cycleRightKey = (MKKeyMapping) KeyBindingHelper.registerKeyBinding(
-                MKKeyMapping.fromKeybind(cfg.pocketCycleRightKeybind,
+        cycleRightKey = KeyBindingHelper.registerKeyBinding(
+                MKKeybindExt.fromKeybind(cfg.pocketCycleRightKeybind,
                         "key.trevs-mod.pocket_cycle_right", category));
 
-        cycleLeftKey = (MKKeyMapping) KeyBindingHelper.registerKeyBinding(
-                MKKeyMapping.fromKeybind(cfg.pocketCycleLeftKeybind,
+        cycleLeftKey = KeyBindingHelper.registerKeyBinding(
+                MKKeybindExt.fromKeybind(cfg.pocketCycleLeftKeybind,
                         "key.trevs-mod.pocket_cycle_left", category));
 
         // Register tick handler that listens for keybinds
@@ -84,12 +84,13 @@ public class PocketCycler {
     // ── Config Sync ────────────────────────────────────────────────────────
 
     /**
-     * Syncs runtime MKKeyMapping instances with current config values.
-     * Called from the YACL save callback after the user changes keybinds.
+     * Syncs runtime KeyMapping instances with current config values via the
+     * MKKeybindExt duck interface. Called from the YACL save callback after
+     * the user changes keybinds.
      */
     public static void syncKeybinds(InventoryPlusConfig cfg) {
-        cycleRightKey.updateFromKeybind(cfg.pocketCycleRightKeybind);
-        cycleLeftKey.updateFromKeybind(cfg.pocketCycleLeftKeybind);
+        MKKeybindExt.updateFromKeybind(cycleRightKey, cfg.pocketCycleRightKeybind);
+        MKKeybindExt.updateFromKeybind(cycleLeftKey, cfg.pocketCycleLeftKeybind);
     }
 
     /**

@@ -13,7 +13,7 @@ import com.trevorschoeny.menukit.MKItemTips;
 import com.trevorschoeny.menukit.MKKeybind;
 import com.trevorschoeny.menukit.MKKeybindController;
 import com.trevorschoeny.menukit.MKKeybindSync;
-import com.trevorschoeny.menukit.MKKeyMapping;
+import com.trevorschoeny.menukit.MKKeybindExt;
 import com.trevorschoeny.menukit.MKPanel;
 import com.trevorschoeny.menukit.MKRegion;
 import com.trevorschoeny.menukit.MKRegionGroup;
@@ -78,21 +78,21 @@ public class InventoryPlusClient implements ClientModInitializer {
             new GeneralOption<>("autofill_enabled", true, Boolean.class);
 
     // Sort keybind — default unbound, user configures in YACL settings.
-    // MKKeyMapping extends vanilla KeyMapping with modifier key support.
-    private static MKKeyMapping sortRegionKey;
+    // Uses vanilla KeyMapping + MKKeybindExt duck interface for multi-key combos.
+    private static KeyMapping sortRegionKey;
 
     // Move Matching keybind — default unbound, user configures in YACL settings.
     // When pressed while hovering a slot, moves ALL items of that type
     // out of the hovered region (reuses BulkMoveC2SPayload).
-    private static MKKeyMapping moveMatchingKey;
+    private static KeyMapping moveMatchingKey;
 
     // Lock Slot keybind — default unbound. Press while hovering a slot to
     // toggle sort-lock. Sort-locked slots are excluded from sorting and
     // shift-click-in, but can still be interacted with normally.
-    private static MKKeyMapping lockSlotKey;
+    private static KeyMapping lockSlotKey;
 
     /** Returns the lock slot key mapping so other code can check if it's held. */
-    public static MKKeyMapping getLockSlotKey() { return lockSlotKey; }
+    public static KeyMapping getLockSlotKey() { return lockSlotKey; }
 
     @Override
     public void onInitializeClient() {
@@ -105,7 +105,7 @@ public class InventoryPlusClient implements ClientModInitializer {
         // Get the shared keybind category from the family
         KeyMapping.Category category = family.getKeybindCategory();
 
-        // Load config so keybind values are available for MKKeyMapping creation
+        // Load config so keybind values are available for KeyMapping creation
         InventoryPlusConfig cfg = InventoryPlusConfig.get();
 
         // Pocket cycling keybinds (left/right arrow by default, configurable)
@@ -113,23 +113,23 @@ public class InventoryPlusClient implements ClientModInitializer {
 
         // Sort Region keybind — default unbound. When pressed while hovering
         // a slot in an inventory screen, sends a C2S packet to sort the region
-        // that slot belongs to. Created from the config's MKKeybind value so
-        // modifier keys (e.g., Ctrl+S) work correctly.
-        sortRegionKey = (MKKeyMapping) KeyBindingHelper.registerKeyBinding(
-                MKKeyMapping.fromKeybind(cfg.sortKeybind,
+        // that slot belongs to. Created via MKKeybindExt.fromKeybind so the
+        // multi-key combo is applied via the duck interface.
+        sortRegionKey = KeyBindingHelper.registerKeyBinding(
+                MKKeybindExt.fromKeybind(cfg.sortKeybind,
                         "key.trevs-mod.sort_region", category));
 
         // Move Matching Items keybind — default unbound. When pressed while
         // hovering a slot, moves ALL items of the same type out of that region.
         // Reuses the BulkMoveC2SPayload so no new server-side code is needed.
-        moveMatchingKey = (MKKeyMapping) KeyBindingHelper.registerKeyBinding(
-                MKKeyMapping.fromKeybind(cfg.moveMatchingKeybind,
+        moveMatchingKey = KeyBindingHelper.registerKeyBinding(
+                MKKeybindExt.fromKeybind(cfg.moveMatchingKeybind,
                         "key.trevs-mod.move_matching", category));
 
         // Lock Slot keybind — default unbound. Press while hovering a slot to
         // toggle sort-lock. Sort-locked slots skip sorting and shift-click-in.
-        lockSlotKey = (MKKeyMapping) KeyBindingHelper.registerKeyBinding(
-                MKKeyMapping.fromKeybind(cfg.lockSlotKeybind,
+        lockSlotKey = KeyBindingHelper.registerKeyBinding(
+                MKKeybindExt.fromKeybind(cfg.lockSlotKeybind,
                         "key.trevs-mod.lock_slot", category));
 
         // Register Controls → config sync for all IP keybinds. When the user
@@ -160,14 +160,13 @@ public class InventoryPlusClient implements ClientModInitializer {
                     if (!InventoryPlusConfig.get().enableSorting) return MKEventResult.PASS;
 
                     // Check if the pressed key matches the sort keybind.
-                    // Uses matchesEvent() instead of isDown() because vanilla
-                    // does NOT update KeyMapping state when a screen is open —
+                    // Uses MKKeybindExt.matchesEvent() instead of isDown() because
+                    // vanilla does NOT update KeyMapping state when a screen is open —
                     // key events go through Screen.keyPressed(), not the GLFW
-                    // callback that drives KeyMapping.set(). matchesEvent()
-                    // compares the event's key code and modifier bitmask
-                    // directly against the keybind's configured values.
+                    // callback that drives KeyMapping.set(). matchesEvent() checks
+                    // the full multi-key combo via GLFW polling.
                     if (sortRegionKey.isUnbound()
-                            || !sortRegionKey.matchesEvent(event.getKeyCode(), event.getModifiers())) {
+                            || !MKKeybindExt.matchesEvent(sortRegionKey, event.getKeyCode(), event.getModifiers())) {
                         return MKEventResult.PASS;
                     }
 
@@ -203,10 +202,10 @@ public class InventoryPlusClient implements ClientModInitializer {
 
                     // Check if the pressed key matches the move-matching keybind.
                     // Same pattern as the sort handler: matchesEvent() checks
-                    // the event's key code + modifiers directly, bypassing
+                    // the full multi-key combo via GLFW polling, bypassing
                     // vanilla's KeyMapping state which is stale in screens.
                     if (moveMatchingKey.isUnbound()
-                            || !moveMatchingKey.matchesEvent(event.getKeyCode(), event.getModifiers())) {
+                            || !MKKeybindExt.matchesEvent(moveMatchingKey, event.getKeyCode(), event.getModifiers())) {
                         return MKEventResult.PASS;
                     }
 
@@ -252,9 +251,9 @@ public class InventoryPlusClient implements ClientModInitializer {
                     if (lockSlotKey.isUnbound()) return MKEventResult.PASS;
 
                     // Check if the pressed key matches the lock keybind.
-                    // Uses matchesEvent() because vanilla doesn't update
-                    // KeyMapping state when a screen is open.
-                    if (!lockSlotKey.matchesEvent(event.getKeyCode(), event.getModifiers())) {
+                    // Uses MKKeybindExt.matchesEvent() because vanilla doesn't
+                    // update KeyMapping state when a screen is open.
+                    if (!MKKeybindExt.matchesEvent(lockSlotKey, event.getKeyCode(), event.getModifiers())) {
                         return MKEventResult.PASS;
                     }
 
@@ -416,13 +415,13 @@ public class InventoryPlusClient implements ClientModInitializer {
                     InventoryPlusConfig.save();
                     PocketsPanel.applyConfig();
 
-                    // Sync YACL keybind values to runtime MKKeyMapping instances.
-                    // This updates both the base key and the modifier bitmask, then
-                    // calls KeyMapping.resetMapping() to rebuild vanilla's lookup table.
+                    // Sync YACL keybind values to runtime KeyMapping instances via
+                    // the MKKeybindExt duck interface. This updates both the combo
+                    // and the vanilla base key, then rebuilds vanilla's lookup table.
                     InventoryPlusConfig saved = InventoryPlusConfig.get();
-                    sortRegionKey.updateFromKeybind(saved.sortKeybind);
-                    moveMatchingKey.updateFromKeybind(saved.moveMatchingKeybind);
-                    lockSlotKey.updateFromKeybind(saved.lockSlotKeybind);
+                    MKKeybindExt.updateFromKeybind(sortRegionKey, saved.sortKeybind);
+                    MKKeybindExt.updateFromKeybind(moveMatchingKey, saved.moveMatchingKeybind);
+                    MKKeybindExt.updateFromKeybind(lockSlotKey, saved.lockSlotKeybind);
                     PocketCycler.syncKeybinds(saved);
                 });
 
@@ -502,10 +501,16 @@ public class InventoryPlusClient implements ClientModInitializer {
                 .disabledWhen(() -> !family.getGeneral(SHOW_SETTINGS_BUTTON))
                 .column()
                     .button()
-                        .label("⚙")
+                        .icon(net.minecraft.resources.Identifier.fromNamespaceAndPath(
+                                "inventory-plus", "settings"))
+                        .iconSize(11)
+                        .size(11, 11)
+                        .tooltip("TrevMod Settings")
                         .onClick(btn -> {
                             var mc = Minecraft.getInstance();
-                            var screen = family.buildConfigScreen(mc.screen);
+                            // Focus on the Inventory Plus tab specifically
+                            var screen = family.buildConfigScreen(mc.screen,
+                                    InventoryPlus.MOD_ID);
                             if (screen != null) mc.setScreen(screen);
                         })
                         .done()
