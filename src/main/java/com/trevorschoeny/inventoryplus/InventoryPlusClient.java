@@ -190,51 +190,31 @@ public class InventoryPlusClient implements ClientModInitializer {
                 });
 
         // Move Matching Items — KEY_PRESS handler via MenuKit event system.
-        // Fires on every key press while hovering a slot. We check if the
-        // pressed key matches our move-matching keybind, then send the same
-        // BulkMoveC2SPayload that Shift+double-click uses. The server handler
-        // already iterates the region and quickMoveStacks every matching item,
-        // so we get the full behavior for free — no new packet or server code.
+        // Fires on every key press while hovering a slot. When the move-matching
+        // keybind is pressed, moves items from OTHER open regions into the hovered
+        // region — same behavior as clicking the move-matching button.
         MenuKit.on(MKEvent.Type.KEY_PRESS)
                 .slotHandler(event -> {
                     // Gate: sorting disabled in config — move-matching is part of the sorting feature
                     if (!InventoryPlusConfig.get().enableSorting) return MKEventResult.PASS;
 
                     // Check if the pressed key matches the move-matching keybind.
-                    // Same pattern as the sort handler: matchesEvent() checks
-                    // the full multi-key combo via GLFW polling, bypassing
-                    // vanilla's KeyMapping state which is stale in screens.
                     if (moveMatchingKey.isUnbound()
                             || !MKKeybindExt.matchesEvent(moveMatchingKey, event.getKeyCode(), event.getModifiers())) {
                         return MKEventResult.PASS;
                     }
 
-                    // Need an item to match against — empty slot means nothing to move
-                    ItemStack slotStack = event.getSlotStack();
-                    if (slotStack.isEmpty()) {
-                        return MKEventResult.PASS;
-                    }
-
-                    // Need a source region to move from. Slots outside any region
-                    // (e.g., crafting output) don't participate in bulk move.
+                    // Need a destination region — the region the cursor is hovering.
+                    // Items from other regions will be moved INTO this one.
                     MKRegion region = event.getRegion();
                     if (region == null) {
                         return MKEventResult.PASS;
                     }
 
-                    // Resolve the item's registry ID (e.g., "minecraft:cobblestone").
-                    // The server matches items by registry ID — same as the
-                    // Shift+double-click bulk move handler.
-                    String itemId = BuiltInRegistries.ITEM.getKey(slotStack.getItem()).toString();
+                    // Delegate to the same logic as the move-matching button click.
+                    // Resolves source/dest groups and sends MoveMatchingC2SPayload.
+                    onMoveMatchingClick(region.name());
 
-                    // Reuse the existing BulkMoveC2SPayload — the server handler
-                    // already does exactly what we need: iterate the region's slots
-                    // and quickMoveStack each matching item.
-                    ClientPlayNetworking.send(new BulkMoveC2SPayload(region.name(), itemId));
-
-                    // CONSUMED prevents vanilla from processing this key press
-                    // (e.g., if the user binds this to a number key, we don't
-                    // want it to also swap hotbar slots).
                     return MKEventResult.CONSUMED;
                 });
 
