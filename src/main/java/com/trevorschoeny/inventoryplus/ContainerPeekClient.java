@@ -255,6 +255,7 @@ public class ContainerPeekClient {
     // ── Accessors ────────────────────────────────────────────────────────────
 
     public static int getPeekedSlot() { return peekedSlot; }
+    public static int getSourceType() { return sourceType; }
     public static Component getPeekTitle() { return peekTitle; }
     public static boolean isPeeking() { return peekedSlot >= 0; }
 
