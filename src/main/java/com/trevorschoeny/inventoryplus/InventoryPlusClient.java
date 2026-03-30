@@ -514,12 +514,21 @@ public class InventoryPlusClient implements ClientModInitializer {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
-        var menu = mc.player.containerMenu;
+        // Use the active menu (screen menu in creative, containerMenu otherwise)
+        // so group lookups work on creative item tabs where regions are on the
+        // ItemPickerMenu, not the InventoryMenu.
+        var menu = MKRegionRegistry.getActiveMenu();
         if (menu == null) return;
 
-        // Find the first group that contains this region (= destination)
+        // Find the first group that contains this region (= destination).
+        // Fall back to containerMenu if the active menu doesn't have this region
+        // (e.g., peek regions live on containerMenu even when screen menu differs).
         List<MKRegionGroup> destGroups =
                 MKRegionRegistry.getGroupsForRegion(menu, regionName);
+        if (destGroups.isEmpty() && menu != mc.player.containerMenu) {
+            menu = mc.player.containerMenu;
+            destGroups = MKRegionRegistry.getGroupsForRegion(menu, regionName);
+        }
         if (destGroups.isEmpty()) return;
 
         String destGroupName = destGroups.get(0).name();
