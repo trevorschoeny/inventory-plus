@@ -24,7 +24,7 @@ import net.minecraft.world.item.ItemStack;
  *   <li>{@code peek_grid_bundle} — variable grid (up to 64 slots)</li>
  * </ul>
  *
- * <p>Plus a shared title panel that shows the container name.
+ * <p>Each grid panel includes a vertical title label on the left.
  *
  * <p>Part of <b>Inventory Plus</b>.
  */
@@ -45,8 +45,6 @@ public class ContainerPeekClient {
 
     // ── Panel Names ──────────────────────────────────────────────────────────
 
-    /** Shared title panel (container name text). */
-    static final String TITLE_PANEL = "peek_title";
     /** Grid panels — one per container type. */
     static final String GRID_SHULKER = "peek_grid_shulker";
     static final String GRID_ENDER   = "peek_grid_ender";
@@ -59,33 +57,18 @@ public class ContainerPeekClient {
     /**
      * Registers all peek panels with MenuKit. Called from client init.
      *
-     * <p>Four panels total: shared title + one grid per peek type.
-     * All use LEFT_AUTO stacking and are exclusive.
+     * <p>Three panels total: one grid per peek type, each with an
+     * integrated vertical title label. All use LEFT_AUTO stacking
+     * and are exclusive.
      */
     public static void registerPanel() {
-        // ── Title panel (shared across all peek types) ───────────────────────
-        MKPanel.builder(TITLE_PANEL)
-                .showIn(MKContext.ALL)
-                .posLeft()
-                .hidden()
-                .exclusive()
-                .autoSize()
-                .style(MKPanel.Style.RAISED)
-                .column()
-                    .text()
-                        .content(ContainerPeekClient::getPeekTitle)
-                        .done()
-                .build();
-
-        // ── Shulker grid: 3×9 fixed (27 slots) ──────────────────────────────
-        // Wrapped in column → slotGroup → grid so conditional rules can inject
-        // sort/move-matching buttons before the SlotGroup.
+        // ── Shulker grid: vertical title + 3×9 fixed (27 slots) ─────────────
         registerFixedGrid(GRID_SHULKER, ContainerPeek.SHULKER, ContainerPeek.FIXED_SLOTS);
 
-        // ── Ender chest grid: 3×9 fixed (27 slots) ──────────────────────────
+        // ── Ender chest grid: vertical title + 3×9 fixed (27 slots) ─────────
         registerFixedGrid(GRID_ENDER, ContainerPeek.ENDER, ContainerPeek.FIXED_SLOTS);
 
-        // ── Bundle grid: variable slots (up to 64) ──────────────────────────
+        // ── Bundle grid: vertical title + variable slots (up to 64) ─────────
         // Uses disabledWhen to hide unused slots dynamically.
         // Sort/move buttons are injected automatically by the button attachment
         // system at build time (see InventoryPlusClient.registerSortAttachment).
@@ -98,12 +81,17 @@ public class ContainerPeekClient {
                 .style(MKPanel.Style.RAISED)
                 .shiftClickIn(true)
                 .shiftClickOut(true)
-                .column()
-                    .slotGroup(ContainerPeek.BUNDLE, MKContainerType.SIMPLE)
-                        .grid()
-                            .cellSize(ContainerPeek.SLOT_SIZE)
-                            .rows(ContainerPeek.BUNDLE_ROWS)
-                            .fillRight();
+                .row()
+                    .text()
+                        .content(ContainerPeekClient::getPeekTitle)
+                        .vertical()
+                        .done()
+                    .column()
+                        .slotGroup(ContainerPeek.BUNDLE, MKContainerType.SIMPLE)
+                            .grid()
+                                .cellSize(ContainerPeek.SLOT_SIZE)
+                                .rows(ContainerPeek.BUNDLE_ROWS)
+                                .fillRight();
 
         for (int i = 0; i < ContainerPeek.BUNDLE_MAX_SLOTS; i++) {
             final int slotIndex = i;
@@ -115,16 +103,19 @@ public class ContainerPeekClient {
 
         bundleSlots.done()    // close grid
                 .done()       // close slotGroup
-                .build();     // close column → build panel
+                .done()       // close column
+                .build();     // close row → build panel
     }
 
     /**
-     * Registers a fixed-size 9×3 grid panel for shulker boxes or ender chests.
-     * 9 rows × 3 columns — tall and narrow to fit the left panel area.
+     * Registers a fixed-size grid panel with a vertical title label on the left.
+     * Row layout: vertical text | slotGroup (column → grid).
      * Sort/move buttons are injected automatically by the button attachment
      * system at build time (see InventoryPlusClient.registerSortAttachment).
      */
     private static void registerFixedGrid(String panelName, String containerName, int slotCount) {
+        // Row layout: vertical text on the left, column (buttons + slotGroup) on the right.
+        // The column wrapper ensures button attachments insert above the grid, not beside it.
         var grid = MKPanel.builder(panelName)
                 .showIn(MKContext.ALL)
                 .posLeft()
@@ -134,11 +125,17 @@ public class ContainerPeekClient {
                 .style(MKPanel.Style.RAISED)
                 .shiftClickIn(true)
                 .shiftClickOut(true)
-                .column()
-                    .slotGroup(containerName, MKContainerType.SIMPLE)
-                        .grid()
-                            .cellSize(ContainerPeek.SLOT_SIZE)
-                            .rows(ContainerPeek.FIXED_COLS);
+                .row()
+                    .text()
+                        .content(ContainerPeekClient::getPeekTitle)
+                        .vertical()
+                        .done()
+                    .column()
+                        .slotGroup(containerName, MKContainerType.SIMPLE)
+                            .grid()
+                                .cellSize(ContainerPeek.SLOT_SIZE)
+                                .rows(ContainerPeek.FIXED_COLS)
+                                .fillRight();
 
         for (int i = 0; i < slotCount; i++) {
             grid = grid.slot()
@@ -148,7 +145,8 @@ public class ContainerPeekClient {
 
         grid.done()    // close grid
                 .done()    // close slotGroup
-                .build();  // close column → build panel
+                .done()    // close column
+                .build();  // close row → build panel
     }
 
     /**
@@ -200,7 +198,6 @@ public class ContainerPeekClient {
             peekTitle = Component.empty();
 
             // Hide all peek panels
-            MenuKit.hidePanel(TITLE_PANEL);
             for (String grid : ALL_GRIDS) {
                 MenuKit.hidePanel(grid);
             }
@@ -235,7 +232,6 @@ public class ContainerPeekClient {
                 MenuKit.hidePanel(grid);
             }
 
-            MenuKit.showPanel(TITLE_PANEL);
             MenuKit.showPanel(gridPanelForSourceType(sourceType));
         }
     }
