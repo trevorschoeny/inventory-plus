@@ -558,10 +558,12 @@ public class InventoryPlusClient implements ClientModInitializer {
         // Can't move matching without both a source and destination
         if (sourceGroupName == null) return;
 
-        // Pass the "include hotbar" config so the server can filter accordingly
+        // Pass the specific region name so the server can direct items into
+        // exactly this region (instead of relying on quickMoveStack routing,
+        // which may target a different container in the same group).
         boolean includeHotbar = InventoryPlusConfig.get().includeHotbarInMoveMatching;
         ClientPlayNetworking.send(
-                new MoveMatchingC2SPayload(sourceGroupName, destGroupName, includeHotbar));
+                new MoveMatchingC2SPayload(sourceGroupName, destGroupName, regionName, includeHotbar));
     }
 
     /**

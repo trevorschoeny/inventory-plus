@@ -11,17 +11,21 @@ import net.minecraft.resources.Identifier;
  *
  * <p>Sent when the player clicks the "Move Matching" button near a container.
  * The server scans the destination group for unique item types, then iterates
- * the source group and shift-clicks every matching slot into the destination.
+ * the source group and transfers every matching slot into the destination.
  *
- * <p>Three fields:
+ * <p>Four fields:
  * <ul>
  *   <li>{@code sourceGroupName} -- the source region group (e.g., "player_storage")</li>
  *   <li>{@code destGroupName} -- the destination region group (e.g., "container_storage")</li>
+ *   <li>{@code destRegionName} -- the specific destination region (e.g., "peek_shulker").
+ *       When non-empty, items are transferred directly into this region's slots
+ *       instead of using vanilla's quickMoveStack routing. This ensures items go
+ *       to the intended container when multiple SIMPLE regions share a group.</li>
  *   <li>{@code includeHotbar} -- whether to include hotbar slots in the source</li>
  * </ul>
  */
 public record MoveMatchingC2SPayload(String sourceGroupName, String destGroupName,
-                                      boolean includeHotbar)
+                                      String destRegionName, boolean includeHotbar)
         implements CustomPacketPayload {
 
     public static final Type<MoveMatchingC2SPayload> TYPE =
@@ -31,6 +35,7 @@ public record MoveMatchingC2SPayload(String sourceGroupName, String destGroupNam
             StreamCodec.composite(
                     ByteBufCodecs.STRING_UTF8, MoveMatchingC2SPayload::sourceGroupName,
                     ByteBufCodecs.STRING_UTF8, MoveMatchingC2SPayload::destGroupName,
+                    ByteBufCodecs.STRING_UTF8, MoveMatchingC2SPayload::destRegionName,
                     ByteBufCodecs.BOOL, MoveMatchingC2SPayload::includeHotbar,
                     MoveMatchingC2SPayload::new);
 

@@ -497,10 +497,12 @@ public class InventoryPlus implements ModInitializer {
                     ServerPlayer player = context.player();
                     String sourceGroupName = payload.sourceGroupName();
                     String destGroupName = payload.destGroupName();
+                    String destRegionName = payload.destRegionName();
                     boolean includeHotbar = payload.includeHotbar();
 
                     // DoS prevention — reject oversized strings from the network
-                    if (sourceGroupName.length() > 256 || destGroupName.length() > 256) return;
+                    if (sourceGroupName.length() > 256 || destGroupName.length() > 256
+                            || destRegionName.length() > 256) return;
 
                     // Validate: player must have an open menu
                     AbstractContainerMenu menu = player.containerMenu;
@@ -556,11 +558,35 @@ public class InventoryPlus implements ModInitializer {
                         source = new MKRegionGroup(source.name(), filtered);
                     }
 
-                    // Perform the move. broadcastChanges() fires on the next
-                    // server tick and syncs slot updates to the client.
-                    int moved = MKMoveMatching.moveMatching(menu, player, source, dest);
-                    LOGGER.debug("[InventoryPlus] Move matching: {} slots shifted from '{}' -> '{}' for {}",
-                            moved, sourceGroupName, destGroupName, player.getName().getString());
+                    // Perform the move. When a specific destination region is
+                    // given, use direct transfer with ALL other SIMPLE regions
+                    // as sources — not just the source group. This matches the
+                    // user's mental model: "pull matching items from everywhere
+                    // else into THIS container."
+                    int moved;
+                    MKRegion targetRegion = destRegionName.isEmpty()
+                            ? null : MKRegionRegistry.getRegion(menu, destRegionName);
+                    if (targetRegion != null) {
+                        // Build source from ALL SIMPLE regions except the target.
+                        // Hotbar is excluded — it's not SIMPLE type and users
+                        // don't expect hotbar items to be pulled by move matching.
+                        List<MKRegion> allSources = new ArrayList<>();
+                        for (MKRegion r : MKRegionRegistry.getRegions(menu)) {
+                            if (r.name().equals(destRegionName)) continue;
+                            if (r.containerType() != MKContainerType.SIMPLE) continue;
+                            allSources.add(r);
+                        }
+                        MKRegionGroup allSourceGroup = new MKRegionGroup("_all_sources", allSources);
+                        moved = MKMoveMatching.moveMatchingDirect(
+                                menu, player, allSourceGroup, dest, targetRegion);
+                    } else {
+                        moved = MKMoveMatching.moveMatching(menu, player, source, dest);
+                    }
+                    // broadcastChanges() fires on the next server tick
+                    LOGGER.debug("[InventoryPlus] Move matching: {} items from '{}' -> '{}' ({}) for {}",
+                            moved, sourceGroupName, destGroupName,
+                            destRegionName.isEmpty() ? "quickMoveStack" : destRegionName,
+                            player.getName().getString());
                 });
     }
 
