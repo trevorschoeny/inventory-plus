@@ -569,17 +569,11 @@ public class InventoryPlusClient implements ClientModInitializer {
      *         the player or menu is unavailable
      */
     static int countOpenSimpleContainers() {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.player.containerMenu == null) return 0;
-
-        int count = 0;
-        for (MKRegion region : MKRegionRegistry.getRegions(mc.player.containerMenu)) {
-            if (region.containerType() == MKContainerType.SIMPLE
-                    && !region.name().startsWith("pocket_")) {
-                count++;
-            }
-        }
-        return count;
+        // Delegates to MenuKit's general-purpose utility, which uses the
+        // correct active menu (screen menu in creative, containerMenu otherwise).
+        // Excludes pocket_ regions — those are internal and shouldn't count
+        // toward "another container is open" for move-matching purposes.
+        return MKRegionRegistry.countRegionsByType(MKContainerType.SIMPLE, "pocket_");
     }
 
     // ── Config ──────────────────────────────────────────────────────────────
