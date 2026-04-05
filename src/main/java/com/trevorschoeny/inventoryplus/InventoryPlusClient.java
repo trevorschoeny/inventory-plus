@@ -117,20 +117,20 @@ public class InventoryPlusClient implements ClientModInitializer {
         // multi-key combo is applied via the duck interface.
         sortRegionKey = KeyBindingHelper.registerKeyBinding(
                 MKKeybindExt.fromKeybind(cfg.sortKeybind,
-                        "key.trevs-mod.sort_region", category));
+                        "key.inventory-plus.sort_region", category));
 
         // Move Matching Items keybind — default unbound. When pressed while
         // hovering a slot, moves ALL items of the same type out of that region.
         // Reuses the BulkMoveC2SPayload so no new server-side code is needed.
         moveMatchingKey = KeyBindingHelper.registerKeyBinding(
                 MKKeybindExt.fromKeybind(cfg.moveMatchingKeybind,
-                        "key.trevs-mod.move_matching", category));
+                        "key.inventory-plus.move_matching", category));
 
         // Lock Slot keybind — default unbound. Press while hovering a slot to
         // toggle sort-lock. Sort-locked slots skip sorting and shift-click-in.
         lockSlotKey = KeyBindingHelper.registerKeyBinding(
                 MKKeybindExt.fromKeybind(cfg.lockSlotKeybind,
-                        "key.trevs-mod.lock_slot", category));
+                        "key.inventory-plus.lock_slot", category));
 
         // Register Controls → config sync for all IP keybinds. When the user
         // changes a keybind in the vanilla Controls screen and closes it, these

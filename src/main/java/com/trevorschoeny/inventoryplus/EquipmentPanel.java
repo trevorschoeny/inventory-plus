@@ -29,9 +29,9 @@ public class EquipmentPanel {
 
     // Ghost icon sprite identifiers — 16×16 gray silhouettes shown when slots are empty.
     public static final Identifier ELYTRA_ICON =
-            Identifier.fromNamespaceAndPath("trevs-mod", "container/slot/elytra");
+            Identifier.fromNamespaceAndPath("inventory-plus", "container/slot/elytra");
     public static final Identifier TOTEM_ICON =
-            Identifier.fromNamespaceAndPath("trevs-mod", "container/slot/totem");
+            Identifier.fromNamespaceAndPath("inventory-plus", "container/slot/totem");
 
     /**
      * Registers the equipment panel with MenuKit. Called from {@link InventoryPlus#init()}.

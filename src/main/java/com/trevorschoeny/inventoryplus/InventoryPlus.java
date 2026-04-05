@@ -439,6 +439,13 @@ public class InventoryPlus implements ModInitializer {
                         allItems[i + 1] = pocket.getItem(i).copy();
                     }
 
+                    // Diagnostic: log the pre-rotation state so we can detect
+                    // if the server sees empty/stale containers on the first cycle
+                    LOGGER.info("[PocketCycle] BEFORE slot={} dir={} hotbar=[{}] pocket=[{}, {}, {}] enabled={}",
+                            slot, forward ? "fwd" : "bwd",
+                            allItems[0], allItems[1], allItems[2], allItems[3],
+                            enabledIndices);
+
                     // Extract the enabled items into a list, rotate, write back
                     List<ItemStack> enabledItems = new ArrayList<>();
                     for (int idx : enabledIndices) {
@@ -466,6 +473,11 @@ public class InventoryPlus implements ModInitializer {
                             pocket.setItem(pos - 1, item);
                         }
                     }
+
+                    // Diagnostic: log the post-rotation state
+                    LOGGER.info("[PocketCycle] AFTER  slot={} hotbar=[{}] pocket=[{}, {}, {}]",
+                            slot, inventory.getItem(slot),
+                            pocket.getItem(0), pocket.getItem(1), pocket.getItem(2));
                 });
     }
 
@@ -583,10 +595,11 @@ public class InventoryPlus implements ModInitializer {
                         moved = MKMoveMatching.moveMatching(menu, player, source, dest);
                     }
                     // broadcastChanges() fires on the next server tick
-                    LOGGER.debug("[InventoryPlus] Move matching: {} items from '{}' -> '{}' ({}) for {}",
+                    LOGGER.warn("[InventoryPlus] Move matching: {} items from '{}' -> '{}' ({}) for {} | targetRegion={}",
                             moved, sourceGroupName, destGroupName,
                             destRegionName.isEmpty() ? "quickMoveStack" : destRegionName,
-                            player.getName().getString());
+                            player.getName().getString(),
+                            targetRegion != null ? targetRegion.name() + " container=" + targetRegion.container().getClass().getSimpleName() : "null");
                 });
     }
 

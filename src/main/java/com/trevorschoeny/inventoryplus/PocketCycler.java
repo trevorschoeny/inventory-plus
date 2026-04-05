@@ -48,11 +48,11 @@ public class PocketCycler {
     public static void registerKeybinds(KeyMapping.Category category, InventoryPlusConfig cfg) {
         cycleRightKey = KeyBindingHelper.registerKeyBinding(
                 MKKeybindExt.fromKeybind(cfg.pocketCycleRightKeybind,
-                        "key.trevs-mod.pocket_cycle_right", category));
+                        "key.inventory-plus.pocket_cycle_right", category));
 
         cycleLeftKey = KeyBindingHelper.registerKeyBinding(
                 MKKeybindExt.fromKeybind(cfg.pocketCycleLeftKeybind,
-                        "key.trevs-mod.pocket_cycle_left", category));
+                        "key.inventory-plus.pocket_cycle_left", category));
 
         // Register tick handler that listens for keybinds
         ClientTickEvents.END_CLIENT_TICK.register(client -> {

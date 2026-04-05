@@ -44,9 +44,9 @@ public class PocketsPanel {
 
     // Pocket button icon textures
     private static final Identifier POCKET_ICON =
-            Identifier.fromNamespaceAndPath("trevs-mod", "menukit/pocket");
+            Identifier.fromNamespaceAndPath("inventory-plus", "menukit/pocket");
     private static final Identifier POCKET_TOGGLED_ICON =
-            Identifier.fromNamespaceAndPath("trevs-mod", "menukit/pocket_toggled");
+            Identifier.fromNamespaceAndPath("inventory-plus", "menukit/pocket_toggled");
 
     // Barrier icon — vanilla's barrier item texture, used as ghost icon for
     // disabled slots. The 🚫 symbol tells the player "this slot is out of rotation."
