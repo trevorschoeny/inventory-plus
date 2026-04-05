@@ -444,7 +444,7 @@ public class InventoryPlusClient implements ClientModInitializer {
                                 Component.literal("Move Matching Items Here"),
                                 null, null, null,
                                 MKButton.ButtonStyle.NONE,
-                                false, () -> countOpenSimpleContainers() <= 1, null, null
+                                false, () -> countOpenSimpleContainers() <= 1, null, null, null
                         ), "ip_move:" + regionName),
                         // Sort button (right)
                         new MKGroupChild.Button(new MKButtonDef(
@@ -459,7 +459,7 @@ public class InventoryPlusClient implements ClientModInitializer {
                                 Component.literal("Sort Items"),
                                 null, null, null,
                                 MKButton.ButtonStyle.NONE,
-                                false, null, null, null
+                                false, null, null, null, null
                         ), "ip_sort:" + regionName)
                 ))
                 .register();
