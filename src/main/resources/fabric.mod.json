@@ -3,6 +3,7 @@
   "id": "inventory-plus",
   "version": "1.0.0",
   "name": "Inventory Plus",
+  "icon": "icon.png",
   "description": "Extra equipment slots and pocket storage for your hotbar.",
   "authors": ["trevorschoeny"],
   "license": "MIT",
