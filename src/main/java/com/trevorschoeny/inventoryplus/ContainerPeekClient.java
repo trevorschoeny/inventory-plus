@@ -209,6 +209,9 @@ public class ContainerPeekClient {
             closePeekClient();
         } else {
             // ── Open peek ────────────────────────────────────────────────────
+            // Close any previously-open peek on the client side first
+            closePeekClient();
+
             peekedSlot = payload.slotIndex();
             sourceType = payload.sourceType();
             bundleActiveSlots = payload.activeSlots();
@@ -217,6 +220,26 @@ public class ContainerPeekClient {
             wasRecipeBookOpen = MenuKitClient.isRecipeBookOpen();
             if (wasRecipeBookOpen) {
                 MenuKitClient.setRecipeBookOpen(false);
+            }
+
+            // Register client-side dynamic region so keybinds (sort, move-matching)
+            // can resolve the peek panel's slots to a region. Without this,
+            // event.getRegion() returns null for peek slots and keybinds silently fail.
+            String containerName = ContainerPeek.containerNameForSourceType(sourceType);
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player != null && mc.player.containerMenu != null) {
+                MKContainer container = MenuKit.getContainerForPlayer(
+                        containerName, mc.player.getUUID(), false);
+                if (container != null) {
+                    com.trevorschoeny.menukit.MKContainerDef containerDef = MenuKit.getContainerDef(containerName);
+                    if (containerDef != null) {
+                        MKRegionRegistry.registerDynamicRegion(
+                                mc.player.containerMenu, containerName,
+                                container.getDelegate(),
+                                containerDef.size(), containerDef.persistence(),
+                                true, true);
+                    }
+                }
             }
 
             // Hide any previously-visible grid, then show the correct one
