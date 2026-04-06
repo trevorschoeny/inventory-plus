@@ -275,14 +275,11 @@ public class InventoryPlusClient implements ClientModInitializer {
         ContainerPeekClient.registerCloseHandler();
 
         // Container Peek — right-click handler via MenuKit event system.
-        // This single handler replaces both IPPeekClickMixin (standard screens)
-        // and IPCreativePeekMixin (creative inventory). The event system
-        // normalizes slot detection across all screen types, so we don't need
-        // separate mixins for creative vs. survival.
+        // Works on ANY slot in ANY container screen (player inventory, chests,
+        // hoppers, modded containers, etc.). Uses raw menu slot index for
+        // addressing so it's not limited to player inventory slots.
         MenuKit.on(MKEvent.Type.RIGHT_CLICK)
-                .playerInventory()  // only fire for slots in the player's own inventory
                 .slotHandler(event -> {
-                    // Only peek items that are peekable (shulker boxes, bundles, ender chests)
                     if (!ContainerPeek.isPeekable(event.getSlotStack())) {
                         return MKEventResult.PASS;
                     }
@@ -298,24 +295,19 @@ public class InventoryPlusClient implements ClientModInitializer {
                         }
                     }
 
-                    // Resolve the unified player inventory position.
-                    // This works identically for survival, creative, and any other
-                    // screen type — the event system handles the mapping for us.
-                    int unifiedPos = event.getUnifiedPlayerPos();
-                    if (unifiedPos < 0) {
-                        return MKEventResult.PASS;
-                    }
+                    // Use the raw menu slot index — works for any slot in the open menu.
+                    var slot = event.getSlot();
+                    if (slot == null) return MKEventResult.PASS;
+                    int menuSlotIndex = slot.index;
 
-                    // Toggle: if already peeking at this position, close the peek;
-                    // otherwise open a peek at the new position.
-                    if (ContainerPeekClient.getPeekedSlot() == unifiedPos) {
+                    // Toggle: if already peeking at this slot, close the peek;
+                    // otherwise open a peek at the new slot.
+                    if (ContainerPeekClient.getPeekedSlot() == menuSlotIndex) {
                         ClientPlayNetworking.send(new PeekC2SPayload(-1));
                     } else {
-                        ClientPlayNetworking.send(new PeekC2SPayload(unifiedPos));
+                        ClientPlayNetworking.send(new PeekC2SPayload(menuSlotIndex));
                     }
 
-                    // CONSUMED cancels vanilla right-click behavior (which would
-                    // normally pick up half the stack)
                     return MKEventResult.CONSUMED;
                 });
 

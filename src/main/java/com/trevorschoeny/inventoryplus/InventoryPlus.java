@@ -75,18 +75,12 @@ public class InventoryPlus implements ModInitializer {
         ContainerPeek.registerContainer();
         ContainerPeek.registerPackets();
 
-        // Unbind peek containers when the menu closes (player closes inventory).
-        // Server-side: ensures peek containers don't stay bound across menu cycles.
+        // Close peek when the menu closes (player closes inventory, chest, etc.).
+        // Server-side: unbinds containers (final sync) + removes dynamic regions.
         MenuKit.on(MKEvent.Type.MENU_CLOSE)
                 .slotHandler(event -> {
                     if (event.getPlayer() instanceof ServerPlayer sp) {
-                        // Remove dynamic regions (InventoryMenu is reused across sessions)
-                        if (sp.containerMenu != null) {
-                            for (String name : ContainerPeek.ALL_CONTAINERS) {
-                                MKRegionRegistry.removeDynamicRegion(sp.containerMenu, name);
-                            }
-                        }
-                        ContainerPeek.unbindAll(sp.getUUID(), true);
+                        ContainerPeek.closePeek(sp, false);
                     }
                     return MKEventResult.PASS;
                 });

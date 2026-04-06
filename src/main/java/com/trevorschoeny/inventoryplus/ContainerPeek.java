@@ -5,7 +5,6 @@ import com.trevorschoeny.inventoryplus.network.PeekS2CPayload;
 import com.trevorschoeny.menukit.MKContainer;
 import com.trevorschoeny.menukit.MKContainerDef;
 import com.trevorschoeny.menukit.MKContainerType;
-import com.trevorschoeny.menukit.MKInventory;
 import com.trevorschoeny.menukit.MKRegionRegistry;
 import com.trevorschoeny.menukit.MenuKit;
 import com.trevorschoeny.menukit.source.MKContainerSource;
@@ -68,9 +67,8 @@ public class ContainerPeek {
     }
 
     /**
-     * Unbinds all peek containers for the given player. Called when the
-     * menu closes (screen closed, player disconnect, etc.) to ensure
-     * peek state doesn't persist across screen open/close cycles.
+     * Unbinds all peek containers for the given player (no region cleanup).
+     * Used by client-side close path where regions are managed separately.
      */
     public static void unbindAll(java.util.UUID playerUuid, boolean isServer) {
         for (String name : ALL_CONTAINERS) {
@@ -78,6 +76,31 @@ public class ContainerPeek {
             if (container != null && container.isBound()) {
                 container.unbind();
             }
+        }
+    }
+
+    /**
+     * Single close path for server-side peek cleanup. ALL server-side close
+     * triggers must call this — it unbinds containers (triggering final sync
+     * for deferred sources like shulker boxes), removes dynamic regions, and
+     * sends the close response to the client.
+     *
+     * @param player      The server player whose peek to close.
+     * @param sendPacket  Whether to send the S2C close packet. False when
+     *                    called from disconnect (no connection to send on).
+     */
+    public static void closePeek(ServerPlayer player, boolean sendPacket) {
+        for (String name : ALL_CONTAINERS) {
+            MKContainer container = MenuKit.getContainerForPlayer(name, player.getUUID(), true);
+            if (container != null && container.isBound()) {
+                container.unbind();
+            }
+            if (player.containerMenu != null) {
+                MKRegionRegistry.removeDynamicRegion(player.containerMenu, name);
+            }
+        }
+        if (sendPacket) {
+            ServerPlayNetworking.send(player, PeekS2CPayload.closed());
         }
     }
 
@@ -89,22 +112,9 @@ public class ContainerPeek {
         ServerPlayNetworking.registerGlobalReceiver(PeekC2SPayload.TYPE,
                 (payload, context) -> handlePeekRequest(context.player(), payload.slotIndex()));
 
-        // Clean up all peek containers on disconnect
+        // Clean up all peek containers on disconnect (no packet — connection is gone)
         ServerPlayConnectionEvents.DISCONNECT.register(
-                (handler, server) -> {
-                    ServerPlayer disconnecting = handler.getPlayer();
-                    for (String name : ALL_CONTAINERS) {
-                        MKContainer container = MenuKit.getContainerForPlayer(
-                                name, disconnecting.getUUID(), true);
-                        if (container != null && container.isBound()) {
-                            container.unbind();
-                            if (disconnecting.containerMenu != null) {
-                                MKRegionRegistry.removeDynamicRegion(
-                                        disconnecting.containerMenu, name);
-                            }
-                        }
-                    }
-                });
+                (handler, server) -> closePeek(handler.getPlayer(), false));
     }
 
     // ── Item Detection ───────────────────────────────────────────────────────
@@ -126,7 +136,11 @@ public class ContainerPeek {
     }
 
     public static boolean isPeekable(ItemStack stack) {
-        return isShulkerBox(stack) || isBundle(stack) || isEnderChest(stack);
+        if (stack.isEmpty()) return false;
+        // Bundle and ender chest have special source types — check first.
+        // Then catch-all: any item with a CONTAINER component (shulker boxes,
+        // modded containers, etc.).
+        return isBundle(stack) || isEnderChest(stack) || stack.has(DataComponents.CONTAINER);
     }
 
     /**
@@ -144,29 +158,23 @@ public class ContainerPeek {
 
     // ── Server-Side Handler ──────────────────────────────────────────────────
 
-    private static void handlePeekRequest(ServerPlayer player, int unifiedPos) {
-        // Close request — unbind whichever container is currently bound
-        if (unifiedPos < 0) {
-            for (String name : ALL_CONTAINERS) {
-                MKContainer container = MenuKit.getContainerForPlayer(
-                        name, player.getUUID(), true);
-                if (container != null && container.isBound()) {
-                    container.unbind();
-                    MKRegionRegistry.removeDynamicRegion(player.containerMenu, name);
-                }
-            }
-            ServerPlayNetworking.send(player, PeekS2CPayload.closed());
+    private static void handlePeekRequest(ServerPlayer player, int menuSlotIndex) {
+        // Close request
+        if (menuSlotIndex < 0) {
+            closePeek(player, true);
             return;
         }
 
-        // Validate unified position — must be within player inventory range (0-40)
-        if (unifiedPos > MKInventory.OFFHAND) {
-            InventoryPlus.LOGGER.warn("[ContainerPeek] Invalid unified position: {}", unifiedPos);
+        // Validate menu slot index against the player's current container menu
+        if (player.containerMenu == null
+                || menuSlotIndex >= player.containerMenu.slots.size()) {
+            InventoryPlus.LOGGER.warn("[ContainerPeek] Invalid menu slot index: {}", menuSlotIndex);
             return;
         }
 
-        // Read directly from player's inventory — bypasses menu slot system entirely
-        ItemStack stack = MKInventory.getPlayerItem(player, unifiedPos);
+        // Read from the menu slot — works for ANY container (player inv, chest, etc.)
+        net.minecraft.world.inventory.Slot slot = player.containerMenu.slots.get(menuSlotIndex);
+        ItemStack stack = slot.getItem();
         if (stack.isEmpty()) return;
 
         // Determine source type, container name, and source
@@ -176,23 +184,19 @@ public class ContainerPeek {
         MKContainerSource source;
         String containerName;
 
-        // Create a live supplier that always reads the CURRENT ItemStack at
-        // this inventory position. Vanilla may REPLACE the ItemStack object in
-        // the slot during interactions (e.g., bundle scroll+right-click rebuilds
-        // the BundleContents into a new ItemStack). A direct reference would go
-        // stale; the supplier ensures poll/sync always see the live item.
+        // Create a live supplier that reads from the menu slot. Vanilla may
+        // REPLACE the ItemStack object during interactions — the supplier
+        // ensures poll/sync always see the live item. Safe because MENU_CLOSE
+        // calls closePeek() before the menu changes, so stale indices are never used.
         final ServerPlayer peekPlayer = player;
-        final int peekPos = unifiedPos;
-        java.util.function.Supplier<ItemStack> liveStack =
-                () -> MKInventory.getPlayerItem(peekPlayer, peekPos);
+        final int capturedSlotIndex = menuSlotIndex;
+        java.util.function.Supplier<ItemStack> liveStack = () -> {
+            var menu = peekPlayer.containerMenu;
+            if (menu == null || capturedSlotIndex >= menu.slots.size()) return ItemStack.EMPTY;
+            return menu.slots.get(capturedSlotIndex).getItem();
+        };
 
-        if (isShulkerBox(stack)) {
-            srcType = PeekS2CPayload.SOURCE_ITEM_CONTAINER;
-            source = MKContainerSource.ofItemContainer(liveStack);
-            activeSlots = FIXED_SLOTS;
-            title = stack.getHoverName();
-            containerName = SHULKER;
-        } else if (isBundle(stack)) {
+        if (isBundle(stack)) {
             srcType = PeekS2CPayload.SOURCE_BUNDLE;
             source = MKContainerSource.ofBundle(liveStack);
             BundleContents contents = stack.get(DataComponents.BUNDLE_CONTENTS);
@@ -214,18 +218,21 @@ public class ContainerPeek {
             activeSlots = FIXED_SLOTS;
             title = Component.translatable("container.enderchest");
             containerName = ENDER;
+        } else if (stack.has(DataComponents.CONTAINER)) {
+            // Generic catch-all: any item with stored inventory (shulker boxes,
+            // modded containers, etc.). ItemContainerSource reads CONTAINER
+            // generically — it doesn't care what the item type is.
+            srcType = PeekS2CPayload.SOURCE_ITEM_CONTAINER;
+            source = MKContainerSource.ofItemContainer(liveStack);
+            activeSlots = FIXED_SLOTS;
+            title = stack.getHoverName();
+            containerName = SHULKER;
         } else {
             return;
         }
 
-        // Unbind any previously-bound peek container (of any type)
-        for (String name : ALL_CONTAINERS) {
-            MKContainer prev = MenuKit.getContainerForPlayer(name, player.getUUID(), true);
-            if (prev != null && prev.isBound()) {
-                prev.unbind();
-                MKRegionRegistry.removeDynamicRegion(player.containerMenu, name);
-            }
-        }
+        // Close any previously-open peek (unbind + region cleanup)
+        closePeek(player, false);
 
         // Bind the correct container
         MKContainer container = MenuKit.getContainerForPlayer(
@@ -247,6 +254,6 @@ public class ContainerPeek {
         }
 
         ServerPlayNetworking.send(player,
-                new PeekS2CPayload(unifiedPos, srcType, activeSlots, title));
+                new PeekS2CPayload(menuSlotIndex, srcType, activeSlots, title));
     }
 }

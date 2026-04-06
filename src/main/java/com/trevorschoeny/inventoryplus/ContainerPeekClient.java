@@ -150,32 +150,45 @@ public class ContainerPeekClient {
     }
 
     /**
+     * Single close path for client-side peek cleanup. ALL client-side close
+     * triggers must call this — it hides panels, resets state, removes
+     * dynamic regions, unbinds client containers, and restores recipe book.
+     */
+    public static void closePeekClient() {
+        if (!isPeeking()) return;
+
+        peekedSlot = -1;
+        bundleActiveSlots = 0;
+        peekTitle = Component.empty();
+
+        for (String grid : ALL_GRIDS) {
+            MenuKit.hidePanel(grid);
+        }
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null) {
+            if (mc.player.containerMenu != null) {
+                for (String name : ContainerPeek.ALL_CONTAINERS) {
+                    MKRegionRegistry.removeDynamicRegion(mc.player.containerMenu, name);
+                }
+            }
+            ContainerPeek.unbindAll(mc.player.getUUID(), false);
+        }
+
+        if (wasRecipeBookOpen) {
+            MenuKitClient.setRecipeBookOpen(true);
+        }
+        wasRecipeBookOpen = false;
+    }
+
+    /**
      * Registers a MENU_CLOSE listener to clean up client-side peek state
-     * when the inventory screen closes. Without this, peekedSlot stays >= 0
-     * and countOpenSimpleContainers() counts stale peek regions.
+     * when the screen closes.
      */
     public static void registerCloseHandler() {
         MenuKit.on(com.trevorschoeny.menukit.MKEvent.Type.MENU_CLOSE)
                 .handler(event -> {
-                    if (isPeeking()) {
-                        peekedSlot = -1;
-                        bundleActiveSlots = 0;
-                        peekTitle = net.minecraft.network.chat.Component.empty();
-                        wasRecipeBookOpen = false;
-                        Minecraft mc = Minecraft.getInstance();
-                        if (mc.player != null) {
-                            // Remove dynamic peek regions so they don't persist
-                            // across screen cycles (InventoryMenu is reused)
-                            if (mc.player.containerMenu != null) {
-                                for (String name : ContainerPeek.ALL_CONTAINERS) {
-                                    MKRegionRegistry.removeDynamicRegion(
-                                            mc.player.containerMenu, name);
-                                }
-                            }
-                            // Unbind client-side containers
-                            ContainerPeek.unbindAll(mc.player.getUUID(), false);
-                        }
-                    }
+                    closePeekClient();
                     return com.trevorschoeny.menukit.MKEventResult.PASS;
                 });
     }
@@ -193,28 +206,7 @@ public class ContainerPeekClient {
     private static void handlePeekResponse(PeekS2CPayload payload) {
         if (payload.slotIndex() < 0) {
             // ── Close peek ───────────────────────────────────────────────────
-            peekedSlot = -1;
-            bundleActiveSlots = 0;
-            peekTitle = Component.empty();
-
-            // Hide all peek panels
-            for (String grid : ALL_GRIDS) {
-                MenuKit.hidePanel(grid);
-            }
-
-            // Remove all client-side peek regions
-            Minecraft mc = Minecraft.getInstance();
-            if (mc.player != null && mc.player.containerMenu != null) {
-                for (String name : ContainerPeek.ALL_CONTAINERS) {
-                    MKRegionRegistry.removeDynamicRegion(
-                            mc.player.containerMenu, name);
-                }
-            }
-
-            if (wasRecipeBookOpen) {
-                MenuKitClient.setRecipeBookOpen(true);
-            }
-            wasRecipeBookOpen = false;
+            closePeekClient();
         } else {
             // ── Open peek ────────────────────────────────────────────────────
             peekedSlot = payload.slotIndex();
