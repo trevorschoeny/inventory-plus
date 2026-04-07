@@ -254,12 +254,14 @@ public class InventoryPlusClient implements ClientModInitializer {
                     MKSlotState lockState = MKSlotStateRegistry.getOrCreate(event.getSlot());
                     lockState.toggleSortLocked();
 
-                    // Sync to server — slot index in the menu's slot list
+                    // Sync to server — use getMenuSlotIndex() for creative tabs safety
+                    int serverSlotIndex = event.getMenuSlotIndex();
+                    if (serverSlotIndex < 0) return MKEventResult.PASS;
                     ClientPlayNetworking.send(
-                            new SortLockC2SPayload(event.getSlot().index, lockState.isSortLocked()));
+                            new SortLockC2SPayload(serverSlotIndex, lockState.isSortLocked()));
 
                     InventoryPlus.LOGGER.debug("[InventoryPlus] Sort-lock toggled: slot {} -> {}",
-                            event.getSlot().index, lockState.isSortLocked());
+                            serverSlotIndex, lockState.isSortLocked());
 
                     // Audio feedback — subtle click so the player knows it toggled
                     Minecraft.getInstance().getSoundManager().play(
@@ -303,10 +305,11 @@ public class InventoryPlusClient implements ClientModInitializer {
                         }
                     }
 
-                    // Use the raw menu slot index — works for any slot in the open menu.
-                    var slot = event.getSlot();
-                    if (slot == null) return MKEventResult.PASS;
-                    int menuSlotIndex = slot.index;
+                    // Resolve the server-safe menu slot index. getMenuSlotIndex()
+                    // handles creative tabs, where the client's ItemPickerMenu has
+                    // different indices than the server's InventoryMenu.
+                    int menuSlotIndex = event.getMenuSlotIndex();
+                    if (menuSlotIndex < 0) return MKEventResult.PASS;
 
                     // Toggle: if already peeking at this slot, close the peek;
                     // otherwise open a peek at the new slot.
