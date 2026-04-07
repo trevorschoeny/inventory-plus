@@ -769,6 +769,34 @@ public class InventoryPlusClient implements ClientModInitializer {
                                 .build())
                         .build())
 
+                // ── Container Peek group ────────────────────────────────────
+                .group(OptionGroup.createBuilder()
+                        .name(Component.literal("Container Peek"))
+                        .description(OptionDescription.of(Component.literal(
+                                "Right-click items in your inventory to peek inside their contents.")))
+                        .option(Option.<Boolean>createBuilder()
+                                .name(Component.literal("Peek Shulker Boxes"))
+                                .description(OptionDescription.of(Component.literal(
+                                        "Right-click a shulker box to peek at its contents.")))
+                                .binding(true, () -> cfg.enablePeekShulker, val -> cfg.enablePeekShulker = val)
+                                .controller(TickBoxControllerBuilder::create)
+                                .build())
+                        .option(Option.<Boolean>createBuilder()
+                                .name(Component.literal("Peek Bundles"))
+                                .description(OptionDescription.of(Component.literal(
+                                        "Right-click a bundle to peek at its contents.")))
+                                .binding(true, () -> cfg.enablePeekBundle, val -> cfg.enablePeekBundle = val)
+                                .controller(TickBoxControllerBuilder::create)
+                                .build())
+                        .option(Option.<Boolean>createBuilder()
+                                .name(Component.literal("Peek Ender Chests"))
+                                .description(OptionDescription.of(Component.literal(
+                                        "Right-click an ender chest to peek at your ender chest inventory.")))
+                                .binding(true, () -> cfg.enablePeekEnderChest, val -> cfg.enablePeekEnderChest = val)
+                                .controller(TickBoxControllerBuilder::create)
+                                .build())
+                        .build())
+
                 // ── Pockets group ───────────────────────────────────────────
                 .group(OptionGroup.createBuilder()
                         .name(Component.literal("Pockets"))

@@ -89,6 +89,17 @@ public class InventoryPlusConfig {
     /** Whether to render the A-shape pocket preview above the hotbar */
     public boolean showPocketHud = true;
 
+    // ── Container Peek ────────────────────────────────────────────────────────
+
+    /** Whether peeking into shulker boxes is enabled */
+    public boolean enablePeekShulker = true;
+
+    /** Whether peeking into bundles is enabled */
+    public boolean enablePeekBundle = true;
+
+    /** Whether peeking into ender chests is enabled */
+    public boolean enablePeekEnderChest = true;
+
     // ── Keybinds ──────────────────────────────────────────────────────────────
     // Stored as MKKeybind records — supports modifier keys (Ctrl+K, Shift+F5).
     // Serialized to config via the KEYBIND_ADAPTER above. At runtime, these are

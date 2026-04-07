@@ -137,10 +137,13 @@ public class ContainerPeek {
 
     public static boolean isPeekable(ItemStack stack) {
         if (stack.isEmpty()) return false;
-        // Bundle and ender chest have special source types — check first.
-        // Then catch-all: any item with a CONTAINER component (shulker boxes,
-        // modded containers, etc.).
-        return isBundle(stack) || isEnderChest(stack) || stack.has(DataComponents.CONTAINER);
+        InventoryPlusConfig cfg = InventoryPlusConfig.get();
+        // Only bundles, ender chests, and shulker boxes are peekable — no
+        // generic CONTAINER catch-all. Each type is gated by its config toggle.
+        if (cfg.enablePeekBundle && isBundle(stack)) return true;
+        if (cfg.enablePeekEnderChest && isEnderChest(stack)) return true;
+        if (cfg.enablePeekShulker && isShulkerBox(stack)) return true;
+        return false;
     }
 
     /**
@@ -218,10 +221,8 @@ public class ContainerPeek {
             activeSlots = FIXED_SLOTS;
             title = Component.translatable("container.enderchest");
             containerName = ENDER;
-        } else if (stack.has(DataComponents.CONTAINER)) {
-            // Generic catch-all: any item with stored inventory (shulker boxes,
-            // modded containers, etc.). ItemContainerSource reads CONTAINER
-            // generically — it doesn't care what the item type is.
+        } else if (isShulkerBox(stack)) {
+            // Shulker boxes only — no generic CONTAINER catch-all.
             srcType = PeekS2CPayload.SOURCE_ITEM_CONTAINER;
             source = MKContainerSource.ofItemContainer(liveStack);
             activeSlots = FIXED_SLOTS;
