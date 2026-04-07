@@ -59,11 +59,11 @@ public class ContainerPeek {
 
     // ── Registration (common entrypoint) ─────────────────────────────────────
 
-    /** Registers separate ephemeral containers for each peek type. */
+    /** Registers separate ephemeral slot groups for each peek type. */
     public static void registerContainer() {
-        MenuKit.container(SHULKER).ephemeral().type(MKContainerType.SIMPLE).size(FIXED_SLOTS).register();
-        MenuKit.container(ENDER).ephemeral().type(MKContainerType.SIMPLE).size(FIXED_SLOTS).register();
-        MenuKit.container(BUNDLE).ephemeral().type(MKContainerType.SIMPLE).size(BUNDLE_MAX_SLOTS).register();
+        MenuKit.slotGroup(SHULKER).slots(FIXED_SLOTS).ephemeral().type(MKContainerType.SIMPLE).register();
+        MenuKit.slotGroup(ENDER).slots(FIXED_SLOTS).ephemeral().type(MKContainerType.SIMPLE).register();
+        MenuKit.slotGroup(BUNDLE).slots(BUNDLE_MAX_SLOTS).ephemeral().type(MKContainerType.SIMPLE).register();
     }
 
     /**

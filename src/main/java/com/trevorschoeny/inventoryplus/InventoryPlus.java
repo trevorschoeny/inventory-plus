@@ -60,9 +60,9 @@ public class InventoryPlus implements ModInitializer {
         // Load config from disk
         InventoryPlusConfig.load();
 
-        // Container: 2-slot storage for passive equipment (elytra + totem)
+        // Slot group: 2-slot storage for passive equipment (elytra + totem)
         // Registered before the panel so the panel can reference it by name.
-        MenuKit.container("equipment").playerBound().size(2).register();
+        MenuKit.slotGroup("equipment").slots(2).playerBound().register();
 
         // Feature 1: Equipment panel (UI for the equipment container)
         EquipmentPanel.register();
@@ -77,7 +77,9 @@ public class InventoryPlus implements ModInitializer {
 
         // Close peek when the menu closes (player closes inventory, chest, etc.).
         // Server-side: unbinds containers (final sync) + removes dynamic regions.
+        // Uses AFTER phase — this is cleanup that reacts to the close, not prevention.
         MenuKit.on(MKEvent.Type.MENU_CLOSE)
+                .after()
                 .slotHandler(event -> {
                     if (event.getPlayer() instanceof ServerPlayer sp) {
                         ContainerPeek.closePeek(sp, false);

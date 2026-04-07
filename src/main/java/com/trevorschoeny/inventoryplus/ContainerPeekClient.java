@@ -186,7 +186,9 @@ public class ContainerPeekClient {
      * when the screen closes.
      */
     public static void registerCloseHandler() {
+        // AFTER phase — cleanup that reacts to the close, not prevention.
         MenuKit.on(com.trevorschoeny.menukit.event.MKEvent.Type.MENU_CLOSE)
+                .after()
                 .handler(event -> {
                     closePeekClient();
                     return com.trevorschoeny.menukit.event.MKEventResult.PASS;

@@ -154,7 +154,9 @@ public class InventoryPlusClient implements ClientModInitializer {
         // Fires on every key press while hovering a slot. We check if the
         // pressed key matches our sort keybind, resolve the hovered slot's
         // region, and send the sort request to the server.
+        // ALLOW phase: needs to cancel vanilla key handling when consumed.
         MenuKit.on(MKEvent.Type.KEY_PRESS)
+                .allow()
                 .slotHandler(event -> {
                     // Gate: sorting disabled in config — skip entirely
                     if (!InventoryPlusConfig.get().enableSorting) return MKEventResult.PASS;
@@ -193,7 +195,9 @@ public class InventoryPlusClient implements ClientModInitializer {
         // Fires on every key press while hovering a slot. When the move-matching
         // keybind is pressed, moves items from OTHER open regions into the hovered
         // region — same behavior as clicking the move-matching button.
+        // ALLOW phase: needs to cancel vanilla key handling when consumed.
         MenuKit.on(MKEvent.Type.KEY_PRESS)
+                .allow()
                 .slotHandler(event -> {
                     // Gate: sorting disabled in config — move-matching is part of the sorting feature
                     if (!InventoryPlusConfig.get().enableSorting) return MKEventResult.PASS;
@@ -225,7 +229,9 @@ public class InventoryPlusClient implements ClientModInitializer {
         // interacted with normally (pick up, place, etc.). This is separate
         // from the Ctrl+click full lock in MKSlotClickBusMixin which blocks
         // ALL interactions.
+        // ALLOW phase: needs to cancel vanilla key handling when consumed.
         MenuKit.on(MKEvent.Type.KEY_PRESS)
+                .allow()
                 .slotHandler(event -> {
                     // Gate: lock keybind not configured
                     if (lockSlotKey.isUnbound()) return MKEventResult.PASS;
@@ -278,7 +284,9 @@ public class InventoryPlusClient implements ClientModInitializer {
         // Works on ANY slot in ANY container screen (player inventory, chests,
         // hoppers, modded containers, etc.). Uses raw menu slot index for
         // addressing so it's not limited to player inventory slots.
+        // ALLOW phase: needs to cancel vanilla right-click when consumed.
         MenuKit.on(MKEvent.Type.RIGHT_CLICK)
+                .allow()
                 .slotHandler(event -> {
                     if (!ContainerPeek.isPeekable(event.getSlotStack())) {
                         return MKEventResult.PASS;
@@ -320,7 +328,9 @@ public class InventoryPlusClient implements ClientModInitializer {
         //
         // Without Shift held, vanilla's double-click (collect-to-cursor)
         // proceeds normally — we only intercept when Shift is active.
+        // ALLOW phase: needs to cancel vanilla double-click collect when consumed.
         MenuKit.on(MKEvent.Type.DOUBLE_CLICK)
+                .allow()
                 .slotHandler(event -> {
                     // Only activate when Shift is held. The modifiers bitfield
                     // is sampled from GLFW at event construction time, so

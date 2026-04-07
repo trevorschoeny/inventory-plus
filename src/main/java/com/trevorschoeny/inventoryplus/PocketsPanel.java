@@ -157,9 +157,9 @@ public class PocketsPanel {
      * Called from {@link InventoryPlus#init()}.
      */
     public static void register() {
-        // 9 separate containers, one per hotbar slot (3 extra items each)
+        // 9 separate slot groups, one per hotbar slot (3 extra items each)
         for (int i = 0; i < 9; i++) {
-            MenuKit.container("pocket_" + i).playerBound().size(POCKET_SIZE).register();
+            MenuKit.slotGroup("pocket_" + i).slots(POCKET_SIZE).playerBound().register();
         }
 
         // 9 pocket panels (one per hotbar slot), all starting hidden
