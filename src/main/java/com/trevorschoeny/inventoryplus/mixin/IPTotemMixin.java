@@ -1,7 +1,7 @@
 package com.trevorschoeny.inventoryplus.mixin;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusConfig;
-import com.trevorschoeny.menukit.MKContainer;
+import com.trevorschoeny.menukit.container.MKContainer;
 import com.trevorschoeny.menukit.MenuKit;
 import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.core.component.DataComponents;

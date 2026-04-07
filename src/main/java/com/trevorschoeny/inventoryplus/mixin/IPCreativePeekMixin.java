@@ -4,7 +4,7 @@ import com.trevorschoeny.inventoryplus.ContainerPeek;
 import com.trevorschoeny.inventoryplus.ContainerPeekClient;
 import com.trevorschoeny.inventoryplus.InventoryPlus;
 import com.trevorschoeny.inventoryplus.network.PeekC2SPayload;
-import com.trevorschoeny.menukit.MKInventory;
+import com.trevorschoeny.menukit.data.MKInventory;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;

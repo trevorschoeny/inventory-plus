@@ -1,7 +1,7 @@
 package com.trevorschoeny.inventoryplus;
 
 import com.trevorschoeny.menukit.MKContext;
-import com.trevorschoeny.menukit.MKPanel;
+import com.trevorschoeny.menukit.panel.MKPanel;
 import com.trevorschoeny.menukit.MenuKit;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Items;

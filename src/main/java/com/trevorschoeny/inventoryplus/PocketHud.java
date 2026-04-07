@@ -2,10 +2,10 @@ package com.trevorschoeny.inventoryplus;
 
 
 import com.trevorschoeny.inventoryplus.InventoryPlusConfig;
-import com.trevorschoeny.menukit.MKContainer;
-import com.trevorschoeny.menukit.MKHudAnchor;
-import com.trevorschoeny.menukit.MKHudPanel;
-import com.trevorschoeny.menukit.MKPanel;
+import com.trevorschoeny.menukit.container.MKContainer;
+import com.trevorschoeny.menukit.hud.MKHudAnchor;
+import com.trevorschoeny.menukit.hud.MKHudPanel;
+import com.trevorschoeny.menukit.panel.MKPanel;
 import com.trevorschoeny.menukit.MenuKit;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;

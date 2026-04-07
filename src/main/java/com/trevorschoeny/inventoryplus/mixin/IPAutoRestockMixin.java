@@ -1,7 +1,7 @@
 package com.trevorschoeny.inventoryplus.mixin;
 
 import com.trevorschoeny.inventoryplus.features.autorestock.AutoRestock;
-import com.trevorschoeny.menukit.GeneralOption;
+import com.trevorschoeny.menukit.config.GeneralOption;
 import com.trevorschoeny.menukit.MenuKit;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;

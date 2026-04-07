@@ -1,7 +1,7 @@
 package com.trevorschoeny.inventoryplus.mixin;
 
 import com.trevorschoeny.inventoryplus.features.autoroute.AutoRoute;
-import com.trevorschoeny.menukit.GeneralOption;
+import com.trevorschoeny.menukit.config.GeneralOption;
 import com.trevorschoeny.menukit.MenuKit;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;

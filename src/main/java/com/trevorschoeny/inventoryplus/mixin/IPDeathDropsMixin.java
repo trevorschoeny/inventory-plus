@@ -1,7 +1,7 @@
 package com.trevorschoeny.inventoryplus.mixin;
 
-import com.trevorschoeny.menukit.MKContainer;
-import com.trevorschoeny.menukit.MKContainerDef;
+import com.trevorschoeny.menukit.container.MKContainer;
+import com.trevorschoeny.menukit.container.MKContainerDef;
 import com.trevorschoeny.menukit.MenuKit;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;

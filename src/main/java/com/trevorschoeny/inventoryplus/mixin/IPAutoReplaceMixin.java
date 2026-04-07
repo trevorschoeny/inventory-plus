@@ -1,7 +1,7 @@
 package com.trevorschoeny.inventoryplus.mixin;
 
 import com.trevorschoeny.inventoryplus.features.autoreplace.AutoReplace;
-import com.trevorschoeny.menukit.GeneralOption;
+import com.trevorschoeny.menukit.config.GeneralOption;
 import com.trevorschoeny.menukit.MenuKit;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;

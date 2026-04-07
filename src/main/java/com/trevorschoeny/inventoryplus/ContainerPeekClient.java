@@ -1,11 +1,11 @@
 package com.trevorschoeny.inventoryplus;
 
 import com.trevorschoeny.inventoryplus.network.PeekS2CPayload;
-import com.trevorschoeny.menukit.MKContainer;
-import com.trevorschoeny.menukit.MKContainerType;
+import com.trevorschoeny.menukit.container.MKContainer;
+import com.trevorschoeny.menukit.container.MKContainerType;
 import com.trevorschoeny.menukit.MKContext;
-import com.trevorschoeny.menukit.MKPanel;
-import com.trevorschoeny.menukit.MKRegionRegistry;
+import com.trevorschoeny.menukit.panel.MKPanel;
+import com.trevorschoeny.menukit.region.MKRegionRegistry;
 import com.trevorschoeny.menukit.MenuKit;
 import com.trevorschoeny.menukit.MenuKitClient;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -186,10 +186,10 @@ public class ContainerPeekClient {
      * when the screen closes.
      */
     public static void registerCloseHandler() {
-        MenuKit.on(com.trevorschoeny.menukit.MKEvent.Type.MENU_CLOSE)
+        MenuKit.on(com.trevorschoeny.menukit.event.MKEvent.Type.MENU_CLOSE)
                 .handler(event -> {
                     closePeekClient();
-                    return com.trevorschoeny.menukit.MKEventResult.PASS;
+                    return com.trevorschoeny.menukit.event.MKEventResult.PASS;
                 });
     }
 
@@ -231,7 +231,7 @@ public class ContainerPeekClient {
                 MKContainer container = MenuKit.getContainerForPlayer(
                         containerName, mc.player.getUUID(), false);
                 if (container != null) {
-                    com.trevorschoeny.menukit.MKContainerDef containerDef = MenuKit.getContainerDef(containerName);
+                    com.trevorschoeny.menukit.container.MKContainerDef containerDef = MenuKit.getContainerDef(containerName);
                     if (containerDef != null) {
                         MKRegionRegistry.registerDynamicRegion(
                                 mc.player.containerMenu, containerName,

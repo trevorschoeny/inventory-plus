@@ -2,10 +2,10 @@ package com.trevorschoeny.inventoryplus;
 
 import com.trevorschoeny.inventoryplus.network.PeekC2SPayload;
 import com.trevorschoeny.inventoryplus.network.PeekS2CPayload;
-import com.trevorschoeny.menukit.MKContainer;
-import com.trevorschoeny.menukit.MKContainerDef;
-import com.trevorschoeny.menukit.MKContainerType;
-import com.trevorschoeny.menukit.MKRegionRegistry;
+import com.trevorschoeny.menukit.container.MKContainer;
+import com.trevorschoeny.menukit.container.MKContainerDef;
+import com.trevorschoeny.menukit.container.MKContainerType;
+import com.trevorschoeny.menukit.region.MKRegionRegistry;
 import com.trevorschoeny.menukit.MenuKit;
 import com.trevorschoeny.menukit.source.MKContainerSource;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;

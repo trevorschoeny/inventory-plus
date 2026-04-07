@@ -2,8 +2,8 @@ package com.trevorschoeny.inventoryplus;
 
 
 import com.trevorschoeny.inventoryplus.network.PocketCycleC2SPayload;
-import com.trevorschoeny.menukit.MKKeybindExt;
-import com.trevorschoeny.menukit.MKKeybindSync;
+import com.trevorschoeny.menukit.input.MKKeybindExt;
+import com.trevorschoeny.menukit.input.MKKeybindSync;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
