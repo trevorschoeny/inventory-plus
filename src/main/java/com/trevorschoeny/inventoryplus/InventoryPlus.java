@@ -62,7 +62,16 @@ public class InventoryPlus implements ModInitializer {
 
         // Slot group: 2-slot storage for passive equipment (elytra + totem)
         // Registered before the panel so the panel can reference it by name.
-        MenuKit.slotGroup("equipment").slots(2).playerBound().register();
+        //
+        // @cairn 010 auto-pickup-flag
+        // @choice excludeFromAutoPickup() — the equipment container opts out
+        // @reason Equipment slots are specialized — picking up a random elytra
+        //         or totem from the world should NOT auto-route into these
+        //         slots. The player equips them manually via the panel. This
+        //         makes the equipment container behave like an ender chest
+        //         w.r.t. vanilla item flow.
+        // @see .cairn/decisions/010-auto-pickup-flag.md
+        MenuKit.slotGroup("equipment").slots(2).playerBound().excludeFromAutoPickup().register();
 
         // Feature 1: Equipment panel (UI for the equipment container)
         EquipmentPanel.register();

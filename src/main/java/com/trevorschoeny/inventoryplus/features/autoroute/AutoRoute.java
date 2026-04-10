@@ -1,16 +1,18 @@
 package com.trevorschoeny.inventoryplus.features.autoroute;
 
 import com.trevorschoeny.inventoryplus.InventoryPlus;
+import com.trevorschoeny.menukit.container.MKContainer;
+import com.trevorschoeny.menukit.data.MKInventory;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.BundleContents;
 import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.level.block.ShulkerBoxBlock;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -41,8 +43,6 @@ import java.util.List;
 public class AutoRoute {
 
     private static final int SHULKER_SIZE = 27;
-    // Inventory slots 0-8 are hotbar, 9-35 are main inventory
-    private static final int INVENTORY_SIZE = 36;
 
     /**
      * Attempts to route a picked-up item into shulker boxes and bundles
@@ -52,7 +52,13 @@ public class AutoRoute {
      * are routed into containers. If fully consumed, the caller should
      * cancel the default pickup (vanilla's Inventory.add).
      *
-     * @param inventory the player's inventory (server-side authoritative copy)
+     * <p>As of decision 010, this scans every player-owned container that
+     * participates in auto-pickup routing — vanilla hotbar/main/armor/offhand
+     * plus any MK-registered player-bound container that didn't opt out via
+     * {@code .excludeFromAutoPickup()}. Pockets participate by default;
+     * equipment slots opt out.
+     *
+     * @param inventory the player's vanilla inventory (used only to reach the Player)
      * @param incoming  the item being picked up (mutated: count is reduced)
      * @return true if the entire stack was consumed (incoming is now empty)
      */
@@ -63,18 +69,26 @@ public class AutoRoute {
         // confusing and shulkers can't nest inside each other anyway.
         if (isShulkerBox(incoming)) return false;
 
+        Player player = inventory.player;
+
+        // Pull every auto-pickup-eligible container across the player's storage.
+        // This automatically includes vanilla (hotbar/main/armor/offhand) and
+        // any player-bound MK container that didn't opt out — i.e., pockets by
+        // default. See decision 010.
+        List<MKContainer> targets = MKInventory.getAutoPickupContainers(player);
+
         // Pass 1: Try to insert into shulker boxes that already contain this item.
         // We prefer shulkers first because they have fixed-size slots (predictable
         // capacity) and are the most common bulk storage container.
         if (!incoming.isEmpty()) {
-            routeIntoShulkers(inventory, incoming);
+            routeIntoShulkers(targets, incoming);
         }
 
         // Pass 2: Try to insert into bundles that already contain this item.
         // Bundles have weight-based storage, so we use the Mutable API to
         // respect capacity limits.
         if (!incoming.isEmpty()) {
-            routeIntoBundles(inventory, incoming);
+            routeIntoBundles(targets, incoming);
         }
 
         boolean fullyConsumed = incoming.isEmpty();
@@ -92,11 +106,12 @@ public class AutoRoute {
     // ── Shulker Box Routing ─────────────────────────────────────────────
 
     /**
-     * Scans all shulker boxes in the inventory and inserts matching items
-     * from {@code incoming}. Modifies both the shulker contents (via the
-     * immutable read-modify-write pattern) and the incoming stack count.
+     * Scans all shulker boxes across every target container and inserts
+     * matching items from {@code incoming}. Modifies both the shulker
+     * contents (via the immutable read-modify-write pattern) and the
+     * incoming stack count.
      *
-     * <p>For each shulker box, we:
+     * <p>For each shulker box found in any target container, we:
      * <ol>
      *   <li>Read its {@link ItemContainerContents} into a mutable list</li>
      *   <li>Check if ANY slot contains a matching item (containment check)</li>
@@ -105,61 +120,77 @@ public class AutoRoute {
      *   <li>Write back the modified contents</li>
      * </ol>
      */
-    private static void routeIntoShulkers(Inventory inventory, ItemStack incoming) {
-        for (int i = 0; i < INVENTORY_SIZE && !incoming.isEmpty(); i++) {
-            ItemStack containerStack = inventory.getItem(i);
-            if (!isShulkerBox(containerStack)) continue;
+    private static void routeIntoShulkers(List<MKContainer> targets, ItemStack incoming) {
+        for (MKContainer container : targets) {
+            if (incoming.isEmpty()) return;
 
-            ItemContainerContents contents = containerStack.get(DataComponents.CONTAINER);
-            if (contents == null) continue;
+            boolean containerModified = false;
 
-            // Read the shulker's items into a mutable list
-            NonNullList<ItemStack> items = NonNullList.withSize(SHULKER_SIZE, ItemStack.EMPTY);
-            contents.copyInto(items);
+            for (int i = 0; i < container.getContainerSize() && !incoming.isEmpty(); i++) {
+                ItemStack containerStack = container.getItem(i);
+                if (!isShulkerBox(containerStack)) continue;
 
-            // Containment check: only route into this shulker if it already
-            // contains the same item type. We don't want to arbitrarily stuff
-            // items into random shulkers — only ones the player has already
-            // organized to hold this item.
-            if (!containsMatchingItem(items, incoming)) continue;
+                ItemContainerContents contents = containerStack.get(DataComponents.CONTAINER);
+                if (contents == null) continue;
 
-            boolean modified = false;
+                // Read the shulker's items into a mutable list
+                NonNullList<ItemStack> items = NonNullList.withSize(SHULKER_SIZE, ItemStack.EMPTY);
+                contents.copyInto(items);
 
-            // Sub-pass A: merge into existing partial stacks of the same item.
-            // This is the most space-efficient — fills gaps in existing stacks
-            // before consuming any new slots.
-            for (int j = 0; j < items.size() && !incoming.isEmpty(); j++) {
-                ItemStack shulkerItem = items.get(j);
-                if (shulkerItem.isEmpty()) continue;
-                if (!ItemStack.isSameItemSameComponents(shulkerItem, incoming)) continue;
+                // Containment check: only route into this shulker if it already
+                // contains the same item type. We don't want to arbitrarily stuff
+                // items into random shulkers — only ones the player has already
+                // organized to hold this item.
+                if (!containsMatchingItem(items, incoming)) continue;
 
-                // This slot has a matching item — top it off
-                int maxSize = shulkerItem.getMaxStackSize();
-                int space = maxSize - shulkerItem.getCount();
-                if (space <= 0) continue;
+                boolean modified = false;
 
-                int toInsert = Math.min(space, incoming.getCount());
-                shulkerItem.grow(toInsert);
-                incoming.shrink(toInsert);
-                modified = true;
+                // Sub-pass A: merge into existing partial stacks of the same item.
+                // This is the most space-efficient — fills gaps in existing stacks
+                // before consuming any new slots.
+                for (int j = 0; j < items.size() && !incoming.isEmpty(); j++) {
+                    ItemStack shulkerItem = items.get(j);
+                    if (shulkerItem.isEmpty()) continue;
+                    if (!ItemStack.isSameItemSameComponents(shulkerItem, incoming)) continue;
+
+                    // This slot has a matching item — top it off
+                    int maxSize = shulkerItem.getMaxStackSize();
+                    int space = maxSize - shulkerItem.getCount();
+                    if (space <= 0) continue;
+
+                    int toInsert = Math.min(space, incoming.getCount());
+                    shulkerItem.grow(toInsert);
+                    incoming.shrink(toInsert);
+                    modified = true;
+                }
+
+                // Sub-pass B: place remaining items into empty slots.
+                // Only if partial-stack merging didn't consume everything.
+                for (int j = 0; j < items.size() && !incoming.isEmpty(); j++) {
+                    if (!items.get(j).isEmpty()) continue;
+
+                    // Found an empty slot — place items here
+                    int toPlace = Math.min(incoming.getMaxStackSize(), incoming.getCount());
+                    items.set(j, incoming.copyWithCount(toPlace));
+                    incoming.shrink(toPlace);
+                    modified = true;
+                }
+
+                // Write back the modified contents (immutable component pattern)
+                if (modified) {
+                    containerStack.set(DataComponents.CONTAINER,
+                            ItemContainerContents.fromItems(items));
+                    containerModified = true;
+                }
             }
 
-            // Sub-pass B: place remaining items into empty slots.
-            // Only if partial-stack merging didn't consume everything.
-            for (int j = 0; j < items.size() && !incoming.isEmpty(); j++) {
-                if (!items.get(j).isEmpty()) continue;
-
-                // Found an empty slot — place items here
-                int toPlace = Math.min(incoming.getMaxStackSize(), incoming.getCount());
-                items.set(j, incoming.copyWithCount(toPlace));
-                incoming.shrink(toPlace);
-                modified = true;
-            }
-
-            // Write back the modified contents (immutable component pattern)
-            if (modified) {
-                containerStack.set(DataComponents.CONTAINER,
-                        ItemContainerContents.fromItems(items));
+            // Notify the container that its contents changed so sync/save hooks
+            // fire. For vanilla inventory this is largely redundant (vanilla
+            // tracks via setChanged on Inventory), but for MK player-bound
+            // containers (pockets) it's necessary — mutating the stack in place
+            // wouldn't otherwise trigger the container's onChange callback.
+            if (containerModified) {
+                container.setChanged();
             }
         }
     }
@@ -167,36 +198,49 @@ public class AutoRoute {
     // ── Bundle Routing ──────────────────────────────────────────────────
 
     /**
-     * Scans all bundles in the inventory and inserts matching items from
-     * {@code incoming}. Uses the {@code BundleContents.Mutable} API to
-     * respect bundle weight limits.
+     * Scans all bundles across every target container and inserts matching
+     * items from {@code incoming}. Uses the {@code BundleContents.Mutable}
+     * API to respect bundle weight limits.
      *
      * <p>Bundles use weight-based storage: each item costs
      * {@code 64 / maxStackSize} weight units, with a total capacity of 64.
      * We use {@code tryInsert()} which handles weight calculation internally.
      */
-    private static void routeIntoBundles(Inventory inventory, ItemStack incoming) {
-        for (int i = 0; i < INVENTORY_SIZE && !incoming.isEmpty(); i++) {
-            ItemStack bundleStack = inventory.getItem(i);
-            if (!isBundle(bundleStack)) continue;
+    private static void routeIntoBundles(List<MKContainer> targets, ItemStack incoming) {
+        for (MKContainer container : targets) {
+            if (incoming.isEmpty()) return;
 
-            BundleContents contents = bundleStack.get(DataComponents.BUNDLE_CONTENTS);
-            if (contents == null) continue;
+            boolean containerModified = false;
 
-            // Containment check: only route into bundles that already hold
-            // a matching item. Same philosophy as shulkers — respect the
-            // player's organizational intent.
-            if (!bundleContainsItem(contents, incoming)) continue;
+            for (int i = 0; i < container.getContainerSize() && !incoming.isEmpty(); i++) {
+                ItemStack bundleStack = container.getItem(i);
+                if (!isBundle(bundleStack)) continue;
 
-            // Use the Mutable API to insert items respecting weight limits.
-            // tryInsert() returns the number of items actually inserted (0 if full).
-            BundleContents.Mutable mutable = new BundleContents.Mutable(contents);
-            int inserted = mutable.tryInsert(incoming);
+                BundleContents contents = bundleStack.get(DataComponents.BUNDLE_CONTENTS);
+                if (contents == null) continue;
 
-            if (inserted > 0) {
-                // tryInsert already shrinks `incoming` by `inserted` amount,
-                // so we just need to write back the modified bundle contents.
-                bundleStack.set(DataComponents.BUNDLE_CONTENTS, mutable.toImmutable());
+                // Containment check: only route into bundles that already hold
+                // a matching item. Same philosophy as shulkers — respect the
+                // player's organizational intent.
+                if (!bundleContainsItem(contents, incoming)) continue;
+
+                // Use the Mutable API to insert items respecting weight limits.
+                // tryInsert() returns the number of items actually inserted (0 if full).
+                BundleContents.Mutable mutable = new BundleContents.Mutable(contents);
+                int inserted = mutable.tryInsert(incoming);
+
+                if (inserted > 0) {
+                    // tryInsert already shrinks `incoming` by `inserted` amount,
+                    // so we just need to write back the modified bundle contents.
+                    bundleStack.set(DataComponents.BUNDLE_CONTENTS, mutable.toImmutable());
+                    containerModified = true;
+                }
+            }
+
+            // Fire sync/save hooks for MK-backed containers (see note in
+            // routeIntoShulkers). No-op for vanilla inventory in practice.
+            if (containerModified) {
+                container.setChanged();
             }
         }
     }
