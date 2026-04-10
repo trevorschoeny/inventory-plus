@@ -60,6 +60,12 @@ public class InventoryPlusConfig {
     /** Whether the totem equipment slot provides passive death protection */
     public boolean enableTotemSlot = true;
 
+    /** When true, mending XP applies to ANY mending-enchanted item in the
+     *  player's storage (unheld hotbar, main inventory, pockets, etc.), not
+     *  just the hand/armor/equipment slots. Vanilla priority is still
+     *  respected — hand, offhand, and armor get XP before anything else. */
+    public boolean mendingInventoryWide = false;
+
     // ── Sorting ──────────────────────────────────────────────────────────────
 
     /** Master toggle — when off, the sort keybind does nothing and the sort

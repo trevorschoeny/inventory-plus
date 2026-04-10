@@ -767,6 +767,18 @@ public class InventoryPlusClient implements ClientModInitializer {
                                 .binding(true, () -> cfg.enableTotemSlot, val -> cfg.enableTotemSlot = val)
                                 .controller(TickBoxControllerBuilder::create)
                                 .build())
+                        .option(Option.<Boolean>createBuilder()
+                                .name(Component.literal("Inventory-Wide Mending"))
+                                .description(OptionDescription.of(Component.literal(
+                                        "When enabled, XP mending applies to ANY mending-enchanted " +
+                                        "item anywhere in your inventory — unheld hotbar slots, main " +
+                                        "inventory, and pockets — not just the held/armor/equipment " +
+                                        "slots. Vanilla priority is still respected: hand, offhand, " +
+                                        "armor, and equipment slots get repaired first, and only " +
+                                        "leftover XP falls through to the rest of your inventory.")))
+                                .binding(false, () -> cfg.mendingInventoryWide, val -> cfg.mendingInventoryWide = val)
+                                .controller(TickBoxControllerBuilder::create)
+                                .build())
                         .build())
 
                 // ── Container Peek group ────────────────────────────────────

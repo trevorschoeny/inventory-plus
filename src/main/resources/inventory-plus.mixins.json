@@ -8,6 +8,7 @@
     "IPFallFlyingMixin",
     "IPTotemMixin",
     "IPMendingMixin",
+    "IPOrbMendingMixin",
     "IPDeathDropsMixin",
     "IPAutoRestockMixin",
     "IPAutoReplaceMixin",
