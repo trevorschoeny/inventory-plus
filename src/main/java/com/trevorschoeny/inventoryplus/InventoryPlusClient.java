@@ -91,6 +91,12 @@ public class InventoryPlusClient implements ClientModInitializer {
     // shift-click-in, but can still be interacted with normally.
     private static KeyMapping lockSlotKey;
 
+    // Container Peek keybind — default Left Alt. Press while hovering a
+    // bundle, shulker box, or ender chest in ANY container screen to open
+    // its peek panel. Replaces the old right-click trigger so right-click
+    // can return to vanilla bundle extraction and Easy Shulker Boxes.
+    private static KeyMapping peekContainerKey;
+
     /** Returns the lock slot key mapping so other code can check if it's held. */
     public static KeyMapping getLockSlotKey() { return lockSlotKey; }
 
@@ -132,6 +138,15 @@ public class InventoryPlusClient implements ClientModInitializer {
                 MKKeybindExt.fromKeybind(cfg.lockSlotKeybind,
                         "key.inventory-plus.lock_slot", category));
 
+        // Container Peek keybind — default Left Alt. When pressed while
+        // hovering a peekable item (bundle / shulker box / ender chest) in
+        // any container screen, sends a C2S peek request. Replaces the old
+        // right-click trigger that clashed with vanilla bundle extraction
+        // and Easy Shulker Boxes.
+        peekContainerKey = KeyBindingHelper.registerKeyBinding(
+                MKKeybindExt.fromKeybind(cfg.peekKeybind,
+                        "key.inventory-plus.peek_container", category));
+
         // Register Controls → config sync for all IP keybinds. When the user
         // changes a keybind in the vanilla Controls screen and closes it, these
         // callbacks write the new combo back to config and persist to disk.
@@ -146,6 +161,10 @@ public class InventoryPlusClient implements ClientModInitializer {
         });
         MKKeybindSync.register(lockSlotKey, combo -> {
             InventoryPlusConfig.get().lockSlotKeybind = combo;
+            InventoryPlusConfig.save();
+        });
+        MKKeybindSync.register(peekContainerKey, combo -> {
+            InventoryPlusConfig.get().peekKeybind = combo;
             InventoryPlusConfig.save();
         });
         PocketCycler.registerKeybindSync();
@@ -282,43 +301,70 @@ public class InventoryPlusClient implements ClientModInitializer {
         ContainerPeekClient.registerClientHandler();
         ContainerPeekClient.registerCloseHandler();
 
-        // Container Peek — right-click handler via MenuKit event system.
-        // Works on ANY slot in ANY container screen (player inventory, chests,
-        // hoppers, modded containers, etc.). Uses raw menu slot index for
-        // addressing so it's not limited to player inventory slots.
-        // ALLOW phase: needs to cancel vanilla right-click when consumed.
-        MenuKit.on(MKEvent.Type.RIGHT_CLICK)
+        // Container Peek — KEY_PRESS handler via MenuKit event system.
+        // Fires on every key press while hovering a slot. Works on ANY slot
+        // in ANY container screen (player inventory, chests, hoppers, modded
+        // containers, etc.) — uses raw menu slot index for addressing.
+        //
+        // This REPLACES the old right-click-to-peek trigger. Right-click now
+        // falls through to vanilla so bundle extraction and other mods like
+        // Easy Shulker Boxes work as intended.
+        //
+        // ALLOW phase: needs to cancel vanilla key handling when consumed.
+        MenuKit.on(MKEvent.Type.KEY_PRESS)
                 .allow()
                 .slotHandler(event -> {
+                    // Gate: peek keybind not configured — user chose to disable it.
+                    if (peekContainerKey.isUnbound()) return MKEventResult.PASS;
+
+                    // Check if the pressed key matches the peek keybind.
+                    // matchesEvent() checks the full multi-key combo via GLFW
+                    // polling because vanilla doesn't update KeyMapping.isDown()
+                    // while a screen is open (key events go through Screen.keyPressed,
+                    // not the GLFW callback that drives KeyMapping.set()).
+                    if (!MKKeybindExt.matchesEvent(peekContainerKey,
+                            event.getKeyCode(), event.getModifiers())) {
+                        return MKEventResult.PASS;
+                    }
+
+                    // Only peek peekable items (bundle / shulker / ender chest),
+                    // gated individually by the three enablePeek* config toggles
+                    // inside ContainerPeek.isPeekable().
                     if (!ContainerPeek.isPeekable(event.getSlotStack())) {
                         return MKEventResult.PASS;
                     }
 
-                    // If a bundle is being scrolled through (vanilla's tooltip scrub
-                    // animation is active), let vanilla handle the right-click to pop
-                    // the selected item out. Only intercept when the bundle is "idle."
-                    if (ContainerPeek.isBundle(event.getSlotStack())) {
-                        var contents = event.getSlotStack().get(
-                                net.minecraft.core.component.DataComponents.BUNDLE_CONTENTS);
-                        if (contents != null && contents.hasSelectedItem()) {
-                            return MKEventResult.PASS;
-                        }
+                    // Skip while the cursor is dragging an item. Peeking mid-drag
+                    // would be disorienting — and the user probably meant to drop
+                    // the cursor stack into the hovered slot, not peek it.
+                    var mc = Minecraft.getInstance();
+                    if (mc.player == null
+                            || mc.player.containerMenu == null
+                            || !mc.player.containerMenu.getCarried().isEmpty()) {
+                        return MKEventResult.PASS;
                     }
 
                     // Resolve the server-safe menu slot index. getMenuSlotIndex()
                     // handles creative tabs, where the client's ItemPickerMenu has
-                    // different indices than the server's InventoryMenu.
+                    // different indices than the server's InventoryMenu — returns
+                    // -1 for client-only fake slots so we don't send bogus indices.
                     int menuSlotIndex = event.getMenuSlotIndex();
                     if (menuSlotIndex < 0) return MKEventResult.PASS;
 
-                    // Toggle: if already peeking at this slot, close the peek;
-                    // otherwise open a peek at the new slot.
+                    // Toggle: if the hovered slot is already the one being peeked,
+                    // close the peek. Otherwise (new item, or switch-on-move)
+                    // open a peek at the new slot — the server's handlePeekRequest
+                    // unbinds any previous source before binding the new one, so
+                    // switch-on-move is handled server-side automatically.
                     if (ContainerPeekClient.getPeekedSlot() == menuSlotIndex) {
                         ClientPlayNetworking.send(new PeekC2SPayload(-1));
                     } else {
                         ClientPlayNetworking.send(new PeekC2SPayload(menuSlotIndex));
                     }
 
+                    // CONSUMED cancels vanilla key handling. Important when peek
+                    // is bound to something like 'E' — we don't want the peek
+                    // keybind to also close the inventory screen.
                     return MKEventResult.CONSUMED;
                 });
 
@@ -407,6 +453,7 @@ public class InventoryPlusClient implements ClientModInitializer {
                     MKKeybindExt.updateFromKeybind(sortRegionKey, saved.sortKeybind);
                     MKKeybindExt.updateFromKeybind(moveMatchingKey, saved.moveMatchingKeybind);
                     MKKeybindExt.updateFromKeybind(lockSlotKey, saved.lockSlotKeybind);
+                    MKKeybindExt.updateFromKeybind(peekContainerKey, saved.peekKeybind);
                     PocketCycler.syncKeybinds(saved);
                 });
 
@@ -785,27 +832,46 @@ public class InventoryPlusClient implements ClientModInitializer {
                 .group(OptionGroup.createBuilder()
                         .name(Component.literal("Container Peek"))
                         .description(OptionDescription.of(Component.literal(
-                                "Right-click items in your inventory to peek inside their contents.")))
+                                "Hover an item in any container screen and press the " +
+                                "Peek keybind to view its contents.")))
                         .option(Option.<Boolean>createBuilder()
                                 .name(Component.literal("Peek Shulker Boxes"))
                                 .description(OptionDescription.of(Component.literal(
-                                        "Right-click a shulker box to peek at its contents.")))
+                                        "Allow the peek keybind to open shulker box contents.")))
                                 .binding(true, () -> cfg.enablePeekShulker, val -> cfg.enablePeekShulker = val)
                                 .controller(TickBoxControllerBuilder::create)
                                 .build())
                         .option(Option.<Boolean>createBuilder()
                                 .name(Component.literal("Peek Bundles"))
                                 .description(OptionDescription.of(Component.literal(
-                                        "Right-click a bundle to peek at its contents.")))
+                                        "Allow the peek keybind to open bundle contents.")))
                                 .binding(true, () -> cfg.enablePeekBundle, val -> cfg.enablePeekBundle = val)
                                 .controller(TickBoxControllerBuilder::create)
                                 .build())
                         .option(Option.<Boolean>createBuilder()
                                 .name(Component.literal("Peek Ender Chests"))
                                 .description(OptionDescription.of(Component.literal(
-                                        "Right-click an ender chest to peek at your ender chest inventory.")))
+                                        "Allow the peek keybind to open your ender chest inventory.")))
                                 .binding(true, () -> cfg.enablePeekEnderChest, val -> cfg.enablePeekEnderChest = val)
                                 .controller(TickBoxControllerBuilder::create)
+                                .build())
+                        // Peek Container keybind — inline capture via MKKeybindController.
+                        // Click the option to enter capture mode, then press any key
+                        // (with optional modifiers) to set the binding. Delete/Backspace
+                        // clears to unbound; if unbound, peek is unreachable until rebind.
+                        .option(Option.<MKKeybind>createBuilder()
+                                .name(Component.literal("Peek Container"))
+                                .description(OptionDescription.of(Component.literal(
+                                        "Hover a bundle, shulker box, or ender chest in any " +
+                                        "container screen and press this keybind to open its " +
+                                        "peek panel. Press again on the same item to close, or " +
+                                        "on a different peekable to switch. Click to set a key, " +
+                                        "Delete to clear.")))
+                                .binding(MKKeybind.ofKeyAndModifiers(
+                                                org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT, 0, 0),
+                                        () -> cfg.peekKeybind,
+                                        val -> cfg.peekKeybind = val)
+                                .customController(opt -> new MKKeybindController(opt, peekContainerKey))
                                 .build())
                         .build())
 

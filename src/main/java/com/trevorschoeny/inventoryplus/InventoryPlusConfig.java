@@ -120,6 +120,13 @@ public class InventoryPlusConfig {
     /** Lock Slot keybind — hold and click a slot to lock/unlock it */
     public MKKeybind lockSlotKeybind = MKKeybind.UNBOUND;
 
+    /** Container Peek keybind — press while hovering a bundle, shulker box,
+     *  or ender chest in any container screen to open its peek panel.
+     *  Default: Left Alt. Press again on the same item to close, or on a
+     *  different peekable to switch. */
+    public MKKeybind peekKeybind = MKKeybind.ofKeyAndModifiers(
+            org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT, 0, 0);
+
     /** Pocket cycle right keybind — default Right Arrow */
     public MKKeybind pocketCycleRightKeybind = MKKeybind.ofKeyAndModifiers(
             org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT, 0, 0);

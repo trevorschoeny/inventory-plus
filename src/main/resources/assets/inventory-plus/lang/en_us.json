@@ -4,5 +4,6 @@
   "key.inventory-plus.sort_region": "Sort Region",
   "key.inventory-plus.move_matching": "Move Matching Items",
   "key.inventory-plus.lock_slot": "Lock/Unlock Slot",
+  "key.inventory-plus.peek_container": "Peek Container",
   "key.inventory-plus.autofill": "Autofill from Shulkers"
 }
