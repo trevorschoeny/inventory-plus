@@ -5,6 +5,7 @@ import com.trevorschoeny.menukit.container.MKContainer;
 import com.trevorschoeny.menukit.MenuKit;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.layers.WingsLayer;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.client.renderer.entity.state.HumanoidRenderState;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.ItemStack;
@@ -39,6 +40,9 @@ public class IPWingsLayerMixin {
             CallbackInfo ci) {
 
         if (!InventoryPlusConfig.get().enableElytraSlot) return;
+
+        // Only apply to player entities — other humanoids use plain HumanoidRenderState
+        if (!(renderState instanceof AvatarRenderState)) return;
 
         // If chest already has elytra, vanilla handles it
         if (!renderState.chestEquipment.isEmpty()) {
