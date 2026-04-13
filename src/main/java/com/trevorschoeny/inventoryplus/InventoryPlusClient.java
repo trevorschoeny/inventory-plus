@@ -39,6 +39,7 @@ import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -488,7 +489,8 @@ public class InventoryPlusClient implements ClientModInitializer {
                 .overlayOffset(1, -2)
                 .excludeRegion(name -> name.startsWith("pocket_"))
                 .disabledWhen(() -> !InventoryPlusConfig.get().enableSorting
-                        || !InventoryPlusConfig.get().showSortButton)
+                        || !InventoryPlusConfig.get().showSortButton
+                        || isCreativeTabsView())
                 .buttons(regionName -> java.util.List.of(
                         // Move matching button (left) — hides when < 2 SIMPLE containers
                         new MKGroupChild.Button(new MKButtonDef(
@@ -557,6 +559,18 @@ public class InventoryPlusClient implements ClientModInitializer {
     }
 
     // ── Conditional Element Helpers ─────────────────────────────────────────
+
+    /**
+     * Returns true when the player is viewing creative item tabs (Building
+     * Blocks, Search, etc.) — NOT the creative inventory tab. Sort and
+     * move-matching buttons are hidden in this view because they overlap
+     * with the tab UI and have no meaningful target.
+     */
+    private static boolean isCreativeTabsView() {
+        var mc = Minecraft.getInstance();
+        return mc.screen instanceof CreativeModeInventoryScreen cs
+                && !cs.isInventoryOpen();
+    }
 
     /**
      * Handles the move-matching button click for a given region. Resolves
