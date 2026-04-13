@@ -77,6 +77,13 @@ public class InventoryPlusClient implements ClientModInitializer {
     static final GeneralOption<Boolean> AUTOFILL_ENABLED =
             new GeneralOption<>("autofill_enabled", true, Boolean.class);
 
+    // Typed descriptor for the family-wide "deep arrow search" toggle.
+    // Checked server-side in IPDeepArrowMixin when getProjectile() is called.
+    // When enabled, bows and crossbows search bundles, shulker boxes, and
+    // the ender chest for arrows when none are loose in the inventory.
+    static final GeneralOption<Boolean> DEEP_ARROW_SEARCH =
+            new GeneralOption<>("deep_arrow_search", true, Boolean.class);
+
     // Sort keybind — default unbound, user configures in YACL settings.
     // Uses vanilla KeyMapping + MKKeybindExt duck interface for multi-key combos.
     private static KeyMapping sortRegionKey;
@@ -695,6 +702,17 @@ public class InventoryPlusClient implements ClientModInitializer {
                                 .binding(true,
                                         () -> family.getGeneral(AUTO_REPLACE_TOOLS),
                                         val -> family.setGeneral(AUTO_REPLACE_TOOLS, val))
+                                .controller(TickBoxControllerBuilder::create)
+                                .build())
+                        .option(Option.<Boolean>createBuilder()
+                                .name(Component.literal("Deep Arrow Search"))
+                                .description(OptionDescription.of(Component.literal(
+                                        "Search bundles, shulker boxes, and ender chests for arrows " +
+                                        "when shooting a bow or crossbow. Arrows in your inventory " +
+                                        "are always prioritized first.")))
+                                .binding(true,
+                                        () -> family.getGeneral(DEEP_ARROW_SEARCH),
+                                        val -> family.setGeneral(DEEP_ARROW_SEARCH, val))
                                 .controller(TickBoxControllerBuilder::create)
                                 .build())
                         .option(Option.<Boolean>createBuilder()

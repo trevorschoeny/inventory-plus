@@ -12,7 +12,10 @@
     "IPDeathDropsMixin",
     "IPAutoRestockMixin",
     "IPAutoReplaceMixin",
-    "IPAutoRouteMixin"
+    "IPAutoRouteMixin",
+    "IPDeepArrowMixin",
+    "IPBowArrowMixin",
+    "IPCrossbowArrowMixin"
   ],
   "client": [
     "IPWingsLayerMixin"
