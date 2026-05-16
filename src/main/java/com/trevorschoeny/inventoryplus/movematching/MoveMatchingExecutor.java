@@ -13,127 +13,118 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
- * The actual move logic for move-matching.
+ * Executes move-matching for a clicked / triggered slot group.
  *
- * <h3>What "matching" means</h3>
+ * <h3>Direction</h3>
  *
- * Per spec §"What": items match by item ID (not by name or NBT). The
- * match set is built from the items currently in the <b>target</b>
- * container; we walk the source slots and shift-click anything whose
- * item is in that set into the target.
+ * The clicked group is the <b>target</b>. Items flow INTO it from every
+ * other slot in the open menu, with two exclusions:
  *
- * <h3>Target vs source</h3>
+ * <ul>
+ *   <li><b>Hotbar</b> — never a source (spec §"Scope" + Trev's redirect).</li>
+ *   <li><b>The target group itself</b> — items already in the target
+ *       define the match-set; their own slots aren't sources to themselves.</li>
+ * </ul>
  *
- * Target = the open simplecontainer (chest, shulker, etc.) — equivalently,
- * every slot in the open menu whose backing {@link net.minecraft.world.Container}
- * is NOT the player's inventory.
+ * All other slot groups (player main inv, chest container, ender chest
+ * container, hopper, dispenser, furnace fuel, brewing-stand bottles,
+ * donkey saddle, etc.) are eligible sources per Trev's permissive-source
+ * direction (2026-05-15 redirect).
  *
- * <p>Source = the player's main inventory (3×9 grid, slots 9-35 in
- * {@link Inventory#getItem}). The hotbar is excluded per spec §"Scope".
+ * <h3>Match-set</h3>
  *
- * <p>For the bare {@link net.minecraft.client.gui.screens.inventory.InventoryScreen}
- * case (no separate container open), source = {nothing visible} →
- * execution is a no-op. We don't even register the button on
- * InventoryScreen for the smoke pass, so this path is unused, but the
- * executor handles it cleanly if it gets invoked.
+ * Built from items currently in the target group's slots. Matching is by
+ * item identity ({@link Item#equals}, effectively item-ID match) per spec
+ * §"What": "matched by item ID (not by name or NBT)".
  *
  * <h3>Cycle stops</h3>
  *
  * <ul>
- *   <li>{@link MoveMatchingCycle#ALL_MATCHING} — every matching item flows
- *       (including tools, totems, armor).</li>
+ *   <li>{@link MoveMatchingCycle#ALL_MATCHING} — every match flows, including
+ *       non-stackables.</li>
  *   <li>{@link MoveMatchingCycle#STACKABLE_ONLY} — match-set filtered to
- *       items with {@code maxStackSize > 1}; non-stackables stay put.</li>
+ *       stackable items ({@code maxStackSize > 1}) at both sides
+ *       (non-stackable in target doesn't pull anything; non-stackable in
+ *       source stays put).</li>
  *   <li>{@link MoveMatchingCycle#DISABLED} — no-op.</li>
  * </ul>
  *
- * <h3>Overflow + locked-slots</h3>
+ * <h3>Overflow</h3>
  *
- * Vanilla's {@link ClickType#QUICK_MOVE} handles partial-fit naturally —
- * items move what fits and leave the rest where they were, matching spec
+ * Vanilla {@link ClickType#QUICK_MOVE} handles partial-fit naturally —
+ * items move what fits and leave the remainder, matching spec
  * §"Destination capacity overflow".
- *
- * <p>Locked-slots isn't in 18b, so we don't filter out any source slots
- * or skip any target slots. Spec §"Locked slots" treatment is filed for
- * the locked-slots feature's own implementation pass.
  */
 public final class MoveMatchingExecutor {
 
     private MoveMatchingExecutor() {}
 
     /**
-     * Runs move-matching against the player's current open menu with the
-     * given cycle setting.
-     *
-     * @param mc      Minecraft instance (held to get player + gameMode +
-     *                containerMenu)
-     * @param cycle   the cycle stop in effect for the current container
+     * Runs move-matching for the given target slot group with the given
+     * cycle. Sources are inferred from the open menu (everything except
+     * hotbar and the target group itself).
      */
-    public static void execute(Minecraft mc, MoveMatchingCycle cycle) {
+    public static void execute(Minecraft mc, SlotGroup target, MoveMatchingCycle cycle) {
         if (cycle == MoveMatchingCycle.DISABLED) return;
+        if (!target.targetable()) return;
 
         LocalPlayer player = mc.player;
         if (player == null) return;
         MultiPlayerGameMode gameMode = mc.gameMode;
         if (gameMode == null) return;
-
         AbstractContainerMenu menu = player.containerMenu;
-        if (menu == null || menu == player.inventoryMenu) {
-            // No external container open → no source/target distinction →
-            // skip. (InventoryScreen path; matched at registration time
-            // by not registering the button there, but defensive here too.)
-            return;
-        }
+        if (menu == null) return;
 
         Inventory playerInv = player.getInventory();
 
-        // Build the match set from the target's slots.
+        // ─── Build match set from target's items ──────────────────────────
         Set<Item> matchSet = new HashSet<>();
-        for (Slot slot : menu.slots) {
-            if (slot.container == playerInv) continue;
+        for (Slot slot : target.slots()) {
             ItemStack stack = slot.getItem();
             if (stack.isEmpty()) continue;
-            Item item = stack.getItem();
             if (cycle == MoveMatchingCycle.STACKABLE_ONLY
                     && stack.getMaxStackSize() <= 1) {
-                // Stackable-only mode: non-stackables don't contribute to
-                // the match set either (a single non-stackable in the chest
-                // doesn't pull other non-stackables from inventory).
                 continue;
             }
-            matchSet.add(item);
+            matchSet.add(stack.getItem());
         }
 
         if (matchSet.isEmpty()) {
             InventoryPlusClient.LOGGER.debug(
-                    "[move-matching] no items in target container — no-op");
+                    "[move-matching] target has no items — no-op");
             return;
         }
 
-        // Iterate source slots (player main inventory: container index
-        // 9-35). Shift-click each match.
+        // ─── Iterate source slots ─────────────────────────────────────────
+        //
+        // Sources = every slot in the menu EXCEPT:
+        //   • hotbar (player inv container-slot 0-8)
+        //   • the target group's own slots
+        //
+        // Per Trev's redirect, the hotbar exclusion is the ONLY blanket
+        // exclusion — non-container-y groups like furnace fuel etc. ARE
+        // eligible sources (they just can't be targets themselves).
         int moved = 0;
         for (Slot slot : menu.slots) {
-            if (slot.container != playerInv) continue;
-            int containerSlot = slot.getContainerSlot();
-            // Hotbar = container slots 0-8. Skip per spec.
-            if (containerSlot < 9 || containerSlot >= 36) continue;
+            if (isHotbarSlot(slot, playerInv)) continue;
+            if (target.containsMenuIndex(slot.index)) continue;
             ItemStack stack = slot.getItem();
             if (stack.isEmpty()) continue;
-            Item item = stack.getItem();
-            if (!matchSet.contains(item)) continue;
+            if (!matchSet.contains(stack.getItem())) continue;
             if (cycle == MoveMatchingCycle.STACKABLE_ONLY
                     && stack.getMaxStackSize() <= 1) {
                 continue;
             }
 
-            // QUICK_MOVE shifts this slot's stack toward the target half
-            // (the open container side, since this slot is on the player
-            // inv side of the screen). Vanilla handles partial-fit and
-            // empty-slot routing.
+            // QUICK_MOVE — vanilla's shift-click routes the stack toward
+            // the "other half" of the screen, which for a chest/inv split
+            // means source half → target half. For more exotic menus
+            // (multi-container) vanilla's quickMoveStack on the specific
+            // ScreenHandler handles the routing.
             gameMode.handleInventoryMouseClick(
                     menu.containerId,
                     slot.index,
@@ -144,7 +135,23 @@ public final class MoveMatchingExecutor {
         }
 
         InventoryPlusClient.LOGGER.debug(
-                "[move-matching] cycle={} moved {} source slot(s) into target",
+                "[move-matching] target.key={} cycle={} moved {} source slot(s)",
+                target.key() != null ? target.key().toKeyString() : "<no-key>",
                 cycle, moved);
     }
+
+    /**
+     * Hotbar = slots in the player's main inventory with container-slot
+     * index in [0, 9). The spec excludes the hotbar entirely from
+     * move-matching participation.
+     */
+    private static boolean isHotbarSlot(Slot slot, Inventory playerInv) {
+        if (slot.container != playerInv) return false;
+        int ci = slot.getContainerSlot();
+        return ci >= 0 && ci < 9;
+    }
+
+    /** Unused, kept for documentation of menu-slot bounds during refactors. */
+    @SuppressWarnings("unused")
+    private static List<Slot> debugUnused() { return List.of(); }
 }

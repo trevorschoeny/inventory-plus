@@ -1,0 +1,15 @@
+accessWidener	v2	named
+
+# Expose the protected leftPos/topPos fields of AbstractContainerScreen so
+# move-matching's slot-group-anchored button-placement math can read the
+# screen-space origin without reflection or a mixin accessor.
+#
+# These fields hold the top-left of the menu's image rectangle (the
+# vanilla panel chrome). Slot positions are stored relative to this
+# origin in Slot.x / Slot.y, so the screen-space slot rectangle is
+# (leftPos + slot.x, topPos + slot.y, 16, 16). Move-matching's
+# slot-group-anchored button placement (above the slot group, right-
+# aligned with its right edge — see MoveMatchingButtons.buttonScreenBounds)
+# requires this origin every frame.
+accessible	field	net/minecraft/client/gui/screens/inventory/AbstractContainerScreen	leftPos	I
+accessible	field	net/minecraft/client/gui/screens/inventory/AbstractContainerScreen	topPos	I

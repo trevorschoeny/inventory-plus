@@ -4,86 +4,91 @@ import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.inventory.ContainerScreen;
-import net.minecraft.client.gui.screens.inventory.DispenserScreen;
-import net.minecraft.client.gui.screens.inventory.HopperScreen;
-import net.minecraft.client.gui.screens.inventory.ShulkerBoxScreen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.world.inventory.Slot;
 
 import org.lwjgl.glfw.GLFW;
 
+import java.util.List;
+
 /**
- * Two keybind paths for move-matching while a simplecontainer screen is
- * open:
+ * Screen-scoped {@code M} handling for move-matching, hover-aware per
+ * Trev's 2026-05-15 redirect:
  *
  * <ul>
- *   <li><b>M</b> (default) — execute move-matching with the current
- *       cycle. Wired via {@link ScreenKeyboardEvents} so it fires inside
- *       the open screen without registering a global keybind that would
- *       conflict with the {@code M} world-toggle (only fires in
- *       screens we own).</li>
- *   <li><b>Shift+M</b> (default) — cycle to the next stop without
- *       executing. Stand-in for the spec's "keybind on the button" cycle
- *       path until MK exposes a right-click hook on
- *       {@link com.trevorschoeny.menukit.core.Button}.</li>
+ *   <li>Mouse over a {@link PngMoveMatchingButton} when {@code M} is
+ *       pressed → <b>cycle</b> that slot group's setting.</li>
+ *   <li>Mouse over a slot in a <b>targetable</b> slot group → <b>trigger</b>
+ *       move-matching for that group.</li>
+ *   <li>Mouse anywhere else (over a non-target slot, over empty UI, over
+ *       the hotbar, over a specialized slot like furnace fuel) → no-op.</li>
  * </ul>
  *
- * <h3>Why screen-keypress events rather than a global KeyMapping</h3>
- *
- * Move-matching only makes sense inside a simplecontainer screen — outside
- * the screen there's no target. Wiring a global {@code KeyMapping} would
- * have the binding consume the {@code M} key during normal gameplay too,
- * stealing it from any future feature (or the player's own {@code M}-bound
- * action). Scoping via {@link ScreenKeyboardEvents} means the key is only
- * captured when one of our target screens is on top.
- *
- * <p>The keybind isn't user-rebindable in the smoke pass; promoting it to
- * a {@code KeyMapping} (still scoped, but exposed in vanilla's Controls
- * menu) is a follow-up.
+ * <p>Scoped via {@link ScreenKeyboardEvents} (not a global
+ * {@link net.minecraft.client.KeyMapping}) — outside a simplecontainer
+ * screen there's no target, so a global binding would steal {@code M}
+ * during normal gameplay. Promoting to a rebindable KeyMapping (still
+ * scoped) is a polish follow-up.
  */
 public final class MoveMatchingKeybind {
 
     private MoveMatchingKeybind() {}
 
-    /** The default key — letter M. */
     private static final int KEY_M = GLFW.GLFW_KEY_M;
 
-    /**
-     * Wires the screen-scoped key listeners on every screen open. Called
-     * once at mod init via {@link ScreenEvents#AFTER_INIT}.
-     */
     public static void register() {
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
-            if (!isMoveMatchingScreen(screen)) return;
+            if (!SlotGroupDetector.isMoveMatchingScreen(screen)) return;
             ScreenKeyboardEvents.afterKeyPress(screen).register(
                     (innerScreen, event) -> {
                         if (event.key() != KEY_M) return;
                         Minecraft mc = Minecraft.getInstance();
-                        boolean shift =
-                                (event.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0;
-                        if (shift) {
-                            MoveMatchingButton.cycle(mc);
-                        } else {
-                            ContainerKey ckey = ContainerKeyResolver.resolve(innerScreen);
-                            MoveMatchingCycle cycle = MoveMatchingPrefs.get(ckey);
-                            MoveMatchingExecutor.execute(mc, cycle);
+                        double mouseX = mc.mouseHandler.xpos()
+                                * (double) mc.getWindow().getGuiScaledWidth()
+                                / (double) mc.getWindow().getScreenWidth();
+                        double mouseY = mc.mouseHandler.ypos()
+                                * (double) mc.getWindow().getGuiScaledHeight()
+                                / (double) mc.getWindow().getScreenHeight();
+
+                        // 1. Cycle if hovering one of our buttons.
+                        SlotGroup hoverButtonGroup =
+                                MoveMatchingButtons.buttonUnderMouse(innerScreen, mouseX, mouseY);
+                        if (hoverButtonGroup != null) {
+                            MoveMatchingButtons.cycle(hoverButtonGroup);
+                            return;
                         }
+
+                        // 2. Trigger if hovering a slot in a targetable group.
+                        if (!(innerScreen instanceof AbstractContainerScreen<?> acs)) return;
+                        SlotGroup hoverSlotGroup = slotGroupUnderMouse(acs, mouseX, mouseY);
+                        if (hoverSlotGroup != null && hoverSlotGroup.targetable()) {
+                            MoveMatchingCycle cycle = MoveMatchingPrefs.get(hoverSlotGroup.key());
+                            MoveMatchingExecutor.execute(mc, hoverSlotGroup, cycle);
+                        }
+                        // 3. Else no-op — hotbar / non-target group / empty UI.
                     });
         });
     }
 
     /**
-     * True for the screen classes we registered the button on. Keeps the
-     * keybind scope consistent with the button's coverage.
-     *
-     * <p>{@link ContainerScreen} covers chests, double chests, ender
-     * chests, barrels, trapped chests — every {@code ChestMenu}-backed
-     * screen. Vanilla 1.21.11 unified these into one screen class.
+     * Walks the screen's tracked slot groups and returns the one whose
+     * slots' bounds contain the mouse, or null.
      */
-    private static boolean isMoveMatchingScreen(Screen screen) {
-        return screen instanceof ContainerScreen
-                || screen instanceof ShulkerBoxScreen
-                || screen instanceof HopperScreen
-                || screen instanceof DispenserScreen;
+    private static SlotGroup slotGroupUnderMouse(AbstractContainerScreen<?> acs,
+                                                 double mouseX, double mouseY) {
+        int leftPos = acs.leftPos;
+        int topPos = acs.topPos;
+        List<MoveMatchingButtons.Pair> pairs = MoveMatchingButtons.pairsFor(acs);
+        for (MoveMatchingButtons.Pair p : pairs) {
+            for (Slot slot : p.group().slots()) {
+                int sx = leftPos + slot.x;
+                int sy = topPos + slot.y;
+                if (mouseX >= sx && mouseX < sx + 16
+                        && mouseY >= sy && mouseY < sy + 16) {
+                    return p.group();
+                }
+            }
+        }
+        return null;
     }
 }

@@ -53,6 +53,11 @@ dependencies {
 }
 
 loom {
+    // Access widener — exposes leftPos/topPos on AbstractContainerScreen
+    // for slot-group-anchored button placement. See
+    // src/main/resources/inventoryplus.accesswidener for the rationale.
+    accessWidenerPath = file('src/main/resources/inventoryplus.accesswidener')
+
     runs {
         client { ideConfigGenerated = false }
         server { ideConfigGenerated = false }

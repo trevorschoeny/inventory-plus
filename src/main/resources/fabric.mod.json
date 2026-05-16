@@ -7,6 +7,7 @@
   "authors": ["trevorschoeny"],
   "license": "MIT",
   "environment": "client",
+  "accessWidener": "inventoryplus.accesswidener",
   "entrypoints": {
     "client": ["com.trevorschoeny.inventoryplus.InventoryPlusClient"]
   },

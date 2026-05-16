@@ -2,7 +2,7 @@ package com.trevorschoeny.inventoryplus;
 
 import com.trevorschoeny.inventoryplus.autorestock.AutoRestockTicker;
 import com.trevorschoeny.inventoryplus.movematching.ContainerKeyResolver;
-import com.trevorschoeny.inventoryplus.movematching.MoveMatchingButton;
+import com.trevorschoeny.inventoryplus.movematching.MoveMatchingButtons;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingKeybind;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingPrefs;
 
@@ -57,7 +57,7 @@ public class InventoryPlusClient implements ClientModInitializer {
         // MoveMatchingKeybind + MoveMatchingPrefs javadocs.
         MoveMatchingPrefs.load();
         ContainerKeyResolver.registerUseBlockCapture();
-        MoveMatchingButton.register();
+        MoveMatchingButtons.register();
         MoveMatchingKeybind.register();
 
         LOGGER.info("[inventoryplus] Client initialized — auto-restock + "
