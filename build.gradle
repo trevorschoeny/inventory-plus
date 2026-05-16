@@ -1,0 +1,64 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// Inventory Plus (IP) — pure client-only Fabric mod, depends only on MK 1.0.0
+// (the widgets artifact). Phase 18b fresh-build per Lead @ Inventory Plus'
+// brief (2026-05-15): three zero-gap features — Auto-restock, Move-matching,
+// Sorting — built against MK 1.0.0 as the only library dep. No MKC.
+//
+// Per §0005: IP is pure client-only; installs on any vanilla server. The
+// fabric.mod.json declares "environment": "client" — §0042's compile-time
+// partition is satisfied by the dependency declaration alone (we never reach
+// MKC types because they're not on this classpath).
+//
+// Workspace integration: included from the root settings.gradle as
+// `:inventory-plus`. Build with `./gradlew :inventory-plus:build` from the
+// workspace root.
+// ═══════════════════════════════════════════════════════════════════════════
+
+plugins {
+    id 'fabric-loom' version '1.14-SNAPSHOT'
+    id 'java'
+}
+
+version = property('mod_version')
+group   = property('maven_group')
+
+base.archivesName = 'inventory-plus'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+repositories {
+    maven { url 'https://maven.fabricmc.net/' }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${property('minecraft_version')}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${property('loader_version')}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${property('fabric_version')}"
+
+    // §0042 / §0005 + 18b brief: depend on MK 1.0.0 (the widgets artifact)
+    // and ONLY MK. Adding :menukit-containers here would put MKC types on
+    // the classpath and violate the partition test — IP is client-only by
+    // construction, including by classpath shape.
+    //
+    // The workspace-level project dep gives us the locally-built MK 1.0.0
+    // artifact (same content as a future Modrinth-published 1.0.0). When
+    // MK is published to Modrinth and consumed off-workspace, this line
+    // becomes `modImplementation 'maven.modrinth:menukit:1.0.0'`; the
+    // semantic dep is identical.
+    implementation project(path: ':menukit', configuration: 'namedElements')
+}
+
+loom {
+    runs {
+        client { ideConfigGenerated = false }
+        server { ideConfigGenerated = false }
+    }
+}
+
+jar {
+    from('LICENSE') { rename { "${it}_${project.name}" } }
+}
