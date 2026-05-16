@@ -4,7 +4,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.ContainerScreen;
-import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.client.gui.screens.inventory.DispenserScreen;
 import net.minecraft.client.gui.screens.inventory.HopperScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -123,13 +122,26 @@ public final class SlotGroupDetector {
      * (furnace, brewing stand, anvil, etc. never get the registration
      * pass).
      */
+    /**
+     * Screens that might host move-matching buttons. We include
+     * InventoryScreen because future features (Trev's hypothetical
+     * Shulker Peek) may surface a second traditional container inside
+     * it — the targetability decision in {@link SlotGroup#targetable}
+     * handles the "is this a traditional container" question via the
+     * blacklist, so vanilla's crafting slots correctly stay non-targetable.
+     *
+     * <p>CreativeModeInventoryScreen is excluded — the creative item
+     * picker isn't a real storage and creative-mode players don't need
+     * move-matching. If a use case emerges, add the screen class here
+     * and ensure the creative picker's container is in
+     * {@link SlotGroup#isNonTraditionalContainer}.
+     */
     public static boolean isMoveMatchingScreen(Screen screen) {
         return screen instanceof ContainerScreen
                 || screen instanceof ShulkerBoxScreen
                 || screen instanceof HopperScreen
                 || screen instanceof DispenserScreen
-                || screen instanceof InventoryScreen
-                || screen instanceof CreativeModeInventoryScreen;
+                || screen instanceof InventoryScreen;
     }
 
     private static SlotRole roleOf(Slot slot, Inventory playerInv) {

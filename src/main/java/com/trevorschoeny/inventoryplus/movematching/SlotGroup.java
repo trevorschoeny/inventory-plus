@@ -1,46 +1,48 @@
 package com.trevorschoeny.inventoryplus.movematching;
 
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.inventory.ContainerScreen;
-import net.minecraft.client.gui.screens.inventory.DispenserScreen;
-import net.minecraft.client.gui.screens.inventory.HopperScreen;
-import net.minecraft.client.gui.screens.inventory.ShulkerBoxScreen;
+import net.minecraft.world.Container;
+import net.minecraft.world.inventory.CraftingContainer;
+import net.minecraft.world.inventory.ResultContainer;
 import net.minecraft.world.inventory.Slot;
 
 import java.util.List;
 
 /**
  * A "slot group" within an open container menu — a contiguous block of
- * slots sharing a {@link SlotRole} and backing {@link net.minecraft.world.Container}.
+ * slots sharing a {@link SlotRole} and backing {@link Container}.
  *
- * <h3>Targetability decision</h3>
+ * <h3>Targetability decision (Trev 2026-05-16, container-blacklist edition)</h3>
  *
  * A group "hosts a move-matching button" when {@link #targetable} returns
- * true, which is a join of (role, screen class):
+ * true. The decision is data-driven from the group's role + container
+ * type — no screen-class check:
  *
  * <ul>
  *   <li>{@link SlotRole#PLAYER_MAIN_INV} → always targetable.</li>
- *   <li>{@link SlotRole#EXTERNAL} → targetable iff the screen is one of
- *       the vanilla simplecontainer screens (ContainerScreen — chest /
- *       trapped chest / barrel / ender chest, ShulkerBoxScreen,
- *       HopperScreen, DispenserScreen which also covers dropper). Not
- *       targetable on InventoryScreen (the crafting input/result, etc.
- *       are technically EXTERNAL but the spec excludes them).</li>
- *   <li>Everything else → never targetable.</li>
+ *   <li>{@link SlotRole#EXTERNAL} → targetable iff the backing container
+ *       is NOT in {@link #isNonTraditionalContainer}'s blacklist.</li>
+ *   <li>{@link SlotRole#PLAYER_HOTBAR} / {@link SlotRole#PLAYER_EQUIPMENT}
+ *       → never targetable.</li>
  * </ul>
  *
- * <p>Future "Shulker Peek"-style features that surface a real shulker
- * container inside the inventory screen would need to mark their screen
- * (or extend InventoryScreen) so {@link #isSimplecontainerScreen} returns
- * true for it. The partitioning itself works automatically — only the
- * decision changes.
+ * <p>The blacklist covers vanilla's known "non-traditional" containers
+ * that share the InventoryScreen (crafting result, crafting input). Any
+ * other EXTERNAL container — chest, shulker, hopper, dispenser, and any
+ * future feature that surfaces a real container (e.g., Trev's hypothetical
+ * Shulker Peek panel inside the InventoryScreen) — is treated as
+ * traditional and gets a button.
+ *
+ * <p>The 2+ rule lives in {@link MoveMatchingButtons}: even if all groups
+ * are independently targetable, buttons are only registered when at
+ * least two are present on the same screen. So a standalone vanilla
+ * InventoryScreen yields one targetable group (main inv) → no buttons.
+ * Open a chest, or open a future Shulker Peek inside the inventory →
+ * two targetable groups → buttons appear automatically.
  *
  * <h3>Bounds</h3>
  *
  * Slot positions are local to the screen's {@code leftPos}/{@code topPos}.
- * {@link #localTopY} / {@link #localRightX} recompute live each render
- * because vanilla can technically reposition slots on resize (rare for
- * container screens, but cheap to honor).
+ * {@link #localTopY} / {@link #localRightX} recompute live each render.
  */
 public record SlotGroup(
         ContainerKey key,
@@ -48,26 +50,32 @@ public record SlotGroup(
         SlotRole role
 ) {
 
-    /** Decides targetability given the active screen — see class javadoc. */
-    public boolean targetable(Screen screen) {
+    public boolean targetable() {
         return switch (role) {
             case PLAYER_MAIN_INV -> true;
-            case EXTERNAL -> isSimplecontainerScreen(screen);
+            case EXTERNAL -> {
+                if (slots.isEmpty()) yield false;
+                yield !isNonTraditionalContainer(slots.get(0).container);
+            }
             case PLAYER_HOTBAR, PLAYER_EQUIPMENT -> false;
         };
     }
 
     /**
-     * Vanilla simplecontainer screen classes. {@code InventoryScreen} and
-     * {@code CreativeModeInventoryScreen} are deliberately excluded — their
-     * EXTERNAL groups (crafting, etc.) aren't traditional containers per
-     * spec.
+     * Vanilla "non-traditional" container types that may appear in
+     * InventoryScreen alongside the player inventory: the crafting
+     * result and the crafting input. Add new entries here as edge
+     * cases surface — the blacklist is the load-bearing line for keeping
+     * the player's UI buttons honest.
+     *
+     * <p>Note: {@link CraftingContainer} is the interface;
+     * {@link net.minecraft.world.inventory.TransientCraftingContainer}
+     * is the concrete impl used in {@link net.minecraft.world.inventory.InventoryMenu}.
+     * We check the interface to catch any other CraftingContainer impls.
      */
-    public static boolean isSimplecontainerScreen(Screen screen) {
-        return screen instanceof ContainerScreen
-                || screen instanceof ShulkerBoxScreen
-                || screen instanceof HopperScreen
-                || screen instanceof DispenserScreen;
+    public static boolean isNonTraditionalContainer(Container container) {
+        return container instanceof ResultContainer
+                || container instanceof CraftingContainer;
     }
 
     public int localTopY() {
