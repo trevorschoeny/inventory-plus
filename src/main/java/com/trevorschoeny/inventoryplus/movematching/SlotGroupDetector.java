@@ -9,82 +9,65 @@ import net.minecraft.client.gui.screens.inventory.DispenserScreen;
 import net.minecraft.client.gui.screens.inventory.HopperScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.inventory.ShulkerBoxScreen;
-import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.PlayerEnderChestContainer;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.level.block.entity.BarrelBlockEntity;
-import net.minecraft.world.level.block.entity.ChestBlockEntity;
-import net.minecraft.world.level.block.entity.DispenserBlockEntity;
-import net.minecraft.world.level.block.entity.HopperBlockEntity;
-import net.minecraft.world.level.block.entity.ShulkerBoxBlockEntity;
 import net.minecraft.world.level.block.EnderChestBlock;
 
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
- * Partitions an open container menu's slots into {@link SlotGroup}s and
- * tags each with a {@code targetable} flag.
+ * Partitions an open container menu's slots into {@link SlotGroup}s by
+ * (role, backing container) and tags each with the right
+ * {@link ContainerKey} for persistence.
  *
- * <h3>Partitioning rule</h3>
+ * <h3>Why role-based partitioning</h3>
  *
- * Adjacent slots sharing a backing {@link Container} reference form one
- * group. The player inventory is split further: container-slot index
- * 0-8 = hotbar (always non-targetable), 9-35 = main inventory (always
- * targetable).
- *
- * <h3>Targetable rule (per Trev's 2026-05-16 redirect)</h3>
- *
- * A slot group is <i>targetable</i> — meaning it hosts a move-matching
- * button — only if it falls into the spec's "traditional simplecontainer"
- * set:
+ * Vanilla 1.21+ unified equipment access through {@link Inventory}'s
+ * wrapper — armor and offhand slots share the SAME container reference
+ * as the main inventory and hotbar. The distinguishing detail is
+ * {@link Slot#getContainerSlot}:
  *
  * <ul>
- *   <li>Player main inventory (3×9 grid above the hotbar).</li>
- *   <li>Containers backed by {@link ChestBlockEntity} (chest, trapped
- *       chest — subclass), {@link BarrelBlockEntity},
- *       {@link ShulkerBoxBlockEntity}, {@link HopperBlockEntity},
- *       {@link DispenserBlockEntity} (dispenser, dropper — subclass), or
- *       {@link PlayerEnderChestContainer}.</li>
+ *   <li>{@code [0, 9)} — hotbar</li>
+ *   <li>{@code [9, 36)} — main inventory 3×9</li>
+ *   <li>{@code [36, ∞)} — armor / offhand / body / saddle equipment</li>
  * </ul>
  *
- * <p>Everything else (armor, offhand, crafting input/result, furnace fuel
- * /input/output, brewing-stand bottles, donkey saddle, anvil grid, loom
- * pattern, etc.) is non-targetable. These slots can still be <b>sources</b>
- * for a move-matching trigger fired on a different group — that's Trev's
- * permissive-source direction from 2026-05-15 — but they never host a
- * button.
+ * <p>An earlier version of this detector partitioned only on container
+ * reference + a hotbar/non-hotbar split (boolean: containerSlot &lt; 9).
+ * That bucketed armor + main inv + offhand together as one "non-hotbar"
+ * group, which made the targetable bounds span from the armor row down
+ * to slot 35 — buttons appeared above the helmet row instead of above
+ * the main inventory. The role enum + range check is the load-bearing
+ * fix.
  *
- * <h3>The 2+ rule</h3>
+ * <h3>Why screen-class-based EXTERNAL targetability</h3>
  *
- * Per Trev's 2026-05-16 direction, move-matching only activates when at
- * least two targetable groups are visible on the same screen. That count
- * decision lives in {@link MoveMatchingButtons} (the registration site).
- * This detector returns all groups; the caller filters.
+ * Client-side, the slot's {@code container} field for a chest / shulker /
+ * etc. is NOT the server's {@code ChestBlockEntity} — vanilla creates a
+ * client-side {@link net.minecraft.world.SimpleContainer} proxy that
+ * mirrors slot updates. An instanceof check against
+ * {@code ChestBlockEntity} would always fail in multiplayer (and in
+ * singleplayer the references are intentionally distinct too). The
+ * reliable signal is the active {@link Screen} class — that's the same
+ * on both sides and tracks the menu's identity.
  *
- * <h3>Future compatibility — Shulker Peek</h3>
- *
- * If a future feature renders shulker contents alongside the player
- * inventory (e.g., a "Shulker Peek" panel inside the inventory screen
- * that exposes a real {@link ShulkerBoxBlockEntity} as a slot group),
- * the detector picks up the second targetable group automatically and
- * the 2+ rule fires — buttons appear without any change to this file.
- * The same applies to any consumer mod that adds a new traditional
- * container into a screen, as long as its slot.container resolves to one
- * of the whitelisted BlockEntity types or the player main inv.
+ * <p>{@link SlotGroup#targetable} uses
+ * {@link SlotGroup#isSimplecontainerScreen} for the EXTERNAL decision.
+ * The decision lives on SlotGroup rather than here so it travels with
+ * the partition output.
  */
 public final class SlotGroupDetector {
 
     private SlotGroupDetector() {}
 
-    /**
-     * Returns the slot-group partition for the given screen.
-     */
+    /** Returns the slot-group partition for the given screen. */
     public static List<SlotGroup> detect(Screen screen) {
         if (!isMoveMatchingScreen(screen)) return List.of();
         if (!(screen instanceof AbstractContainerScreen<?> acs)) return List.of();
@@ -95,54 +78,50 @@ public final class SlotGroupDetector {
         if (player == null) return List.of();
         Inventory playerInv = player.getInventory();
 
+        // Resolve the non-player container's key once — every non-player
+        // slot group on a single screen maps to the same external block /
+        // ender-chest / etc., so we don't need to per-slot look it up.
         ContainerKey nonPlayerKey = resolveNonPlayerContainerKey();
 
         List<SlotGroup> groups = new ArrayList<>();
         List<Slot> current = new ArrayList<>();
+        SlotRole currentRole = null;
         Object currentContainer = null;
-        Boolean currentIsHotbar = null;
 
         for (Slot slot : menu.slots) {
+            SlotRole role = roleOf(slot, playerInv);
             Object container = slot.container;
-            boolean isPlayer = container == playerInv;
-            boolean isHotbar = isPlayer && slot.getContainerSlot() < 9;
 
-            boolean boundary;
-            if (currentContainer == null) {
-                boundary = false;
-            } else if (container != currentContainer) {
-                boundary = true;
-            } else if (isPlayer && (currentIsHotbar != null && currentIsHotbar != isHotbar)) {
-                boundary = true;
-            } else {
-                boundary = false;
-            }
+            // Group boundary when (role, container) tuple changes. Using
+            // identity equality for the container reference is the right
+            // test — vanilla reuses container instances across the slot
+            // list within a group.
+            boolean boundary = currentRole != null
+                    && (currentRole != role || currentContainer != container);
 
             if (boundary && !current.isEmpty()) {
-                groups.add(buildGroup(current, currentContainer, currentIsHotbar,
-                        playerInv, nonPlayerKey));
+                groups.add(buildGroup(current, currentRole, nonPlayerKey));
                 current = new ArrayList<>();
             }
 
             current.add(slot);
+            currentRole = role;
             currentContainer = container;
-            currentIsHotbar = isPlayer ? isHotbar : null;
         }
 
         if (!current.isEmpty()) {
-            groups.add(buildGroup(current, currentContainer, currentIsHotbar,
-                    playerInv, nonPlayerKey));
+            groups.add(buildGroup(current, currentRole, nonPlayerKey));
         }
 
         return groups;
     }
 
     /**
-     * Returns true if the screen MIGHT host move-matching buttons —
-     * specifically, if it's a vanilla simplecontainer screen or the
-     * player inventory screens (which Shulker Peek-style features would
-     * extend). Filters out specialized UIs (furnace, brewing stand,
-     * anvil, etc.) at the source; the detector doesn't even run on those.
+     * Returns true if the screen might host move-matching buttons — i.e.,
+     * we should run the detector + 2+-rule check on it. Filters out
+     * specialized UIs at the source so the detector doesn't even bother
+     * (furnace, brewing stand, anvil, etc. never get the registration
+     * pass).
      */
     public static boolean isMoveMatchingScreen(Screen screen) {
         return screen instanceof ContainerScreen
@@ -153,46 +132,23 @@ public final class SlotGroupDetector {
                 || screen instanceof CreativeModeInventoryScreen;
     }
 
-    private static SlotGroup buildGroup(List<Slot> slots, Object container,
-                                        @Nullable Boolean isHotbar,
-                                        Inventory playerInv,
-                                        @Nullable ContainerKey nonPlayerKey) {
-        boolean isPlayer = container == playerInv;
-        ContainerKey key;
-        boolean targetable;
-
-        if (isPlayer) {
-            if (Boolean.TRUE.equals(isHotbar)) {
-                // Hotbar — never a target, never a source either (Trev's rule).
-                key = null;
-                targetable = false;
-            } else {
-                // Player main inventory 3×9.
-                key = ContainerKey.PLAYER_INVENTORY;
-                targetable = true;
-            }
-        } else {
-            // Non-player container — targetable iff it's in the
-            // traditional-simplecontainer whitelist.
-            key = nonPlayerKey;
-            targetable = isTraditionalContainer(container);
-        }
-
-        return new SlotGroup(key, List.copyOf(slots), targetable);
+    private static SlotRole roleOf(Slot slot, Inventory playerInv) {
+        if (slot.container != playerInv) return SlotRole.EXTERNAL;
+        int ci = slot.getContainerSlot();
+        if (ci < 9) return SlotRole.PLAYER_HOTBAR;
+        if (ci < 36) return SlotRole.PLAYER_MAIN_INV;
+        return SlotRole.PLAYER_EQUIPMENT;
     }
 
-    /**
-     * Whitelist for "traditional simplecontainer" backing types — the set
-     * of {@link Container} implementations whose slot group should host a
-     * move-matching button. See class javadoc §"Targetable rule".
-     */
-    private static boolean isTraditionalContainer(Object container) {
-        return container instanceof ChestBlockEntity        // chest + trapped chest (subclass)
-                || container instanceof BarrelBlockEntity
-                || container instanceof ShulkerBoxBlockEntity
-                || container instanceof HopperBlockEntity   // block hopper only; minecart hopper isn't a BE
-                || container instanceof DispenserBlockEntity // dispenser + dropper (subclass)
-                || container instanceof PlayerEnderChestContainer;
+    private static SlotGroup buildGroup(List<Slot> slots, SlotRole role,
+                                        @Nullable ContainerKey nonPlayerKey) {
+        Objects.requireNonNull(role, "role");
+        ContainerKey key = switch (role) {
+            case PLAYER_MAIN_INV -> ContainerKey.PLAYER_INVENTORY;
+            case PLAYER_HOTBAR, PLAYER_EQUIPMENT -> null;
+            case EXTERNAL -> nonPlayerKey;
+        };
+        return new SlotGroup(key, List.copyOf(slots), role);
     }
 
     private static @Nullable ContainerKey resolveNonPlayerContainerKey() {

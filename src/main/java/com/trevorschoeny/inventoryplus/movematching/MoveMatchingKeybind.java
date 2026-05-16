@@ -54,14 +54,14 @@ public final class MoveMatchingKeybind {
                         SlotGroup hoverButtonGroup =
                                 MoveMatchingButtons.buttonUnderMouse(innerScreen, mouseX, mouseY);
                         if (hoverButtonGroup != null) {
-                            MoveMatchingButtons.cycle(hoverButtonGroup);
+                            MoveMatchingButtons.cycle(hoverButtonGroup, innerScreen);
                             return;
                         }
 
                         // 2. Trigger if hovering a slot in a targetable group.
                         if (!(innerScreen instanceof AbstractContainerScreen<?> acs)) return;
                         SlotGroup hoverSlotGroup = slotGroupUnderMouse(acs, mouseX, mouseY);
-                        if (hoverSlotGroup != null && hoverSlotGroup.targetable()) {
+                        if (hoverSlotGroup != null && hoverSlotGroup.targetable(innerScreen)) {
                             MoveMatchingCycle cycle = MoveMatchingPrefs.get(hoverSlotGroup.key());
                             MoveMatchingExecutor.execute(mc, hoverSlotGroup, cycle);
                         }

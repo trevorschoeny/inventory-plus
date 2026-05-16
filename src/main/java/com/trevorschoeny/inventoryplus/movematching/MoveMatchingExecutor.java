@@ -70,7 +70,12 @@ public final class MoveMatchingExecutor {
 
     public static void execute(Minecraft mc, SlotGroup target, MoveMatchingCycle cycle) {
         if (cycle == MoveMatchingCycle.DISABLED) return;
-        if (!target.targetable()) return;
+        // Targetability re-check is implicit — the caller (MoveMatchingButtons
+        // or MoveMatchingKeybind) already validated that `target.targetable(screen)`
+        // before invoking the executor. We don't re-validate here because the
+        // executor doesn't know the screen, and the only invariant the
+        // executor relies on is target.slots() being non-empty and target.key()
+        // being meaningful — both follow from "targetable on the live screen".
 
         LocalPlayer player = mc.player;
         if (player == null) return;

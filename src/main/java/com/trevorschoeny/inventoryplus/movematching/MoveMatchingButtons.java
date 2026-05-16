@@ -68,7 +68,7 @@ public final class MoveMatchingButtons {
 
             // 2+ rule: count targetable groups; only register when ≥ 2.
             int targetableCount = 0;
-            for (SlotGroup g : groups) if (g.targetable()) targetableCount++;
+            for (SlotGroup g : groups) if (g.targetable(screen)) targetableCount++;
             if (targetableCount < 2) {
                 InventoryPlusClient.LOGGER.debug(
                         "[move-matching] only {} targetable group(s) on {} — no buttons",
@@ -78,7 +78,7 @@ public final class MoveMatchingButtons {
 
             List<Pair> pairs = new ArrayList<>();
             for (SlotGroup group : groups) {
-                if (!group.targetable()) continue;
+                if (!group.targetable(screen)) continue;
                 PngMoveMatchingButton btn = new PngMoveMatchingButton(
                         () -> MoveMatchingPrefs.get(group.key()),
                         clickedBtn -> {
@@ -173,8 +173,8 @@ public final class MoveMatchingButtons {
      * 2026-05-16 the tooltip is the surface, since the HUD overlay
      * isn't visible while a screen is open).
      */
-    public static void cycle(SlotGroup group) {
-        if (!group.targetable()) return;
+    public static void cycle(SlotGroup group, Screen screen) {
+        if (!group.targetable(screen)) return;
         ContainerKey key = group.key();
         if (key == null) {
             InventoryPlusClient.LOGGER.debug(
