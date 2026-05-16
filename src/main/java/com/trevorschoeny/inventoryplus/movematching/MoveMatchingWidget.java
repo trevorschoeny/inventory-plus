@@ -6,62 +6,48 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
-import org.lwjgl.glfw.GLFW;
-
 /**
- * Move-matching button — a vanilla {@link AbstractWidget} subclass that
- * renders the {@code move_matching_button.png} sprite, handles
- * {@link Screen#hasShiftDown shift-click} to cycle vs left-click to
- * trigger, and provides a hover tooltip via vanilla's
- * {@link GuiGraphics#setTooltipForNextFrame}.
+ * Move-matching button — vanilla {@link AbstractWidget} subclass.
  *
- * <h3>Why a vanilla widget rather than MK Button</h3>
+ * <h3>Interaction</h3>
  *
- * MK's {@link com.trevorschoeny.menukit.core.Button} supports custom
- * background painting via subclassing — the v3 button used that. The
- * tooltip queue, however, must be primed during the screen's renderables
- * iteration (inside {@link Screen#render}, before
- * {@code Screen.renderWithTooltipAndSubtitles} flushes deferred elements
- * via {@code GuiGraphics.renderDeferredElements}). Fabric's
- * {@code ScreenEvents.afterRender} fires <i>after</i> that flush — the
- * deferred-tooltip Runnable is gone by the time my afterRender registers
- * the new one, so the tooltip never renders.
+ * <ul>
+ *   <li><b>Left click</b> → {@link MoveMatchingExecutor#execute} with
+ *       the group's current cycle stop.</li>
+ *   <li><b>Cycle</b> → press the {@code M} keybind while hovering this
+ *       widget. The cycle action lives on
+ *       {@link MoveMatchingKeybind} so the keybind-event flow owns the
+ *       state transition; this widget's {@link #cycle()} method is the
+ *       hook the keybind calls.</li>
+ * </ul>
  *
- * <p>Adding a vanilla widget via {@link net.fabricmc.fabric.api.client.screen.v1.Screens#getButtons}
- * makes the widget participate in {@code Screen.render}'s renderables
- * iteration. Tooltips queued from inside {@code renderWidget} reach the
- * deferred queue in time for the same frame's flush.
+ * <p>Earlier iterations of this widget used shift-click for cycling.
+ * Trev 2026-05-16 reverted that to the keybind-on-button shape; both
+ * options were tried, the keybind-on-button approach won out.
  *
- * <p>This is the right architectural answer — vanilla's widget pipeline
- * is the integration point for screen-anchored interactive UI. The MK
- * Button + ScreenPanelAdapter path is for panels that compose into MK's
- * region system; slot-anchored decorations that need vanilla's
- * widget-render lifecycle want the vanilla path.
+ * <h3>Render lifecycle</h3>
+ *
+ * Added to the screen via
+ * {@link net.fabricmc.fabric.api.client.screen.v1.Screens#getButtons},
+ * so vanilla's {@code Screen.render} renderables iteration invokes this
+ * widget's {@link #renderWidget}. Tooltips queued from there reach
+ * {@code GuiGraphics.renderDeferredElements} in the same frame, which
+ * is why this widget shape (vs. an MK Button rendered from
+ * {@code ScreenEvents.afterRender}) is the right integration point —
+ * see MoveMatchingWidget v5 commit / DEFERRED.md for the diagnosis.
  *
  * <h3>Live position</h3>
  *
- * The widget's screen-space position depends on the slot group's bounds
- * (which depend on the screen's {@code leftPos} / {@code topPos}). Both
- * recompute on resize / gui-scale changes. We re-derive the position
- * each {@code renderWidget} so resize handling is automatic — vanilla's
- * resize path re-renders the widget at the next frame, where we read
- * the new {@code leftPos} / {@code topPos} via {@link ScreenLayout}.
- *
- * <h3>Interaction (Trev 2026-05-16 #2)</h3>
- *
- * <ul>
- *   <li><b>Left click</b> → {@link MoveMatchingExecutor#execute} with the
- *       group's current cycle setting.</li>
- *   <li><b>Shift + left click</b> → advance the group's cycle one stop.
- *       Replaces the prior keybind-on-button cycle.</li>
- *   <li>Other mouse buttons → no-op.</li>
- * </ul>
+ * Screen-space coordinates are recomputed each {@code renderWidget} from
+ * the slot group's current bounds + the screen's {@code leftPos} /
+ * {@code topPos}. Resize / GUI scale changes propagate next frame
+ * automatically.
  */
 public final class MoveMatchingWidget extends AbstractWidget {
 
@@ -71,10 +57,10 @@ public final class MoveMatchingWidget extends AbstractWidget {
 
     public static final int SIZE = 9;
 
-    /** {@code +1 px right} (per Trev 2026-05-16) — pushes the button right of the slot group's right edge alignment. */
+    /** {@code +1 px right} of the slot group's right edge (Trev 2026-05-16). */
     public static final int OFFSET_RIGHT = 1;
 
-    /** {@code 3 px gap} between the button's bottom edge and the slot group's top edge. */
+    /** {@code 3 px gap} between the button's bottom and the slot group's top edge. */
     public static final int GAP_ABOVE = 3;
 
     private final SlotGroup group;
@@ -82,19 +68,15 @@ public final class MoveMatchingWidget extends AbstractWidget {
 
     public MoveMatchingWidget(SlotGroup group, AbstractContainerScreen<?> screen) {
         super(0, 0, SIZE, SIZE,
-                net.minecraft.network.chat.Component.translatable("inventoryplus.movematching.button.narration"));
+                Component.translatable("inventoryplus.movematching.button.narration"));
         this.group = group;
         this.screen = screen;
     }
 
-    /**
-     * Recomputes position from the slot group's live bounds, paints the
-     * PNG (dimmed when DISABLED), and queues the hover tooltip.
-     */
     @Override
     protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        // Position math: anchored above the slot group, right-aligned
-        // with its right edge, offset per Trev's 2026-05-16 tweak.
+        // Position math: above the slot group, right-aligned with its
+        // right edge + 1 px right + 3 px gap above.
         int leftPos = ScreenLayout.leftPos(screen);
         int topPos = ScreenLayout.topPos(screen);
         int groupRightX = leftPos + group.localRightX();
@@ -113,39 +95,39 @@ public final class MoveMatchingWidget extends AbstractWidget {
                 SIZE, SIZE);
 
         if (cycle == MoveMatchingCycle.DISABLED) {
-            // 50% black overlay — visual cue for the disabled state.
+            // 50% black overlay — visual cue for the off state.
             graphics.fill(getX(), getY(), getX() + SIZE, getY() + SIZE, 0x80000000);
         }
 
-        // Tooltip — per-cycle text lives on MoveMatchingCycle. Vanilla
-        // splits the Component on embedded newlines so a single Component
-        // with \n renders as multi-line.
+        // Tooltip — list-form is required for multi-line in 1.21.11
+        // (\n in a single Component renders as a literal LF glyph, not
+        // a line break). setComponentTooltipForNextFrame takes a list
+        // of Components, one per line.
         if (isHovered()) {
-            graphics.setTooltipForNextFrame(
+            graphics.setComponentTooltipForNextFrame(
                     Minecraft.getInstance().font,
-                    cycle.tooltip(),
+                    cycle.tooltipLines(),
                     mouseX, mouseY);
         }
     }
 
-    /**
-     * Vanilla calls this on the button when the user clicks within its
-     * bounds. We dispatch on {@link Screen#hasShiftDown}: shift → cycle,
-     * else → trigger.
-     */
     @Override
     public void onClick(MouseButtonEvent event, boolean doubleClick) {
         if (event.button() != 0) return; // left mouse only
-        boolean shift = (event.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0;
-        Minecraft mc = Minecraft.getInstance();
-        if (shift) {
-            cycle();
-        } else {
-            MoveMatchingExecutor.execute(mc, group, MoveMatchingPrefs.get(group.key()));
-        }
+        // Left click = trigger. Cycling is handled by the keybind path —
+        // pressing M while hovering this widget (see MoveMatchingKeybind).
+        MoveMatchingExecutor.execute(
+                Minecraft.getInstance(),
+                group,
+                MoveMatchingPrefs.get(group.key()));
     }
 
-    private void cycle() {
+    /**
+     * Advance this widget's slot group to the next cycle stop and
+     * persist. Called from {@link MoveMatchingKeybind} when M is
+     * pressed while hovering the widget.
+     */
+    public void cycle() {
         ContainerKey key = group.key();
         if (key == null) {
             InventoryPlusClient.LOGGER.debug(
@@ -156,13 +138,12 @@ public final class MoveMatchingWidget extends AbstractWidget {
         MoveMatchingPrefs.set(key, next);
     }
 
-    /** No narration text customization for the smoke pass — uses the default. */
     @Override
     protected void updateWidgetNarration(NarrationElementOutput narration) {
         defaultButtonNarrationText(narration);
     }
 
-    /** Public accessor — used by the keybind path to detect "M over button" (no-op now, but kept for symmetry). */
+    /** Public accessor for the keybind path. */
     public SlotGroup group() {
         return group;
     }

@@ -2,35 +2,35 @@ package com.trevorschoeny.inventoryplus.movematching;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
+import net.fabricmc.fabric.api.client.screen.v1.Screens;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.Slot;
 
+import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 
 /**
- * Screen-scoped {@code M} keybind for triggering move-matching.
+ * Screen-scoped {@code M} keybind. Two behaviors, hover-aware:
  *
- * <p>Single behavior per Trev's 2026-05-16 redirect:
  * <ul>
- *   <li>Mouse over a slot in a <b>targetable</b> slot group when {@code M}
- *       is pressed → trigger move-matching for that group.</li>
- *   <li>Mouse anywhere else (over the widget, over a non-target slot,
- *       over empty UI, over the hotbar) → no-op.</li>
+ *   <li>Mouse over a {@link MoveMatchingWidget} → <b>cycle</b> that
+ *       group's setting one stop.</li>
+ *   <li>Mouse over a slot in a <b>targetable</b> slot group → <b>trigger</b>
+ *       move-matching for that group with its current cycle.</li>
+ *   <li>Mouse over the hotbar, a non-target slot, or empty UI → no-op.</li>
  * </ul>
- *
- * <p>Cycling the cycle stop is now done via <b>Shift + left click on
- * the widget</b> ({@link MoveMatchingWidget#onClick}). The previous
- * keybind-on-button cycle path has been retired.
  *
  * <p>Scoped via {@link ScreenKeyboardEvents} (not a global
  * {@link net.minecraft.client.KeyMapping}) — outside a simplecontainer
- * screen there's no target, so a global binding would steal {@code M}
- * during normal gameplay. Promoting to a rebindable KeyMapping (still
- * scoped) is a polish follow-up.
+ * screen there's no meaningful action, so a global keybind would
+ * steal {@code M} during normal gameplay. Promoting to a rebindable
+ * KeyMapping is filed in DEFERRED.md.
  */
 public final class MoveMatchingKeybind {
 
@@ -53,19 +53,46 @@ public final class MoveMatchingKeybind {
                                 * (double) mc.getWindow().getGuiScaledHeight()
                                 / (double) mc.getWindow().getScreenHeight();
 
+                        // 1. Cycle if hovering one of our widgets.
+                        MoveMatchingWidget hoverWidget =
+                                widgetUnderMouse(innerScreen, mouseX, mouseY);
+                        if (hoverWidget != null) {
+                            hoverWidget.cycle();
+                            return;
+                        }
+
+                        // 2. Trigger if hovering a slot in a targetable group.
                         SlotGroup hoverSlotGroup = slotGroupUnderMouse(acs, mouseX, mouseY);
                         if (hoverSlotGroup != null && hoverSlotGroup.targetable()) {
                             MoveMatchingCycle cycle = MoveMatchingPrefs.get(hoverSlotGroup.key());
                             MoveMatchingExecutor.execute(mc, hoverSlotGroup, cycle);
                         }
+                        // 3. Else no-op.
                     });
         });
     }
 
     /**
-     * Walks the screen's targetable slot groups (re-detected fresh — no
-     * cached state) and returns the group whose slots contain the mouse,
-     * or null.
+     * Returns the {@link MoveMatchingWidget} whose bounds contain the
+     * mouse, or null. Iterates the screen's button list (which is where
+     * we registered the widgets) so no per-screen state map is needed.
+     */
+    private static @Nullable MoveMatchingWidget widgetUnderMouse(Screen screen,
+                                                                 double mouseX, double mouseY) {
+        List<AbstractWidget> buttons = Screens.getButtons(screen);
+        for (AbstractWidget w : buttons) {
+            if (!(w instanceof MoveMatchingWidget mmw)) continue;
+            if (mouseX >= w.getX() && mouseX < w.getX() + w.getWidth()
+                    && mouseY >= w.getY() && mouseY < w.getY() + w.getHeight()) {
+                return mmw;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Re-detects slot groups on each keypress (cheap) and returns the
+     * targetable group whose slots contain the mouse, or null.
      */
     private static SlotGroup slotGroupUnderMouse(AbstractContainerScreen<?> acs,
                                                  double mouseX, double mouseY) {
