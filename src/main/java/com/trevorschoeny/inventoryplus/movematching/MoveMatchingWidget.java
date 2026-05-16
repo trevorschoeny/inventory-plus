@@ -10,7 +10,6 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
 import org.lwjgl.glfw.GLFW;
@@ -82,7 +81,8 @@ public final class MoveMatchingWidget extends AbstractWidget {
     private final AbstractContainerScreen<?> screen;
 
     public MoveMatchingWidget(SlotGroup group, AbstractContainerScreen<?> screen) {
-        super(0, 0, SIZE, SIZE, Component.translatable("inventoryplus.movematching.button.narration"));
+        super(0, 0, SIZE, SIZE,
+                net.minecraft.network.chat.Component.translatable("inventoryplus.movematching.button.narration"));
         this.group = group;
         this.screen = screen;
     }
@@ -117,25 +117,15 @@ public final class MoveMatchingWidget extends AbstractWidget {
             graphics.fill(getX(), getY(), getX() + SIZE, getY() + SIZE, 0x80000000);
         }
 
-        // Tooltip (per Trev 2026-05-16 #3):
-        //     Move matching: <current state>
-        //     Press M to cycle
-        //
-        // NOTE 2026-05-16: the spec said "Press M to cycle" but Trev
-        // changed the cycle UX to shift-click on 2026-05-16. Updating
-        // the tooltip text to match the actual interaction.
+        // Tooltip — per-cycle text lives on MoveMatchingCycle. Vanilla
+        // splits the Component on embedded newlines so a single Component
+        // with \n renders as multi-line.
         if (isHovered()) {
             graphics.setTooltipForNextFrame(
                     Minecraft.getInstance().font,
-                    tooltipText(cycle),
+                    cycle.tooltip(),
                     mouseX, mouseY);
         }
-    }
-
-    private static Component tooltipText(MoveMatchingCycle cycle) {
-        return Component.literal("Move matching: ")
-                .append(cycle.tooltip())
-                .append(Component.literal("\nShift+click to cycle"));
     }
 
     /**
