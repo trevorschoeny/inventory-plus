@@ -1,6 +1,11 @@
 package com.trevorschoeny.inventoryplus;
 
+import com.trevorschoeny.inventoryplus.autorestock.AutoRestockTicker;
+
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+
+import net.minecraft.client.Minecraft;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,10 +41,14 @@ public class InventoryPlusClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        // Scaffold-only smoke pass: no features wired yet. Subsequent
-        // 18b deltas register feature modules here in dependency order
-        // (auto-restock first since it has the fewest cross-cutting
-        // concerns, then move-matching, then sorting).
-        LOGGER.info("[inventoryplus] Client initialized — Phase 18b scaffold, no features wired yet.");
+        // Auto-restock — tick-driven detection of empty active hotbar /
+        // offhand / armor slots, with refill from main inventory. Pure
+        // client-side; sends vanilla slot-click packets so any vanilla
+        // server accepts the operation. See AutoRestockTicker class
+        // javadoc for the watch + refill model.
+        ClientTickEvents.END_CLIENT_TICK.register(AutoRestockTicker::tick);
+
+        LOGGER.info("[inventoryplus] Client initialized — auto-restock active "
+                + "(move-matching + sorting still pending).");
     }
 }
