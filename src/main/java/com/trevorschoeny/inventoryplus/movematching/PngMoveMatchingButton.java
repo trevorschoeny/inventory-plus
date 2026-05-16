@@ -1,38 +1,37 @@
 package com.trevorschoeny.inventoryplus.movematching;
 
-import com.mojang.blaze3d.platform.Window;
-
 import com.trevorschoeny.menukit.core.Button;
 import com.trevorschoeny.menukit.core.RenderContext;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Custom-art subclass of MK {@link Button} for the move-matching action.
  * Renders the {@code move_matching_button.png} sprite (9×9) instead of
  * vanilla button chrome; no text content. A dim treatment overlays the
- * sprite when the button's slot group is set to
- * {@link MoveMatchingCycle#DISABLED} — single-PNG with state-driven tint
- * is the smoke-pass approach (multi-frame PNG is a polish option).
+ * sprite when the slot group is in {@link MoveMatchingCycle#DISABLED}.
  *
- * <p>This is a subclass extension of MK's
- * {@link Button#renderBackground(RenderContext, int, int)} +
- * {@link Button#renderContent(RenderContext, int, int)} hooks per the
- * library's documented extension points — the rendering surface stays
- * inside MK's PanelElement model so input/hover behavior comes free.
+ * <p>Hover tooltip (per Trev 2026-05-16) reads:
+ * <pre>
+ * Move matching: &lt;current state&gt;
+ * Press M to cycle
+ * </pre>
  *
- * <p>The actual screen-space placement of this button is computed by
- * {@link MoveMatchingButtons} from the slot group's bounds — anchored
- * above the slot group, right-aligned with its right edge. The button's
- * {@code childX} / {@code childY} are zero here; the position resolves
- * via the {@link RenderContext}'s origin coordinates that the caller
- * threads in per-frame.
+ * <p>The tooltip is wired via MK's {@link Button#tooltip(Supplier)} so
+ * the state line refreshes per-frame from the cycle supplier.
+ *
+ * <p>Screen-space placement is computed by {@link MoveMatchingButtons}
+ * from the slot group's bounds — anchored above the group, right-edge-
+ * aligned, offset per Trev's 2026-05-16 tweak. The button's
+ * {@code childX} / {@code childY} are zero here; the actual position
+ * comes through the {@link RenderContext}'s origin coords supplied by
+ * the caller.
  */
 public final class PngMoveMatchingButton extends Button {
 
@@ -43,27 +42,38 @@ public final class PngMoveMatchingButton extends Button {
     /** Sprite + button bounds are both 9×9 — the PNG renders 1:1. */
     public static final int SIZE = 9;
 
-    /** Supplier for the current cycle so we can dim when disabled. */
-    private final java.util.function.Supplier<MoveMatchingCycle> cycleSupplier;
+    private final Supplier<MoveMatchingCycle> cycleSupplier;
 
-    public PngMoveMatchingButton(java.util.function.Supplier<MoveMatchingCycle> cycleSupplier,
+    public PngMoveMatchingButton(Supplier<MoveMatchingCycle> cycleSupplier,
                                  Consumer<Button> onClick) {
         // childX/childY = 0 — origin is supplied by the caller via the
-        // RenderContext, so the button positions itself at (originX,
-        // originY) which is the slot-group-anchored screen-space point.
+        // RenderContext.
         super(0, 0, SIZE, SIZE, Component.empty(), onClick);
         this.cycleSupplier = cycleSupplier;
+
+        // Hover tooltip — refreshes each frame from the cycle supplier
+        // so the displayed state matches the current setting.
+        tooltip(() -> tooltipFor(cycleSupplier.get()));
     }
 
     /**
-     * Background hook — paints the PNG sprite. The disabled state paints a
-     * dim overlay on top for visual feedback that the button is in the
-     * {@link MoveMatchingCycle#DISABLED} cycle stop.
+     * Two-line tooltip:
+     * <ul>
+     *   <li>"Move matching: &lt;state&gt;"</li>
+     *   <li>"Press M to cycle"</li>
+     * </ul>
      *
-     * <p>We deliberately skip {@code super.renderBackground} (vanilla
-     * button chrome) because the PNG IS the background per Trev's
-     * direction.
+     * <p>Vanilla's {@code GuiGraphics.setTooltipForNextFrame(Font, Component, x, y)}
+     * splits the Component on {@code \n} when rendering, so a single
+     * Component with an embedded newline gives the multi-line layout
+     * without us having to construct a {@code List<Component>}.
      */
+    private static Component tooltipFor(MoveMatchingCycle cycle) {
+        return Component.literal("Move matching: ")
+                .append(cycle.tooltip())
+                .append(Component.literal("\nPress M to cycle"));
+    }
+
     @Override
     protected void renderBackground(RenderContext ctx, int sx, int sy) {
         GuiGraphics graphics = ctx.graphics();
@@ -75,26 +85,17 @@ public final class PngMoveMatchingButton extends Button {
                 /*w=*/ SIZE, /*h=*/ SIZE,
                 /*tw=*/ SIZE, /*th=*/ SIZE);
 
-        MoveMatchingCycle cycle = cycleSupplier.get();
-        if (cycle == MoveMatchingCycle.DISABLED) {
-            // 50% black overlay — quick visual ack of the disabled state.
-            // Multi-frame PNG variant is the polish; this stays inline
-            // for the smoke pass and matches what most vanilla widgets
-            // do for disabled state (darken).
+        if (cycleSupplier.get() == MoveMatchingCycle.DISABLED) {
+            // 50% black overlay for the disabled cycle stop. Single-PNG
+            // with state-tint is the smoke-pass shape; if we want
+            // per-stop variants, the PNG becomes a sprite sheet and
+            // this renderBackground picks the appropriate UV rect.
             graphics.fill(sx, sy, sx + SIZE, sy + SIZE, 0x80000000);
         }
     }
 
-    /**
-     * Content hook — explicitly empty. No text overlay; the PNG carries
-     * the entire visual.
-     */
     @Override
     protected void renderContent(RenderContext ctx, int sx, int sy) {
-        // intentional no-op
+        // No text content — the PNG carries the entire visual.
     }
-
-    /** Suppress unused-import lint warning. */
-    @SuppressWarnings("unused")
-    private static Window unused(Minecraft mc) { return mc.getWindow(); }
 }

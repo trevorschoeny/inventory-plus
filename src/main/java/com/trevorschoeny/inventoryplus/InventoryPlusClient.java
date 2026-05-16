@@ -60,6 +60,20 @@ public class InventoryPlusClient implements ClientModInitializer {
         MoveMatchingButtons.register();
         MoveMatchingKeybind.register();
 
+        // Stale-key pruner — every 20 ticks (1 Hz), walk the current
+        // world's Block-keyed prefs and drop entries whose chunk is
+        // loaded but whose block is no longer a traditional container
+        // (most commonly: the chest got broken). Lazy / chunk-aware so
+        // entries in unloaded chunks survive until the player visits.
+        // 1 Hz is well below render rate; the work scales with the
+        // number of saved entries per world, typically tens at most.
+        final int[] pruneTickCounter = { 0 };
+        ClientTickEvents.END_CLIENT_TICK.register(mc -> {
+            if (++pruneTickCounter[0] < 20) return;
+            pruneTickCounter[0] = 0;
+            MoveMatchingPrefs.pruneStale(mc);
+        });
+
         LOGGER.info("[inventoryplus] Client initialized — auto-restock + "
                 + "move-matching active (sorting still pending).");
     }
