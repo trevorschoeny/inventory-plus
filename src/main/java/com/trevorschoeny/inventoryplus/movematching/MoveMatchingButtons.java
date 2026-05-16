@@ -201,8 +201,8 @@ public final class MoveMatchingButtons {
      * and the slot group's top edge.
      */
     private static int[] buttonScreenBounds(AbstractContainerScreen<?> screen, SlotGroup group) {
-        int leftPos = screen.leftPos;
-        int topPos = screen.topPos;
+        int leftPos = ScreenLayout.leftPos(screen);
+        int topPos = ScreenLayout.topPos(screen);
         int groupRightX = leftPos + group.localRightX();
         int groupTopY   = topPos + group.localTopY();
         final int GAP_ABOVE = 1;

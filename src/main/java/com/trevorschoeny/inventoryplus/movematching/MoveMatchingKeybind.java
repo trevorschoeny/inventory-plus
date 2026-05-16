@@ -76,8 +76,8 @@ public final class MoveMatchingKeybind {
      */
     private static SlotGroup slotGroupUnderMouse(AbstractContainerScreen<?> acs,
                                                  double mouseX, double mouseY) {
-        int leftPos = acs.leftPos;
-        int topPos = acs.topPos;
+        int leftPos = ScreenLayout.leftPos(acs);
+        int topPos = ScreenLayout.topPos(acs);
         List<MoveMatchingButtons.Pair> pairs = MoveMatchingButtons.pairsFor(acs);
         for (MoveMatchingButtons.Pair p : pairs) {
             for (Slot slot : p.group().slots()) {
