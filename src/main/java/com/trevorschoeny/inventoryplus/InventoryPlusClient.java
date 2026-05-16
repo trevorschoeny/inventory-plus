@@ -1,11 +1,13 @@
 package com.trevorschoeny.inventoryplus;
 
 import com.trevorschoeny.inventoryplus.autorestock.AutoRestockTicker;
+import com.trevorschoeny.inventoryplus.movematching.ContainerKeyResolver;
+import com.trevorschoeny.inventoryplus.movematching.MoveMatchingButton;
+import com.trevorschoeny.inventoryplus.movematching.MoveMatchingKeybind;
+import com.trevorschoeny.inventoryplus.movematching.MoveMatchingPrefs;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-
-import net.minecraft.client.Minecraft;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +50,17 @@ public class InventoryPlusClient implements ClientModInitializer {
         // javadoc for the watch + refill model.
         ClientTickEvents.END_CLIENT_TICK.register(AutoRestockTicker::tick);
 
-        LOGGER.info("[inventoryplus] Client initialized — auto-restock active "
-                + "(move-matching + sorting still pending).");
+        // Move-matching — MK Button at RIGHT_ALIGN_TOP across simplecontainer
+        // screens, plus a screen-scoped M (execute) / Shift+M (cycle) keybind
+        // pair. Per-container cycle setting persisted to
+        // config/inventoryplus/movematch-prefs.json. See MoveMatchingButton +
+        // MoveMatchingKeybind + MoveMatchingPrefs javadocs.
+        MoveMatchingPrefs.load();
+        ContainerKeyResolver.registerUseBlockCapture();
+        MoveMatchingButton.register();
+        MoveMatchingKeybind.register();
+
+        LOGGER.info("[inventoryplus] Client initialized — auto-restock + "
+                + "move-matching active (sorting still pending).");
     }
 }
