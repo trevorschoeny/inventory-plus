@@ -8,8 +8,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.Container;
 import net.minecraft.world.CompoundContainer;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.PlayerEnderChestContainer;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ChestMenu;
+import net.minecraft.world.inventory.DispenserMenu;
+import net.minecraft.world.inventory.HopperMenu;
+import net.minecraft.world.inventory.PlayerEnderChestContainer;
+import net.minecraft.world.inventory.ShulkerBoxMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
@@ -91,15 +95,55 @@ public final class ContainerIdentity {
             return new ContainerIdentity("enderchest");
         }
 
-        // Block-anchored container — extract block position.
+        // For external (non-player-inv) containers, only sort if the
+        // menu is a recognized simple-container type. This excludes
+        // specialized UIs (furnace, anvil, enchanting, crafting,
+        // beacon, brewing, loom, stonecutter, etc.) whose slots carry
+        // semantic meaning that sorting would scramble.
+        if (!isSortableContainerMenu(menu)) return null;
+
+        // Direct BlockEntity-backed container (rare on the client; mostly
+        // a server-side or single-player edge case).
         BlockPos pos = blockPosOf(container);
         if (pos != null) {
             return blockIdentity(pos);
         }
 
-        // Specialized UI (furnace, anvil, crafting, etc.) or unknown
-        // container type — not sortable.
-        return null;
+        // SimpleContainer-backed menus (the common client-side case for
+        // chests, barrels, hoppers, dispensers, droppers, shulker boxes)
+        // don't expose a BlockPos directly. Fall back to the open-click
+        // tracker that captured the BlockPos via UseBlockCallback when
+        // the player right-clicked to open the container.
+        BlockPos trackedPos = ContainerOpenTracker.getBlockPos(menu.containerId);
+        if (trackedPos != null) {
+            return blockIdentity(trackedPos);
+        }
+
+        // Sortable menu type but no BlockPos available — opened via a
+        // non-click path (other mods, commands). Use a session-only
+        // identity so sort can still run; persistence skipped.
+        return new ContainerIdentity("session:" + menu.containerId);
+    }
+
+    /**
+     * True if the given menu is a vanilla simple-container UI that this
+     * mod sorts. Hardcoded list per the IP spec's sortable scope —
+     * additions go here when more menus warrant.
+     */
+    private static boolean isSortableContainerMenu(AbstractContainerMenu menu) {
+        return menu instanceof ChestMenu      // chest, barrel, ender chest
+                || menu instanceof ShulkerBoxMenu
+                || menu instanceof HopperMenu
+                || menu instanceof DispenserMenu;
+    }
+
+    /**
+     * True if this identity is persistent (survives game restart and
+     * world reload). Session identities won't be written by
+     * {@link SortState#setType}.
+     */
+    public boolean isPersistent() {
+        return !key.startsWith("session:");
     }
 
     /**

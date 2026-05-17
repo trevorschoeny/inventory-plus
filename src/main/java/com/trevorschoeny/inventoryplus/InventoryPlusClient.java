@@ -8,6 +8,7 @@ import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsDragController;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotKeybind;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingButtons;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingKeybind;
+import com.trevorschoeny.inventoryplus.sort.ContainerOpenTracker;
 import com.trevorschoeny.inventoryplus.sort.SortKeybind;
 import com.trevorschoeny.inventoryplus.sort.SortState;
 
@@ -86,6 +87,15 @@ public class InventoryPlusClient implements ClientModInitializer {
         // the type-cycle power-user feature lands. No button — gated on
         // MenuKit's render-integration fix (see DEFERRED.md /
         // surface-library-gaps memory).
+        //
+        // ContainerOpenTracker captures the BlockPos via UseBlockCallback
+        // when the player right-clicks to open a container, then
+        // associates it with the menu's containerId on AFTER_INIT.
+        // Needed because client-side AbstractContainerMenu slots wrap a
+        // SimpleContainer for chests/barrels/hoppers/etc., not the
+        // backing BlockEntity, so block-pos identity isn't directly
+        // derivable from the menu.
+        ContainerOpenTracker.register();
         SortState.load();
         SortKeybind.register();
 

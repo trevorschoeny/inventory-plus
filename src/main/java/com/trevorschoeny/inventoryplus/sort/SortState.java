@@ -135,8 +135,13 @@ public final class SortState {
      * Sets the sort type for the given identity. Storing
      * {@link SortType#DEFAULT} removes the entry (file only carries
      * divergences from default). Persists immediately.
+     *
+     * <p>No-op for non-persistent identities (e.g., session-only
+     * identities for menus opened via non-click paths). Sort still
+     * runs for those; just doesn't persist.
      */
     public static void setType(ContainerIdentity identity, SortType type) {
+        if (!identity.isPersistent()) return;
         String worldId = WorldIdentity.current(Minecraft.getInstance());
         if (worldId == null) {
             InventoryPlusClient.LOGGER.debug(
