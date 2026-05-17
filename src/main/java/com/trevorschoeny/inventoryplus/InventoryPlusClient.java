@@ -8,6 +8,8 @@ import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsDragController;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotKeybind;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingButtons;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingKeybind;
+import com.trevorschoeny.inventoryplus.sort.SortKeybind;
+import com.trevorschoeny.inventoryplus.sort.SortState;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -78,7 +80,16 @@ public class InventoryPlusClient implements ClientModInitializer {
         LockedSlotKeybind.register();
         ClientTickEvents.END_CLIENT_TICK.register(LockedSlotsDragController::tick);
 
+        // Sort — S keybind sorts the simplecontainer under the cursor.
+        // QUANTITY_DESC only for MVP; per-container sort-type persistence
+        // wired end-to-end (storage in sort-state.json) but unused until
+        // the type-cycle power-user feature lands. No button — gated on
+        // MenuKit's render-integration fix (see DEFERRED.md /
+        // surface-library-gaps memory).
+        SortState.load();
+        SortKeybind.register();
+
         LOGGER.info("[inventoryplus] Client initialized — auto-restock + "
-                + "move-matching + locked-slots active (sorting still pending).");
+                + "move-matching + locked-slots + sort active.");
     }
 }
