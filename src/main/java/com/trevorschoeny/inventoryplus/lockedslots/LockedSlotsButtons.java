@@ -1,73 +1,104 @@
 package com.trevorschoeny.inventoryplus.lockedslots;
 
-import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingButtons;
-import com.trevorschoeny.inventoryplus.movematching.SlotGroup;
-import com.trevorschoeny.inventoryplus.movematching.SlotGroupDetector;
+
+import com.trevorschoeny.menukit.core.Panel;
+import com.trevorschoeny.menukit.core.PanelElement;
+import com.trevorschoeny.menukit.core.PanelPosition;
+import com.trevorschoeny.menukit.core.PanelStyle;
+import com.trevorschoeny.menukit.core.SlotGroupCategory;
+import com.trevorschoeny.menukit.core.SlotGroupRegion;
+import com.trevorschoeny.menukit.core.Toggle;
+import com.trevorschoeny.menukit.inject.SlotGroupPanelAdapter;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
-import net.fabricmc.fabric.api.client.screen.v1.Screens;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 
 import java.util.List;
 
 /**
- * Registers {@link LockEditWidget} on every {@link AbstractContainerScreen}
- * that exposes the player main inventory, per Trev 2026-05-16
- * ("anywhere the player can see the inventory is where it appears").
+ * Registers the lock-edit toggle as a MenuKit panel anchored above the
+ * player's main inventory's 3×9 grid, right-aligned to the grid's right
+ * edge, sitting to the left of any Move Matching panel.
+ *
+ * <h3>Single sprite, two visual states</h3>
+ *
+ * MK's {@link Toggle#spriteLinked} renders the off state with the raw
+ * sprite and the on state with the same sprite under MK's
+ * HSL-lightness-inversion shader (hue and saturation preserved,
+ * lightness flipped). One PNG ships; the toggled visual is automatic.
+ * Phase 18q (MK 2026-05-16) added this — replaces the previous
+ * {@code locked_slot_edit_off.png} / {@code locked_slot_edit_on.png}
+ * pair with a single {@code locked_slot_edit.png}.
+ *
+ * <h3>State ownership</h3>
+ *
+ * {@code spriteLinked} is the consumer-owned-state variant — the
+ * getter is {@link LockEditMode#isOn} and the toggle is
+ * {@link LockEditMode#toggle}. MK reads/writes through those; the
+ * mod's edit-mode state stays in its existing class.
  *
  * <h3>Screen scope</h3>
  *
- * <ul>
- *   <li>Bare {@code InventoryScreen} → widget visible (alone at the
- *       rightmost spot, slotIndex = 0).</li>
- *   <li>{@code ContainerScreen} / shulker / hopper / dispenser → widget
- *       visible (left of MM widgets, slotIndex = 2 — layout
- *       {@code [LOCK] [OUT] [IN]}).</li>
- *   <li>Specialized UIs that expose the player inv (anvil, furnace,
- *       brewing, etc.) → widget visible (slotIndex = 0).</li>
- *   <li>{@code CreativeModeInventoryScreen} → excluded for the smoke
- *       pass. The creative item picker isn't a real inventory and
- *       per-tab layout differs; revisit if needed.</li>
- * </ul>
+ * Visible on every {@link AbstractContainerScreen} that exposes the
+ * player main inv except creative-mode (which has its own per-tab
+ * layout incompatible with our panel). Panel.showWhen handles the
+ * gate; {@link SlotGroupCategory#PLAYER_INVENTORY} on the adapter
+ * already excludes screens without the player inv.
  *
- * <p>Edit mode auto-disables on every screen open via
- * {@link LockEditMode#reset}, per the Option-A lifecycle Trev picked.
+ * <h3>Edit mode lifecycle</h3>
+ *
+ * {@link LockEditMode#reset} is called on every {@code AFTER_INIT} so
+ * edit-mode auto-disables when the player closes one screen and opens
+ * another — the Option-A lifecycle Trev picked 2026-05-16.
  */
 public final class LockedSlotsButtons {
 
     private LockedSlotsButtons() {}
 
+    private static final Identifier TEXTURE =
+            Identifier.fromNamespaceAndPath("inventoryplus", "textures/gui/locked_slot_edit.png");
+
+    public static final int SIZE = 9;
+
     public static void register() {
-        ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
-            // Edit mode resets on every screen open — pre-screen state
-            // doesn't leak forward.
-            LockEditMode.reset();
+        // Edit mode resets on every screen open — pre-screen state
+        // doesn't leak forward. Independent of the panel's render path.
+        ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) ->
+                LockEditMode.reset());
 
-            if (!(screen instanceof AbstractContainerScreen<?> acs)) return;
-            if (screen instanceof CreativeModeInventoryScreen) return;
+        Toggle lockEdit = Toggle.spriteLinked(0, 0, SIZE, SIZE,
+                        LockEditMode::isOn,
+                        LockEditMode::toggle,
+                        TEXTURE)
+                .tooltip(() -> Component.literal(
+                        LockEditMode.isOn()
+                                ? "Click to finish editing"
+                                : "Click to edit locked slots"));
 
-            List<SlotGroup> groups = SlotGroupDetector.detect(screen);
-            SlotGroup playerMainInv = MoveMatchingButtons.findPlayerMainInv(groups);
-            if (playerMainInv == null) {
-                InventoryPlusClient.LOGGER.debug(
-                        "[locked-slots] no player main inv group on {} — no lock-edit widget",
-                        screen.getClass().getSimpleName());
-                return;
-            }
+        List<PanelElement> elements = List.of(lockEdit);
 
-            // Slot-index in the right-aligned button row. When MM widgets
-            // are present (chest / shulker / hopper / dispenser), they
-            // take slots 0 (IN) + 1 (OUT); lock-edit gets slot 2.
-            // Otherwise lock-edit is alone at slot 0.
-            int slotIndex = SlotGroupDetector.isMoveMatchingScreen(screen) ? 2 : 0;
-
-            Screens.getButtons(screen).add(new LockEditWidget(playerMainInv, acs, slotIndex));
-            InventoryPlusClient.LOGGER.debug(
-                    "[locked-slots] registered lock-edit widget on {} (slotIndex={})",
-                    screen.getClass().getSimpleName(), slotIndex);
+        Panel panel = new Panel("inventoryplus.lock_edit",
+                elements,
+                /*visible=*/ true,
+                PanelStyle.NONE,
+                PanelPosition.BODY,
+                /*toggleKey=*/ -1);
+        panel.showWhen(() -> {
+            Screen screen = Minecraft.getInstance().screen;
+            return screen instanceof AbstractContainerScreen<?>
+                    && !(screen instanceof CreativeModeInventoryScreen);
         });
+
+        new SlotGroupPanelAdapter(panel,
+                        SlotGroupRegion.TOP_ALIGN_RIGHT,
+                        MoveMatchingButtons.GAP_ABOVE)
+                .on(SlotGroupCategory.PLAYER_INVENTORY);
     }
 }
