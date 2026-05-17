@@ -99,22 +99,22 @@ public final class SlotGroupDetector {
     }
 
     /**
-     * Screens that might host move-matching buttons. We include
-     * InventoryScreen because future features (e.g., Shulker Peek)
-     * may surface an external simplecontainer inside it — the
-     * activation rule in {@link MoveMatchingButtons} handles the
-     * "is a real simplecontainer present?" gate dynamically.
+     * Screens that host Move Matching buttons. Per Trev 2026-05-16
+     * (post-simplification): the buttons only show on screens that
+     * pair the player inventory with an external simplecontainer.
+     * InventoryScreen (standalone survival inventory) is excluded —
+     * no dynamic "is a container present?" gate; just don't register
+     * here. If a future feature (Shulker Peek, etc.) wants buttons
+     * inside the standalone inventory, that feature will add its own
+     * widgets with their own positioning.
      *
-     * <p>CreativeModeInventoryScreen is excluded — the creative item
-     * picker isn't a real storage and creative-mode players don't need
-     * move-matching.
+     * <p>CreativeModeInventoryScreen is also excluded.
      */
     public static boolean isMoveMatchingScreen(Screen screen) {
         return screen instanceof ContainerScreen
                 || screen instanceof ShulkerBoxScreen
                 || screen instanceof HopperScreen
-                || screen instanceof DispenserScreen
-                || screen instanceof InventoryScreen;
+                || screen instanceof DispenserScreen;
     }
 
     private static SlotRole roleOf(Slot slot, Inventory playerInv) {

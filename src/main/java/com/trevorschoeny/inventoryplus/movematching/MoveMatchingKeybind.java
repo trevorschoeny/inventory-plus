@@ -13,29 +13,26 @@ import java.util.List;
 
 /**
  * Screen-scoped {@code I} / {@code O} keybinds for Move Matching IN /
- * OUT (Trev / Lead 2026-05-16 simplification).
+ * OUT.
  *
- * <p>Single behavior per key — no slot-hover requirement:
+ * <p>Behavior per Trev / Lead 2026-05-16:
  *
  * <ul>
- *   <li>{@code I} pressed anywhere inside the inventory screen when a
- *       supported container is open → trigger Move Matching IN.</li>
- *   <li>{@code O} pressed under the same conditions → trigger Move
- *       Matching OUT.</li>
- *   <li>Container not open (standalone inventory, specialized UI) →
- *       no-op.</li>
+ *   <li>{@code I} pressed anywhere in a supported screen
+ *       ({@code ContainerScreen} / shulker / hopper / dispenser) →
+ *       trigger Move Matching IN.</li>
+ *   <li>{@code O} pressed in the same scope → trigger Move Matching OUT.</li>
+ *   <li>Outside those screens (standalone inventory, specialized UI,
+ *       no UI) → no-op (the handler isn't registered).</li>
  * </ul>
  *
- * <p>The pre-simplification keybind required hovering a slot in a
- * targetable group; that requirement is dropped — the keybind now
- * fires anywhere in the inventory UI as long as an external
- * simplecontainer is open.
+ * <p>No slot-hover requirement. The keys fire anywhere in the open
+ * screen.
  *
- * <p>Scoped via {@link ScreenKeyboardEvents} so {@code I} / {@code O}
- * only fire inside simplecontainer screens — outside those screens
- * there's no meaningful action, and a global keybind would steal
- * the keys during normal gameplay. Promoting to rebindable
- * {@link net.minecraft.client.KeyMapping}s is filed in DEFERRED.md.
+ * <p>Scoped via {@link ScreenKeyboardEvents} so a global keybind doesn't
+ * steal {@code I} / {@code O} during normal gameplay. Promoting to
+ * rebindable {@link net.minecraft.client.KeyMapping}s is filed in
+ * DEFERRED.md.
  */
 public final class MoveMatchingKeybind {
 
@@ -50,11 +47,9 @@ public final class MoveMatchingKeybind {
                         if (direction == null) return;
                         if (!(innerScreen instanceof AbstractContainerScreen<?> acs)) return;
 
-                        // Same gate as MoveMatchingButtons — only fire when
-                        // an external simplecontainer is actually open.
                         List<SlotGroup> groups = SlotGroupDetector.detect(acs);
-                        if (!MoveMatchingButtons.hasExternalTargetable(groups)) return;
-                        SlotGroup playerMainInv = MoveMatchingButtons.findPlayerMainInv(groups);
+                        SlotGroup playerMainInv =
+                                MoveMatchingButtons.findPlayerMainInv(groups);
                         if (playerMainInv == null) return;
 
                         MoveMatchingExecutor.execute(

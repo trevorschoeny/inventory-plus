@@ -96,11 +96,12 @@ public final class MoveMatchingWidget extends AbstractWidget {
         this.screen = screen;
         this.direction = direction;
         this.texture = direction == Direction.IN ? TEXTURE_IN : TEXTURE_OUT;
-        // Lowercase "in" / "out" per Lead's spec ("Tooltips: 'Move Matching
-        // Items out' on the up arrow; 'Move Matching Items in' on the down
-        // arrow. (Lowercase 'in' / 'out'.)").
-        String label = "Move Matching Items " + direction.label().toLowerCase();
-        this.tooltipLines = List.of(Component.literal(label));
+        // Tooltip text — title-case "In" / "Out" per Trev's 2026-05-16
+        // follow-up. (The spec said lowercase; Trev iterated to caps after
+        // seeing it in-game.)
+        String suffix = direction == Direction.IN ? "In" : "Out";
+        this.tooltipLines = List.of(
+                Component.literal("Move Matching Items " + suffix));
     }
 
     @Override
