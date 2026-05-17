@@ -196,10 +196,8 @@ public final class LockedSlots {
         boolean wasLocked = set.contains(containerSlotIndex);
         if (wasLocked) {
             set.remove(containerSlotIndex);
-            LockedSlotsCorrector.onLockChanged(containerSlotIndex, false);
         } else {
             set.add(containerSlotIndex);
-            LockedSlotsCorrector.onLockChanged(containerSlotIndex, true);
         }
         save();
     }

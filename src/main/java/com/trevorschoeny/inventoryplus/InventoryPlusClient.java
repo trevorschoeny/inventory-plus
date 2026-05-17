@@ -5,7 +5,6 @@ import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsButtons;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsClickInterceptor;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotKeybind;
-import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsCorrector;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingButtons;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingKeybind;
 
@@ -62,13 +61,20 @@ public class InventoryPlusClient implements ClientModInitializer {
 
         // Locked Slots — per-world client-side persistence + L keybind
         // toggle + lock-edit widget (above player main inv, anywhere
-        // the inventory is visible) + click interceptor for edit-mode
-        // + auto-pickup correction tick handler. See package javadocs.
+        // the inventory is visible) + edit-mode click interceptor.
+        //
+        // Protection is mixin-driven (no post-hoc corrector):
+        //   - AbstractContainerMenuMoveItemStackToMixin blocks shift-click
+        //     destination into locked slots (both client + server threads
+        //     in single-player via UUID-equality check in isLockable).
+        //   - InventoryGetFreeSlotMixin blocks auto-pickup destination
+        //     into empty locked slots (same UUID-equality pattern).
+        // Manual cursor placement passes through unmodified — neither
+        // mixin blocks the PICKUP click-type path. See package javadocs.
         LockedSlots.load();
         LockedSlotsButtons.register();
         LockedSlotsClickInterceptor.register();
         LockedSlotKeybind.register();
-        ClientTickEvents.END_CLIENT_TICK.register(LockedSlotsCorrector::tick);
 
         LOGGER.info("[inventoryplus] Client initialized — auto-restock + "
                 + "move-matching + locked-slots active (sorting still pending).");
