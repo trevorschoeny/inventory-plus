@@ -16,34 +16,44 @@ import org.lwjgl.glfw.GLFW;
 import java.util.List;
 
 /**
- * Screen-scoped {@code M} keybind. Two behaviors, hover-aware:
+ * Screen-scoped {@code I} keybind for Move Matching IN. Two behaviors,
+ * hover-aware:
  *
  * <ul>
  *   <li>Mouse over a {@link MoveMatchingWidget} → <b>cycle</b> that
  *       group's setting one stop.</li>
  *   <li>Mouse over a slot in a <b>targetable</b> slot group → <b>trigger</b>
- *       move-matching for that group with its current cycle.</li>
+ *       Move Matching IN for that group with its current cycle.</li>
  *   <li>Mouse over the hotbar, a non-target slot, or empty UI → no-op.</li>
  * </ul>
  *
  * <p>Scoped via {@link ScreenKeyboardEvents} (not a global
  * {@link net.minecraft.client.KeyMapping}) — outside a simplecontainer
- * screen there's no meaningful action, so a global keybind would
- * steal {@code M} during normal gameplay. Promoting to a rebindable
- * KeyMapping is filed in DEFERRED.md.
+ * screen there's no meaningful action, so a global keybind would steal
+ * {@code I} during normal gameplay. Promoting to a rebindable KeyMapping
+ * is filed in DEFERRED.md.
+ *
+ * <p>Move Matching OUT will get its own sibling keybind ({@code O}) when
+ * that feature lands.
  */
 public final class MoveMatchingKeybind {
 
     private MoveMatchingKeybind() {}
 
-    private static final int KEY_M = GLFW.GLFW_KEY_M;
+    /**
+     * Move Matching IN's keybind — {@code I} per the updated spec
+     * (2026-05-16 spec sweep). Pre-sweep this was {@code M}; the rename
+     * aligns with the spec's "IN / OUT" naming so when Move Matching OUT
+     * lands its keybind will be {@code O} for symmetry.
+     */
+    private static final int KEY_IN = GLFW.GLFW_KEY_I;
 
     public static void register() {
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             if (!SlotGroupDetector.isMoveMatchingScreen(screen)) return;
             ScreenKeyboardEvents.afterKeyPress(screen).register(
                     (innerScreen, event) -> {
-                        if (event.key() != KEY_M) return;
+                        if (event.key() != KEY_IN) return;
                         if (!(innerScreen instanceof AbstractContainerScreen<?> acs)) return;
                         Minecraft mc = Minecraft.getInstance();
                         double mouseX = mc.mouseHandler.xpos()
