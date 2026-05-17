@@ -83,23 +83,42 @@ public final class SortKeybind {
         if (mc.player == null || mc.gameMode == null) return;
 
         Slot hovered = slotUnderMouse(acs, mc);
-        if (hovered == null) return;
+        if (hovered == null) {
+            InventoryPlusClient.LOGGER.info(
+                    "[sort] S pressed but no slot under cursor — no-op");
+            return;
+        }
+
+        String hoveredDesc = "slot.index=" + hovered.index
+                + " containerSlot=" + hovered.getContainerSlot()
+                + " container=" + hovered.container.getClass().getSimpleName();
 
         ContainerIdentity identity = ContainerIdentity.fromHoveredSlot(hovered, acs.getMenu());
         if (identity == null) {
-            // Hotbar / armor / specialized UI — not sortable per spec.
+            InventoryPlusClient.LOGGER.info(
+                    "[sort] S pressed; {} → no identity (not sortable) — no-op",
+                    hoveredDesc);
             return;
         }
 
         SortType type = SortState.getType(identity);
         if (type == SortType.DISABLED) {
-            InventoryPlusClient.LOGGER.debug(
-                    "[sort] {} is DISABLED — no-op", identity.key());
+            InventoryPlusClient.LOGGER.info(
+                    "[sort] S pressed; identity={} is DISABLED — no-op", identity.key());
             return;
         }
 
         List<Slot> region = collectRegion(acs.getMenu(), hovered);
-        if (region.size() < 2) return;
+        if (region.size() < 2) {
+            InventoryPlusClient.LOGGER.info(
+                    "[sort] S pressed; {} identity={} region only {} slot(s) — no-op",
+                    hoveredDesc, identity.key(), region.size());
+            return;
+        }
+
+        InventoryPlusClient.LOGGER.info(
+                "[sort] S pressed; {} identity={} type={} region={} slots — sorting",
+                hoveredDesc, identity.key(), type, region.size());
 
         try {
             Sorter.sort(acs.getMenu(), mc.gameMode, mc.player, region, type);
