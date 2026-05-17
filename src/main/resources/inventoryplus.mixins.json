@@ -6,7 +6,8 @@
   "client": [
     "AbstractContainerMenuMoveItemStackToMixin",
     "AbstractContainerScreenRenderSlotMixin",
-    "InventoryGetFreeSlotMixin"
+    "InventoryGetFreeSlotMixin",
+    "MultiPlayerGameModeShiftClickMixin"
   ],
   "injectors": {
     "defaultRequire": 1

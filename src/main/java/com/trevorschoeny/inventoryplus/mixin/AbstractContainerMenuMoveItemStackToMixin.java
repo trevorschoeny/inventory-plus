@@ -14,8 +14,26 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 /**
- * Blocks shift-click (and other moveItemStackTo-driven) placement into
- * locked player slots.
+ * Defense-in-depth block on locked-slot destinations inside
+ * {@code moveItemStackTo}.
+ *
+ * <h3>Role within the locked-slot mixin chain</h3>
+ *
+ * Primary protection is now {@link MultiPlayerGameModeShiftClickMixin},
+ * which cancels shift-click packets at the source (IPN's pattern,
+ * works in single + multiplayer). This mixin is the secondary line:
+ *
+ * <ul>
+ *   <li>Catches any {@code moveItemStackTo} call that bypasses the
+ *       client packet path — e.g., other mods invoking shift-click
+ *       semantics directly without going through
+ *       {@code MultiPlayerGameMode.handleInventoryMouseClick}.</li>
+ *   <li>In single-player, runs on both Render and Server threads
+ *       (UUID equality in {@link
+ *       com.trevorschoeny.inventoryplus.lockedslots.LockedSlots#isLockable})
+ *       so the lock is respected even if a mixin further upstream
+ *       didn't fire.</li>
+ * </ul>
  *
  * <h3>Why scoped to moveItemStackTo</h3>
  *
@@ -35,34 +53,15 @@ import org.spongepowered.asm.mixin.injection.At;
  * path — manual cursor placement is naturally unaffected because that
  * code path doesn't traverse {@code moveItemStackTo}.
  *
- * <h3>Cross-thread firing (single-player only)</h3>
- *
- * In single-player the integrated server shares the JVM with the
- * client; this mixin fires on BOTH the Render thread (client predict)
- * and the Server thread (authoritative). The cross-thread correctness
- * depends on {@link
- * com.trevorschoeny.inventoryplus.lockedslots.LockedSlots#isLockable}
- * using UUID equality (not reference equality) for the player-inventory
- * check — see that method's javadoc for the why.
- *
  * <h3>Limitation — merge-into-existing pass</h3>
  *
  * Vanilla {@code moveItemStackTo} has two passes — first it tries to
  * merge into existing same-item destinations (which does NOT call
  * mayPlace), then it tries empty destinations (which does). The
- * merge-into-existing pass bypasses our block. Shift-clicking an item
- * type into a locked slot that already contains the same item with
- * room to grow will still merge. Matches IPN's behavior.
- *
- * <h3>Limitation — dedicated-server multiplayer</h3>
- *
- * On a dedicated server (separate JVM, IP not loaded), this mixin
- * fires on the client's Render thread but NOT server-side. Server
- * places the item, syncs back, client gets the authoritative state →
- * flicker on shift-click into locked slot. See "Locked Slots —
- * dedicated-server multiplayer support" in
- * {@code @ Inventory Plus/2 | Working Files/DEFERRED.md} for IPN's
- * packet-cancellation pattern that would fix this.
+ * merge-into-existing pass bypasses this mixin. That gap is now
+ * closed by {@link MultiPlayerGameModeShiftClickMixin}'s
+ * destination prediction, which handles both empty AND
+ * merge-with-room cases via {@code canMergeOrPlace}.
  */
 @Mixin(AbstractContainerMenu.class)
 public abstract class AbstractContainerMenuMoveItemStackToMixin {
