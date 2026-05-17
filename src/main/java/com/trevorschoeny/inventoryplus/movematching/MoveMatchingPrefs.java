@@ -31,76 +31,69 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Per-world, per-container persistence of the move-matching cycle setting.
+ * Per-world, per-container, per-direction persistence of the Move
+ * Matching cycle setting.
  *
- * <h3>File layout (v2)</h3>
+ * <h3>File layout (v3)</h3>
  *
- * Saves to {@code <config-dir>/inventoryplus/movematch-prefs.json}. Format:
+ * Saves to {@code <config-dir>/inventoryplus/movematch-prefs.json}.
+ * Format:
  *
  * <pre>{@code
  * {
- *   "version": 2,
+ *   "version": 3,
  *   "perWorld": {
  *     "singleplayer:New World": {
- *       "inventory": "ALL_MATCHING",
- *       "block:100,64,-30": "DISABLED"
- *     },
- *     "server:my.minecraft.server": {
- *       "ender_chest": "STACKABLE_ONLY"
+ *       "in:inventory": "ALL_MATCHING",
+ *       "out:inventory": "STACKABLE_ONLY",
+ *       "in:block:100,64,-30": "DISABLED",
+ *       "out:block:100,64,-30": "ALL_MATCHING"
  *     }
  *   }
  * }
  * }</pre>
  *
- * <p>The world dimension is keyed by {@link WorldIdentity#current} — different
- * singleplayer worlds and different multiplayer servers each get their own
- * sub-map. Two chests at the same coordinates in different worlds no longer
- * collide.
+ * <p>Each entry is keyed by {@code "<direction-prefix>:<container-key>"}
+ * — see {@link Direction#storageKey()}. IN and OUT cycles are
+ * independent per container.
  *
- * <h3>v1 → v2 migration</h3>
+ * <h3>Migration</h3>
  *
- * If the loader sees {@code version: 1} (the flat {@code perContainer}
- * shape from the previous schema), it migrates every entry into a
- * {@code "legacy_v1_unscoped"} world bucket. Those entries stay reachable
- * until the player overwrites them in their actual worlds; new writes go
- * to the current world's bucket. The next save rewrites the file in v2
- * format.
+ * <ul>
+ *   <li><b>v1 → v3:</b> v1's flat {@code perContainer} entries get
+ *       moved into a {@code "legacy_v1_unscoped"} world bucket AND
+ *       prefixed with {@code "in:"} (since OUT didn't exist in v1).</li>
+ *   <li><b>v2 → v3:</b> existing per-world entries get prefixed with
+ *       {@code "in:"} (since OUT didn't exist in v2).</li>
+ * </ul>
+ *
+ * <p>The next save after a migration rewrites the file in v3 format.
  *
  * <h3>Stale-key pruning</h3>
  *
- * {@link #pruneStale} walks the current world's {@code block:x,y,z} keys
- * and drops any whose chunk is loaded AND whose block is no longer a
- * traditional container block (chest / barrel / shulker / hopper /
- * dispenser / dropper). Called at 1 Hz from a client tick handler so
- * broken chests don't carry their old cycle settings to whatever block is
- * placed at the same coords next. Chunks that aren't loaded are skipped
- * — the entry survives until the player visits.
- *
- * <h3>Concurrency</h3>
- *
- * All access is client-thread only (button clicks, keybind callbacks,
- * tick handler). No synchronization at this scope.
+ * {@link #pruneStale} walks the current world's
+ * {@code "<dir>:block:x,y,z"} keys and drops any whose chunk is loaded
+ * AND whose block is no longer a traditional container — covers both
+ * IN and OUT entries since the block-validity check is direction-
+ * agnostic.
  */
 public final class MoveMatchingPrefs {
 
     private MoveMatchingPrefs() {}
 
-    private static final int CURRENT_VERSION = 2;
+    private static final int CURRENT_VERSION = 3;
 
-    /** Pretty-print for human inspection of the prefs file. */
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    /** {@code <config>/inventoryplus/movematch-prefs.json}. */
     private static Path filePath() {
         return FabricLoader.getInstance().getConfigDir()
                 .resolve("inventoryplus")
                 .resolve("movematch-prefs.json");
     }
 
-    /** Outer dim: world id ({@link WorldIdentity}) → container key → cycle. */
+    /** Outer dim: world id ({@link WorldIdentity}) → "<dir>:<container-key>" → cycle. */
     private static final Map<String, Map<String, MoveMatchingCycle>> PER_WORLD = new HashMap<>();
 
-    /** Bucket name used for entries migrated from the pre-per-world v1 schema. */
     private static final String LEGACY_BUCKET = "legacy_v1_unscoped";
 
     private static boolean loaded = false;
@@ -109,28 +102,34 @@ public final class MoveMatchingPrefs {
         if (loaded) return;
         loaded = true;
         Path path = filePath();
-        if (!Files.exists(path)) {
-            return;
-        }
+        if (!Files.exists(path)) return;
+
         try {
             String json = Files.readString(path);
             JsonObject root = JsonParser.parseString(json).getAsJsonObject();
             int version = root.has("version") ? root.get("version").getAsInt() : 1;
 
             if (version == 1) {
-                // v1 schema: flat "perContainer" map; migrate into legacy bucket
-                // so the user doesn't lose their existing settings, even though
-                // those settings were unscoped (collided across worlds).
-                migrateV1(root);
+                migrateV1ToV3(root);
                 InventoryPlusClient.LOGGER.info(
-                        "[move-matching] migrated v1 prefs file → v2 (legacy bucket: '{}', {} entries)",
+                        "[move-matching] migrated v1 prefs file → v3 (legacy bucket: '{}', {} entries)",
                         LEGACY_BUCKET,
                         PER_WORLD.getOrDefault(LEGACY_BUCKET, Map.of()).size());
-                save();   // rewrite as v2 immediately
+                save();
                 return;
             }
 
-            // v2 — perWorld map
+            if (version == 2) {
+                migrateV2ToV3(root);
+                int total = PER_WORLD.values().stream().mapToInt(Map::size).sum();
+                InventoryPlusClient.LOGGER.info(
+                        "[move-matching] migrated v2 prefs → v3 (existing entries prefixed with 'in:', {} total)",
+                        total);
+                save();
+                return;
+            }
+
+            // v3 — read as-is.
             JsonObject perWorld = root.has("perWorld")
                     ? root.getAsJsonObject("perWorld")
                     : new JsonObject();
@@ -159,17 +158,38 @@ public final class MoveMatchingPrefs {
         }
     }
 
-    private static void migrateV1(JsonObject v1Root) {
+    private static void migrateV1ToV3(JsonObject v1Root) {
         JsonObject perContainer = v1Root.has("perContainer")
                 ? v1Root.getAsJsonObject("perContainer")
                 : new JsonObject();
         Map<String, MoveMatchingCycle> legacyBucket = new HashMap<>();
         for (var entry : perContainer.entrySet()) {
             MoveMatchingCycle cycle = parseCycleSafely(entry.getValue().getAsString());
-            if (cycle != null) legacyBucket.put(entry.getKey(), cycle);
+            if (cycle != null) {
+                legacyBucket.put(Direction.IN.storageKey() + ":" + entry.getKey(), cycle);
+            }
         }
         if (!legacyBucket.isEmpty()) {
             PER_WORLD.put(LEGACY_BUCKET, legacyBucket);
+        }
+    }
+
+    private static void migrateV2ToV3(JsonObject v2Root) {
+        JsonObject perWorld = v2Root.has("perWorld")
+                ? v2Root.getAsJsonObject("perWorld")
+                : new JsonObject();
+        for (var worldEntry : perWorld.entrySet()) {
+            String worldId = worldEntry.getKey();
+            JsonElement worldValue = worldEntry.getValue();
+            if (!worldValue.isJsonObject()) continue;
+            Map<String, MoveMatchingCycle> bucket = new HashMap<>();
+            for (var keyEntry : worldValue.getAsJsonObject().entrySet()) {
+                MoveMatchingCycle cycle = parseCycleSafely(keyEntry.getValue().getAsString());
+                if (cycle != null) {
+                    bucket.put(Direction.IN.storageKey() + ":" + keyEntry.getKey(), cycle);
+                }
+            }
+            if (!bucket.isEmpty()) PER_WORLD.put(worldId, bucket);
         }
     }
 
@@ -183,28 +203,29 @@ public final class MoveMatchingPrefs {
         }
     }
 
+    private static String buildKey(ContainerKey key, Direction direction) {
+        return direction.storageKey() + ":" + key.toKeyString();
+    }
+
     /**
-     * Returns the cycle for the given container key in the player's
-     * current world. Returns {@link MoveMatchingCycle#defaultCycle} when
-     * unknown — and uses an empty-string world bucket when the player
-     * isn't currently in a world (callers should generally not hit this
-     * branch, but it's safe).
+     * Returns the cycle for the given container + direction in the
+     * player's current world, or {@link MoveMatchingCycle#defaultCycle}
+     * when unknown / no world.
      */
-    public static MoveMatchingCycle get(ContainerKey key) {
+    public static MoveMatchingCycle get(ContainerKey key, Direction direction) {
         if (key == null) return MoveMatchingCycle.defaultCycle();
         String worldId = WorldIdentity.current(Minecraft.getInstance());
         if (worldId == null) return MoveMatchingCycle.defaultCycle();
         Map<String, MoveMatchingCycle> bucket = PER_WORLD.get(worldId);
         if (bucket == null) return MoveMatchingCycle.defaultCycle();
-        return bucket.getOrDefault(key.toKeyString(), MoveMatchingCycle.defaultCycle());
+        return bucket.getOrDefault(buildKey(key, direction), MoveMatchingCycle.defaultCycle());
     }
 
     /**
-     * Sets the cycle for the given container key in the player's current
-     * world + writes the file. Null key or no-world is a no-op (settings
-     * for unkeyed containers don't survive a restart anyway).
+     * Sets the cycle for the given container + direction in the
+     * player's current world + writes the file.
      */
-    public static void set(ContainerKey key, MoveMatchingCycle cycle) {
+    public static void set(ContainerKey key, Direction direction, MoveMatchingCycle cycle) {
         if (key == null) return;
         String worldId = WorldIdentity.current(Minecraft.getInstance());
         if (worldId == null) {
@@ -213,18 +234,16 @@ public final class MoveMatchingPrefs {
             return;
         }
         PER_WORLD.computeIfAbsent(worldId, k -> new HashMap<>())
-                .put(key.toKeyString(), cycle);
+                .put(buildKey(key, direction), cycle);
         save();
     }
 
     /**
-     * Tick-driven cleanup — walks {@code block:x,y,z} keys in the player's
-     * current world, drops any whose chunk is loaded but whose block is
-     * no longer a traditional container.
-     *
-     * <p>Chunks that aren't loaded are skipped (we don't know the state).
-     * Block positions whose chunk loads later get pruned on the next
-     * pass through.
+     * Tick-driven cleanup — walks {@code "<dir>:block:x,y,z"} keys in
+     * the player's current world, drops any whose chunk is loaded but
+     * whose block is no longer a traditional container. Direction-
+     * agnostic — both IN and OUT entries for a broken chest get pruned
+     * together.
      */
     public static void pruneStale(Minecraft mc) {
         if (mc == null) return;
@@ -236,10 +255,11 @@ public final class MoveMatchingPrefs {
         if (bucket == null || bucket.isEmpty()) return;
 
         List<String> toRemove = new ArrayList<>();
-        for (Map.Entry<String, MoveMatchingCycle> entry : bucket.entrySet()) {
+        for (var entry : bucket.entrySet()) {
             String key = entry.getKey();
-            if (!key.startsWith("block:")) continue;
-            BlockPos pos = parseBlockPos(key);
+            // Keys look like "in:block:x,y,z" or "out:block:x,y,z". Skip
+            // non-block keys (in:inventory, out:ender_chest, etc.).
+            BlockPos pos = parseBlockPosFromDirectionalKey(key);
             if (pos == null) continue;
             if (!level.hasChunkAt(pos)) continue;
             if (!isTraditionalContainerBlock(level, pos)) {
@@ -255,14 +275,18 @@ public final class MoveMatchingPrefs {
     }
 
     /**
-     * Parses {@code block:x,y,z} back into a {@link BlockPos}. Returns null
-     * on malformed input (defensive — shouldn't normally happen but a
-     * hand-edited prefs file could produce one).
+     * Parses a key like {@code "in:block:1,2,3"} or {@code "out:block:1,2,3"}
+     * into a {@link BlockPos}. Returns null for non-block keys (e.g.,
+     * {@code "in:inventory"}) or malformed input.
      */
-    private static @Nullable BlockPos parseBlockPos(String key) {
-        if (!key.startsWith("block:")) return null;
+    private static @Nullable BlockPos parseBlockPosFromDirectionalKey(String key) {
+        // Strip the "in:" or "out:" prefix.
+        int colonIdx = key.indexOf(':');
+        if (colonIdx < 0) return null;
+        String rest = key.substring(colonIdx + 1);
+        if (!rest.startsWith("block:")) return null;
         try {
-            String[] parts = key.substring("block:".length()).split(",");
+            String[] parts = rest.substring("block:".length()).split(",");
             if (parts.length != 3) return null;
             return new BlockPos(
                     Integer.parseInt(parts[0]),
@@ -273,21 +297,13 @@ public final class MoveMatchingPrefs {
         }
     }
 
-    /**
-     * True if the block at the given position is in the move-matching
-     * traditional-container set (chest, trapped chest, barrel, shulker,
-     * hopper, dispenser, dropper). Ender chests aren't covered — they
-     * use a shared key not tied to a position. Anything else (a chest
-     * that got broken into air, replaced with a furnace, etc.) returns
-     * false → prune.
-     */
     private static boolean isTraditionalContainerBlock(Level level, BlockPos pos) {
         var block = level.getBlockState(pos).getBlock();
-        return block instanceof ChestBlock          // covers TrappedChestBlock via subclass
+        return block instanceof ChestBlock
                 || block instanceof BarrelBlock
                 || block instanceof ShulkerBoxBlock
                 || block instanceof HopperBlock
-                || block instanceof DispenserBlock; // covers DropperBlock via subclass
+                || block instanceof DispenserBlock;
     }
 
     private static void save() {
@@ -297,9 +313,9 @@ public final class MoveMatchingPrefs {
             JsonObject root = new JsonObject();
             root.addProperty("version", CURRENT_VERSION);
             JsonObject perWorld = new JsonObject();
-            for (Map.Entry<String, Map<String, MoveMatchingCycle>> worldEntry : PER_WORLD.entrySet()) {
+            for (var worldEntry : PER_WORLD.entrySet()) {
                 JsonObject bucketJson = new JsonObject();
-                for (Map.Entry<String, MoveMatchingCycle> entry : worldEntry.getValue().entrySet()) {
+                for (var entry : worldEntry.getValue().entrySet()) {
                     bucketJson.addProperty(entry.getKey(), entry.getValue().name());
                 }
                 perWorld.add(worldEntry.getKey(), bucketJson);

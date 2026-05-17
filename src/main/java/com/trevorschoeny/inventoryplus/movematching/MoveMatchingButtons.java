@@ -10,41 +10,33 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import java.util.List;
 
 /**
- * Registers per-slot-group move-matching widgets on screen open, gated
- * by the <b>2+ traditional containers</b> rule (Trev 2026-05-16).
+ * Registers Move Matching IN + OUT widgets on screen open, gated by the
+ * <b>2+ traditional containers</b> rule (Trev 2026-05-16).
  *
  * <h3>Activation rule</h3>
  *
  * After {@link SlotGroupDetector#detect}, we count how many groups are
  * {@link SlotGroup#targetable}. Widgets are only added when that count
- * is {@code ≥ 2}:
+ * is {@code ≥ 2}. Per Trev's "anywhere there's an IN button there
+ * should be an OUT button" direction, both directions register together
+ * — for each targetable group we add two widgets (IN + OUT).
  *
  * <ul>
  *   <li>Standalone vanilla {@code InventoryScreen} → 1 targetable
  *       (main inv 3×9) → no widgets.</li>
  *   <li>{@code ContainerScreen} / shulker / hopper / dispenser → 2
- *       targetable (external container + main inv) → 2 widgets.</li>
- *   <li>Future Shulker Peek inside {@code InventoryScreen} → 2
- *       targetable (shulker peek container + main inv) → 2 widgets
- *       automatically. The targetability check
- *       ({@link SlotGroup#targetable}) is purely data-driven from
- *       container type, so no code change needed when Shulker Peek
- *       lands.</li>
+ *       targetable (external container + main inv) → 4 widgets (IN+OUT
+ *       above each).</li>
+ *   <li>Future Shulker Peek inside {@code InventoryScreen} → 2 targetable
+ *       (shulker peek container + main inv) → 4 widgets automatically.</li>
  * </ul>
- *
- * <h3>Why vanilla {@link Screens#getButtons} rather than Fabric afterRender</h3>
- *
- * See {@link MoveMatchingWidget} class javadoc — the tooltip queue must
- * be primed during the screen's renderables iteration, not after the
- * deferred-elements flush. Adding the widget via vanilla's button list
- * puts it in the renderables iteration where tooltips work correctly.
  *
  * <h3>Future config note</h3>
  *
- * {@code TODO} — Trev 2026-05-16: Move-matching and Sort buttons should
+ * {@code TODO} — Trev 2026-05-16: Move Matching and Sort buttons should
  * be toggleable on/off in config. When the config feature lands, gate
- * the {@code Screens.getButtons(screen).add(widget)} call below behind
- * the toggle. Filed for the post-18b config-UI phase.
+ * the {@code Screens.getButtons(screen).add(widget)} calls below behind
+ * the toggle. Filed in DEFERRED.md.
  */
 public final class MoveMatchingButtons {
 
@@ -68,13 +60,19 @@ public final class MoveMatchingButtons {
             }
 
             var buttons = Screens.getButtons(screen);
+            int widgetsAdded = 0;
             for (SlotGroup group : groups) {
                 if (!group.targetable()) continue;
-                buttons.add(new MoveMatchingWidget(group, acs));
+                // Two widgets per targetable group — IN (rightmost) + OUT
+                // (one button width + 1px to its left). Layout math lives
+                // in MoveMatchingWidget.renderWidget.
+                buttons.add(new MoveMatchingWidget(group, acs, Direction.IN));
+                buttons.add(new MoveMatchingWidget(group, acs, Direction.OUT));
+                widgetsAdded += 2;
             }
             InventoryPlusClient.LOGGER.debug(
-                    "[move-matching] registered widgets for {} targetable group(s) on {}",
-                    targetableCount, screen.getClass().getSimpleName());
+                    "[move-matching] registered {} widget(s) for {} targetable group(s) on {}",
+                    widgetsAdded, targetableCount, screen.getClass().getSimpleName());
         });
     }
 }

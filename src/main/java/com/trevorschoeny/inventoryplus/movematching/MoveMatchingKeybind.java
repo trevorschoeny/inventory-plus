@@ -7,51 +7,43 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.Slot;
 
+import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 
 /**
- * Screen-scoped {@code I} keybind for Move Matching IN — trigger only.
+ * Screen-scoped {@code I} / {@code O} keybinds for Move Matching
+ * IN / OUT — trigger only (cycling is right-click on the widget).
  *
- * <p>Single behavior (Trev 2026-05-16, click-cycle revision):
+ * <p>Single behavior per key:
  *
  * <ul>
- *   <li>Mouse over a slot in a <b>targetable</b> slot group when {@code I}
- *       is pressed → trigger Move Matching IN for that group with its
- *       current cycle.</li>
+ *   <li>Mouse over a slot in a <b>targetable</b> slot group when
+ *       {@code I} is pressed → trigger Move Matching IN for that
+ *       group with its current cycle.</li>
+ *   <li>Same for {@code O} → triggers Move Matching OUT.</li>
  *   <li>Mouse anywhere else (over the widget, over the hotbar, over a
  *       non-target slot, over empty UI) → no-op.</li>
  * </ul>
  *
- * <p>Cycling is now a <b>right-click</b> action on the widget itself —
- * see {@link MoveMatchingWidget#onClick}. The earlier keybind-on-button
- * cycle path is retired so the click and keybind have separate, simpler
- * roles.
- *
- * <p>Scoped via {@link ScreenKeyboardEvents} so {@code I} only fires
- * inside simplecontainer screens. Promoting to a rebindable
- * {@link net.minecraft.client.KeyMapping} is filed in DEFERRED.md.
- *
- * <p>Move Matching OUT will get its own sibling keybind ({@code O}) when
- * that feature lands.
+ * <p>Scoped via {@link ScreenKeyboardEvents} so the keys only fire
+ * inside simplecontainer screens — outside those screens there's no
+ * meaningful action, and a global keybind would steal {@code I} /
+ * {@code O} during normal gameplay. Promoting to rebindable
+ * {@link net.minecraft.client.KeyMapping}s is filed in DEFERRED.md.
  */
 public final class MoveMatchingKeybind {
 
     private MoveMatchingKeybind() {}
-
-    /**
-     * Move Matching IN's keybind — {@code I} per the 2026-05-16 spec
-     * sweep.
-     */
-    private static final int KEY_IN = GLFW.GLFW_KEY_I;
 
     public static void register() {
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             if (!SlotGroupDetector.isMoveMatchingScreen(screen)) return;
             ScreenKeyboardEvents.afterKeyPress(screen).register(
                     (innerScreen, event) -> {
-                        if (event.key() != KEY_IN) return;
+                        Direction direction = directionForKey(event.key());
+                        if (direction == null) return;
                         if (!(innerScreen instanceof AbstractContainerScreen<?> acs)) return;
                         Minecraft mc = Minecraft.getInstance();
                         double mouseX = mc.mouseHandler.xpos()
@@ -63,12 +55,23 @@ public final class MoveMatchingKeybind {
 
                         SlotGroup hoverSlotGroup = slotGroupUnderMouse(acs, mouseX, mouseY);
                         if (hoverSlotGroup != null && hoverSlotGroup.targetable()) {
-                            MoveMatchingCycle cycle = MoveMatchingPrefs.get(hoverSlotGroup.key());
-                            MoveMatchingExecutor.execute(mc, hoverSlotGroup, cycle);
+                            MoveMatchingCycle cycle =
+                                    MoveMatchingPrefs.get(hoverSlotGroup.key(), direction);
+                            MoveMatchingExecutor.execute(mc, hoverSlotGroup, direction, cycle);
                         }
                         // Else no-op.
                     });
         });
+    }
+
+    /**
+     * Maps a GLFW key code to its corresponding {@link Direction}, or
+     * null when the key isn't a Move Matching trigger.
+     */
+    private static @Nullable Direction directionForKey(int key) {
+        if (key == GLFW.GLFW_KEY_I) return Direction.IN;
+        if (key == GLFW.GLFW_KEY_O) return Direction.OUT;
+        return null;
     }
 
     /**
