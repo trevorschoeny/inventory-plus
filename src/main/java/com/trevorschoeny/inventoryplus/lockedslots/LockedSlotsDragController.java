@@ -84,6 +84,17 @@ public final class LockedSlotsDragController {
         touchedSlots.clear();
     }
 
+    /**
+     * True while an L-key drag is in progress. The keybind handler
+     * uses this to ignore GLFW key-repeat events — only the initial
+     * press should kick off a drag; subsequent auto-repeats while
+     * L is held would otherwise re-toggle the slot under the cursor
+     * on every repeat tick.
+     */
+    public static boolean isLKeyDragActive() {
+        return mode == Mode.L_KEY;
+    }
+
     /** Registered against {@code ClientTickEvents.END_CLIENT_TICK}. */
     public static void tick(Minecraft mc) {
         if (mode == Mode.NONE) return;

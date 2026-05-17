@@ -40,6 +40,12 @@ public final class LockedSlotKeybind {
             ScreenKeyboardEvents.afterKeyPress(screen).register(
                     (innerScreen, event) -> {
                         if (event.key() != KEY_L) return;
+                        // GLFW auto-repeat fires afterKeyPress every repeat
+                        // tick while L is held; ignore once an L-drag is
+                        // active so we don't re-toggle the same slot on
+                        // every repeat. The tick handler clears the drag
+                        // on key release.
+                        if (LockedSlotsDragController.isLKeyDragActive()) return;
                         // L works regardless of edit mode — edit-mode click
                         // covers inv + hotbar only, so armor / offhand can
                         // only be locked via L. Keeping L always-on lets
