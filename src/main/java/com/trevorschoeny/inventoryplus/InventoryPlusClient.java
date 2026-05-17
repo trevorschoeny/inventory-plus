@@ -4,6 +4,7 @@ import com.trevorschoeny.inventoryplus.autorestock.AutoRestockTicker;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsButtons;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsClickInterceptor;
+import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsDragController;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotKeybind;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingButtons;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingKeybind;
@@ -75,6 +76,7 @@ public class InventoryPlusClient implements ClientModInitializer {
         LockedSlotsButtons.register();
         LockedSlotsClickInterceptor.register();
         LockedSlotKeybind.register();
+        ClientTickEvents.END_CLIENT_TICK.register(LockedSlotsDragController::tick);
 
         LOGGER.info("[inventoryplus] Client initialized — auto-restock + "
                 + "move-matching + locked-slots active (sorting still pending).");

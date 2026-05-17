@@ -202,6 +202,24 @@ public final class LockedSlots {
         save();
     }
 
+    /**
+     * Coerces a slot to the given lock state. Used by the drag controller
+     * to set every dragged slot to the target state (matching the first
+     * slot's NEW state) without flipping slots that are already correct.
+     * No-op if the slot is already at the target state.
+     */
+    public static void setLocked(int containerSlotIndex, boolean locked) {
+        String worldId = WorldIdentity.current(Minecraft.getInstance());
+        if (worldId == null) {
+            InventoryPlusClient.LOGGER.debug(
+                    "[locked-slots] setLocked with no world id — not persisting");
+            return;
+        }
+        Set<Integer> set = PER_WORLD.computeIfAbsent(worldId, k -> new HashSet<>());
+        boolean changed = locked ? set.add(containerSlotIndex) : set.remove(containerSlotIndex);
+        if (changed) save();
+    }
+
     private static void save() {
         Path path = filePath();
         try {

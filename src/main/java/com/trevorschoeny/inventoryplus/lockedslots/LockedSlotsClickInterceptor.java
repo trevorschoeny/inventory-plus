@@ -55,7 +55,16 @@ public final class LockedSlotsClickInterceptor {
                 }
                 if (LockedSlots.isInvOrHotbarSlot(hovered)) {
                     // Inv / hotbar click in edit mode → toggle lock.
-                    LockedSlots.toggle(hovered);
+                    int slotIdx = hovered.getContainerSlot();
+                    LockedSlots.toggleByContainerSlot(slotIdx);
+                    // Start an LMB drag so the user can sweep across
+                    // adjacent slots, coercing each to the new state of
+                    // the first slot. Other mouse buttons toggle the
+                    // single slot but don't drag.
+                    if (event.button() == 0) {
+                        boolean newState = LockedSlots.isLocked(slotIdx);
+                        LockedSlotsDragController.startEditModeDrag(slotIdx, newState);
+                    }
                     return false;
                 }
                 // Armor / offhand / external container slot → vanilla

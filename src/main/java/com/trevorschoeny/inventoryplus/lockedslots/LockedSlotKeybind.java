@@ -56,8 +56,18 @@ public final class LockedSlotKeybind {
                                 / (double) mc.getWindow().getScreenHeight();
 
                         Slot hovered = slotUnderMouse(currentAcs, mouseX, mouseY);
-                        if (hovered != null && LockedSlots.isLockable(hovered)) {
-                            LockedSlots.toggle(hovered);
+                        if (hovered == null || !LockedSlots.isLockable(hovered)) return;
+                        int slotIdx = hovered.getContainerSlot();
+                        LockedSlots.toggleByContainerSlot(slotIdx);
+                        // Start an L-drag in non-edit mode so the user can
+                        // hold L and sweep the cursor across more slots,
+                        // coercing each to the first slot's new state. In
+                        // edit mode the drag is the LMB-drag mechanic;
+                        // L stays a single-slot toggle for armor/offhand
+                        // reach.
+                        if (!LockEditMode.isOn()) {
+                            boolean newState = LockedSlots.isLocked(slotIdx);
+                            LockedSlotsDragController.startLKeyDrag(slotIdx, newState);
                         }
                     });
         });
