@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.lockedslots;
 
+import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.movematching.ScreenLayout;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -71,9 +72,26 @@ public final class LockedSlotsClickInterceptor {
             ScreenMouseEvents.afterMouseClick(screen).register((s, event, wasHandled) -> {
                 // Record manual click on lockable player slot so the corrector
                 // doesn't false-positive.
+                //
+                // Diagnostics — INFO so we can confirm:
+                //   1. The event fires at all (callback signature is correct).
+                //   2. slotUnderMouse resolves to the expected slot.
+                //   3. isLockable returns true for the hovered locked slot.
+                // If manual placement is being false-corrected, one of these
+                // gates must be silently rejecting.
                 if (event.button() != 0) return true;
                 Slot hovered = slotUnderMouse(acs, event.x(), event.y());
-                if (hovered != null && LockedSlots.isLockable(hovered)) {
+                if (hovered == null) {
+                    InventoryPlusClient.LOGGER.info(
+                            "[locked-slots] afterMouseClick fired but slotUnderMouse=null at ({}, {})",
+                            event.x(), event.y());
+                    return true;
+                }
+                boolean lockable = LockedSlots.isLockable(hovered);
+                InventoryPlusClient.LOGGER.info(
+                        "[locked-slots] afterMouseClick on menu-slot {} (container-slot {}), lockable={}",
+                        hovered.index, hovered.getContainerSlot(), lockable);
+                if (lockable) {
                     LockedSlotsCorrector.recordManualClick(hovered.getContainerSlot());
                 }
                 return true;

@@ -123,8 +123,15 @@ public final class LockedSlotsCorrector {
             if (!manualThisTick
                     && snapshot.isEmpty()
                     && !current.isEmpty()) {
-                // Auto-pickup landed in a previously-empty locked slot.
-                // Move it out.
+                // Auto-pickup (or shift-click that slipped past the mixin)
+                // landed in a previously-empty locked slot. Move it out.
+                //
+                // Diagnostic — INFO so we can see when this corrector fires
+                // for shift-click cases (which would indicate the mixin isn't
+                // working server-side) vs. genuine auto-pickup.
+                InventoryPlusClient.LOGGER.info(
+                        "[locked-slots] correcting unexpected fill of slot {} (item: {} x{})",
+                        slotIdx, current.getItem(), current.getCount());
                 correctOut(mc, player, gameMode, slotIdx);
             }
 

@@ -114,14 +114,33 @@ public final class LockedSlots {
         return getLockedSlots().contains(containerSlotIndex);
     }
 
-    /** True if the given Slot is a lockable player slot (any of hotbar / main / armor / offhand). */
+    /**
+     * True if the given Slot is a lockable player slot (any of hotbar /
+     * main / armor / offhand).
+     *
+     * <h3>Why UUID equality and not reference equality</h3>
+     *
+     * In single-player, the integrated server runs in the same JVM as
+     * the client. Vanilla {@link
+     * net.minecraft.world.inventory.AbstractContainerMenu#moveItemStackTo}
+     * is invoked on BOTH threads (client predicts, server authoritative).
+     * On the server thread, {@code slot.container} is {@code
+     * ServerPlayer.getInventory()}; on the client thread it's {@code
+     * LocalPlayer.getInventory()}. Those are different Java objects for
+     * the same logical player, so reference equality {@code slot.container
+     * == mc.player.getInventory()} returns false on the server thread,
+     * making any mixin gated on this check a no-op server-side → client
+     * predicts "blocked" but server places → revert → flicker.
+     *
+     * <p>UUID equality is stable across the client/server divide because
+     * both {@code LocalPlayer} and {@code ServerPlayer} carry the same
+     * UUID for the same logical player.
+     */
     public static boolean isLockable(Slot slot) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) return false;
-        Inventory playerInv = mc.player.getInventory();
-        if (slot.container != playerInv) return false;
+        if (!(slot.container instanceof Inventory inv)) return false;
         int ci = slot.getContainerSlot();
-        return ci >= 0 && ci <= MAX_PLAYER_CONTAINER_SLOT;
+        if (ci < 0 || ci > MAX_PLAYER_CONTAINER_SLOT) return false;
+        return isLocalPlayerInventory(inv);
     }
 
     /**
@@ -133,14 +152,27 @@ public final class LockedSlots {
      * the inventory and hotbar slots." Armor / offhand stay
      * vanilla-interactable in edit mode; their locks are toggled via the
      * {@code L} keybind only.
+     *
+     * <p>Uses UUID equality for the same reason as {@link #isLockable} —
+     * the render-thread mixin needs the check to be stable on both client
+     * and integrated-server threads.
      */
     public static boolean isInvOrHotbarSlot(Slot slot) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) return false;
-        Inventory playerInv = mc.player.getInventory();
-        if (slot.container != playerInv) return false;
+        if (!(slot.container instanceof Inventory inv)) return false;
         int ci = slot.getContainerSlot();
-        return ci >= 0 && ci <= MAX_INV_HOTBAR_CONTAINER_SLOT;
+        if (ci < 0 || ci > MAX_INV_HOTBAR_CONTAINER_SLOT) return false;
+        return isLocalPlayerInventory(inv);
+    }
+
+    /**
+     * UUID-based check for "is this Inventory the local player's?". Stable
+     * across the client/server divide in single-player (see {@link
+     * #isLockable}).
+     */
+    private static boolean isLocalPlayerInventory(Inventory inv) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.player == null) return false;
+        return inv.player.getUUID().equals(mc.player.getUUID());
     }
 
     public static boolean isLockedSlot(Slot slot) {

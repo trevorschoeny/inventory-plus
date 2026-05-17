@@ -3,6 +3,7 @@ package com.trevorschoeny.inventoryplus.mixin;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 
+import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -63,6 +64,13 @@ public abstract class AbstractContainerMenuMoveItemStackToMixin {
     private boolean inventoryplus$blockLockedDestination(Slot slot, ItemStack stack,
                                                           Operation<Boolean> original) {
         if (LockedSlots.isLockedSlot(slot)) {
+            // Diagnostic — INFO so we can see which thread fired the block.
+            // Look for "[locked-slots] mixin blocked" on both Render and
+            // Server threads in single-player; if only Render, the mixin
+            // isn't gating server-side and the corrector will still flicker.
+            InventoryPlusClient.LOGGER.info(
+                    "[locked-slots] mixin blocked moveItemStackTo into container-slot {}",
+                    slot.getContainerSlot());
             return false;
         }
         return original.call(slot, stack);
