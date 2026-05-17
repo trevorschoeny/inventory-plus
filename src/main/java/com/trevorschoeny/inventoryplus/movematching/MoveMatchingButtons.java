@@ -69,10 +69,14 @@ public final class MoveMatchingButtons {
 
     private MoveMatchingButtons() {}
 
+    // MK's Button.sprite uses graphics.blitSprite — the GUI sprite atlas
+    // convention. Identifier "inventoryplus:foo" resolves to
+    // assets/inventoryplus/textures/gui/sprites/foo.png (no extension in
+    // the Identifier, mandatory "sprites/" subdir on disk).
     private static final Identifier TEXTURE_IN =
-            Identifier.fromNamespaceAndPath("inventoryplus", "textures/gui/move_matching_in_button.png");
+            Identifier.fromNamespaceAndPath("inventoryplus", "move_matching_in_button");
     private static final Identifier TEXTURE_OUT =
-            Identifier.fromNamespaceAndPath("inventoryplus", "textures/gui/move_matching_out_button.png");
+            Identifier.fromNamespaceAndPath("inventoryplus", "move_matching_out_button");
 
     /** Side length of each button sprite. */
     public static final int SIZE = 9;

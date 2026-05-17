@@ -62,8 +62,11 @@ public final class LockedSlotsButtons {
 
     private LockedSlotsButtons() {}
 
+    // MK's Toggle.spriteLinked uses graphics.blitSprite — Identifier
+    // resolves through the GUI sprite atlas
+    // (assets/inventoryplus/textures/gui/sprites/locked_slot_edit.png).
     private static final Identifier TEXTURE =
-            Identifier.fromNamespaceAndPath("inventoryplus", "textures/gui/locked_slot_edit.png");
+            Identifier.fromNamespaceAndPath("inventoryplus", "locked_slot_edit");
 
     public static final int SIZE = 9;
 
