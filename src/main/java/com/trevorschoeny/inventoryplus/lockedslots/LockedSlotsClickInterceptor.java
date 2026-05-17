@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.lockedslots;
 
+import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.movematching.ScreenLayout;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -11,24 +12,36 @@ import net.minecraft.world.inventory.Slot;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Screen-level mouse handler for Locked Slots — covers two paths:
+ * Screen-level mouse handler for Locked Slots.
  *
- * <ol>
- *   <li><b>Edit mode active</b> → intercept clicks. If the click is on
- *       a lockable slot, toggle its lock. Cancel vanilla regardless
- *       (no item interaction during edit mode per Trev 2026-05-16).</li>
- *   <li><b>Edit mode off + normal LMB click on a player slot</b> → set
- *       {@link ManualPlaceOverride} for the duration of vanilla's
- *       click processing, then clear it after. Combined with the
- *       {@link com.trevorschoeny.inventoryplus.mixin.SlotMayPlaceMixin},
- *       this lets manual cursor placement into locked slots succeed
- *       (allowed per spec) while shift-click placement gets blocked.</li>
- * </ol>
+ * <h3>Edit mode (narrowed per Trev 2026-05-16)</h3>
  *
- * <p>Also records manual-click events into
+ * Edit mode only blocks clicks on <b>inventory + hotbar slots</b>
+ * (container-slot 0-35) — those are the "personal inventory" Trev's
+ * mental model treats as the locked-slots scope. Armor / offhand slots
+ * and external container slots stay vanilla-interactable in edit mode.
+ * Lock-toggle via click in edit mode applies to inv + hotbar; lock-toggle
+ * on armor / offhand is via the {@code L} keybind (works regardless of
+ * edit mode).
+ *
+ * <p>Clicks outside slots (on widgets like the lock-edit button itself,
+ * or the MM IN/OUT buttons) pass through to vanilla so widgets work
+ * normally — including the lock-edit button click that toggles edit
+ * mode OFF.
+ *
+ * <h3>Manual cursor placement override (non-edit mode)</h3>
+ *
+ * Normal LMB click on a lockable slot → set
+ * {@link ManualPlaceOverride} so {@link
+ * com.trevorschoeny.inventoryplus.mixin.SlotMayPlaceMixin} lets vanilla
+ * decide (manual placement into locked slots is allowed per spec).
+ * Cleared in {@code afterMouseClick}.
+ *
+ * <h3>Corrector notification</h3>
+ *
+ * Any manual click on a lockable player slot also records into
  * {@link LockedSlotsCorrector#recordManualClick} so the auto-pickup
- * corrector's tick handler knows which slots the player just touched
- * and doesn't false-positive on them.
+ * tick handler doesn't false-positive on a slot the player just touched.
  */
 public final class LockedSlotsClickInterceptor {
 
@@ -39,32 +52,44 @@ public final class LockedSlotsClickInterceptor {
             if (!(screen instanceof AbstractContainerScreen<?> acs)) return;
 
             ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> {
+                Slot hovered = slotUnderMouse(acs, event.x(), event.y());
+
                 if (LockEditMode.isOn()) {
-                    // Edit-mode handling: toggle lock on lockable slot;
-                    // cancel vanilla regardless (no item interactions).
-                    Slot hovered = slotUnderMouse(acs, event.x(), event.y());
-                    if (hovered != null && LockedSlots.isLockable(hovered)) {
-                        LockedSlots.toggle(hovered);
+                    if (hovered == null) {
+                        // Click outside slot bounds — let vanilla / widgets
+                        // handle it. THIS IS THE FIX for "can't toggle
+                        // edit mode off": the lock-edit button needs to
+                        // receive its click to flip the mode.
+                        return true;
                     }
-                    return false; // cancel
+                    if (LockedSlots.isInvOrHotbarSlot(hovered)) {
+                        // Inv / hotbar click in edit mode → toggle lock,
+                        // cancel vanilla item interaction.
+                        LockedSlots.toggle(hovered);
+                        return false;
+                    }
+                    // Armor / offhand / external container slot → vanilla
+                    // handles normally (per Trev's "still be able to
+                    // interact with other containers").
+                    return true;
                 }
 
-                // Not in edit mode — for manual LMB on a player slot,
-                // set the override so mayPlace allows placement into
-                // locked slots from this click.
+                // Not in edit mode — for manual LMB on a player slot, set
+                // the override so mayPlace allows placement into locked
+                // slots from this click.
                 if (event.button() != 0) return true; // only LMB
-                Slot hovered = slotUnderMouse(acs, event.x(), event.y());
                 if (hovered != null && LockedSlots.isLockable(hovered)) {
                     ManualPlaceOverride.set();
+                    InventoryPlusClient.LOGGER.debug(
+                            "[locked-slots] manual override SET for slot {} (LMB)",
+                            hovered.getContainerSlot());
                 }
-                return true; // allow vanilla
+                return true;
             });
 
             ScreenMouseEvents.afterMouseClick(screen).register((s, event, wasHandled) -> {
                 ManualPlaceOverride.clear();
 
-                // Tell the corrector this slot was manually touched so
-                // it doesn't false-positive on the post-tick scan.
                 if (event.button() != 0) return true;
                 Slot hovered = slotUnderMouse(acs, event.x(), event.y());
                 if (hovered != null && LockedSlots.isLockable(hovered)) {

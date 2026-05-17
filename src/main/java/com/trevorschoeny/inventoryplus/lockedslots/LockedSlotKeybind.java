@@ -40,7 +40,11 @@ public final class LockedSlotKeybind {
             ScreenKeyboardEvents.afterKeyPress(screen).register(
                     (innerScreen, event) -> {
                         if (event.key() != KEY_L) return;
-                        if (LockEditMode.isOn()) return; // edit-mode click handles toggling
+                        // L works regardless of edit mode — edit-mode click
+                        // covers inv + hotbar only, so armor / offhand can
+                        // only be locked via L. Keeping L always-on lets
+                        // the player lock armor / offhand without exiting
+                        // edit mode.
                         if (!(innerScreen instanceof AbstractContainerScreen<?> currentAcs)) return;
 
                         Minecraft mc = Minecraft.getInstance();

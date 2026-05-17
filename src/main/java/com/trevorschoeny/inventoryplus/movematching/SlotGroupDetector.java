@@ -54,9 +54,16 @@ public final class SlotGroupDetector {
 
     private SlotGroupDetector() {}
 
-    /** Returns the slot-group partition for the given screen. */
+    /**
+     * Returns the slot-group partition for the given screen. Works on
+     * ANY {@link AbstractContainerScreen} — the partition logic is
+     * universal. Screen-class filtering belongs at the registration
+     * site (e.g., {@link MoveMatchingButtons#register} restricts MM
+     * widgets to chest/shulker/hopper/dispenser; {@link
+     * com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsButtons#register}
+     * runs on every screen with a player main inv).
+     */
     public static List<SlotGroup> detect(Screen screen) {
-        if (!isMoveMatchingScreen(screen)) return List.of();
         if (!(screen instanceof AbstractContainerScreen<?> acs)) return List.of();
 
         AbstractContainerMenu menu = acs.getMenu();

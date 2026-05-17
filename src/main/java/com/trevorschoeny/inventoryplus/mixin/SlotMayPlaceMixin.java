@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.mixin;
 
+import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockedslots.ManualPlaceOverride;
 
@@ -49,10 +50,17 @@ public abstract class SlotMayPlaceMixin {
     @Inject(method = "mayPlace", at = @At("HEAD"), cancellable = true)
     private void inventoryplus$blockIfLocked(ItemStack stack,
                                              CallbackInfoReturnable<Boolean> cir) {
-        if (ManualPlaceOverride.isActive()) return; // manual click — let vanilla decide
-
         Slot self = (Slot) (Object) this;
-        if (LockedSlots.isLockedSlot(self)) {
+        boolean override = ManualPlaceOverride.isActive();
+        boolean locked = LockedSlots.isLockedSlot(self);
+        // Debug log for the "manual placement blocked" investigation.
+        if (locked) {
+            InventoryPlusClient.LOGGER.debug(
+                    "[locked-slots] mayPlace slot.containerSlot={} override={} locked={}",
+                    self.getContainerSlot(), override, locked);
+        }
+        if (override) return; // manual click — let vanilla decide
+        if (locked) {
             cir.setReturnValue(false);
         }
     }

@@ -46,11 +46,6 @@ import java.util.Set;
  *   }
  * }
  * }</pre>
- *
- * <p>Lock state is per-{@link WorldIdentity} bucket — different worlds
- * /servers get independent lock layouts. The container-slot index is
- * stable across screens within a world (helmet is always container-slot
- * 39, etc.), so the same set works for every screen the player opens.
  */
 public final class LockedSlots {
 
@@ -63,13 +58,15 @@ public final class LockedSlots {
     /** Inclusive upper bound on player container-slot indices we support locking on. */
     public static final int MAX_PLAYER_CONTAINER_SLOT = 40;
 
+    /** Inclusive upper bound on the "inv + hotbar" subset (the part that gets the edit-mode overlay). */
+    public static final int MAX_INV_HOTBAR_CONTAINER_SLOT = 35;
+
     private static Path filePath() {
         return FabricLoader.getInstance().getConfigDir()
                 .resolve("inventoryplus")
                 .resolve("locked-slots.json");
     }
 
-    /** Outer dim: world id → set of locked container-slot indices. */
     private static final Map<String, Set<Integer>> PER_WORLD = new HashMap<>();
 
     private static boolean loaded = false;
@@ -106,10 +103,6 @@ public final class LockedSlots {
         }
     }
 
-    /**
-     * Returns the locked slot indices for the player's current world,
-     * or an empty set if no world / no entries.
-     */
     public static Set<Integer> getLockedSlots() {
         String worldId = WorldIdentity.current(Minecraft.getInstance());
         if (worldId == null) return Collections.emptySet();
@@ -117,18 +110,11 @@ public final class LockedSlots {
         return set != null ? set : Collections.emptySet();
     }
 
-    /**
-     * Returns true if the given player container-slot index is locked
-     * in the current world.
-     */
     public static boolean isLocked(int containerSlotIndex) {
         return getLockedSlots().contains(containerSlotIndex);
     }
 
-    /**
-     * Returns true if the given {@link Slot} is a lockable player slot
-     * (correct backing container + index in supported range).
-     */
+    /** True if the given Slot is a lockable player slot (any of hotbar / main / armor / offhand). */
     public static boolean isLockable(Slot slot) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return false;
@@ -139,29 +125,34 @@ public final class LockedSlots {
     }
 
     /**
-     * Returns true if the given Slot is a locked player slot. Combines
-     * {@link #isLockable} + {@link #isLocked}.
+     * True if the given Slot is in the "inventory + hotbar" subset
+     * (container-slot 0-35) — the part that gets the edit-mode gray
+     * overlay AND the edit-mode click-to-toggle.
+     *
+     * <p>Per Trev 2026-05-16: "Make it so you only can't interact with
+     * the inventory and hotbar slots." Armor / offhand stay
+     * vanilla-interactable in edit mode; their locks are toggled via the
+     * {@code L} keybind only.
      */
+    public static boolean isInvOrHotbarSlot(Slot slot) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return false;
+        Inventory playerInv = mc.player.getInventory();
+        if (slot.container != playerInv) return false;
+        int ci = slot.getContainerSlot();
+        return ci >= 0 && ci <= MAX_INV_HOTBAR_CONTAINER_SLOT;
+    }
+
     public static boolean isLockedSlot(Slot slot) {
         if (!isLockable(slot)) return false;
         return isLocked(slot.getContainerSlot());
     }
 
-    /**
-     * Toggles the lock state for the given Slot. No-op if the slot isn't
-     * lockable. Persists immediately.
-     */
     public static void toggle(Slot slot) {
         if (!isLockable(slot)) return;
         toggleByContainerSlot(slot.getContainerSlot());
     }
 
-    /**
-     * Toggles the lock state for the given player container-slot index.
-     * Persists immediately. Updates the corrector's tracking state if
-     * the slot is being locked (so its existing content is treated as
-     * manually owned).
-     */
     public static void toggleByContainerSlot(int containerSlotIndex) {
         String worldId = WorldIdentity.current(Minecraft.getInstance());
         if (worldId == null) {
