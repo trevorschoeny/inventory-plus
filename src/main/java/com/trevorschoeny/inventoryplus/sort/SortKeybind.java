@@ -84,7 +84,7 @@ public final class SortKeybind {
 
         Slot hovered = slotUnderMouse(acs, mc);
         if (hovered == null) {
-            InventoryPlusClient.LOGGER.info(
+            InventoryPlusClient.LOGGER.debug(
                     "[sort] S pressed but no slot under cursor — no-op");
             return;
         }
@@ -95,7 +95,7 @@ public final class SortKeybind {
 
         ContainerIdentity identity = ContainerIdentity.fromHoveredSlot(hovered, acs.getMenu());
         if (identity == null) {
-            InventoryPlusClient.LOGGER.info(
+            InventoryPlusClient.LOGGER.debug(
                     "[sort] S pressed; {} → no identity (not sortable) — no-op",
                     hoveredDesc);
             return;
@@ -103,20 +103,20 @@ public final class SortKeybind {
 
         SortType type = SortState.getType(identity);
         if (type == SortType.DISABLED) {
-            InventoryPlusClient.LOGGER.info(
+            InventoryPlusClient.LOGGER.debug(
                     "[sort] S pressed; identity={} is DISABLED — no-op", identity.key());
             return;
         }
 
         List<Slot> region = collectRegion(acs.getMenu(), hovered);
         if (region.size() < 2) {
-            InventoryPlusClient.LOGGER.info(
+            InventoryPlusClient.LOGGER.debug(
                     "[sort] S pressed; {} identity={} region only {} slot(s) — no-op",
                     hoveredDesc, identity.key(), region.size());
             return;
         }
 
-        InventoryPlusClient.LOGGER.info(
+        InventoryPlusClient.LOGGER.debug(
                 "[sort] S pressed; {} identity={} type={} region={} slots — sorting",
                 hoveredDesc, identity.key(), type, region.size());
 
