@@ -64,6 +64,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(Inventory.class)
 public abstract class InventoryGetFreeSlotMixin {
 
+    static {
+        com.trevorschoeny.inventoryplus.InventoryPlusClient.LOGGER.info(
+                "[locked-slots] InventoryGetFreeSlotMixin LOADED");
+    }
+
     @Shadow @Final
     private NonNullList<ItemStack> items;
 
@@ -72,16 +77,12 @@ public abstract class InventoryGetFreeSlotMixin {
         Inventory self = (Inventory) (Object) this;
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null) return;
-        // Only affect the local player's inventory — matters in
-        // single-player where the integrated server has inventories
-        // for every player.
         if (self.player != mc.player) return;
 
-        // Walk the player container-slot range, return first
-        // non-locked empty. Items list typically covers slots 0-35
-        // (hotbar + main inv); equipment slots are accessed via the
-        // wrapper at indices 36+. Auto-pickup goes through the items
-        // list, so iteration over items.size() is the right scope.
+        com.trevorschoeny.inventoryplus.InventoryPlusClient.LOGGER.info(
+                "[locked-slots] getFreeSlot called; locked set = {}",
+                com.trevorschoeny.inventoryplus.lockedslots.LockedSlots.getLockedSlots());
+
         for (int i = 0; i < items.size(); i++) {
             if (LockedSlots.isLocked(i)) continue;
             if (items.get(i).isEmpty()) {
@@ -89,8 +90,6 @@ public abstract class InventoryGetFreeSlotMixin {
                 return;
             }
         }
-        // No non-locked slot available — return -1 so vanilla drops
-        // the item on the ground (or whatever fallback vanilla has).
         cir.setReturnValue(-1);
     }
 }

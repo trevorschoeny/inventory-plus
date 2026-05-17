@@ -47,19 +47,23 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(Slot.class)
 public abstract class SlotMayPlaceMixin {
 
+    static {
+        InventoryPlusClient.LOGGER.info("[locked-slots] SlotMayPlaceMixin LOADED");
+    }
+
     @Inject(method = "mayPlace", at = @At("HEAD"), cancellable = true)
     private void inventoryplus$blockIfLocked(ItemStack stack,
                                              CallbackInfoReturnable<Boolean> cir) {
         Slot self = (Slot) (Object) this;
         boolean override = ManualPlaceOverride.isActive();
         boolean locked = LockedSlots.isLockedSlot(self);
-        // Debug log for the "manual placement blocked" investigation.
+        // Promoted to INFO for debugging.
         if (locked) {
-            InventoryPlusClient.LOGGER.debug(
+            InventoryPlusClient.LOGGER.info(
                     "[locked-slots] mayPlace slot.containerSlot={} override={} locked={}",
                     self.getContainerSlot(), override, locked);
         }
-        if (override) return; // manual click — let vanilla decide
+        if (override) return;
         if (locked) {
             cir.setReturnValue(false);
         }
