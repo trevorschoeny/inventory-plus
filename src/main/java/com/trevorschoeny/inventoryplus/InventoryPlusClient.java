@@ -6,11 +6,11 @@ import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsButtons;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsClickInterceptor;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsDragController;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotKeybind;
-import com.trevorschoeny.inventoryplus.movematching.MoveMatchingButtons;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingKeybind;
 import com.trevorschoeny.inventoryplus.sort.ContainerOpenTracker;
 import com.trevorschoeny.inventoryplus.sort.SortKeybind;
 import com.trevorschoeny.inventoryplus.sort.SortState;
+import com.trevorschoeny.inventoryplus.toolbar.Toolbar;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -56,16 +56,14 @@ public class InventoryPlusClient implements ClientModInitializer {
         // javadoc for the watch + refill model.
         ClientTickEvents.END_CLIENT_TICK.register(AutoRestockTicker::tick);
 
-        // Move Matching — inventory-centric, IN + OUT widgets above the
-        // player's 3×9 main inv on container screens (chest/shulker/
-        // hopper/dispenser). Screen-scoped I / O keybinds. See
-        // MoveMatchingButtons + MoveMatchingKeybind javadocs.
-        MoveMatchingButtons.register();
+        // Move Matching — inventory-centric, IN + OUT buttons live in
+        // the IP toolbar. Screen-scoped I / O keybinds register
+        // separately. Per-button visibility (.showWhen on the buttons)
+        // hides MM IN/OUT on screens without an external container.
         MoveMatchingKeybind.register();
 
         // Locked Slots — per-world client-side persistence + L keybind
-        // toggle + lock-edit widget (above player main inv, anywhere
-        // the inventory is visible) + edit-mode click interceptor.
+        // toggle + edit-mode click interceptor + drag-to-toggle.
         //
         // Protection is mixin-driven (no post-hoc corrector):
         //   - AbstractContainerMenuMoveItemStackToMixin blocks shift-click
@@ -75,11 +73,21 @@ public class InventoryPlusClient implements ClientModInitializer {
         //     into empty locked slots (same UUID-equality pattern).
         // Manual cursor placement passes through unmodified — neither
         // mixin blocks the PICKUP click-type path. See package javadocs.
+        //
+        // The lock-edit toggle button lives in the IP toolbar (see
+        // Toolbar.register below); registerLifecycle here handles the
+        // edit-mode auto-reset on screen open.
         LockedSlots.load();
-        LockedSlotsButtons.register();
+        LockedSlotsButtons.registerLifecycle();
         LockedSlotsClickInterceptor.register();
         LockedSlotKeybind.register();
         ClientTickEvents.END_CLIENT_TICK.register(LockedSlotsDragController::tick);
+
+        // IP toolbar — one right-aligned MK panel above the player 3×9
+        // grid, holding lock-edit toggle + MM IN/OUT (and future
+        // feature buttons). Per-button .showWhen gates per-feature
+        // visibility within the same panel.
+        Toolbar.register();
 
         // Sort — S keybind sorts the simplecontainer under the cursor.
         // QUANTITY_DESC only for MVP; per-container sort-type persistence

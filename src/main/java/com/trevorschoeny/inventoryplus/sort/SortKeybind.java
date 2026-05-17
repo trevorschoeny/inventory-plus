@@ -139,8 +139,12 @@ public final class SortKeybind {
      *
      * <p>For block-anchored / ender-chest hover: all slots whose
      * {@code container} reference equals the hovered slot's container.
+     *
+     * <p>Package-visible so the Sort toolbar button can reuse this
+     * collector by passing a synthetic "anchor" slot (any external
+     * sortable slot or any main-inv slot).
      */
-    private static List<Slot> collectRegion(AbstractContainerMenu menu, Slot hovered) {
+    static List<Slot> collectRegion(AbstractContainerMenu menu, Slot hovered) {
         List<Slot> region = new ArrayList<>();
         Container hoveredContainer = hovered.container;
         boolean isPlayerInv = hoveredContainer instanceof Inventory;

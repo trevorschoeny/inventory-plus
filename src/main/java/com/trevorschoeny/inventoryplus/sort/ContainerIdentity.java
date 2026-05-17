@@ -129,8 +129,11 @@ public final class ContainerIdentity {
      * True if the given menu is a vanilla simple-container UI that this
      * mod sorts. Hardcoded list per the IP spec's sortable scope —
      * additions go here when more menus warrant.
+     *
+     * <p>Public so the Sort toolbar button (which has no cursor target)
+     * can use it to gate its showWhen / click behavior.
      */
-    private static boolean isSortableContainerMenu(AbstractContainerMenu menu) {
+    public static boolean isSortableContainerMenu(AbstractContainerMenu menu) {
         return menu instanceof ChestMenu      // chest, barrel, ender chest
                 || menu instanceof ShulkerBoxMenu
                 || menu instanceof HopperMenu
