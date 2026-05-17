@@ -2,6 +2,7 @@ package com.trevorschoeny.inventoryplus.mixin;
 
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -15,67 +16,67 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Locked-slot protection for click-driven moves, applied at the
- * client's click-dispatch entry point so it works identically in
- * single-player, LAN-hosted, and dedicated-server multiplayer.
+ * Cancels shift-click and Q-drop packets that would violate locked
+ * slots before they leave the client.
  *
- * <h3>Why this layer is the right one</h3>
+ * <h3>The split-responsibility model</h3>
  *
- * On a dedicated multiplayer server (separate JVM, IP not installed),
- * any server-side mixin in this mod can't run. The companion
- * {@link AbstractContainerMenuMoveItemStackToMixin} only fires
- * server-side when the JVM is shared (single-player). To get the lock
- * respected across all environments, the work has to happen on the
- * client before the click packet leaves — by either cancelling the
- * click outright, or synthesizing an equivalent move out of click
- * types the server universally respects.
- *
- * <h3>Three cases handled</h3>
+ * Locked-slot protection runs on two layers:
  *
  * <ol>
- *   <li><b>QUICK_MOVE with locked source</b> — cancel. Items must not
- *       leave a locked slot via shift-click.</li>
- *   <li><b>THROW with locked source</b> — cancel. Q-drop must not
- *       empty a locked slot.</li>
- *   <li><b>QUICK_MOVE where some destinations are locked</b> — cancel
- *       the original shift-click, then synthesize the move using
- *       PICKUP clicks that skip locked slots. Mirrors vanilla's
- *       two-pass behavior (merge-into-existing first, then empty
- *       slots) with locked slots filtered out.</li>
+ *   <li><b>Vanilla iteration skip</b> (via
+ *       {@link AbstractContainerMenuMoveItemStackToMixin}) — makes
+ *       vanilla {@code moveItemStackTo} see locked slots as
+ *       permanently full / unplaceable, so vanilla naturally picks
+ *       the next slot in its own per-screen-handler iteration order.
+ *       Works in single-player and LAN (where the integrated server
+ *       shares the JVM and runs the same mixins).</li>
+ *   <li><b>Packet cancellation</b> (this mixin) — for cases the
+ *       vanilla iteration skip can't cover:
+ *       <ul>
+ *         <li>Source slot is locked → cancel always. Even with
+ *             vanilla iteration skip, items would still LEAVE the
+ *             locked slot.</li>
+ *         <li>Destination would be locked AND we're on a dedicated
+ *             multiplayer server → cancel. The vanilla iteration
+ *             skip can't help here because the server JVM doesn't
+ *             run this mod's mixins.</li>
+ *       </ul></li>
  * </ol>
  *
- * <p>All other click types ({@code PICKUP}, {@code SWAP}, {@code CLONE},
- * {@code PICKUP_ALL}, {@code QUICK_CRAFT}) pass through unmodified.
- * Manual cursor interaction is allowed by design, and the synthesized
- * PICKUP clicks below recurse through this method without ever
- * matching the QUICK_MOVE/THROW gate.
+ * <p>Manual cursor interaction ({@code PICKUP}, {@code SWAP},
+ * {@code CLONE}, {@code PICKUP_ALL}, {@code QUICK_CRAFT}) passes
+ * through unmodified — by spec, "manual cursor interaction is
+ * allowed."
  *
- * <h3>Why PICKUP-click synthesis instead of letting vanilla iterate</h3>
+ * <h3>Why SP+LAN gets a different code path than dedicated MP</h3>
  *
- * In single-player the companion mixin would let vanilla's
- * {@code moveItemStackTo} naturally skip locked slots and fill the
- * unlocked ones — better UX than cancelling. But that same behavior
- * is impossible on a dedicated server (the server doesn't run the
- * mixin). To keep the UX consistent across environments, the client
- * does the iteration itself and issues individual {@code PICKUP}
- * clicks for each step. Those PICKUP packets are universally
- * server-respected, so the server moves items to the same unlocked
- * destinations the client picked.
+ * In SP and LAN-hosted games, the integrated server is in the same
+ * JVM. Both client (Render thread) and server (Server thread) run
+ * this mod's mixin chain, including {@link
+ * AbstractContainerMenuMoveItemStackToMixin}'s vanilla-iteration
+ * skip. Letting vanilla handle the shift-click — without
+ * cancellation — produces correct behavior on both threads, with
+ * vanilla's own per-screen logic picking the right next slot. UX
+ * is identical to vanilla (smart fill, locked skipped, no flicker).
  *
- * <h3>Destination iteration order</h3>
+ * <p>On a dedicated server (separate JVM, IP not installed), the
+ * server runs vanilla without our mixins. If we let the click
+ * through, the server would place items in the locked slot, sync
+ * back, lock defeated + flicker. So we cancel. Trade-off: shift-click
+ * into a locked-destination inventory does nothing in dedicated MP
+ * (player must manually move). Matches IPN's behavior.
  *
- * Without per-screen-handler knowledge of vanilla's
- * {@code quickMoveStack} preferences, the synthesis iterates
- * {@code menu.slots} in index order. Items end up in non-locked
- * destinations correctly; the specific slot picked may differ from
- * what vanilla would have chosen by 1–2 positions in some screens.
- * Acceptable trade-off for not maintaining per-screen tables.
+ * <p>Filed for future improvement: synthesize the shift-click via
+ * PICKUP packets in dedicated MP so the UX matches SP. Snapshot-
+ * revert-replay approach using vanilla's own iteration. See
+ * DEFERRED.md.
  *
- * <h3>What's still NOT covered</h3>
+ * <h3>Auto-pickup is not covered here</h3>
  *
- * Vanilla auto-pickup (mob drops, ground items) runs server-side via
- * {@code Inventory.add} → {@code getFreeSlot}, and is covered by
- * {@link InventoryGetFreeSlotMixin} in single-player only. Multiplayer
+ * Vanilla auto-pickup (mob drops, ground items) runs server-side
+ * via {@code Inventory.add} → {@code getFreeSlot}, covered by
+ * {@link InventoryGetFreeSlotMixin} in SP/LAN only. Multiplayer
  * auto-pickup into locked slots remains a hole pending a server-side
  * companion mod — see DEFERRED.md.
  */
@@ -90,9 +91,6 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
             int containerId, int slotId, int button, ClickType clickType,
             Player player, CallbackInfo ci) {
         // Only gate shift-click (QUICK_MOVE) and Q-drop (THROW).
-        // PICKUP / SWAP / CLONE / PICKUP_ALL / QUICK_CRAFT all pass
-        // through — including the synthesized PICKUPs this mixin
-        // recurses into below.
         if (clickType != ClickType.QUICK_MOVE && clickType != ClickType.THROW) return;
 
         AbstractContainerMenu menu = player.containerMenu;
@@ -102,117 +100,39 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
         Slot source = menu.slots.get(slotId);
 
         // Source-block: never let items leave a locked slot. Applies to
-        // both QUICK_MOVE and THROW.
+        // both QUICK_MOVE and THROW, both single-player and multiplayer.
         if (LockedSlots.isLockedSlot(source)) {
             ci.cancel();
             return;
         }
 
-        // Destination-block applies to QUICK_MOVE only. THROW discards
-        // outside the menu so it never touches a destination slot.
+        // Destination-block applies to QUICK_MOVE only.
         if (clickType != ClickType.QUICK_MOVE) return;
 
-        if (!wouldShiftClickTouchLockedSlot(menu, source)) {
-            // No locked-destination conflict — let vanilla shift-click
-            // proceed normally. Faster + uses vanilla's exact iteration
-            // order for the common case.
-            return;
-        }
+        // SP/LAN: let vanilla handle. The mixin chain (in
+        // AbstractContainerMenuMoveItemStackToMixin) makes vanilla
+        // naturally skip locked slots in both passes, using its own
+        // per-screen-handler iteration order. UX matches vanilla.
+        if (Minecraft.getInstance().hasSingleplayerServer()) return;
 
-        // Locked destination(s) in the way — synthesize a shift-click
-        // out of PICKUP clicks that skip locked slots.
-        MultiPlayerGameMode self = (MultiPlayerGameMode) (Object) this;
-        synthesizeShiftClick(self, containerId, source, menu, player);
-        ci.cancel();
+        // Dedicated MP: server doesn't run our mixins, so vanilla skip
+        // would only happen client-side and the server would override.
+        // Cancel the click to prevent server-side placement into locked
+        // slots. Trade-off: shift-click is a no-op when any destination
+        // would be locked. See DEFERRED.md for the synthesis path that
+        // would make MP UX match SP.
+        if (wouldShiftClickTouchLockedSlot(menu, source)) {
+            ci.cancel();
+        }
     }
 
     /**
-     * Cancel + replace shift-click: pick up the source onto the cursor,
-     * iterate destinations skipping locked slots (merge pass, then
-     * empty-slot pass, mirroring vanilla's two-pass {@code
-     * moveItemStackTo}), and put any leftover items back on the source.
+     * Conservative prediction: returns true if vanilla's shift-click
+     * iteration would attempt to place items into any locked slot.
+     * Same-half filter avoids false-positives within the player half.
      *
-     * <p>Each step is a {@link ClickType#PICKUP} click — universally
-     * server-respected, no server-side mod required.
-     */
-    private void synthesizeShiftClick(MultiPlayerGameMode self, int containerId,
-                                       Slot source, AbstractContainerMenu menu, Player player) {
-        // Phase 1: pickup source onto cursor.
-        self.handleInventoryMouseClick(containerId, source.index, 0,
-                ClickType.PICKUP, player);
-
-        if (menu.getCarried().isEmpty()) return;
-
-        // Source classification for same-half filtering (see
-        // wouldShiftClickTouchLockedSlot for rationale).
-        boolean sourceIsPlayer = LockedSlots.isLockable(source);
-        int sourceCS = sourceIsPlayer ? source.getContainerSlot() : -1;
-        boolean sourceInMain = sourceIsPlayer && sourceCS >= 9 && sourceCS <= 35;
-        boolean sourceInHotbar = sourceIsPlayer && sourceCS >= 0 && sourceCS <= 8;
-
-        // Phase 2a: merge pass — fill same-item destinations with room.
-        for (Slot dest : menu.slots) {
-            if (menu.getCarried().isEmpty()) break;
-            if (!isEligibleDestination(dest, source, sourceInMain, sourceInHotbar)) continue;
-            ItemStack destStack = dest.getItem();
-            if (destStack.isEmpty()) continue;
-            if (!ItemStack.isSameItemSameComponents(destStack, menu.getCarried())) continue;
-            if (destStack.getCount() >= dest.getMaxStackSize(destStack)) continue;
-            self.handleInventoryMouseClick(containerId, dest.index, 0,
-                    ClickType.PICKUP, player);
-        }
-
-        // Phase 2b: empty pass — place remaining cursor into first
-        // eligible empty slot.
-        for (Slot dest : menu.slots) {
-            if (menu.getCarried().isEmpty()) break;
-            if (!isEligibleDestination(dest, source, sourceInMain, sourceInHotbar)) continue;
-            if (!dest.getItem().isEmpty()) continue;
-            if (!dest.mayPlace(menu.getCarried())) continue;
-            self.handleInventoryMouseClick(containerId, dest.index, 0,
-                    ClickType.PICKUP, player);
-        }
-
-        // Phase 3: if cursor still has items (no destination found, or
-        // not all items fit), put them back on the source. The lock UI
-        // doesn't lie about the underlying state.
-        if (!menu.getCarried().isEmpty()) {
-            self.handleInventoryMouseClick(containerId, source.index, 0,
-                    ClickType.PICKUP, player);
-        }
-    }
-
-    /**
-     * Common filter for synthetic-shift-click destinations.
-     *
-     * <ul>
-     *   <li>Skip the source itself.</li>
-     *   <li>Skip locked slots — the whole point of this exercise.</li>
-     *   <li>Skip same-half player slots (main↔main, hotbar↔hotbar) —
-     *       vanilla never shift-clicks within a half.</li>
-     * </ul>
-     */
-    private boolean isEligibleDestination(Slot dest, Slot source,
-                                          boolean sourceInMain, boolean sourceInHotbar) {
-        if (dest == source) return false;
-        if (LockedSlots.isLockedSlot(dest)) return false;
-        if (!LockedSlots.isLockable(dest)) {
-            // External-container slot — always eligible (vanilla
-            // shift-clicks player↔external freely).
-            return true;
-        }
-        int destCS = dest.getContainerSlot();
-        boolean destInMain = destCS >= 9 && destCS <= 35;
-        boolean destInHotbar = destCS >= 0 && destCS <= 8;
-        if (sourceInMain && destInMain) return false;
-        if (sourceInHotbar && destInHotbar) return false;
-        return true;
-    }
-
-    /**
-     * Returns true if vanilla's shift-click iteration would attempt to
-     * place items into any locked slot. Detection only — synthesis is
-     * handled by {@link #synthesizeShiftClick}.
+     * <p>Used only in the dedicated-MP path. In SP/LAN we don't need
+     * this — vanilla's own iteration handles it via the mixin chain.
      */
     private boolean wouldShiftClickTouchLockedSlot(AbstractContainerMenu menu, Slot source) {
         ItemStack sourceStack = source.getItem();
@@ -229,6 +149,7 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
             int destCS = dest.getContainerSlot();
             boolean destInMain = destCS >= 9 && destCS <= 35;
             boolean destInHotbar = destCS >= 0 && destCS <= 8;
+            // Same-half filter — vanilla doesn't shift-click within a half.
             if (sourceInMain && destInMain) continue;
             if (sourceInHotbar && destInHotbar) continue;
 
@@ -240,11 +161,6 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
     /**
      * Vanilla-equivalent prediction for "could moveItemStackTo place
      * this stack into this slot?" — doesn't mutate.
-     *
-     * <p>Calling {@code slot.mayPlace} from here does NOT trigger
-     * {@link AbstractContainerMenuMoveItemStackToMixin}'s
-     * {@code @WrapOperation} — that wrap is scoped to the call site
-     * inside {@code moveItemStackTo}.
      */
     private boolean canMergeOrPlace(Slot slot, ItemStack stack) {
         ItemStack inSlot = slot.getItem();

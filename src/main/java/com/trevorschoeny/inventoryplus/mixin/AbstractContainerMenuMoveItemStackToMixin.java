@@ -3,7 +3,6 @@ package com.trevorschoeny.inventoryplus.mixin;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 
-import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -14,57 +13,89 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 /**
- * Defense-in-depth block on locked-slot destinations inside
- * {@code moveItemStackTo}.
+ * Makes vanilla {@code moveItemStackTo} see locked slots as
+ * "permanently full" — both passes (merge + empty) skip them naturally
+ * and vanilla picks the next slot using its own per-screen-handler
+ * iteration order.
  *
- * <h3>Role within the locked-slot mixin chain</h3>
+ * <h3>Two wraps, one goal</h3>
  *
- * Primary protection is now {@link MultiPlayerGameModeShiftClickMixin},
- * which cancels shift-click packets at the source (IPN's pattern,
- * works in single + multiplayer). This mixin is the secondary line:
+ * Vanilla {@code moveItemStackTo} has two passes:
  *
- * <ul>
- *   <li>Catches any {@code moveItemStackTo} call that bypasses the
- *       client packet path — e.g., other mods invoking shift-click
- *       semantics directly without going through
- *       {@code MultiPlayerGameMode.handleInventoryMouseClick}.</li>
- *   <li>In single-player, runs on both Render and Server threads
- *       (UUID equality in {@link
- *       com.trevorschoeny.inventoryplus.lockedslots.LockedSlots#isLockable})
- *       so the lock is respected even if a mixin further upstream
- *       didn't fire.</li>
- * </ul>
+ * <ol>
+ *   <li><b>Merge pass</b> — for each destination slot, calls
+ *       {@code slot.getItem()} and tries to merge same-item stacks.
+ *       Does NOT consult {@code mayPlace}.</li>
+ *   <li><b>Empty pass</b> — for each destination slot, calls
+ *       {@code slot.getItem()} to check emptiness, then
+ *       {@code slot.mayPlace(stack)} to validate placement.</li>
+ * </ol>
  *
- * <h3>Why scoped to moveItemStackTo</h3>
- *
- * Vanilla's {@code Slot.mayPlace} is consulted from multiple places:
+ * To make vanilla skip locked slots in BOTH passes:
  *
  * <ul>
- *   <li>{@code AbstractContainerMenu.moveItemStackTo} — shift-click
- *       destination iteration. We DO want to block here.</li>
- *   <li>{@code AbstractContainerMenu.doClick} for {@link
- *       net.minecraft.world.inventory.ClickType#PICKUP} — manual
- *       cursor placement. We DON'T want to block here (per spec,
- *       "manual cursor interaction is allowed").</li>
+ *   <li>{@code @WrapOperation} on {@code getItem} returns
+ *       {@link ItemStack#EMPTY} for locked slots → merge pass sees
+ *       no item to merge into → skips. Empty pass sees the slot as
+ *       empty → falls through to mayPlace check.</li>
+ *   <li>{@code @WrapOperation} on {@code mayPlace} returns
+ *       {@code false} for locked slots → empty pass refuses to
+ *       place. (Without this, empty pass would place into the locked
+ *       slot since getItem said it was empty.)</li>
  * </ul>
  *
- * <p>{@code @WrapOperation} on the {@code mayPlace} call inside
- * {@code moveItemStackTo} scopes the block exactly to the shift-click
- * path — manual cursor placement is naturally unaffected because that
- * code path doesn't traverse {@code moveItemStackTo}.
+ * <p>Result: vanilla's loop simply doesn't see locked slots as valid
+ * targets. It continues iterating to the next slot in its own order
+ * (which respects per-screen-handler {@code quickMoveStack} ranges
+ * and direction — e.g., crafting inputs are never targeted because
+ * {@code InventoryMenu.quickMoveStack} doesn't include them in the
+ * destination range).
  *
- * <h3>Limitation — merge-into-existing pass</h3>
+ * <h3>Why scoped to moveItemStackTo and not Slot.mayPlace directly</h3>
  *
- * Vanilla {@code moveItemStackTo} has two passes — first it tries to
- * merge into existing same-item destinations (which does NOT call
- * mayPlace), then it tries empty destinations (which does). The
- * merge-into-existing pass bypasses this mixin. That gap is now
- * closed by {@link MultiPlayerGameModeShiftClickMixin}'s
- * destination prediction, which handles both empty AND
- * merge-with-room cases via {@code canMergeOrPlace}.
+ * {@code Slot.mayPlace} is also consulted from
+ * {@code AbstractContainerMenu.doClick} for {@link
+ * net.minecraft.world.inventory.ClickType#PICKUP} — manual cursor
+ * placement. We don't want to block manual placement (per spec,
+ * "manual cursor interaction is allowed"). Scoping the wrap to
+ * {@code moveItemStackTo} keeps the block on shift-click only.
+ *
+ * <h3>Cross-thread firing (single-player + LAN)</h3>
+ *
+ * In single-player (and LAN-hosted games) the integrated server
+ * shares the JVM with the client; these wraps fire on BOTH Render
+ * and Server threads. Cross-thread correctness depends on {@link
+ * LockedSlots#isLockable} using UUID equality — see that method's
+ * javadoc.
+ *
+ * <h3>Dedicated-server multiplayer limitation</h3>
+ *
+ * On a dedicated server (separate JVM, IP not installed), these
+ * wraps only fire on the client's Render thread. Server runs vanilla
+ * unblocked → places items in locked slots → sync overrides client
+ * prediction → lock defeated + flicker. Source-block via
+ * {@link MultiPlayerGameModeShiftClickMixin} still works in
+ * multiplayer (cancels the click packet at the source). For
+ * destination-block in multiplayer, see the IPN-style cancel path
+ * in that same mixin.
  */
 @Mixin(AbstractContainerMenu.class)
 public abstract class AbstractContainerMenuMoveItemStackToMixin {
+
+    @WrapOperation(
+            method = "moveItemStackTo",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/world/inventory/Slot;getItem()Lnet/minecraft/world/item/ItemStack;"))
+    private ItemStack inventoryplus$treatLockedAsEmptyForMerge(Slot slot,
+                                                                Operation<ItemStack> original) {
+        if (LockedSlots.isLockedSlot(slot)) {
+            // Merge pass: sees empty → skips.
+            // Empty pass: sees empty → falls through to mayPlace,
+            //   which our other wrap rejects → also skips.
+            return ItemStack.EMPTY;
+        }
+        return original.call(slot);
+    }
 
     @WrapOperation(
             method = "moveItemStackTo",
@@ -73,14 +104,6 @@ public abstract class AbstractContainerMenuMoveItemStackToMixin {
     private boolean inventoryplus$blockLockedDestination(Slot slot, ItemStack stack,
                                                           Operation<Boolean> original) {
         if (LockedSlots.isLockedSlot(slot)) {
-            // Diagnostic at DEBUG — verified working on both Render and
-            // Server threads in single-player (UUID-equality in isLockable
-            // makes the check cross-thread-safe). Bump to INFO temporarily
-            // when debugging multiplayer where the server JVM won't have
-            // this mixin and the block can only fire on Render thread.
-            InventoryPlusClient.LOGGER.debug(
-                    "[locked-slots] mixin blocked moveItemStackTo into container-slot {}",
-                    slot.getContainerSlot());
             return false;
         }
         return original.call(slot, stack);
