@@ -65,7 +65,7 @@ public final class MoveMatchingButtons {
     }
 
     /** Returns the first {@link SlotRole#PLAYER_MAIN_INV} group, or null. */
-    static @Nullable SlotGroup findPlayerMainInv(List<SlotGroup> groups) {
+    public static @Nullable SlotGroup findPlayerMainInv(List<SlotGroup> groups) {
         for (SlotGroup g : groups) {
             if (g.role() == SlotRole.PLAYER_MAIN_INV) return g;
         }

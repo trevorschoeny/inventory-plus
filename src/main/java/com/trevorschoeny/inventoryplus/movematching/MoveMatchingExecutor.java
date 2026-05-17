@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.movematching;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
+import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
@@ -147,9 +148,12 @@ public final class MoveMatchingExecutor {
         Item cursorItem = menu.getCarried().getItem();
 
         // Pass 1: merge into existing same-item destinations with space.
+        // Locked player slots skipped per spec §"Locked Slots" — "a locked
+        // target slot is not filled."
         for (Slot dest : destinationSlots) {
             ItemStack carried = menu.getCarried();
             if (carried.isEmpty()) break;
+            if (LockedSlots.isLockedSlot(dest)) continue;
             ItemStack destStack = dest.getItem();
             if (destStack.isEmpty()) continue;
             if (!destStack.is(cursorItem)) continue;
@@ -161,6 +165,7 @@ public final class MoveMatchingExecutor {
         for (Slot dest : destinationSlots) {
             ItemStack carried = menu.getCarried();
             if (carried.isEmpty()) break;
+            if (LockedSlots.isLockedSlot(dest)) continue;
             if (!dest.getItem().isEmpty()) continue;
             clickPickup(gameMode, player, menu, dest.index);
         }
@@ -194,10 +199,15 @@ public final class MoveMatchingExecutor {
         return matchSet;
     }
 
-    /** Slots from the candidate list whose current item is in the match-set. */
+    /**
+     * Slots from the candidate list whose current item is in the
+     * match-set. Locked player slots are excluded per spec §"Locked
+     * Slots" — "a locked source slot is not pulled from."
+     */
     private static List<Slot> filterToMatching(List<Slot> candidates, Set<Item> matchSet) {
         List<Slot> filtered = new ArrayList<>();
         for (Slot slot : candidates) {
+            if (LockedSlots.isLockedSlot(slot)) continue;
             ItemStack stack = slot.getItem();
             if (stack.isEmpty()) continue;
             if (!matchSet.contains(stack.getItem())) continue;

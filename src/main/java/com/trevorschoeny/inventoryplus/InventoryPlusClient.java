@@ -1,6 +1,11 @@
 package com.trevorschoeny.inventoryplus;
 
 import com.trevorschoeny.inventoryplus.autorestock.AutoRestockTicker;
+import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
+import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsButtons;
+import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsClickInterceptor;
+import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotKeybind;
+import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsCorrector;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingButtons;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingKeybind;
 
@@ -49,16 +54,23 @@ public class InventoryPlusClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(AutoRestockTicker::tick);
 
         // Move Matching — inventory-centric, IN + OUT widgets above the
-        // player's 3×9 main inv when a supported container is open.
-        // Plus a screen-scoped I / O keybind pair that fires anywhere
-        // in the inventory screen under the same condition. Per Lead /
-        // Trev's 2026-05-16 simplification: no per-container cycle, no
-        // persistence, no stale-key pruner — Locked Slots / Locked
-        // Items become the protection mechanism in a later round.
+        // player's 3×9 main inv on container screens (chest/shulker/
+        // hopper/dispenser). Screen-scoped I / O keybinds. See
+        // MoveMatchingButtons + MoveMatchingKeybind javadocs.
         MoveMatchingButtons.register();
         MoveMatchingKeybind.register();
 
+        // Locked Slots — per-world client-side persistence + L keybind
+        // toggle + lock-edit widget (above player main inv, anywhere
+        // the inventory is visible) + click interceptor for edit-mode
+        // + auto-pickup correction tick handler. See package javadocs.
+        LockedSlots.load();
+        LockedSlotsButtons.register();
+        LockedSlotsClickInterceptor.register();
+        LockedSlotKeybind.register();
+        ClientTickEvents.END_CLIENT_TICK.register(LockedSlotsCorrector::tick);
+
         LOGGER.info("[inventoryplus] Client initialized — auto-restock + "
-                + "move-matching active (sorting still pending).");
+                + "move-matching + locked-slots active (sorting still pending).");
     }
 }

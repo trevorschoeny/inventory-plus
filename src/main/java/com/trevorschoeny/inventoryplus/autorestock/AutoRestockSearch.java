@@ -1,5 +1,7 @@
 package com.trevorschoeny.inventoryplus.autorestock;
 
+import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
+
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Inventory;
@@ -59,6 +61,9 @@ public final class AutoRestockSearch {
         if (brokenStack == null || brokenStack.isEmpty()) return NONE;
 
         for (int i = MAIN_INV_START; i < MAIN_INV_END; i++) {
+            // Locked source slots are skipped per spec §"Locked Slots" —
+            // "Auto-restock skips it as a source."
+            if (LockedSlots.isLocked(i)) continue;
             ItemStack candidate = inv.getItem(i);
             if (candidate.isEmpty()) continue;
             if (candidate.is(brokenStack.getItem())) {
@@ -86,10 +91,9 @@ public final class AutoRestockSearch {
         EquipmentSlot wantedSlot = equippableSlot(brokenArmor);
         if (wantedSlot == null) return NONE;
 
-        // Pass 1 — exact-item match. For the smoke pass this is what we
-        // need: player has two iron helmets, one breaks, the other gets
-        // pulled to the helmet slot.
+        // Pass 1 — exact-item match. Locked sources skipped per spec.
         for (int i = MAIN_INV_START; i < MAIN_INV_END; i++) {
+            if (LockedSlots.isLocked(i)) continue;
             ItemStack candidate = inv.getItem(i);
             if (candidate.isEmpty()) continue;
             if (candidate.is(brokenArmor.getItem())) {

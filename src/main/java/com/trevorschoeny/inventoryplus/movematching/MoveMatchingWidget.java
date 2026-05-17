@@ -150,6 +150,11 @@ public final class MoveMatchingWidget extends AbstractWidget {
     @Override
     public void onClick(MouseButtonEvent event, boolean doubleClick) {
         if (event.button() != 0) return;
+        // Edit mode for Locked Slots is exclusive — no MM during edit
+        // mode (Trev 2026-05-16). The Lock-edit click interceptor cancels
+        // mouse clicks on slots, but widget clicks go through onClick
+        // directly. Defensive check.
+        if (com.trevorschoeny.inventoryplus.lockedslots.LockEditMode.isOn()) return;
         // Shift+left and plain left both trigger the same operation per
         // spec §"Open questions" + Trev 2026-05-16. When Magic Move's
         // re-think lands, the shift case becomes the Magic Move hook.
