@@ -14,16 +14,15 @@ import java.util.List;
  *       type, including non-stackables.</li>
  *   <li><b>{@link #STACKABLE_ONLY}</b> — move only stackable matches.</li>
  *   <li><b>{@link #DISABLED}</b> — Move Matching IN off for the slot
- *       group. Click + keybind trigger are no-op; pressing the cycle
- *       keybind ({@code I}) on the widget still advances back to
- *       {@link #ALL_MATCHING}.</li>
+ *       group. Left-click trigger is a no-op; right-clicking the widget
+ *       still cycles back to {@link #ALL_MATCHING}.</li>
  * </ol>
  *
  * <h3>Tooltip text</h3>
  *
- * Each stop's tooltip is a {@code List<Component>} — vanilla's
+ * Each stop's tooltip is a {@code List<Component>}. Vanilla's
  * {@link net.minecraft.client.gui.GuiGraphics#setComponentTooltipForNextFrame}
- * renders one Component per line. The second line ({@code "Press I to cycle"})
+ * renders one Component per line. The second line ({@code "Right-click to cycle"})
  * is styled gray + italic across all stops so the hint reads as
  * secondary information.
  *
@@ -33,10 +32,6 @@ import java.util.List;
  *   <li>{@code STACKABLE_ONLY}  → {@code "Move stackable matching IN"} + cycle hint</li>
  *   <li>{@code DISABLED}        → {@code "DISABLED"}                   + cycle hint</li>
  * </ul>
- *
- * <p>The cycle-hint text references the {@code I} keybind — kept in
- * sync with {@link MoveMatchingKeybind#KEY_IN}. If that constant ever
- * changes, update {@link #CYCLE_HINT} here too.
  */
 public enum MoveMatchingCycle {
 
@@ -44,8 +39,8 @@ public enum MoveMatchingCycle {
     STACKABLE_ONLY(withCycleHint("Move stackable matching IN")),
     DISABLED(withCycleHint("DISABLED"));
 
-    /** Second-line cycle-hint text — must match {@link MoveMatchingKeybind#KEY_IN}. */
-    private static final String CYCLE_HINT = "Press I to cycle";
+    /** Second-line cycle-hint text — matches the right-click cycle action in {@link MoveMatchingWidget#onClick}. */
+    private static final String CYCLE_HINT = "Right-click to cycle";
 
     private final List<Component> tooltipLines;
 

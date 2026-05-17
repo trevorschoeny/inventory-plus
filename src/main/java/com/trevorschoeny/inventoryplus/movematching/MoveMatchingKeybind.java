@@ -2,36 +2,36 @@ package com.trevorschoeny.inventoryplus.movematching;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
-import net.fabricmc.fabric.api.client.screen.v1.Screens;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.Slot;
 
-import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 
 /**
- * Screen-scoped {@code I} keybind for Move Matching IN. Two behaviors,
- * hover-aware:
+ * Screen-scoped {@code I} keybind for Move Matching IN — trigger only.
+ *
+ * <p>Single behavior (Trev 2026-05-16, click-cycle revision):
  *
  * <ul>
- *   <li>Mouse over a {@link MoveMatchingWidget} → <b>cycle</b> that
- *       group's setting one stop.</li>
- *   <li>Mouse over a slot in a <b>targetable</b> slot group → <b>trigger</b>
- *       Move Matching IN for that group with its current cycle.</li>
- *   <li>Mouse over the hotbar, a non-target slot, or empty UI → no-op.</li>
+ *   <li>Mouse over a slot in a <b>targetable</b> slot group when {@code I}
+ *       is pressed → trigger Move Matching IN for that group with its
+ *       current cycle.</li>
+ *   <li>Mouse anywhere else (over the widget, over the hotbar, over a
+ *       non-target slot, over empty UI) → no-op.</li>
  * </ul>
  *
- * <p>Scoped via {@link ScreenKeyboardEvents} (not a global
- * {@link net.minecraft.client.KeyMapping}) — outside a simplecontainer
- * screen there's no meaningful action, so a global keybind would steal
- * {@code I} during normal gameplay. Promoting to a rebindable KeyMapping
- * is filed in DEFERRED.md.
+ * <p>Cycling is now a <b>right-click</b> action on the widget itself —
+ * see {@link MoveMatchingWidget#onClick}. The earlier keybind-on-button
+ * cycle path is retired so the click and keybind have separate, simpler
+ * roles.
+ *
+ * <p>Scoped via {@link ScreenKeyboardEvents} so {@code I} only fires
+ * inside simplecontainer screens. Promoting to a rebindable
+ * {@link net.minecraft.client.KeyMapping} is filed in DEFERRED.md.
  *
  * <p>Move Matching OUT will get its own sibling keybind ({@code O}) when
  * that feature lands.
@@ -41,10 +41,8 @@ public final class MoveMatchingKeybind {
     private MoveMatchingKeybind() {}
 
     /**
-     * Move Matching IN's keybind — {@code I} per the updated spec
-     * (2026-05-16 spec sweep). Pre-sweep this was {@code M}; the rename
-     * aligns with the spec's "IN / OUT" naming so when Move Matching OUT
-     * lands its keybind will be {@code O} for symmetry.
+     * Move Matching IN's keybind — {@code I} per the 2026-05-16 spec
+     * sweep.
      */
     private static final int KEY_IN = GLFW.GLFW_KEY_I;
 
@@ -63,41 +61,14 @@ public final class MoveMatchingKeybind {
                                 * (double) mc.getWindow().getGuiScaledHeight()
                                 / (double) mc.getWindow().getScreenHeight();
 
-                        // 1. Cycle if hovering one of our widgets.
-                        MoveMatchingWidget hoverWidget =
-                                widgetUnderMouse(innerScreen, mouseX, mouseY);
-                        if (hoverWidget != null) {
-                            hoverWidget.cycle();
-                            return;
-                        }
-
-                        // 2. Trigger if hovering a slot in a targetable group.
                         SlotGroup hoverSlotGroup = slotGroupUnderMouse(acs, mouseX, mouseY);
                         if (hoverSlotGroup != null && hoverSlotGroup.targetable()) {
                             MoveMatchingCycle cycle = MoveMatchingPrefs.get(hoverSlotGroup.key());
                             MoveMatchingExecutor.execute(mc, hoverSlotGroup, cycle);
                         }
-                        // 3. Else no-op.
+                        // Else no-op.
                     });
         });
-    }
-
-    /**
-     * Returns the {@link MoveMatchingWidget} whose bounds contain the
-     * mouse, or null. Iterates the screen's button list (which is where
-     * we registered the widgets) so no per-screen state map is needed.
-     */
-    private static @Nullable MoveMatchingWidget widgetUnderMouse(Screen screen,
-                                                                 double mouseX, double mouseY) {
-        List<AbstractWidget> buttons = Screens.getButtons(screen);
-        for (AbstractWidget w : buttons) {
-            if (!(w instanceof MoveMatchingWidget mmw)) continue;
-            if (mouseX >= w.getX() && mouseX < w.getX() + w.getWidth()
-                    && mouseY >= w.getY() && mouseY < w.getY() + w.getHeight()) {
-                return mmw;
-            }
-        }
-        return null;
     }
 
     /**

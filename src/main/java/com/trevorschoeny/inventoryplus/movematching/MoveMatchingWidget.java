@@ -8,45 +8,54 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
+import org.lwjgl.glfw.GLFW;
+
 /**
- * Move-matching button — vanilla {@link AbstractWidget} subclass.
+ * Move Matching IN button — vanilla {@link AbstractWidget} subclass.
  *
- * <h3>Interaction</h3>
+ * <h3>Interaction model (Trev 2026-05-16, click-cycle revision)</h3>
  *
  * <ul>
- *   <li><b>Left click</b> → {@link MoveMatchingExecutor#execute} with
- *       the group's current cycle stop.</li>
- *   <li><b>Cycle</b> → press the {@code M} keybind while hovering this
- *       widget. The cycle action lives on
- *       {@link MoveMatchingKeybind} so the keybind-event flow owns the
- *       state transition; this widget's {@link #cycle()} method is the
- *       hook the keybind calls.</li>
+ *   <li><b>Left click</b> → trigger Move Matching IN with the group's
+ *       current cycle stop.</li>
+ *   <li><b>Right click</b> → cycle to the next stop and persist.</li>
+ *   <li><b>Shift + left click</b> → reserved for Magic Move IN (future).
+ *       Currently a no-op with a debug log so the press is visible in
+ *       logs.</li>
  * </ul>
  *
- * <p>Earlier iterations of this widget used shift-click for cycling.
- * Trev 2026-05-16 reverted that to the keybind-on-button shape; both
- * options were tried, the keybind-on-button approach won out.
+ * <p>The {@code I} keybind no longer cycles when hovering the widget —
+ * it now only triggers when hovering a slot in a targetable group (see
+ * {@link MoveMatchingKeybind}). One unified interaction model across
+ * IN / OUT / Sort buttons: click = trigger, right-click = cycle,
+ * shift-click = magic.
+ *
+ * <h3>Right-click dispatch in AbstractWidget</h3>
+ *
+ * Vanilla {@code AbstractWidget.isValidClickButton} returns {@code true}
+ * only for the left mouse button — the default narrows clicks to
+ * left-only. We override it to accept both left and right buttons so
+ * both flow through {@link #onClick}; the dispatch on
+ * {@link MouseButtonEvent#button()} then routes to trigger vs cycle.
  *
  * <h3>Render lifecycle</h3>
  *
  * Added to the screen via
  * {@link net.fabricmc.fabric.api.client.screen.v1.Screens#getButtons},
- * so vanilla's {@code Screen.render} renderables iteration invokes this
- * widget's {@link #renderWidget}. Tooltips queued from there reach
- * {@code GuiGraphics.renderDeferredElements} in the same frame, which
- * is why this widget shape (vs. an MK Button rendered from
- * {@code ScreenEvents.afterRender}) is the right integration point —
- * see MoveMatchingWidget v5 commit / DEFERRED.md for the diagnosis.
+ * so vanilla's {@code Screen.render} renderables iteration invokes
+ * {@link #renderWidget}. Tooltips queued from there reach
+ * {@code GuiGraphics.renderDeferredElements} in the same frame.
  *
  * <h3>Live position</h3>
  *
- * Screen-space coordinates are recomputed each {@code renderWidget} from
- * the slot group's current bounds + the screen's {@code leftPos} /
- * {@code topPos}. Resize / GUI scale changes propagate next frame
+ * Screen-space coordinates are recomputed each {@code renderWidget}
+ * from the slot group's current bounds + the screen's {@code leftPos}
+ * / {@code topPos}. Resize / GUI scale changes propagate next frame
  * automatically.
  */
 public final class MoveMatchingWidget extends AbstractWidget {
@@ -57,7 +66,7 @@ public final class MoveMatchingWidget extends AbstractWidget {
 
     public static final int SIZE = 9;
 
-    /** {@code +1 px right} of the slot group's right edge (Trev 2026-05-16). */
+    /** {@code +1 px right} of the slot group's right edge. */
     public static final int OFFSET_RIGHT = 1;
 
     /** {@code 3 px gap} between the button's bottom and the slot group's top edge. */
@@ -99,10 +108,6 @@ public final class MoveMatchingWidget extends AbstractWidget {
             graphics.fill(getX(), getY(), getX() + SIZE, getY() + SIZE, 0x80000000);
         }
 
-        // Tooltip — list-form is required for multi-line in 1.21.11
-        // (\n in a single Component renders as a literal LF glyph, not
-        // a line break). setComponentTooltipForNextFrame takes a list
-        // of Components, one per line.
         if (isHovered()) {
             graphics.setComponentTooltipForNextFrame(
                     Minecraft.getInstance().font,
@@ -111,23 +116,49 @@ public final class MoveMatchingWidget extends AbstractWidget {
         }
     }
 
+    /**
+     * Accept both left (0) and right (1) mouse buttons. Vanilla's
+     * default narrows clicks to left-only; we widen so right-click
+     * cycle reaches {@link #onClick}.
+     */
+    @Override
+    protected boolean isValidClickButton(MouseButtonInfo info) {
+        return info.button() == 0 || info.button() == 1;
+    }
+
     @Override
     public void onClick(MouseButtonEvent event, boolean doubleClick) {
-        if (event.button() != 0) return; // left mouse only
-        // Left click = trigger. Cycling is handled by the keybind path —
-        // pressing M while hovering this widget (see MoveMatchingKeybind).
-        MoveMatchingExecutor.execute(
-                Minecraft.getInstance(),
-                group,
-                MoveMatchingPrefs.get(group.key()));
+        int button = event.button();
+        boolean shift = (event.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0;
+        Minecraft mc = Minecraft.getInstance();
+
+        if (button == 1) {
+            // Right-click — cycle to the next stop.
+            cycle();
+            return;
+        }
+
+        if (button == 0) {
+            if (shift) {
+                // Shift + left click — reserved for Magic Move IN (future
+                // round). Logged so the press is visible in dev logs;
+                // no Magic Move implementation exists yet.
+                InventoryPlusClient.LOGGER.debug(
+                        "[move-matching] Shift+left-click on Move Matching IN button — "
+                        + "Magic Move IN trigger pending (future round)");
+                return;
+            }
+            // Left click — trigger Move Matching IN with current cycle.
+            MoveMatchingExecutor.execute(
+                    mc, group, MoveMatchingPrefs.get(group.key()));
+        }
     }
 
     /**
      * Advance this widget's slot group to the next cycle stop and
-     * persist. Called from {@link MoveMatchingKeybind} when M is
-     * pressed while hovering the widget.
+     * persist. Called from {@link #onClick} on right-click.
      */
-    public void cycle() {
+    private void cycle() {
         ContainerKey key = group.key();
         if (key == null) {
             InventoryPlusClient.LOGGER.debug(
