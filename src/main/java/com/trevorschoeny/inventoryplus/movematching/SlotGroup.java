@@ -11,33 +11,28 @@ import java.util.List;
  * A "slot group" within an open container menu — a contiguous block of
  * slots sharing a {@link SlotRole} and backing {@link Container}.
  *
- * <h3>Targetability decision (Trev 2026-05-16, container-blacklist edition)</h3>
+ * <h3>Targetability decision</h3>
  *
- * A group "hosts a move-matching button" when {@link #targetable} returns
- * true. The decision is data-driven from the group's role + container
- * type — no screen-class check:
+ * A group is "targetable" — meaning it counts toward the visibility
+ * gate in {@link MoveMatchingButtons} — when {@link #targetable}
+ * returns true:
  *
  * <ul>
- *   <li>{@link SlotRole#PLAYER_MAIN_INV} → always targetable.</li>
+ *   <li>{@link SlotRole#PLAYER_MAIN_INV} → always targetable. (The
+ *       Move Matching widgets always render on the player main inv
+ *       group when an external simplecontainer is present.)</li>
  *   <li>{@link SlotRole#EXTERNAL} → targetable iff the backing container
- *       is NOT in {@link #isNonTraditionalContainer}'s blacklist.</li>
+ *       is NOT in {@link #isNonTraditionalContainer}'s blacklist
+ *       (crafting input / result are non-targetable).</li>
  *   <li>{@link SlotRole#PLAYER_HOTBAR} / {@link SlotRole#PLAYER_EQUIPMENT}
  *       → never targetable.</li>
  * </ul>
  *
- * <p>The blacklist covers vanilla's known "non-traditional" containers
- * that share the InventoryScreen (crafting result, crafting input). Any
- * other EXTERNAL container — chest, shulker, hopper, dispenser, and any
- * future feature that surfaces a real container (e.g., Trev's hypothetical
- * Shulker Peek panel inside the InventoryScreen) — is treated as
- * traditional and gets a button.
- *
- * <p>The 2+ rule lives in {@link MoveMatchingButtons}: even if all groups
- * are independently targetable, buttons are only registered when at
- * least two are present on the same screen. So a standalone vanilla
- * InventoryScreen yields one targetable group (main inv) → no buttons.
- * Open a chest, or open a future Shulker Peek inside the inventory →
- * two targetable groups → buttons appear automatically.
+ * <p>Post-2026-05-16 simplification, the widgets only render on the
+ * player main inv group (and only when at least one EXTERNAL
+ * targetable group is present alongside). The targetable flag on
+ * EXTERNAL groups is now used purely as the "is this a real
+ * simplecontainer?" gate.
  *
  * <h3>Bounds</h3>
  *
@@ -45,7 +40,6 @@ import java.util.List;
  * {@link #localTopY} / {@link #localRightX} recompute live each render.
  */
 public record SlotGroup(
-        ContainerKey key,
         List<Slot> slots,
         SlotRole role
 ) {
@@ -65,13 +59,7 @@ public record SlotGroup(
      * Vanilla "non-traditional" container types that may appear in
      * InventoryScreen alongside the player inventory: the crafting
      * result and the crafting input. Add new entries here as edge
-     * cases surface — the blacklist is the load-bearing line for keeping
-     * the player's UI buttons honest.
-     *
-     * <p>Note: {@link CraftingContainer} is the interface;
-     * {@link net.minecraft.world.inventory.TransientCraftingContainer}
-     * is the concrete impl used in {@link net.minecraft.world.inventory.InventoryMenu}.
-     * We check the interface to catch any other CraftingContainer impls.
+     * cases surface.
      */
     public static boolean isNonTraditionalContainer(Container container) {
         return container instanceof ResultContainer

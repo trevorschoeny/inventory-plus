@@ -7,36 +7,43 @@ import net.fabricmc.fabric.api.client.screen.v1.Screens;
 
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.List;
 
 /**
- * Registers Move Matching IN + OUT widgets on screen open, gated by the
- * <b>2+ traditional containers</b> rule (Trev 2026-05-16).
+ * Registers Move Matching IN + OUT widgets on screen open, when a
+ * supported container is open (Trev / Lead 2026-05-16 simplification).
  *
  * <h3>Activation rule</h3>
  *
- * After {@link SlotGroupDetector#detect}, we count how many groups are
- * {@link SlotGroup#targetable}. Widgets are only added when that count
- * is {@code ≥ 2}. Per Trev's "anywhere there's an IN button there
- * should be an OUT button" direction, both directions register together
- * — for each targetable group we add two widgets (IN + OUT).
+ * Buttons are added <b>only on the player inventory's slot group</b>, and
+ * <b>only when at least one external simplecontainer is visible on the
+ * same screen</b>. Concretely:
  *
  * <ul>
- *   <li>Standalone vanilla {@code InventoryScreen} → 1 targetable
- *       (main inv 3×9) → no widgets.</li>
- *   <li>{@code ContainerScreen} / shulker / hopper / dispenser → 2
- *       targetable (external container + main inv) → 4 widgets (IN+OUT
- *       above each).</li>
- *   <li>Future Shulker Peek inside {@code InventoryScreen} → 2 targetable
- *       (shulker peek container + main inv) → 4 widgets automatically.</li>
+ *   <li>Standalone vanilla {@code InventoryScreen} → no external
+ *       container → no widgets.</li>
+ *   <li>{@code ContainerScreen} / shulker / hopper / dispenser → external
+ *       container present → IN + OUT widgets above the inventory 3×9.
+ *       No widgets on the external container itself.</li>
+ *   <li>Future Shulker Peek inside {@code InventoryScreen} → external
+ *       container (the peek) present → widgets appear automatically.</li>
  * </ul>
+ *
+ * <p>The pre-simplification model registered widgets on every targetable
+ * group (one IN+OUT pair per group, including the chest's own slot
+ * group). The new model is inventory-centric — buttons only on the
+ * inv side, paired with whichever single open container is present.
  *
  * <h3>Future config note</h3>
  *
- * {@code TODO} — Trev 2026-05-16: Move Matching and Sort buttons should
- * be toggleable on/off in config. When the config feature lands, gate
- * the {@code Screens.getButtons(screen).add(widget)} calls below behind
- * the toggle. Filed in DEFERRED.md.
+ * {@code TODO} — Lead/Trev 2026-05-16: Move Matching and Sort buttons
+ * should be toggleable on/off in config. Hotbar inclusion will also be
+ * a shared toggle. When the config feature lands, gate the
+ * {@code Screens.getButtons(screen).add(widget)} calls below behind the
+ * toggle. Both items filed in
+ * {@code @ Inventory Plus/2 | Working Files/DEFERRED.md}.
  */
 public final class MoveMatchingButtons {
 
@@ -49,30 +56,47 @@ public final class MoveMatchingButtons {
             if (!(screen instanceof AbstractContainerScreen<?> acs)) return;
 
             List<SlotGroup> groups = SlotGroupDetector.detect(screen);
-
-            int targetableCount = 0;
-            for (SlotGroup g : groups) if (g.targetable()) targetableCount++;
-            if (targetableCount < 2) {
+            SlotGroup playerMainInv = findPlayerMainInv(groups);
+            if (playerMainInv == null) {
                 InventoryPlusClient.LOGGER.debug(
-                        "[move-matching] only {} targetable group(s) on {} — no widgets",
-                        targetableCount, screen.getClass().getSimpleName());
+                        "[move-matching] no player main inv group on {} — no widgets",
+                        screen.getClass().getSimpleName());
+                return;
+            }
+            if (!hasExternalTargetable(groups)) {
+                InventoryPlusClient.LOGGER.debug(
+                        "[move-matching] no external container on {} — no widgets",
+                        screen.getClass().getSimpleName());
                 return;
             }
 
             var buttons = Screens.getButtons(screen);
-            int widgetsAdded = 0;
-            for (SlotGroup group : groups) {
-                if (!group.targetable()) continue;
-                // Two widgets per targetable group — IN (rightmost) + OUT
-                // (one button width + 1px to its left). Layout math lives
-                // in MoveMatchingWidget.renderWidget.
-                buttons.add(new MoveMatchingWidget(group, acs, Direction.IN));
-                buttons.add(new MoveMatchingWidget(group, acs, Direction.OUT));
-                widgetsAdded += 2;
-            }
+            buttons.add(new MoveMatchingWidget(playerMainInv, acs, Direction.IN));
+            buttons.add(new MoveMatchingWidget(playerMainInv, acs, Direction.OUT));
             InventoryPlusClient.LOGGER.debug(
-                    "[move-matching] registered {} widget(s) for {} targetable group(s) on {}",
-                    widgetsAdded, targetableCount, screen.getClass().getSimpleName());
+                    "[move-matching] registered IN+OUT widgets on player main inv for {}",
+                    screen.getClass().getSimpleName());
         });
+    }
+
+    /** Returns the first {@link SlotRole#PLAYER_MAIN_INV} group, or null. */
+    static @Nullable SlotGroup findPlayerMainInv(List<SlotGroup> groups) {
+        for (SlotGroup g : groups) {
+            if (g.role() == SlotRole.PLAYER_MAIN_INV) return g;
+        }
+        return null;
+    }
+
+    /**
+     * True if at least one targetable EXTERNAL group is present — that's
+     * the signal "a real simplecontainer is open alongside the
+     * inventory". Used to gate widget visibility per the simplified
+     * spec.
+     */
+    static boolean hasExternalTargetable(List<SlotGroup> groups) {
+        for (SlotGroup g : groups) {
+            if (g.role() == SlotRole.EXTERNAL && g.targetable()) return true;
+        }
+        return false;
     }
 }

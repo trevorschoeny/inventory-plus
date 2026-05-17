@@ -12,9 +12,6 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.level.block.EnderChestBlock;
-
-import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,8 +19,7 @@ import java.util.Objects;
 
 /**
  * Partitions an open container menu's slots into {@link SlotGroup}s by
- * (role, backing container) and tags each with the right
- * {@link ContainerKey} for persistence.
+ * (role, backing container).
  *
  * <h3>Why role-based partitioning</h3>
  *
@@ -46,21 +42,13 @@ import java.util.Objects;
  * the main inventory. The role enum + range check is the load-bearing
  * fix.
  *
- * <h3>Why screen-class-based EXTERNAL targetability</h3>
+ * <h3>EXTERNAL targetability</h3>
  *
- * Client-side, the slot's {@code container} field for a chest / shulker /
- * etc. is NOT the server's {@code ChestBlockEntity} — vanilla creates a
- * client-side {@link net.minecraft.world.SimpleContainer} proxy that
- * mirrors slot updates. An instanceof check against
- * {@code ChestBlockEntity} would always fail in multiplayer (and in
- * singleplayer the references are intentionally distinct too). The
- * reliable signal is the active {@link Screen} class — that's the same
- * on both sides and tracks the menu's identity.
- *
- * <p>{@link SlotGroup#targetable} uses
- * {@link SlotGroup#isSimplecontainerScreen} for the EXTERNAL decision.
- * The decision lives on SlotGroup rather than here so it travels with
- * the partition output.
+ * Post-2026-05-16 simplification, ContainerKey-based persistence was
+ * dropped — slot groups no longer carry a persistence key. Targetability
+ * for EXTERNAL groups (used purely as the "is this a real
+ * simplecontainer?" gate now) lives on {@link SlotGroup#targetable}
+ * via a container blacklist (crafting input / result are non-targetable).
  */
 public final class SlotGroupDetector {
 
@@ -76,11 +64,6 @@ public final class SlotGroupDetector {
         Player player = mc.player;
         if (player == null) return List.of();
         Inventory playerInv = player.getInventory();
-
-        // Resolve the non-player container's key once — every non-player
-        // slot group on a single screen maps to the same external block /
-        // ender-chest / etc., so we don't need to per-slot look it up.
-        ContainerKey nonPlayerKey = resolveNonPlayerContainerKey();
 
         List<SlotGroup> groups = new ArrayList<>();
         List<Slot> current = new ArrayList<>();
@@ -99,7 +82,7 @@ public final class SlotGroupDetector {
                     && (currentRole != role || currentContainer != container);
 
             if (boundary && !current.isEmpty()) {
-                groups.add(buildGroup(current, currentRole, nonPlayerKey));
+                groups.add(buildGroup(current, currentRole));
                 current = new ArrayList<>();
             }
 
@@ -109,32 +92,22 @@ public final class SlotGroupDetector {
         }
 
         if (!current.isEmpty()) {
-            groups.add(buildGroup(current, currentRole, nonPlayerKey));
+            groups.add(buildGroup(current, currentRole));
         }
 
         return groups;
     }
 
     /**
-     * Returns true if the screen might host move-matching buttons — i.e.,
-     * we should run the detector + 2+-rule check on it. Filters out
-     * specialized UIs at the source so the detector doesn't even bother
-     * (furnace, brewing stand, anvil, etc. never get the registration
-     * pass).
-     */
-    /**
      * Screens that might host move-matching buttons. We include
-     * InventoryScreen because future features (Trev's hypothetical
-     * Shulker Peek) may surface a second traditional container inside
-     * it — the targetability decision in {@link SlotGroup#targetable}
-     * handles the "is this a traditional container" question via the
-     * blacklist, so vanilla's crafting slots correctly stay non-targetable.
+     * InventoryScreen because future features (e.g., Shulker Peek)
+     * may surface an external simplecontainer inside it — the
+     * activation rule in {@link MoveMatchingButtons} handles the
+     * "is a real simplecontainer present?" gate dynamically.
      *
      * <p>CreativeModeInventoryScreen is excluded — the creative item
      * picker isn't a real storage and creative-mode players don't need
-     * move-matching. If a use case emerges, add the screen class here
-     * and ensure the creative picker's container is in
-     * {@link SlotGroup#isNonTraditionalContainer}.
+     * move-matching.
      */
     public static boolean isMoveMatchingScreen(Screen screen) {
         return screen instanceof ContainerScreen
@@ -152,25 +125,8 @@ public final class SlotGroupDetector {
         return SlotRole.PLAYER_EQUIPMENT;
     }
 
-    private static SlotGroup buildGroup(List<Slot> slots, SlotRole role,
-                                        @Nullable ContainerKey nonPlayerKey) {
+    private static SlotGroup buildGroup(List<Slot> slots, SlotRole role) {
         Objects.requireNonNull(role, "role");
-        ContainerKey key = switch (role) {
-            case PLAYER_MAIN_INV -> ContainerKey.PLAYER_INVENTORY;
-            case PLAYER_HOTBAR, PLAYER_EQUIPMENT -> null;
-            case EXTERNAL -> nonPlayerKey;
-        };
-        return new SlotGroup(key, List.copyOf(slots), role);
-    }
-
-    private static @Nullable ContainerKey resolveNonPlayerContainerKey() {
-        var pos = ContainerKeyResolver.lastUsedBlockPosForKey();
-        if (pos == null) return null;
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level != null
-                && mc.level.getBlockState(pos).getBlock() instanceof EnderChestBlock) {
-            return ContainerKey.ENDER_CHEST;
-        }
-        return new ContainerKey.Block(pos);
+        return new SlotGroup(List.copyOf(slots), role);
     }
 }

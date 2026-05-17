@@ -1,7 +1,5 @@
 package com.trevorschoeny.inventoryplus.movematching;
 
-import com.trevorschoeny.inventoryplus.InventoryPlusClient;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -13,42 +11,49 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
-import org.lwjgl.glfw.GLFW;
+import java.util.List;
 
 /**
  * Move Matching button — vanilla {@link AbstractWidget} subclass for
  * either the IN or OUT direction.
  *
- * <h3>Interaction model (Trev 2026-05-16)</h3>
+ * <h3>Interaction (Trev / Lead 2026-05-16 simplification)</h3>
  *
  * <ul>
  *   <li><b>Left click</b> → trigger Move Matching in this widget's
- *       {@link Direction} with the group's current cycle stop.</li>
- *   <li><b>Right click</b> → cycle to the next stop and persist
- *       (per-direction cycle — IN and OUT cycles are independent).</li>
- *   <li><b>Shift + left click</b> → reserved for Magic Move IN / OUT
- *       (future). Currently a no-op with a debug log so the press is
- *       visible in logs.</li>
+ *       {@link Direction}.</li>
+ *   <li><b>Right click</b> → no-op (the per-container cycle was removed
+ *       in the simplification; Locked Slots / Locked Items become the
+ *       protection mechanism when they land).</li>
+ *   <li><b>Shift + left click</b> → same as plain left click (no Magic
+ *       Move distinction this round per spec §"Magic Move").</li>
  * </ul>
  *
- * <p>The {@code I} / {@code O} keybinds trigger their respective
- * direction's Move Matching when hovering a slot in a targetable group
- * (see {@link MoveMatchingKeybind}).
+ * <p>The widgets only render when a supported container is open — see
+ * {@link MoveMatchingButtons}.
  *
  * <h3>Per-direction texture</h3>
  *
- * Each direction has its own PNG:
  * <ul>
- *   <li>IN  → {@code assets/inventoryplus/textures/gui/move_matching_in_button.png}</li>
- *   <li>OUT → {@code assets/inventoryplus/textures/gui/move_matching_out_button.png}</li>
+ *   <li>IN  → down arrow → {@code move_matching_in_button.png}</li>
+ *   <li>OUT → up arrow   → {@code move_matching_out_button.png}</li>
  * </ul>
  *
  * <h3>Layout</h3>
  *
- * Both widgets sit above the slot group, right-aligned with its right
- * edge. The IN widget takes the rightmost position; the OUT widget sits
- * one button width + 1px gap to its left. Layout math lives in
- * {@link MoveMatchingButtons}.
+ * Both widgets sit above the player inventory's 3×9 grid, right-aligned
+ * with its right edge. The IN widget takes the rightmost position; the
+ * OUT widget sits one button width + 1 px to its left (so the visible
+ * order left-to-right is OUT then IN — the up-arrow appears first when
+ * reading left-to-right, matching Trev's 2026-05-16 layout direction).
+ *
+ * <h3>Tooltip</h3>
+ *
+ * Single line per Lead 2026-05-16 spec — no cycle hint:
+ * <ul>
+ *   <li>IN  → "Move Matching Items in"</li>
+ *   <li>OUT → "Move Matching Items out"</li>
+ * </ul>
  *
  * <h3>Render lifecycle</h3>
  *
@@ -67,19 +72,20 @@ public final class MoveMatchingWidget extends AbstractWidget {
 
     public static final int SIZE = 9;
 
-    /** {@code +1 px right} of the slot group's right edge (Trev 2026-05-16). */
+    /** {@code +1 px right} of the slot group's right edge. */
     public static final int OFFSET_RIGHT = 1;
 
     /** {@code 3 px gap} between the button's bottom and the slot group's top edge. */
     public static final int GAP_ABOVE = 3;
 
-    /** {@code 1 px gap} between the IN and OUT buttons when both are visible. */
+    /** {@code 1 px gap} between the IN and OUT buttons. */
     public static final int BUTTON_GAP = 1;
 
     private final SlotGroup group;
     private final AbstractContainerScreen<?> screen;
     private final Direction direction;
     private final Identifier texture;
+    private final List<Component> tooltipLines;
 
     public MoveMatchingWidget(SlotGroup group, AbstractContainerScreen<?> screen,
                               Direction direction) {
@@ -90,6 +96,11 @@ public final class MoveMatchingWidget extends AbstractWidget {
         this.screen = screen;
         this.direction = direction;
         this.texture = direction == Direction.IN ? TEXTURE_IN : TEXTURE_OUT;
+        // Lowercase "in" / "out" per Lead's spec ("Tooltips: 'Move Matching
+        // Items out' on the up arrow; 'Move Matching Items in' on the down
+        // arrow. (Lowercase 'in' / 'out'.)").
+        String label = "Move Matching Items " + direction.label().toLowerCase();
+        this.tooltipLines = List.of(Component.literal(label));
     }
 
     @Override
@@ -107,8 +118,6 @@ public final class MoveMatchingWidget extends AbstractWidget {
         setX(direction == Direction.IN ? inX : outX);
         setY(groupTopY - SIZE - GAP_ABOVE);
 
-        MoveMatchingCycle cycle = MoveMatchingPrefs.get(group.key(), direction);
-
         graphics.blit(
                 RenderPipelines.GUI_TEXTURED,
                 texture,
@@ -117,64 +126,33 @@ public final class MoveMatchingWidget extends AbstractWidget {
                 SIZE, SIZE,
                 SIZE, SIZE);
 
-        if (cycle == MoveMatchingCycle.DISABLED) {
-            // 50% black overlay — visual cue for the off state.
-            graphics.fill(getX(), getY(), getX() + SIZE, getY() + SIZE, 0x80000000);
-        }
-
         if (isHovered()) {
             graphics.setComponentTooltipForNextFrame(
                     Minecraft.getInstance().font,
-                    cycle.tooltipLines(direction),
+                    tooltipLines,
                     mouseX, mouseY);
         }
     }
 
     /**
-     * Accept both left (0) and right (1) mouse buttons. Vanilla's
-     * default narrows clicks to left-only; we widen so right-click
-     * cycle reaches {@link #onClick}.
+     * Only left click is meaningful here. Right click is explicitly
+     * dropped (no cycle to advance); vanilla's default
+     * {@code isValidClickButton} already narrows to left-only so we
+     * could omit this override, but keep it explicit for documentation
+     * of the intent.
      */
     @Override
     protected boolean isValidClickButton(MouseButtonInfo info) {
-        return info.button() == 0 || info.button() == 1;
+        return info.button() == 0;
     }
 
     @Override
     public void onClick(MouseButtonEvent event, boolean doubleClick) {
-        int button = event.button();
-        boolean shift = (event.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0;
-        Minecraft mc = Minecraft.getInstance();
-
-        if (button == 1) {
-            // Right-click — cycle this direction's stop.
-            cycle();
-            return;
-        }
-
-        if (button == 0) {
-            if (shift) {
-                // Shift+left click — reserved for Magic Move (future round).
-                InventoryPlusClient.LOGGER.debug(
-                        "[move-matching {}] Shift+left-click — Magic Move {} pending (future round)",
-                        direction, direction);
-                return;
-            }
-            // Left click — trigger Move Matching in this direction.
-            MoveMatchingExecutor.execute(
-                    mc, group, direction, MoveMatchingPrefs.get(group.key(), direction));
-        }
-    }
-
-    private void cycle() {
-        ContainerKey key = group.key();
-        if (key == null) {
-            InventoryPlusClient.LOGGER.debug(
-                    "[move-matching {}] cycle on a no-key group — not persisting", direction);
-            return;
-        }
-        MoveMatchingCycle next = MoveMatchingPrefs.get(key, direction).next();
-        MoveMatchingPrefs.set(key, direction, next);
+        if (event.button() != 0) return;
+        // Shift+left and plain left both trigger the same operation per
+        // spec §"Open questions" + Trev 2026-05-16. When Magic Move's
+        // re-think lands, the shift case becomes the Magic Move hook.
+        MoveMatchingExecutor.execute(Minecraft.getInstance(), group, direction);
     }
 
     @Override

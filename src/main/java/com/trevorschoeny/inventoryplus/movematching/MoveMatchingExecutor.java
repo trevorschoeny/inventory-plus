@@ -18,65 +18,59 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Executes Move Matching (IN or OUT) for a clicked / triggered slot
- * group.
+ * Executes Move Matching (IN or OUT) between the player inventory and
+ * the open container.
  *
- * <h3>Direction semantics</h3>
+ * <h3>Direction semantics (Trev / Lead 2026-05-16 simplification)</h3>
  *
- * Both directions share the same underlying machinery — the clicked
- * group plays a different role per direction:
+ * Move Matching is now <b>inventory-centric</b> — buttons live on the
+ * player inventory only, and every operation pairs the inventory with
+ * the single open container. The {@code clickedGroup} passed in is
+ * always the player main inventory; the executor uses
+ * {@link Direction} to decide which side is source vs destination:
  *
  * <ul>
- *   <li><b>{@link Direction#IN}</b> — clicked group is the <i>destination</i>.
- *       Match-set = items in the clicked group. Sources = every other
- *       visible slot (excluding hotbar). For each matching source slot,
- *       push into the clicked group's slots.</li>
- *   <li><b>{@link Direction#OUT}</b> — clicked group is the <i>source</i>.
+ *   <li><b>{@link Direction#IN}</b> — inventory is the <i>destination</i>.
+ *       Match-set = items in the inventory ("matches" = item types
+ *       already in inv). Sources = every other visible slot (excluding
+ *       hotbar). For each matching source slot, push into the inventory.</li>
+ *   <li><b>{@link Direction#OUT}</b> — inventory is the <i>source</i>.
  *       Match-set = items in every OTHER visible slot (excluding hotbar)
- *       — i.e., item types that have a "home" elsewhere. For each
- *       matching slot in the clicked group, push out to those other
- *       slots.</li>
+ *       — i.e., item types the container already has. For each matching
+ *       slot in the inventory, push out to the other slots.</li>
  * </ul>
  *
  * <p>The "match-set comes from the receiving side" invariant holds for
- * both directions — that's why a chest's IN button and the inventory's
- * OUT button do the same operation from different entry points (and
- * symmetrically for chest's OUT vs inventory's IN).
+ * both directions — IN's receiver is inv, OUT's receiver is container.
+ *
+ * <h3>No cycle / no disable</h3>
+ *
+ * The previous 3-stop cycle (ALL/STACKABLE/DISABLED) was removed in the
+ * 2026-05-16 simplification. The operation always behaves like the old
+ * "ALL_MATCHING" stop — every matching item type moves, including
+ * non-stackables. Protection is delegated to Locked Slots / Locked
+ * Items (filed in DEFERRED.md until those features land).
  *
  * <h3>Hotbar exclusion</h3>
  *
- * Hotbar is never a source AND never a destination, in either direction.
- * Per Trev's 2026-05-15 redirect, deliberately differs from vanilla
- * shift-click (which overflows into hotbar when main inv fills).
+ * Hotbar is never a source AND never a destination. Spec §"Scope":
+ * "Hotbar excluded by default — Move Matching doesn't pull from or push
+ * to hotbar slots." A future config toggle will allow inclusion (see
+ * DEFERRED.md).
  *
  * <h3>Why not QUICK_MOVE</h3>
  *
  * Vanilla {@code quickMoveStack} routes via "the other half of the
- * screen" — for chest screens it fills the player inventory hotbar end
- * first, then main inv. Manual PICKUP / PICKUP sequences let us place
- * into specific destination slots and stop when the eligible
- * destinations are full, respecting the hotbar exclusion in both
- * directions.
- *
- * <h3>Cycle stops</h3>
- *
- * <ul>
- *   <li>{@link MoveMatchingCycle#ALL_MATCHING} — every match flows,
- *       including non-stackables.</li>
- *   <li>{@link MoveMatchingCycle#STACKABLE_ONLY} — match-set filtered to
- *       stackable items, on both the match-build and source-filter
- *       sides.</li>
- *   <li>{@link MoveMatchingCycle#DISABLED} — no-op (the executor returns
- *       early; the widget still cycles to escape).</li>
- * </ul>
+ * screen" and fills the hotbar end first for chest screens. Manual
+ * PICKUP / PICKUP sequences let us place into specific destination
+ * slots and stop when the eligible destinations are full, respecting
+ * the hotbar exclusion in both directions.
  */
 public final class MoveMatchingExecutor {
 
     private MoveMatchingExecutor() {}
 
-    public static void execute(Minecraft mc, SlotGroup clickedGroup,
-                               Direction direction, MoveMatchingCycle cycle) {
-        if (cycle == MoveMatchingCycle.DISABLED) return;
+    public static void execute(Minecraft mc, SlotGroup clickedGroup, Direction direction) {
         if (!clickedGroup.targetable()) return;
 
         LocalPlayer player = mc.player;
@@ -88,9 +82,9 @@ public final class MoveMatchingExecutor {
 
         Inventory playerInv = player.getInventory();
 
-        // The "other slots" set is used in both directions:
-        //   - IN: as the SOURCE candidates (match-set comes from clickedGroup)
-        //   - OUT: as the MATCH-SET source AND the DESTINATIONS
+        // The "other slots" set — used in both directions:
+        //   IN:  source candidates (match-set comes from clickedGroup)
+        //   OUT: match-set source AND destinations
         List<Slot> otherSlots = collectOtherSlots(menu, clickedGroup, playerInv);
 
         List<Slot> matchSetSlots;
@@ -107,15 +101,14 @@ public final class MoveMatchingExecutor {
             destinationSlots = otherSlots;
         }
 
-        Set<Item> matchSet = buildMatchSet(matchSetSlots, cycle);
+        Set<Item> matchSet = buildMatchSet(matchSetSlots);
         if (matchSet.isEmpty()) {
             InventoryPlusClient.LOGGER.debug(
                     "[move-matching {}] match-set empty — no-op", direction);
             return;
         }
 
-        // Filter sources to those holding a match-set item.
-        List<Slot> sources = filterToMatching(sourceCandidates, matchSet, cycle);
+        List<Slot> sources = filterToMatching(sourceCandidates, matchSet);
         if (sources.isEmpty()) {
             InventoryPlusClient.LOGGER.debug(
                     "[move-matching {}] no matching items on the source side — no-op",
@@ -127,20 +120,14 @@ public final class MoveMatchingExecutor {
         for (Slot source : sources) {
             ItemStack stackBefore = source.getItem();
             if (stackBefore.isEmpty()) continue;
-            // Defensive re-check: state may have changed across previous iterations.
             if (!matchSet.contains(stackBefore.getItem())) continue;
-            if (cycle == MoveMatchingCycle.STACKABLE_ONLY
-                    && stackBefore.getMaxStackSize() <= 1) continue;
-
             int moved = moveSourceIntoSlots(gameMode, player, menu, source, destinationSlots);
             if (moved > 0) totalMoved++;
         }
 
         InventoryPlusClient.LOGGER.debug(
-                "[move-matching {}] clicked.key={} cycle={} processed {} source slot(s)",
-                direction,
-                clickedGroup.key() != null ? clickedGroup.key().toKeyString() : "<no-key>",
-                cycle, totalMoved);
+                "[move-matching {}] processed {} source slot(s)",
+                direction, totalMoved);
     }
 
     /**
@@ -196,33 +183,24 @@ public final class MoveMatchingExecutor {
                 player);
     }
 
-    /** Items in the given slots, filtered by cycle. */
-    private static Set<Item> buildMatchSet(List<Slot> slots, MoveMatchingCycle cycle) {
+    /** Items present in the given slots — keyed by Item identity. */
+    private static Set<Item> buildMatchSet(List<Slot> slots) {
         Set<Item> matchSet = new HashSet<>();
         for (Slot slot : slots) {
             ItemStack stack = slot.getItem();
             if (stack.isEmpty()) continue;
-            if (cycle == MoveMatchingCycle.STACKABLE_ONLY
-                    && stack.getMaxStackSize() <= 1) continue;
             matchSet.add(stack.getItem());
         }
         return matchSet;
     }
 
-    /**
-     * Returns slots from the candidate list whose current item is in
-     * the match-set (with the STACKABLE_ONLY filter applied).
-     */
-    private static List<Slot> filterToMatching(List<Slot> candidates,
-                                               Set<Item> matchSet,
-                                               MoveMatchingCycle cycle) {
+    /** Slots from the candidate list whose current item is in the match-set. */
+    private static List<Slot> filterToMatching(List<Slot> candidates, Set<Item> matchSet) {
         List<Slot> filtered = new ArrayList<>();
         for (Slot slot : candidates) {
             ItemStack stack = slot.getItem();
             if (stack.isEmpty()) continue;
             if (!matchSet.contains(stack.getItem())) continue;
-            if (cycle == MoveMatchingCycle.STACKABLE_ONLY
-                    && stack.getMaxStackSize() <= 1) continue;
             filtered.add(slot);
         }
         return filtered;

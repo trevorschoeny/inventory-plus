@@ -1,10 +1,8 @@
 package com.trevorschoeny.inventoryplus;
 
 import com.trevorschoeny.inventoryplus.autorestock.AutoRestockTicker;
-import com.trevorschoeny.inventoryplus.movematching.ContainerKeyResolver;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingButtons;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingKeybind;
-import com.trevorschoeny.inventoryplus.movematching.MoveMatchingPrefs;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -50,29 +48,15 @@ public class InventoryPlusClient implements ClientModInitializer {
         // javadoc for the watch + refill model.
         ClientTickEvents.END_CLIENT_TICK.register(AutoRestockTicker::tick);
 
-        // Move-matching — MK Button at RIGHT_ALIGN_TOP across simplecontainer
-        // screens, plus a screen-scoped M (execute) / Shift+M (cycle) keybind
-        // pair. Per-container cycle setting persisted to
-        // config/inventoryplus/movematch-prefs.json. See MoveMatchingButton +
-        // MoveMatchingKeybind + MoveMatchingPrefs javadocs.
-        MoveMatchingPrefs.load();
-        ContainerKeyResolver.registerUseBlockCapture();
+        // Move Matching — inventory-centric, IN + OUT widgets above the
+        // player's 3×9 main inv when a supported container is open.
+        // Plus a screen-scoped I / O keybind pair that fires anywhere
+        // in the inventory screen under the same condition. Per Lead /
+        // Trev's 2026-05-16 simplification: no per-container cycle, no
+        // persistence, no stale-key pruner — Locked Slots / Locked
+        // Items become the protection mechanism in a later round.
         MoveMatchingButtons.register();
         MoveMatchingKeybind.register();
-
-        // Stale-key pruner — every 20 ticks (1 Hz), walk the current
-        // world's Block-keyed prefs and drop entries whose chunk is
-        // loaded but whose block is no longer a traditional container
-        // (most commonly: the chest got broken). Lazy / chunk-aware so
-        // entries in unloaded chunks survive until the player visits.
-        // 1 Hz is well below render rate; the work scales with the
-        // number of saved entries per world, typically tens at most.
-        final int[] pruneTickCounter = { 0 };
-        ClientTickEvents.END_CLIENT_TICK.register(mc -> {
-            if (++pruneTickCounter[0] < 20) return;
-            pruneTickCounter[0] = 0;
-            MoveMatchingPrefs.pruneStale(mc);
-        });
 
         LOGGER.info("[inventoryplus] Client initialized — auto-restock + "
                 + "move-matching active (sorting still pending).");
