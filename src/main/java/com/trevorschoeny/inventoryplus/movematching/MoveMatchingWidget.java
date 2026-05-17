@@ -69,6 +69,10 @@ public final class MoveMatchingWidget extends AbstractWidget {
             Identifier.fromNamespaceAndPath("inventoryplus", "textures/gui/move_matching_in_button.png");
     private static final Identifier TEXTURE_OUT =
             Identifier.fromNamespaceAndPath("inventoryplus", "textures/gui/move_matching_out_button.png");
+    private static final Identifier TEXTURE_IN_PRESSED =
+            Identifier.fromNamespaceAndPath("inventoryplus", "textures/gui/move_matching_in_button_pressed.png");
+    private static final Identifier TEXTURE_OUT_PRESSED =
+            Identifier.fromNamespaceAndPath("inventoryplus", "textures/gui/move_matching_out_button_pressed.png");
 
     public static final int SIZE = 9;
 
@@ -85,7 +89,10 @@ public final class MoveMatchingWidget extends AbstractWidget {
     private final AbstractContainerScreen<?> screen;
     private final Direction direction;
     private final Identifier texture;
+    private final Identifier texturePressed;
     private final List<Component> tooltipLines;
+    /** True while LMB is held with the cursor still on the widget — drives the pressed sprite. */
+    private boolean isPressed;
 
     public MoveMatchingWidget(SlotGroup group, AbstractContainerScreen<?> screen,
                               Direction direction) {
@@ -96,6 +103,7 @@ public final class MoveMatchingWidget extends AbstractWidget {
         this.screen = screen;
         this.direction = direction;
         this.texture = direction == Direction.IN ? TEXTURE_IN : TEXTURE_OUT;
+        this.texturePressed = direction == Direction.IN ? TEXTURE_IN_PRESSED : TEXTURE_OUT_PRESSED;
         // Tooltip text — title-case "In" / "Out" per Trev's 2026-05-16
         // follow-up. (The spec said lowercase; Trev iterated to caps after
         // seeing it in-game.)
@@ -121,7 +129,7 @@ public final class MoveMatchingWidget extends AbstractWidget {
 
         graphics.blit(
                 RenderPipelines.GUI_TEXTURED,
-                texture,
+                isPressed ? texturePressed : texture,
                 getX(), getY(),
                 /*u=*/ 0f, /*v=*/ 0f,
                 SIZE, SIZE,
@@ -145,6 +153,23 @@ public final class MoveMatchingWidget extends AbstractWidget {
     @Override
     protected boolean isValidClickButton(MouseButtonInfo info) {
         return info.button() == 0;
+    }
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        // Set pressed state before delegating to super (which routes to
+        // onClick). The pressed sprite paints on the next render frame
+        // while the user holds LMB. mouseReleased clears it.
+        if (active && visible && isHovered() && event.button() == 0) {
+            isPressed = true;
+        }
+        return super.mouseClicked(event, doubleClick);
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        isPressed = false;
+        return super.mouseReleased(event);
     }
 
     @Override
