@@ -11,7 +11,8 @@
     "inventoryplus.mixins.json"
   ],
   "entrypoints": {
-    "client": ["com.trevorschoeny.inventoryplus.InventoryPlusClient"]
+    "client": ["com.trevorschoeny.inventoryplus.InventoryPlusClient"],
+    "modmenu": ["com.trevorschoeny.inventoryplus.config.IPConfigModMenu"]
   },
   "depends": {
     "fabricloader": ">=0.15.0",

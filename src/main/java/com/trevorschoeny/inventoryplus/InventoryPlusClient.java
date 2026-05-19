@@ -1,6 +1,8 @@
 package com.trevorschoeny.inventoryplus;
 
 import com.trevorschoeny.inventoryplus.autorestock.AutoRestockTicker;
+import com.trevorschoeny.inventoryplus.config.IPConfig;
+import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsButtons;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsClickInterceptor;
@@ -49,6 +51,18 @@ public class InventoryPlusClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        // Config — loaded once at startup; toggles persist immediately on
+        // change via IPConfig setters. Must load before any feature reads
+        // a toggle. See IPConfig + IPConfigScreen javadoc.
+        IPConfig.load();
+
+        // Keybinds — vanilla KeyMapping registration so L / I / O / S
+        // show up in the Controls menu and are user-rebindable. The
+        // mappings are referenced by the per-feature keybind classes via
+        // KeyMapping.matches(key, scancode) from inside their
+        // ScreenKeyboardEvents.afterKeyPress handlers.
+        IPKeybinds.register();
+
         // Auto-restock — tick-driven detection of empty active hotbar /
         // offhand / armor slots, with refill from main inventory. Pure
         // client-side; sends vanilla slot-click packets so any vanilla

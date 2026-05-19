@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.sort;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
+import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.movematching.ScreenLayout;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -16,7 +17,6 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 
 import org.jetbrains.annotations.Nullable;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -65,13 +65,11 @@ public final class SortKeybind {
 
     private SortKeybind() {}
 
-    private static final int KEY_S = GLFW.GLFW_KEY_S;
-
     public static void register() {
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             if (!(screen instanceof AbstractContainerScreen<?> acs)) return;
             ScreenKeyboardEvents.afterKeyPress(screen).register((innerScreen, event) -> {
-                if (event.key() != KEY_S) return;
+                if (!IPKeybinds.SORT.matches(event)) return;
                 if (!(innerScreen instanceof AbstractContainerScreen<?> currentAcs)) return;
                 handleSortKey(currentAcs);
             });

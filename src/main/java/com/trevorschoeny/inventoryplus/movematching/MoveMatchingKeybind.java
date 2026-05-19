@@ -1,5 +1,7 @@
 package com.trevorschoeny.inventoryplus.movematching;
 
+import com.trevorschoeny.inventoryplus.config.IPKeybinds;
+
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 
@@ -7,7 +9,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 
 import org.jetbrains.annotations.Nullable;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 
@@ -43,7 +44,7 @@ public final class MoveMatchingKeybind {
             if (!SlotGroupDetector.isMoveMatchingScreen(screen)) return;
             ScreenKeyboardEvents.afterKeyPress(screen).register(
                     (innerScreen, event) -> {
-                        Direction direction = directionForKey(event.key());
+                        Direction direction = directionForEvent(event);
                         if (direction == null) return;
                         if (!(innerScreen instanceof AbstractContainerScreen<?> acs)) return;
                         // Edit mode disables MM I/O keybinds per Trev 2026-05-16.
@@ -60,9 +61,9 @@ public final class MoveMatchingKeybind {
         });
     }
 
-    private static @Nullable Direction directionForKey(int key) {
-        if (key == GLFW.GLFW_KEY_I) return Direction.IN;
-        if (key == GLFW.GLFW_KEY_O) return Direction.OUT;
+    private static @Nullable Direction directionForEvent(net.minecraft.client.input.KeyEvent event) {
+        if (IPKeybinds.MOVE_MATCHING_IN.matches(event))  return Direction.IN;
+        if (IPKeybinds.MOVE_MATCHING_OUT.matches(event)) return Direction.OUT;
         return null;
     }
 }

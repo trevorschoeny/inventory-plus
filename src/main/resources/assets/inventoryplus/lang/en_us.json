@@ -1,0 +1,8 @@
+{
+  "key.categories.inventoryplus.controls": "Inventory Plus",
+  "category.inventoryplus.controls":       "Inventory Plus",
+  "key.inventoryplus.lock_slot":          "Lock Slot",
+  "key.inventoryplus.sort":               "Sort",
+  "key.inventoryplus.move_matching_in":   "Move Matching IN",
+  "key.inventoryplus.move_matching_out":  "Move Matching OUT"
+}

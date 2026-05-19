@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.movematching;
 
+import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockedslots.LockEditMode;
 
 import com.trevorschoeny.menukit.core.Button;
@@ -57,7 +58,7 @@ public final class MoveMatchingButtons {
                         TEXTURE_OUT,
                         btn -> triggerMoveMatching(Direction.OUT))
                 .tooltip(Component.literal("Move Matching Items Out"))
-                .showWhen(MoveMatchingButtons::isMoveMatchingScreenNow);
+                .showWhen(MoveMatchingButtons::shouldShow);
     }
 
     /**
@@ -69,7 +70,12 @@ public final class MoveMatchingButtons {
                         TEXTURE_IN,
                         btn -> triggerMoveMatching(Direction.IN))
                 .tooltip(Component.literal("Move Matching Items In"))
-                .showWhen(MoveMatchingButtons::isMoveMatchingScreenNow);
+                .showWhen(MoveMatchingButtons::shouldShow);
+    }
+
+    /** Combined visibility: the user-config toggle AND the screen-scope check. */
+    private static boolean shouldShow() {
+        return IPConfig.moveMatchingShowButtons() && isMoveMatchingScreenNow();
     }
 
     private static boolean isMoveMatchingScreenNow() {

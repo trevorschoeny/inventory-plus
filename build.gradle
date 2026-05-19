@@ -31,6 +31,13 @@ java {
 
 repositories {
     maven { url 'https://maven.fabricmc.net/' }
+    // ModMenu — Terraformers' Maven; used for the per-mod config entry
+    // point on the mods list.
+    maven { url 'https://maven.terraformersmc.com/releases/' }
+    // YACL — isXander's Maven; modern Fabric config-screen framework
+    // (horizontal tabs, right-pane descriptions, per-entry reset arrows).
+    // Same look as Sodium / Iris / Debugify configs.
+    maven { url 'https://maven.isxander.dev/releases/' }
 }
 
 dependencies {
@@ -38,6 +45,20 @@ dependencies {
     mappings loom.officialMojangMappings()
     modImplementation "net.fabricmc:fabric-loader:${property('loader_version')}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${property('fabric_version')}"
+
+    // ModMenu — surfaces IP's config screen from the mods list. Optional
+    // at runtime; declared as a soft dep in fabric.mod.json. compileOnly
+    // here means we compile against ModMenu's API; modLocalRuntime brings
+    // it into the dev launch.
+    modCompileOnly "com.terraformersmc:modmenu:17.0.0"
+    modLocalRuntime "com.terraformersmc:modmenu:17.0.0"
+
+    // YACL — config-screen framework. Bundled into IP's jar via Loom's
+    // `include` (Jar-in-Jar), so players install IP and YACL comes along
+    // for free. `modImplementation` covers compile + dev runtime; the
+    // `include` line is what JIJs YACL into the production jar.
+    modImplementation "dev.isxander:yet-another-config-lib:3.8.1+1.21.11-fabric"
+    include          "dev.isxander:yet-another-config-lib:3.8.1+1.21.11-fabric"
 
     // §0042 / §0005 + 18b brief: depend on MK 1.0.0 (the widgets artifact)
     // and ONLY MK. Adding :menukit-containers here would put MKC types on

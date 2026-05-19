@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.sort;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
+import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockedslots.LockEditMode;
 
 import com.trevorschoeny.menukit.core.Button;
@@ -69,7 +70,8 @@ public final class SortButton {
         return Button.sprite(x, y, SIZE, SIZE,
                         TEXTURE,
                         btn -> triggerSort(Target.INVENTORY))
-                .tooltip(Component.literal("Sort"));
+                .tooltip(Component.literal("Sort"))
+                .showWhen(IPConfig::sortShowButton);
     }
 
     /** Sort button for an external-container toolbar — sorts the external container. */
@@ -77,7 +79,8 @@ public final class SortButton {
         return Button.sprite(x, y, SIZE, SIZE,
                         TEXTURE,
                         btn -> triggerSort(Target.EXTERNAL))
-                .tooltip(Component.literal("Sort"));
+                .tooltip(Component.literal("Sort"))
+                .showWhen(IPConfig::sortShowButton);
     }
 
     /** Which container the button targets — determined at factory time, not click time. */

@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.lockedslots;
 
+import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.movematching.ScreenLayout;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -8,8 +9,6 @@ import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.Slot;
-
-import org.lwjgl.glfw.GLFW;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -32,14 +31,12 @@ public final class LockedSlotKeybind {
 
     private LockedSlotKeybind() {}
 
-    private static final int KEY_L = GLFW.GLFW_KEY_L;
-
     public static void register() {
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             if (!(screen instanceof AbstractContainerScreen<?> acs)) return;
             ScreenKeyboardEvents.afterKeyPress(screen).register(
                     (innerScreen, event) -> {
-                        if (event.key() != KEY_L) return;
+                        if (!IPKeybinds.LOCK_SLOT.matches(event)) return;
                         // GLFW auto-repeat fires afterKeyPress every repeat
                         // tick while L is held; ignore once an L-drag is
                         // active so we don't re-toggle the same slot on

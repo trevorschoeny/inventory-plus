@@ -1,5 +1,7 @@
 package com.trevorschoeny.inventoryplus.lockedslots;
 
+import com.trevorschoeny.inventoryplus.config.IPConfig;
+
 import com.trevorschoeny.menukit.core.Toggle;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -65,6 +67,7 @@ public final class LockedSlotsButtons {
                 .tooltip(() -> Component.literal(
                         LockEditMode.isOn()
                                 ? "Click to finish editing"
-                                : "Click to edit locked slots"));
+                                : "Click to edit locked slots"))
+                .showWhen(IPConfig::lockedSlotsShowButton);
     }
 }
