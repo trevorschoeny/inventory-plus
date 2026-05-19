@@ -6,6 +6,7 @@ import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerButtons;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerClickInterceptor;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerDragController;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerKeybind;
+import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerRotationKeybind;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
@@ -121,7 +122,9 @@ public class InventoryPlusClient implements ClientModInitializer {
         ColumnCyclerButtons.registerLifecycle();
         ColumnCyclerClickInterceptor.register();
         ColumnCyclerKeybind.register();
+        ColumnCyclerRotationKeybind.register();
         ClientTickEvents.END_CLIENT_TICK.register(ColumnCyclerDragController::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(ColumnCyclerRotationKeybind::tick);
 
         // Power Users toolbar — right-of-grid vertical stack for opt-in
         // PU buttons. Currently holds just the Column Cycler edit

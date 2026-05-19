@@ -33,6 +33,8 @@ import org.lwjgl.glfw.GLFW;
  *   <li>{@code O} — Move Matching OUT</li>
  *   <li>{@code S} — Sort</li>
  *   <li>{@code C} — Toggle Cycle Slot (Column Cycler feature)</li>
+ *   <li>{@code ]} — Cycle Forward (Column Cycler — items shift toward hotbar)</li>
+ *   <li>{@code [} — Cycle Backward (Column Cycler — items shift away from hotbar)</li>
  * </ul>
  *
  * <p>Translation keys follow the convention
@@ -77,6 +79,18 @@ public final class IPKeybinds {
             GLFW.GLFW_KEY_C,
             CATEGORY);
 
+    public static final KeyMapping CYCLE_FORWARD = new KeyMapping(
+            "key.inventoryplus.cycle_forward",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_RIGHT_BRACKET,
+            CATEGORY);
+
+    public static final KeyMapping CYCLE_BACKWARD = new KeyMapping(
+            "key.inventoryplus.cycle_backward",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_LEFT_BRACKET,
+            CATEGORY);
+
     /** Register all keybinds with Fabric. Call once from client init. */
     public static void register() {
         KeyBindingHelper.registerKeyBinding(LOCK_SLOT);
@@ -84,5 +98,7 @@ public final class IPKeybinds {
         KeyBindingHelper.registerKeyBinding(MOVE_MATCHING_IN);
         KeyBindingHelper.registerKeyBinding(MOVE_MATCHING_OUT);
         KeyBindingHelper.registerKeyBinding(CYCLE_SLOT);
+        KeyBindingHelper.registerKeyBinding(CYCLE_FORWARD);
+        KeyBindingHelper.registerKeyBinding(CYCLE_BACKWARD);
     }
 }
