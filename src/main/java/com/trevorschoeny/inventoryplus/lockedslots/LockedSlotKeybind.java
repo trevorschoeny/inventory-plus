@@ -1,5 +1,7 @@
 package com.trevorschoeny.inventoryplus.lockedslots;
 
+import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
+import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.movematching.ScreenLayout;
 
@@ -60,8 +62,16 @@ public final class LockedSlotKeybind {
 
                         Slot hovered = slotUnderMouse(currentAcs, mouseX, mouseY);
                         if (hovered == null || !LockedSlots.isLockable(hovered)) return;
+                        // When cycleSlotsLocked is ON, a cycle slot's lock
+                        // state is bound to its cycle state — L can't toggle
+                        // it independently. The player removes the lock by
+                        // removing the cycle (C). When cycleSlotsLocked is
+                        // OFF, cycle and lock are fully independent — L
+                        // works normally on cycle slots.
+                        if (IPConfig.cycleSlotsLocked() && ColumnCycler.isCycleSlot(hovered)) return;
                         int slotIdx = hovered.getContainerSlot();
                         LockedSlots.toggleByContainerSlot(slotIdx);
+                        boolean newState = LockedSlots.isLocked(slotIdx);
                         // Start an L-drag in non-edit mode so the user can
                         // hold L and sweep the cursor across more slots,
                         // coercing each to the first slot's new state. In
@@ -69,7 +79,6 @@ public final class LockedSlotKeybind {
                         // L stays a single-slot toggle for armor/offhand
                         // reach.
                         if (!LockEditMode.isOn()) {
-                            boolean newState = LockedSlots.isLocked(slotIdx);
                             LockedSlotsDragController.startLKeyDrag(slotIdx, newState);
                         }
                     });

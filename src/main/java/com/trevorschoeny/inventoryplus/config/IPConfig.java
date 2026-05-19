@@ -85,6 +85,20 @@ public final class IPConfig {
     private static boolean moveMatchingShowButtons = true;
     private static boolean lockedSlotsShowButton = true;
 
+    // ─── Column Cycler (Power Users) ─────────────────────────────────
+    // Master toggle defaults OFF (Power Users category opt-in). When OFF,
+    // the PU toolbar button hides and the C keybind is a no-op.
+    // showButton controls whether the PU toolbar button is visible even
+    // when the feature is enabled — power users who prefer keybind-only
+    // can hide the button while keeping C functional.
+    // cycleSlotsLocked binds cycle ⇔ lock under ON (default): a slot's
+    // cycle membership and lock state are toggled as one unit. L is a
+    // no-op on cycle slots; the lock icon is suppressed (cycle icon
+    // represents both). Under OFF, cycle and lock are fully independent.
+    private static boolean columnCyclerEnabled = false;
+    private static boolean columnCyclerShowButton = true;
+    private static boolean cycleSlotsLocked = true;
+
     private static boolean loaded = false;
 
     private static Path filePath() {
@@ -115,6 +129,9 @@ public final class IPConfig {
             sortShowButton         = readBool(root, "sortShowButton",         sortShowButton);
             moveMatchingShowButtons= readBool(root, "moveMatchingShowButtons",moveMatchingShowButtons);
             lockedSlotsShowButton  = readBool(root, "lockedSlotsShowButton",  lockedSlotsShowButton);
+            columnCyclerEnabled    = readBool(root, "columnCyclerEnabled",    columnCyclerEnabled);
+            columnCyclerShowButton = readBool(root, "columnCyclerShowButton", columnCyclerShowButton);
+            cycleSlotsLocked       = readBool(root, "cycleSlotsLocked",       cycleSlotsLocked);
             InventoryPlusClient.LOGGER.info("[config] loaded from {}", path);
         } catch (IOException | JsonSyntaxException | IllegalStateException e) {
             InventoryPlusClient.LOGGER.error(
@@ -144,6 +161,9 @@ public final class IPConfig {
             root.addProperty("sortShowButton",          sortShowButton);
             root.addProperty("moveMatchingShowButtons", moveMatchingShowButtons);
             root.addProperty("lockedSlotsShowButton",   lockedSlotsShowButton);
+            root.addProperty("columnCyclerEnabled",     columnCyclerEnabled);
+            root.addProperty("columnCyclerShowButton",  columnCyclerShowButton);
+            root.addProperty("cycleSlotsLocked",        cycleSlotsLocked);
             Files.writeString(path, GSON.toJson(root));
         } catch (IOException e) {
             InventoryPlusClient.LOGGER.error(
@@ -163,6 +183,9 @@ public final class IPConfig {
     public static boolean sortShowButton()              { return sortShowButton; }
     public static boolean moveMatchingShowButtons()     { return moveMatchingShowButtons; }
     public static boolean lockedSlotsShowButton()       { return lockedSlotsShowButton; }
+    public static boolean columnCyclerEnabled()         { return columnCyclerEnabled; }
+    public static boolean columnCyclerShowButton()      { return columnCyclerShowButton; }
+    public static boolean cycleSlotsLocked()            { return cycleSlotsLocked; }
 
     // ─── Setters ─────────────────────────────────────────────────────
     public static void setAutoRestockArmor(boolean v)            { autoRestockArmor = v; save(); }
@@ -175,4 +198,7 @@ public final class IPConfig {
     public static void setSortShowButton(boolean v)              { sortShowButton = v; save(); }
     public static void setMoveMatchingShowButtons(boolean v)     { moveMatchingShowButtons = v; save(); }
     public static void setLockedSlotsShowButton(boolean v)       { lockedSlotsShowButton = v; save(); }
+    public static void setColumnCyclerEnabled(boolean v)         { columnCyclerEnabled = v; save(); }
+    public static void setColumnCyclerShowButton(boolean v)      { columnCyclerShowButton = v; save(); }
+    public static void setCycleSlotsLocked(boolean v)            { cycleSlotsLocked = v; save(); }
 }

@@ -66,8 +66,8 @@ public final class LockedSlotsButtons {
                         TEXTURE)
                 .tooltip(() -> Component.literal(
                         LockEditMode.isOn()
-                                ? "Click to finish editing"
-                                : "Click to edit locked slots"))
+                                ? "Finish Editing"
+                                : "Edit Locked Slots"))
                 .showWhen(IPConfig::lockedSlotsShowButton);
     }
 }

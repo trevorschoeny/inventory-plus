@@ -1,5 +1,8 @@
 package com.trevorschoeny.inventoryplus.mixin;
 
+import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
+import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerEditMode;
+import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockedslots.LockEditMode;
 
@@ -15,18 +18,25 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Renders Locked-Slots-related overlays on top of vanilla slot rendering:
+ * Renders Locked-Slots + Column-Cycler overlays on top of vanilla slot rendering:
  *
  * <ol>
- *   <li><b>Gray edit-mode overlay</b> on inv + hotbar slots when
- *       {@link LockEditMode} is on. Visually reinforces "no item
- *       interactions in this slot during edit mode" (Trev 2026-05-16).</li>
- *   <li><b>Lock icon</b> on locked player slots (any of hotbar / main /
- *       armor / offhand). 5×6 PNG at the top-right with 1 px inset.</li>
+ *   <li><b>Gray edit-mode overlay</b> on inv + hotbar slots when ANY edit
+ *       mode is on ({@link LockEditMode} or {@link ColumnCyclerEditMode}).
+ *       Both edit modes are mutually exclusive and use the same visual.
+ *       Reinforces "no item interactions in this slot during edit mode"
+ *       (Trev 2026-05-16).</li>
+ *   <li><b>Lock icon</b> on locked player slots — 5×6 PNG at top-right
+ *       with 1 px inset from the slot's right edge.</li>
+ *   <li><b>Cycle icon</b> on cycle-member slots — 6×6 PNG. When ALSO
+ *       locked, the cycle icon sits 1 px LEFT of the lock icon (so the
+ *       two corner indicators don't touch). When NOT locked, the cycle
+ *       icon takes the lock's top-right position with 1 px inset.</li>
  * </ol>
  *
- * <p>Render order: overlay first, then icon — so the lock icon stays
- * visible on top of the gray overlay during edit mode.
+ * <p>Render order: overlay → lock icon → cycle icon. The cycle icon's
+ * x-position depends on whether the lock icon is also being drawn this
+ * frame; computed inline rather than carrying state.
  *
  * <p>Vanilla's {@code renderContents} pushes a matrix translated by
  * {@code (leftPos, topPos)} before calling {@code renderSlots};
@@ -38,33 +48,79 @@ public abstract class AbstractContainerScreenRenderSlotMixin {
 
     private static final Identifier INVENTORYPLUS$LOCK_ICON =
             Identifier.fromNamespaceAndPath("inventoryplus", "textures/gui/locked_slot.png");
+    private static final Identifier INVENTORYPLUS$CYCLE_ICON =
+            Identifier.fromNamespaceAndPath("inventoryplus", "textures/gui/cycle_slot_symbol.png");
 
-    private static final int INVENTORYPLUS$ICON_W = 5;
-    private static final int INVENTORYPLUS$ICON_H = 6;
+    private static final int INVENTORYPLUS$LOCK_ICON_W = 5;
+    private static final int INVENTORYPLUS$LOCK_ICON_H = 6;
+    private static final int INVENTORYPLUS$CYCLE_ICON_W = 6;
+    private static final int INVENTORYPLUS$CYCLE_ICON_H = 6;
 
     /** 50%-translucent light gray for the edit-mode overlay. */
     private static final int INVENTORYPLUS$EDIT_OVERLAY_COLOR = 0x80808080;
 
+    /**
+     * ARGB tint for the corner indicator sprites — alpha 0xAB (67%),
+     * RGB 0xFFFFFF (white = no color modulation). Applied via the
+     * color-overload of {@link GuiGraphics#blit} so the icons read
+     * as subtle hints rather than dominating the slot content
+     * (Trev 2026-05-19).
+     */
+    private static final int INVENTORYPLUS$INDICATOR_TINT = 0xABFFFFFF;
+
     @Inject(method = "renderSlot", at = @At("TAIL"))
     private void inventoryplus$renderOverlays(GuiGraphics graphics, Slot slot,
                                               int mouseX, int mouseY, CallbackInfo ci) {
-        // 1. Edit-mode gray overlay on inv + hotbar slots only.
-        if (LockEditMode.isOn() && LockedSlots.isInvOrHotbarSlot(slot)) {
+        boolean anyEditMode = LockEditMode.isOn() || ColumnCyclerEditMode.isOn();
+
+        // 1. Edit-mode gray overlay on inv + hotbar slots only. The inv +
+        // hotbar check is identical for both edit modes (cycler is scoped
+        // 0-35; lock-edit uses isInvOrHotbarSlot which is also 0-35).
+        if (anyEditMode && LockedSlots.isInvOrHotbarSlot(slot)) {
             graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16,
                     INVENTORYPLUS$EDIT_OVERLAY_COLOR);
         }
 
-        // 2. Lock icon on top-right of locked player slots.
-        if (LockedSlots.isLockedSlot(slot)) {
-            int iconX = slot.x + 16 - INVENTORYPLUS$ICON_W - 1;
+        boolean locked = LockedSlots.isLockedSlot(slot);
+        boolean cycle = ColumnCycler.isCycleSlot(slot);
+        // When the lock-cycle pairing is ON, a cycle slot's lock is
+        // implied by the cycle — suppress the lock icon to avoid
+        // double-indication. When the pairing is OFF, cycle and lock
+        // are independent and both icons render side-by-side.
+        boolean suppressLockIcon = cycle && IPConfig.cycleSlotsLocked();
+
+        // 2. Lock icon — top-right of slot, 1 px inset from the right edge.
+        if (locked && !suppressLockIcon) {
+            int iconX = slot.x + 16 - INVENTORYPLUS$LOCK_ICON_W - 1;
             int iconY = slot.y + 1;
             graphics.blit(
                     RenderPipelines.GUI_TEXTURED,
                     INVENTORYPLUS$LOCK_ICON,
                     iconX, iconY,
                     /*u=*/ 0f, /*v=*/ 0f,
-                    INVENTORYPLUS$ICON_W, INVENTORYPLUS$ICON_H,
-                    INVENTORYPLUS$ICON_W, INVENTORYPLUS$ICON_H);
+                    INVENTORYPLUS$LOCK_ICON_W, INVENTORYPLUS$LOCK_ICON_H,
+                    INVENTORYPLUS$LOCK_ICON_W, INVENTORYPLUS$LOCK_ICON_H,
+                    INVENTORYPLUS$INDICATOR_TINT);
+        }
+
+        // 3. Cycle icon — sits left of the lock icon when BOTH are shown
+        // (only happens when cycleSlotsLocked is OFF and both states are
+        // independently true). Otherwise takes the top-right slot with
+        // 1 px inset from the right edge.
+        if (cycle) {
+            boolean lockIconAlsoShown = locked && !suppressLockIcon;
+            int cycleX = lockIconAlsoShown
+                    ? (slot.x + 16 - INVENTORYPLUS$LOCK_ICON_W - 1) - 1 - INVENTORYPLUS$CYCLE_ICON_W
+                    : slot.x + 16 - INVENTORYPLUS$CYCLE_ICON_W - 1;
+            int cycleY = slot.y + 1;
+            graphics.blit(
+                    RenderPipelines.GUI_TEXTURED,
+                    INVENTORYPLUS$CYCLE_ICON,
+                    cycleX, cycleY,
+                    /*u=*/ 0f, /*v=*/ 0f,
+                    INVENTORYPLUS$CYCLE_ICON_W, INVENTORYPLUS$CYCLE_ICON_H,
+                    INVENTORYPLUS$CYCLE_ICON_W, INVENTORYPLUS$CYCLE_ICON_H,
+                    INVENTORYPLUS$INDICATOR_TINT);
         }
     }
 }

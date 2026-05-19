@@ -1,5 +1,7 @@
 package com.trevorschoeny.inventoryplus.lockedslots;
 
+import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerEditMode;
+
 /**
  * Per-session edit-mode state for Locked Slots.
  *
@@ -17,6 +19,11 @@ package com.trevorschoeny.inventoryplus.lockedslots;
  * <p>State is intentionally global (one flag) rather than per-screen —
  * only one screen is open at a time anyway, and the reset-on-init
  * pattern makes it behave per-screen correctly.
+ *
+ * <p><b>Mutual exclusion</b> with {@link ColumnCyclerEditMode}: entering one
+ * edit mode forces the other off (only one slot-click gesture meaning can
+ * be active at a time). The cross-class reset goes through {@link #setRaw} /
+ * {@link ColumnCyclerEditMode#setRaw} to avoid recursion.
  */
 public final class LockEditMode {
 
@@ -29,11 +36,17 @@ public final class LockEditMode {
     }
 
     public static void set(boolean on) {
+        if (on) ColumnCyclerEditMode.setRaw(false);
+        editing = on;
+    }
+
+    /** Skip the mutual-exclusion cross-call — used by the other edit mode's setter. */
+    public static void setRaw(boolean on) {
         editing = on;
     }
 
     public static void toggle() {
-        editing = !editing;
+        set(!editing);
     }
 
     public static void reset() {

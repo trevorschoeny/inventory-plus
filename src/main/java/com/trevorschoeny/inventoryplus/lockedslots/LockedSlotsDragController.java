@@ -1,5 +1,7 @@
 package com.trevorschoeny.inventoryplus.lockedslots;
 
+import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
+import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.movematching.ScreenLayout;
 
 import com.mojang.blaze3d.platform.InputConstants;
@@ -133,6 +135,15 @@ public final class LockedSlotsDragController {
                 ? LockedSlots.isInvOrHotbarSlot(hovered)
                 : LockedSlots.isLockable(hovered);
         if (!valid) return;
+
+        // When cycleSlotsLocked is ON, cycle slots are inert to the lock
+        // drag — their lock state is bound to cycle membership and can't
+        // be toggled by lock gestures. Add to touched-set so we don't
+        // retry on every tick, but don't change lock state.
+        if (IPConfig.cycleSlotsLocked() && ColumnCycler.isCycleSlot(hovered)) {
+            touchedSlots.add(slotIdx);
+            return;
+        }
 
         touchedSlots.add(slotIdx);
         LockedSlots.setLocked(slotIdx, targetLocked);

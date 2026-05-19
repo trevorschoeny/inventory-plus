@@ -4,5 +4,6 @@
   "key.inventoryplus.lock_slot":          "Lock Slot",
   "key.inventoryplus.sort":               "Sort",
   "key.inventoryplus.move_matching_in":   "Move Matching IN",
-  "key.inventoryplus.move_matching_out":  "Move Matching OUT"
+  "key.inventoryplus.move_matching_out":  "Move Matching OUT",
+  "key.inventoryplus.cycle_slot":         "Toggle Cycle Slot"
 }

@@ -1,6 +1,11 @@
 package com.trevorschoeny.inventoryplus;
 
 import com.trevorschoeny.inventoryplus.autorestock.AutoRestockTicker;
+import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
+import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerButtons;
+import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerClickInterceptor;
+import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerDragController;
+import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerKeybind;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
@@ -12,6 +17,7 @@ import com.trevorschoeny.inventoryplus.movematching.MoveMatchingKeybind;
 import com.trevorschoeny.inventoryplus.sort.ContainerOpenTracker;
 import com.trevorschoeny.inventoryplus.sort.SortKeybind;
 import com.trevorschoeny.inventoryplus.sort.SortState;
+import com.trevorschoeny.inventoryplus.toolbar.PowerUsersToolbar;
 import com.trevorschoeny.inventoryplus.toolbar.Toolbar;
 
 import net.fabricmc.api.ClientModInitializer;
@@ -103,6 +109,26 @@ public class InventoryPlusClient implements ClientModInitializer {
         // visibility within the same panel.
         Toolbar.register();
 
+        // Column Cycler (Power Users) — opt-in feature gated by
+        // columnCyclerEnabled. Slot membership state is per-world
+        // (config/inventoryplus/column-cycler.json), with a parallel
+        // tiedLocks set for the Lock-pairing rule. The C keybind toggles
+        // membership outside edit mode; the cycle-edit toolbar toggle
+        // enters edit mode (where clicks become toggles). Mutual
+        // exclusion with Lock Slots' edit mode is enforced inside the
+        // edit-mode setters.
+        ColumnCycler.load();
+        ColumnCyclerButtons.registerLifecycle();
+        ColumnCyclerClickInterceptor.register();
+        ColumnCyclerKeybind.register();
+        ClientTickEvents.END_CLIENT_TICK.register(ColumnCyclerDragController::tick);
+
+        // Power Users toolbar — right-of-grid vertical stack for opt-in
+        // PU buttons. Currently holds just the Column Cycler edit
+        // toggle. Hides entirely when no PU feature is enabled (each
+        // button has its own .showWhen gate).
+        PowerUsersToolbar.register();
+
         // Sort — S keybind sorts the simplecontainer under the cursor.
         // QUANTITY_DESC only for MVP; per-container sort-type persistence
         // wired end-to-end (storage in sort-state.json) but unused until
@@ -122,6 +148,6 @@ public class InventoryPlusClient implements ClientModInitializer {
         SortKeybind.register();
 
         LOGGER.info("[inventoryplus] Client initialized — auto-restock + "
-                + "move-matching + locked-slots + sort active.");
+                + "move-matching + locked-slots + sort + column-cycler active.");
     }
 }

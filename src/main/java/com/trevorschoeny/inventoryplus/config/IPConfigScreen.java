@@ -1,5 +1,7 @@
 package com.trevorschoeny.inventoryplus.config;
 
+import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
+
 import dev.isxander.yacl3.api.ConfigCategory;
 import dev.isxander.yacl3.api.LabelOption;
 import dev.isxander.yacl3.api.Option;
@@ -195,14 +197,71 @@ public final class IPConfigScreen {
     }
 
     // ─── Power Users tab ─────────────────────────────────────────────
-    // Empty for now — Power-user configs (Pull from Bundles / Ender
-    // Chest, Include Hotbar, etc.) ship as their features land.
+    // Opt-in advanced features. Each section corresponds to one PU
+    // feature, with a master enable toggle plus per-feature sub-toggles.
 
     private static ConfigCategory powerUsersCategory() {
         return ConfigCategory.createBuilder()
                 .name(Component.literal("Power Users"))
-                .option(LabelOption.create(Component.literal(
-                        "Power User configs will appear here as their features ship.")))
+                .group(columnCyclerGroup())
+                .build();
+    }
+
+    private static OptionGroup columnCyclerGroup() {
+        Option<Boolean> enabled = booleanOption(
+                "Enable Column Cycler",
+                "Cycle items along a vertical column of toggled inventory slots — "
+                        + "press C while hovering a slot to add it to its column's cycle.",
+                false,
+                IPConfig::columnCyclerEnabled,
+                IPConfig::setColumnCyclerEnabled);
+
+        Option<Boolean> showButton = booleanOption(
+                "    Show Toolbar Button",
+                "Show the cycle-edit toggle button in the inventory. "
+                        + "The C keybind still works when off.",
+                true,
+                IPConfig::columnCyclerShowButton,
+                IPConfig::setColumnCyclerShowButton);
+
+        // Lock Cycle Slots — bind cycle ⇔ lock as one unit. Default ON.
+        // Custom setter detects OFF→ON transition and retroactively
+        // locks any cycle slots that aren't (enforces the invariant for
+        // existing cycle slots that lost their lock while the config was
+        // off).
+        Option<Boolean> lockCycleSlots = Option.<Boolean>createBuilder()
+                .name(Component.literal("    Lock Cycle Slots"))
+                .description(OptionDescription.of(Component.literal(
+                        "Cycle slots are automatically and always locked while they're in the cycle. "
+                                + "When this is off, cycle and lock are fully independent and can be "
+                                + "toggled separately.")))
+                .binding(true, IPConfig::cycleSlotsLocked, v -> {
+                    boolean wasOn = IPConfig.cycleSlotsLocked();
+                    IPConfig.setCycleSlotsLocked(v);
+                    if (v && !wasOn) {
+                        // OFF → ON: retroactively lock cycle slots that
+                        // got unlocked while the config was off.
+                        ColumnCycler.enforceCycleLockingInvariant();
+                    }
+                })
+                .controller(BooleanControllerBuilder::create)
+                .build();
+
+        // Parent-gating: sub-toggles greyed out when master is off.
+        showButton.setAvailable(IPConfig.columnCyclerEnabled());
+        lockCycleSlots.setAvailable(IPConfig.columnCyclerEnabled());
+        enabled.addListener((opt, val) -> {
+            showButton.setAvailable(val);
+            lockCycleSlots.setAvailable(val);
+        });
+
+        return OptionGroup.createBuilder()
+                .name(Component.literal("Column Cycler"))
+                .description(OptionDescription.of(Component.literal(
+                        "Extend the effective hotbar by cycling items along inventory columns.")))
+                .option(enabled)
+                .option(showButton)
+                .option(lockCycleSlots)
                 .build();
     }
 

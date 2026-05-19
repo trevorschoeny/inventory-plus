@@ -1,5 +1,7 @@
 package com.trevorschoeny.inventoryplus.lockedslots;
 
+import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
+import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.movematching.ScreenLayout;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -54,15 +56,23 @@ public final class LockedSlotsClickInterceptor {
                     return true;
                 }
                 if (LockedSlots.isInvOrHotbarSlot(hovered)) {
+                    // When cycleSlotsLocked is ON, a cycle slot's lock
+                    // state is bound to its cycle state — clicks in
+                    // lock-edit mode can't toggle it. Consume the click
+                    // (return false) so item interaction is still
+                    // suppressed; the slot is just inert.
+                    if (IPConfig.cycleSlotsLocked() && ColumnCycler.isCycleSlot(hovered)) {
+                        return false;
+                    }
                     // Inv / hotbar click in edit mode → toggle lock.
                     int slotIdx = hovered.getContainerSlot();
                     LockedSlots.toggleByContainerSlot(slotIdx);
+                    boolean newState = LockedSlots.isLocked(slotIdx);
                     // Start an LMB drag so the user can sweep across
                     // adjacent slots, coercing each to the new state of
                     // the first slot. Other mouse buttons toggle the
                     // single slot but don't drag.
                     if (event.button() == 0) {
-                        boolean newState = LockedSlots.isLocked(slotIdx);
                         LockedSlotsDragController.startEditModeDrag(slotIdx, newState);
                     }
                     return false;
