@@ -4,10 +4,13 @@ import com.trevorschoeny.inventoryplus.autorestock.AutoRestockTicker;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerButtons;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerClickInterceptor;
+import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerCyclable;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerDragController;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerKeybind;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerRotationKeybind;
+import com.trevorschoeny.inventoryplus.columncycler.hud.ColumnCyclerHud;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
+import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsButtons;
@@ -125,6 +128,23 @@ public class InventoryPlusClient implements ClientModInitializer {
         ColumnCyclerRotationKeybind.register();
         ClientTickEvents.END_CLIENT_TICK.register(ColumnCyclerDragController::tick);
         ClientTickEvents.END_CLIENT_TICK.register(ColumnCyclerRotationKeybind::tick);
+
+        // HotbarCyclable registration — Column Cycler is the first
+        // implementer of the cycler-agnostic "bring this slot's item to
+        // the hotbar" contract that Auto Tool Switch (and future
+        // Pocket Cycler / Hotbar Swap) consume. The registry is the
+        // architectural seam that keeps downstream consumers cycler-
+        // agnostic. See the cyclable/ package for the interfaces and
+        // the registry's javadoc.
+        HotbarCyclableRegistry.register(ColumnCyclerCyclable.INSTANCE);
+
+        // Column Cycler HUD overlay — Mini-hotbar style strip to the
+        // right of the vanilla hotbar, showing the active column's
+        // cycle members with a slide animation on rotation. Subscribes
+        // to ColumnCyclerRotator's rotation events (must register after
+        // the rotator is loaded, which happens implicitly above when
+        // the Column Cycler classes initialize).
+        ColumnCyclerHud.register();
 
         // Power Users toolbar — right-of-grid vertical stack for opt-in
         // PU buttons. Currently holds just the Column Cycler edit

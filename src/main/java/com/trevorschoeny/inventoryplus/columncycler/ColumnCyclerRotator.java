@@ -83,6 +83,39 @@ public final class ColumnCyclerRotator {
     public enum Direction { FORWARD, BACKWARD }
 
     /**
+     * Listener for rotation events. Fired AFTER a successful rotation
+     * sends its click packets — used by the HUD overlay to drive its
+     * slide animation, and by anything else that wants to react to a
+     * cycle advance.
+     *
+     * <p>NOT fired for no-op cases (cycle has fewer than 2 slots,
+     * cursor is holding an item, slot lookup failed). The listener only
+     * sees real rotations that actually moved items.
+     */
+    @FunctionalInterface
+    public interface RotationListener {
+        void onRotation(int column, Direction direction);
+    }
+
+    /**
+     * Registered listeners. List used (not Set) because listeners are
+     * registered once at mod init and notification order is irrelevant
+     * for the current consumers; the small registration cost over a
+     * Set is fine for a list this short.
+     */
+    private static final List<RotationListener> ROTATION_LISTENERS = new ArrayList<>();
+
+    /**
+     * Register a listener. Typically called once per consumer at mod
+     * init. Idempotent guard: the same instance won't register twice.
+     */
+    public static void addRotationListener(RotationListener listener) {
+        if (listener == null) return;
+        if (ROTATION_LISTENERS.contains(listener)) return;
+        ROTATION_LISTENERS.add(listener);
+    }
+
+    /**
      * Rotate the cycle slots in {@code column} (0-8) in the given direction.
      * Sends {@code (N+1) * 1} PICKUP click packets to the active container
      * menu. No-op if the cycle has fewer than 2 slots, if the cursor is
@@ -105,24 +138,10 @@ public final class ColumnCyclerRotator {
             return;
         }
 
-        // Build the cycle slot list: visually top → bottom. Per Inventory's
-        // slot layout, 9+col is the top row of the main grid, 27+col is
-        // the row just above the hotbar.
-        List<Integer> containerSlots = new ArrayList<>(4);
-        int top = 9 + column;
-        int mid = 18 + column;
-        int bot = 27 + column;
-        int hotbar = column;
-        if (ColumnCycler.isCycleSlot(top)) containerSlots.add(top);
-        if (ColumnCycler.isCycleSlot(mid)) containerSlots.add(mid);
-        if (ColumnCycler.isCycleSlot(bot)) containerSlots.add(bot);
-        // Hotbar is implicitly part of the cycle when the column is active.
-        // If no inv slots are toggled, ColumnCycler.isCycleSlot(hotbar)
-        // returns false; we'd have an empty list — guarded by the size
-        // check below.
-        if (containerSlots.isEmpty()) return;
-        containerSlots.add(hotbar);
-
+        // Build the cycle slot list: visually top → bottom, hotbar last.
+        // Shared with planBringSlotToHotbar so both call sites agree on
+        // index ordering and membership filtering.
+        List<Integer> containerSlots = buildCycleList(column);
         int n = containerSlots.size();
         if (n < 2) return;
 
@@ -164,6 +183,13 @@ public final class ColumnCyclerRotator {
         for (int slotIdx : clickSeq) {
             gameMode.handleInventoryMouseClick(containerId, slotIdx, 0, ClickType.PICKUP, player);
         }
+
+        // Notify listeners — fired only after a successful rotation
+        // (all early-return paths above skip this). Used by the HUD
+        // overlay's slide animation, among other consumers.
+        for (RotationListener listener : ROTATION_LISTENERS) {
+            listener.onRotation(column, direction);
+        }
     }
 
     /**
@@ -181,5 +207,90 @@ public final class ColumnCyclerRotator {
             if (slot.getContainerSlot() == containerSlot) return slot.index;
         }
         return -1;
+    }
+
+    /**
+     * Build the cycle slot list for {@code column}: directly-toggled inv
+     * slots in visual top→bottom order, with the hotbar slot appended
+     * last (when the column has at least one active inv member).
+     *
+     * <p>Shared by {@link #rotate} and {@link #planBringSlotToHotbar} so
+     * both agree on index ordering and membership. Returns an empty list
+     * when the column has no active inv cycle members.
+     */
+    private static List<Integer> buildCycleList(int column) {
+        List<Integer> list = new ArrayList<>(4);
+        int top = 9 + column;
+        int mid = 18 + column;
+        int bot = 27 + column;
+        int hotbar = column;
+        if (ColumnCycler.isCycleSlot(top)) list.add(top);
+        if (ColumnCycler.isCycleSlot(mid)) list.add(mid);
+        if (ColumnCycler.isCycleSlot(bot)) list.add(bot);
+        // Hotbar is implicitly part of the cycle when the column is active.
+        // If no inv slots are toggled, ColumnCycler.isCycleSlot(hotbar)
+        // returns false; list stays empty.
+        if (list.isEmpty()) return list;
+        list.add(hotbar);
+        return list;
+    }
+
+    /**
+     * A rotation plan: how many times to call {@link #rotate} with which
+     * {@link Direction} to bring the item at a specific slot down to the
+     * hotbar position. Used by
+     * {@link ColumnCyclerCyclable#bringToHotbar(int)} to compose Column
+     * Cycler with the cycler-agnostic
+     * {@link com.trevorschoeny.inventoryplus.cyclable.HotbarCyclable}
+     * contract.
+     */
+    public record RotationPlan(int steps, Direction direction) {}
+
+    /**
+     * Compute the rotation plan to bring the item currently at the inv
+     * slot {@code slot} into its column's hotbar position. Returns
+     * {@code null} if {@code slot} isn't an active cycle member, isn't
+     * an inv slot, or its column doesn't have enough cycle members to
+     * rotate.
+     *
+     * <p>Picks the cheaper of FORWARD vs BACKWARD by step count — each
+     * rotation sends {@code N+1} PICKUP packets, so direction choice
+     * matters for chains.
+     *
+     * <h3>Step math</h3>
+     *
+     * Given the cycle list {@code [s0, s1, ..., s(N-2), hotbar]} with
+     * the target slot at index {@code i}:
+     * <ul>
+     *   <li>FORWARD steps to bring item-at-i to hotbar: {@code (N-1) - i}
+     *       (each forward shifts everything one position toward the
+     *       hotbar; item at i ends up at hotbar after that many steps).</li>
+     *   <li>BACKWARD steps to bring item-at-i to hotbar: {@code i + 1}
+     *       (each backward shifts everything one position away from the
+     *       hotbar, with the topmost wrapping to hotbar; item at i ends
+     *       up at hotbar after that many steps).</li>
+     * </ul>
+     *
+     * <p>On tie (equal step counts), FORWARD wins — matches the
+     * existing rotator default direction convention.
+     */
+    public static RotationPlan planBringSlotToHotbar(int slot) {
+        if (slot < ColumnCycler.MIN_DIRECT_CYCLE_SLOT) return null;
+        if (slot > ColumnCycler.MAX_CYCLEABLE_CONTAINER_SLOT) return null;
+        int column = slot % 9;
+        List<Integer> cycleList = buildCycleList(column);
+        int n = cycleList.size();
+        if (n < 2) return null; // single-member cycle: nothing to rotate.
+        int slotIndex = cycleList.indexOf(slot);
+        if (slotIndex == -1) return null; // slot not in cycle (shouldn't happen if caller filtered).
+        int hotbarIndex = n - 1;
+        if (slotIndex == hotbarIndex) return new RotationPlan(0, Direction.FORWARD);
+        int forwardSteps = hotbarIndex - slotIndex;
+        int backwardSteps = slotIndex + 1;
+        if (forwardSteps <= backwardSteps) {
+            return new RotationPlan(forwardSteps, Direction.FORWARD);
+        } else {
+            return new RotationPlan(backwardSteps, Direction.BACKWARD);
+        }
     }
 }

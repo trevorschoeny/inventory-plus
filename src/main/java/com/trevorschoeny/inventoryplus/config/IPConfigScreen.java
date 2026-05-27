@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.config;
 
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
+import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
 
 import dev.isxander.yacl3.api.ConfigCategory;
 import dev.isxander.yacl3.api.LabelOption;
@@ -224,6 +225,20 @@ public final class IPConfigScreen {
                 IPConfig::columnCyclerShowButton,
                 IPConfig::setColumnCyclerShowButton);
 
+        // Show HUD — boolean toggle bridging to the HudMode enum. When
+        // future Diamond Indicators ship, this gets replaced with an
+        // enum-cycler control; the underlying HudMode field stays the
+        // same. Legacy config files with a HudMode the boolean doesn't
+        // know about (e.g., a future DIAMOND_INDICATORS) still read OK
+        // — the boolean just renders as ON for any non-NONE value.
+        Option<Boolean> showHud = booleanOption(
+                "    Show HUD",
+                "Show the mini-hotbar overlay to the right of your hotbar when on a cycle slot. "
+                        + "Cycling still works when off.",
+                true,
+                () -> IPConfig.columnCyclerHudMode() != HudMode.NONE,
+                v -> IPConfig.setColumnCyclerHudMode(v ? HudMode.MINI_HOTBAR : HudMode.NONE));
+
         // Lock Cycle Slots — bind cycle ⇔ lock as one unit. Default ON.
         // Custom setter detects OFF→ON transition and retroactively
         // locks any cycle slots that aren't (enforces the invariant for
@@ -247,12 +262,26 @@ public final class IPConfigScreen {
                 .controller(BooleanControllerBuilder::create)
                 .build();
 
+        Option<Boolean> scrollToCycle = booleanOption(
+                "    Scroll to Cycle",
+                "Use the scroll wheel as an alternative to the forward/backward keybinds. "
+                        + "On a hotbar slot whose column has cycle members, scrolling rotates the cycle "
+                        + "instead of switching hotbar slots. Scrolling on non-cycle columns still "
+                        + "switches slots normally.",
+                false,
+                IPConfig::columnCyclerScrollToCycle,
+                IPConfig::setColumnCyclerScrollToCycle);
+
         // Parent-gating: sub-toggles greyed out when master is off.
         showButton.setAvailable(IPConfig.columnCyclerEnabled());
+        showHud.setAvailable(IPConfig.columnCyclerEnabled());
         lockCycleSlots.setAvailable(IPConfig.columnCyclerEnabled());
+        scrollToCycle.setAvailable(IPConfig.columnCyclerEnabled());
         enabled.addListener((opt, val) -> {
             showButton.setAvailable(val);
+            showHud.setAvailable(val);
             lockCycleSlots.setAvailable(val);
+            scrollToCycle.setAvailable(val);
         });
 
         return OptionGroup.createBuilder()
@@ -261,7 +290,9 @@ public final class IPConfigScreen {
                         "Extend the effective hotbar by cycling items along inventory columns.")))
                 .option(enabled)
                 .option(showButton)
+                .option(showHud)
                 .option(lockCycleSlots)
+                .option(scrollToCycle)
                 .build();
     }
 

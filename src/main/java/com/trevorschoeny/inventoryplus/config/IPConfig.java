@@ -7,6 +7,7 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
+import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
 
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -98,6 +99,16 @@ public final class IPConfig {
     private static boolean columnCyclerEnabled = false;
     private static boolean columnCyclerShowButton = true;
     private static boolean cycleSlotsLocked = true;
+    // Scroll wheel as alternative trigger for forward/backward cycle.
+    // Default OFF; opt-in trade-off — scrolling on a cycle-active column
+    // rotates the cycle instead of switching the hotbar slot.
+    private static boolean columnCyclerScrollToCycle = false;
+    // Column Cycler HUD overlay mode. MINI_HOTBAR is the default per
+    // Trev's spec — when Column Cycler is enabled, the HUD strip shows
+    // automatically. NONE disables the HUD without disabling the
+    // feature. Future Diamond Indicators mode will become a third
+    // value (per column-cycler.md). Persisted as the enum name.
+    private static HudMode columnCyclerHudMode = HudMode.MINI_HOTBAR;
 
     private static boolean loaded = false;
 
@@ -129,9 +140,11 @@ public final class IPConfig {
             sortShowButton         = readBool(root, "sortShowButton",         sortShowButton);
             moveMatchingShowButtons= readBool(root, "moveMatchingShowButtons",moveMatchingShowButtons);
             lockedSlotsShowButton  = readBool(root, "lockedSlotsShowButton",  lockedSlotsShowButton);
-            columnCyclerEnabled    = readBool(root, "columnCyclerEnabled",    columnCyclerEnabled);
-            columnCyclerShowButton = readBool(root, "columnCyclerShowButton", columnCyclerShowButton);
-            cycleSlotsLocked       = readBool(root, "cycleSlotsLocked",       cycleSlotsLocked);
+            columnCyclerEnabled       = readBool(root, "columnCyclerEnabled",       columnCyclerEnabled);
+            columnCyclerShowButton    = readBool(root, "columnCyclerShowButton",    columnCyclerShowButton);
+            cycleSlotsLocked          = readBool(root, "cycleSlotsLocked",          cycleSlotsLocked);
+            columnCyclerScrollToCycle = readBool(root, "columnCyclerScrollToCycle", columnCyclerScrollToCycle);
+            columnCyclerHudMode       = HudMode.fromName(readString(root, "columnCyclerHudMode", null), columnCyclerHudMode);
             InventoryPlusClient.LOGGER.info("[config] loaded from {}", path);
         } catch (IOException | JsonSyntaxException | IllegalStateException e) {
             InventoryPlusClient.LOGGER.error(
@@ -142,6 +155,17 @@ public final class IPConfig {
     private static boolean readBool(JsonObject root, String key, boolean fallback) {
         return root.has(key) && root.get(key).isJsonPrimitive()
                 ? root.get(key).getAsBoolean()
+                : fallback;
+    }
+
+    /**
+     * Read a string field from the config JSON, returning {@code fallback}
+     * when the key is absent or not a primitive. Used for enum-typed
+     * fields (serialized as their {@code name()} string).
+     */
+    private static String readString(JsonObject root, String key, String fallback) {
+        return root.has(key) && root.get(key).isJsonPrimitive()
+                ? root.get(key).getAsString()
                 : fallback;
     }
 
@@ -161,9 +185,11 @@ public final class IPConfig {
             root.addProperty("sortShowButton",          sortShowButton);
             root.addProperty("moveMatchingShowButtons", moveMatchingShowButtons);
             root.addProperty("lockedSlotsShowButton",   lockedSlotsShowButton);
-            root.addProperty("columnCyclerEnabled",     columnCyclerEnabled);
-            root.addProperty("columnCyclerShowButton",  columnCyclerShowButton);
-            root.addProperty("cycleSlotsLocked",        cycleSlotsLocked);
+            root.addProperty("columnCyclerEnabled",       columnCyclerEnabled);
+            root.addProperty("columnCyclerShowButton",    columnCyclerShowButton);
+            root.addProperty("cycleSlotsLocked",          cycleSlotsLocked);
+            root.addProperty("columnCyclerScrollToCycle", columnCyclerScrollToCycle);
+            root.addProperty("columnCyclerHudMode",       columnCyclerHudMode.name());
             Files.writeString(path, GSON.toJson(root));
         } catch (IOException e) {
             InventoryPlusClient.LOGGER.error(
@@ -186,6 +212,8 @@ public final class IPConfig {
     public static boolean columnCyclerEnabled()         { return columnCyclerEnabled; }
     public static boolean columnCyclerShowButton()      { return columnCyclerShowButton; }
     public static boolean cycleSlotsLocked()            { return cycleSlotsLocked; }
+    public static boolean columnCyclerScrollToCycle()   { return columnCyclerScrollToCycle; }
+    public static HudMode columnCyclerHudMode()         { return columnCyclerHudMode; }
 
     // ─── Setters ─────────────────────────────────────────────────────
     public static void setAutoRestockArmor(boolean v)            { autoRestockArmor = v; save(); }
@@ -201,4 +229,6 @@ public final class IPConfig {
     public static void setColumnCyclerEnabled(boolean v)         { columnCyclerEnabled = v; save(); }
     public static void setColumnCyclerShowButton(boolean v)      { columnCyclerShowButton = v; save(); }
     public static void setCycleSlotsLocked(boolean v)            { cycleSlotsLocked = v; save(); }
+    public static void setColumnCyclerScrollToCycle(boolean v)   { columnCyclerScrollToCycle = v; save(); }
+    public static void setColumnCyclerHudMode(HudMode v)         { columnCyclerHudMode = v; save(); }
 }

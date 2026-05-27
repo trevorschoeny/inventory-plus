@@ -8,6 +8,7 @@
     "AbstractContainerScreenRenderSlotMixin",
     "CompoundContainerAccessor",
     "InventoryGetFreeSlotMixin",
+    "MouseHandlerScrollMixin",
     "MultiPlayerGameModeShiftClickMixin"
   ],
   "injectors": {

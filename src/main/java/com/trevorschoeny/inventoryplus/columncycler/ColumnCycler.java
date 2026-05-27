@@ -179,8 +179,15 @@ public final class ColumnCycler {
      * Inv slots (9-35) return their direct membership; hotbar slots
      * (0-8) return the DERIVED value — true iff any inv slot in the
      * same column is in the stored cycle set.
+     *
+     * <p>Returns false when the feature is disabled
+     * ({@code !IPConfig.columnCyclerEnabled()}) — the stored cycle data
+     * stays on disk for when the feature is re-enabled, but no slot is
+     * treated as a logical cycle member while disabled (icons hide,
+     * keybinds no-op, lock suppression lifts).
      */
     public static boolean isCycleSlot(int containerSlotIndex) {
+        if (!IPConfig.columnCyclerEnabled()) return false;
         if (containerSlotIndex < 0 || containerSlotIndex > MAX_CYCLEABLE_CONTAINER_SLOT) return false;
         Set<Integer> cycleSlots = currentWorldReadOnly();
         if (cycleSlots == null) return false;
@@ -320,8 +327,13 @@ public final class ColumnCycler {
      * is active. Other worlds will be enforced the next time the player
      * enters them and toggles anything (their cycle slots get re-locked
      * on next ADD path).
+     *
+     * <p>No-op when the feature is disabled — there's no "active" cycle
+     * state to enforce against; storage stays untouched until the player
+     * re-enables.
      */
     public static void enforceCycleLockingInvariant() {
+        if (!IPConfig.columnCyclerEnabled()) return;
         Set<Integer> cycleSlots = currentWorldReadOnly();
         if (cycleSlots == null) return;
         for (int slot : cycleSlots) {
