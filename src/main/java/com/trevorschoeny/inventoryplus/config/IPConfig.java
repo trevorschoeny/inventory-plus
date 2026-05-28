@@ -7,6 +7,7 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
+import com.trevorschoeny.inventoryplus.autotoolswitch.WeaponPreference;
 import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
 
 import net.fabricmc.loader.api.FabricLoader;
@@ -81,6 +82,20 @@ public final class IPConfig {
     // mechanics ship. ArmorBeforeBreak / ToolBeforeBreak were state-only
     // through 2026-05-17 and are now live (AutoRestockTicker section 4).
 
+    // ─── Auto Tool Switch (default OFF — opt-in master toggle) ───────
+    // When ON, hitting a block (or attacking a mob, with Weapons sub-
+    // toggle) auto-swaps the right tool into the active hand. See the
+    // Auto Tool Switch spec + AutoToolSwitch class javadoc for the
+    // three-tier resolution and auto-return mechanics.
+    private static boolean autoToolSwitchEnabled = false;
+    private static boolean autoToolSwitchReturn = false;     // sub of Enabled
+    private static boolean autoToolSwitchWeapons = false;    // sub of Enabled
+    private static boolean autoToolSwitchAllMobs = false;    // sub of Weapons; false = hostile only
+    // Preferred weapon type — wins regardless of material when the
+    // player has multiple weapon kinds available. Default SWORD.
+    // Persisted as the enum name.
+    private static WeaponPreference autoToolSwitchWeaponPreference = WeaponPreference.SWORD;
+
     // ─── Show Buttons ────────────────────────────────────────────────
     private static boolean sortShowButton = true;
     private static boolean moveMatchingShowButtons = true;
@@ -137,6 +152,11 @@ public final class IPConfig {
             autoRestockItem              = readBool(root, "autoRestockItem",              autoRestockItem);
             autoRestockShulker           = readBool(root, "autoRestockShulker",           autoRestockShulker);
             autoRestockShulkerAmmo       = readBool(root, "autoRestockShulkerAmmo",       autoRestockShulkerAmmo);
+            autoToolSwitchEnabled  = readBool(root, "autoToolSwitchEnabled",  autoToolSwitchEnabled);
+            autoToolSwitchReturn   = readBool(root, "autoToolSwitchReturn",   autoToolSwitchReturn);
+            autoToolSwitchWeapons  = readBool(root, "autoToolSwitchWeapons",  autoToolSwitchWeapons);
+            autoToolSwitchAllMobs  = readBool(root, "autoToolSwitchAllMobs",  autoToolSwitchAllMobs);
+            autoToolSwitchWeaponPreference = WeaponPreference.fromName(readString(root, "autoToolSwitchWeaponPreference", null), autoToolSwitchWeaponPreference);
             sortShowButton         = readBool(root, "sortShowButton",         sortShowButton);
             moveMatchingShowButtons= readBool(root, "moveMatchingShowButtons",moveMatchingShowButtons);
             lockedSlotsShowButton  = readBool(root, "lockedSlotsShowButton",  lockedSlotsShowButton);
@@ -182,6 +202,11 @@ public final class IPConfig {
             root.addProperty("autoRestockItem",             autoRestockItem);
             root.addProperty("autoRestockShulker",          autoRestockShulker);
             root.addProperty("autoRestockShulkerAmmo",      autoRestockShulkerAmmo);
+            root.addProperty("autoToolSwitchEnabled",   autoToolSwitchEnabled);
+            root.addProperty("autoToolSwitchReturn",    autoToolSwitchReturn);
+            root.addProperty("autoToolSwitchWeapons",   autoToolSwitchWeapons);
+            root.addProperty("autoToolSwitchAllMobs",   autoToolSwitchAllMobs);
+            root.addProperty("autoToolSwitchWeaponPreference", autoToolSwitchWeaponPreference.name());
             root.addProperty("sortShowButton",          sortShowButton);
             root.addProperty("moveMatchingShowButtons", moveMatchingShowButtons);
             root.addProperty("lockedSlotsShowButton",   lockedSlotsShowButton);
@@ -206,6 +231,11 @@ public final class IPConfig {
     public static boolean autoRestockItem()             { return autoRestockItem; }
     public static boolean autoRestockShulker()          { return autoRestockShulker; }
     public static boolean autoRestockShulkerAmmo()      { return autoRestockShulkerAmmo; }
+    public static boolean autoToolSwitchEnabled()       { return autoToolSwitchEnabled; }
+    public static boolean autoToolSwitchReturn()        { return autoToolSwitchReturn; }
+    public static boolean autoToolSwitchWeapons()       { return autoToolSwitchWeapons; }
+    public static boolean autoToolSwitchAllMobs()       { return autoToolSwitchAllMobs; }
+    public static WeaponPreference autoToolSwitchWeaponPreference() { return autoToolSwitchWeaponPreference; }
     public static boolean sortShowButton()              { return sortShowButton; }
     public static boolean moveMatchingShowButtons()     { return moveMatchingShowButtons; }
     public static boolean lockedSlotsShowButton()       { return lockedSlotsShowButton; }
@@ -223,6 +253,11 @@ public final class IPConfig {
     public static void setAutoRestockItem(boolean v)             { autoRestockItem = v; save(); }
     public static void setAutoRestockShulker(boolean v)          { autoRestockShulker = v; save(); }
     public static void setAutoRestockShulkerAmmo(boolean v)      { autoRestockShulkerAmmo = v; save(); }
+    public static void setAutoToolSwitchEnabled(boolean v)       { autoToolSwitchEnabled = v; save(); }
+    public static void setAutoToolSwitchReturn(boolean v)        { autoToolSwitchReturn = v; save(); }
+    public static void setAutoToolSwitchWeapons(boolean v)       { autoToolSwitchWeapons = v; save(); }
+    public static void setAutoToolSwitchAllMobs(boolean v)       { autoToolSwitchAllMobs = v; save(); }
+    public static void setAutoToolSwitchWeaponPreference(WeaponPreference v) { autoToolSwitchWeaponPreference = v; save(); }
     public static void setSortShowButton(boolean v)              { sortShowButton = v; save(); }
     public static void setMoveMatchingShowButtons(boolean v)     { moveMatchingShowButtons = v; save(); }
     public static void setLockedSlotsShowButton(boolean v)       { lockedSlotsShowButton = v; save(); }

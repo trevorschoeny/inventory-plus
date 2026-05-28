@@ -9,6 +9,8 @@
     "CompoundContainerAccessor",
     "InventoryGetFreeSlotMixin",
     "MouseHandlerScrollMixin",
+    "MultiPlayerGameModeAttackMixin",
+    "MultiPlayerGameModeBlockAttackMixin",
     "MultiPlayerGameModeShiftClickMixin"
   ],
   "injectors": {

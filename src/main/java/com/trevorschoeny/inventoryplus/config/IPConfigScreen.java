@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.config;
 
+import com.trevorschoeny.inventoryplus.autotoolswitch.WeaponPreference;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
 import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
 
@@ -10,6 +11,7 @@ import dev.isxander.yacl3.api.OptionDescription;
 import dev.isxander.yacl3.api.OptionGroup;
 import dev.isxander.yacl3.api.YetAnotherConfigLib;
 import dev.isxander.yacl3.api.controller.BooleanControllerBuilder;
+import dev.isxander.yacl3.api.controller.EnumControllerBuilder;
 
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -59,6 +61,7 @@ public final class IPConfigScreen {
         return ConfigCategory.createBuilder()
                 .name(Component.literal("IP"))
                 .group(autoRestockGroup())
+                .group(autoToolSwitchGroup())
                 .group(sortGroup())
                 .group(moveMatchingGroup())
                 .group(lockedSlotsGroup())
@@ -144,6 +147,78 @@ public final class IPConfigScreen {
                 .option(item)
                 .option(shulker)
                 .option(shulkerAmmo)
+                .build();
+    }
+
+    private static OptionGroup autoToolSwitchGroup() {
+        Option<Boolean> enabled = booleanOption(
+                "Enable Auto Tool Switch",
+                "When you hit a block (or attack a mob, with the Weapons sub-toggle on), the mod auto-swaps the right tool into your active hand. Sneak (Shift) suppresses the switch.",
+                false,
+                IPConfig::autoToolSwitchEnabled,
+                IPConfig::setAutoToolSwitchEnabled);
+
+        Option<Boolean> returnAfter = booleanOption(
+                "    Auto-Return After Action",
+                "Restore your previous slot (and any cycling) after the action completes — on LMB release for mining; after attack-cooldown for combat.",
+                false,
+                IPConfig::autoToolSwitchReturn,
+                IPConfig::setAutoToolSwitchReturn);
+
+        Option<Boolean> weapons = booleanOption(
+                "    Switch Weapons Too",
+                "Also auto-switch to a weapon (sword > axe > mace > trident) when attacking a mob.",
+                false,
+                IPConfig::autoToolSwitchWeapons,
+                IPConfig::setAutoToolSwitchWeapons);
+
+        Option<Boolean> allMobs = booleanOption(
+                "        All Mobs (not just hostile)",
+                "Off (default): the weapon switch only fires for hostile mobs (zombies, skeletons, creepers, etc.). On: fires for any mob, including cows, sheep, villagers.",
+                false,
+                IPConfig::autoToolSwitchAllMobs,
+                IPConfig::setAutoToolSwitchAllMobs);
+
+        // Preferred Weapon — cycles through Sword / Axe / Mace / Trident.
+        // The preferred type wins regardless of material, so e.g., a
+        // preferred Axe in iron beats a non-preferred Sword in netherite.
+        Option<WeaponPreference> weaponPref = Option.<WeaponPreference>createBuilder()
+                .name(Component.literal("        Preferred Weapon"))
+                .description(OptionDescription.of(Component.literal(
+                        "Which weapon type the auto-switch prefers. The preferred type wins regardless of material — a preferred Axe in iron beats a non-preferred Sword in netherite. Within the preferred type, best material wins.")))
+                .binding(WeaponPreference.SWORD,
+                        IPConfig::autoToolSwitchWeaponPreference,
+                        IPConfig::setAutoToolSwitchWeaponPreference)
+                .controller(opt -> EnumControllerBuilder.create(opt).enumClass(WeaponPreference.class))
+                .build();
+
+        // Parent-gating: sub-toggles greyed out when master is off;
+        // Weapons sub-toggles (All Mobs + Preferred Weapon) additionally
+        // require Switch Weapons Too.
+        returnAfter.setAvailable(IPConfig.autoToolSwitchEnabled());
+        weapons.setAvailable(IPConfig.autoToolSwitchEnabled());
+        allMobs.setAvailable(IPConfig.autoToolSwitchEnabled() && IPConfig.autoToolSwitchWeapons());
+        weaponPref.setAvailable(IPConfig.autoToolSwitchEnabled() && IPConfig.autoToolSwitchWeapons());
+        enabled.addListener((opt, val) -> {
+            returnAfter.setAvailable(val);
+            weapons.setAvailable(val);
+            allMobs.setAvailable(val && IPConfig.autoToolSwitchWeapons());
+            weaponPref.setAvailable(val && IPConfig.autoToolSwitchWeapons());
+        });
+        weapons.addListener((opt, val) -> {
+            allMobs.setAvailable(IPConfig.autoToolSwitchEnabled() && val);
+            weaponPref.setAvailable(IPConfig.autoToolSwitchEnabled() && val);
+        });
+
+        return OptionGroup.createBuilder()
+                .name(Component.literal("Auto Tool Switch"))
+                .description(OptionDescription.of(Component.literal(
+                        "Auto-swap to the right tool when you hit a block. Optionally extend to weapons on mobs.")))
+                .option(enabled)
+                .option(returnAfter)
+                .option(weapons)
+                .option(allMobs)
+                .option(weaponPref)
                 .build();
     }
 

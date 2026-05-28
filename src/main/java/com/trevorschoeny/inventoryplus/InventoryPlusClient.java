@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus;
 
 import com.trevorschoeny.inventoryplus.autorestock.AutoRestockTicker;
+import com.trevorschoeny.inventoryplus.autotoolswitch.AutoToolSwitch;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerButtons;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerClickInterceptor;
@@ -79,6 +80,13 @@ public class InventoryPlusClient implements ClientModInitializer {
         // server accepts the operation. See AutoRestockTicker class
         // javadoc for the watch + refill model.
         ClientTickEvents.END_CLIENT_TICK.register(AutoRestockTicker::tick);
+
+        // Auto Tool Switch — on-hit auto-swap of the right tool/weapon
+        // for the target, composing the HotbarCyclableRegistry for
+        // cyclable-tier resolution. Default OFF (opt-in via the master
+        // toggle in the IP config tab). See AutoToolSwitch javadoc for
+        // the three-tier resolution + auto-return mechanics.
+        AutoToolSwitch.register();
 
         // Move Matching — inventory-centric, IN + OUT buttons live in
         // the IP toolbar. Screen-scoped I / O keybinds register
