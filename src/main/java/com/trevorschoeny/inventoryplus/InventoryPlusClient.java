@@ -9,8 +9,9 @@ import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerCyclable;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerDragController;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerKeybind;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerRotationKeybind;
-import com.trevorschoeny.inventoryplus.columncycler.hud.ColumnCyclerHud;
+import com.trevorschoeny.inventoryplus.columncycler.hud.ColumnCyclerHudSource;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
+import com.trevorschoeny.inventoryplus.cyclable.CycleHud;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
@@ -146,13 +147,14 @@ public class InventoryPlusClient implements ClientModInitializer {
         // the registry's javadoc.
         HotbarCyclableRegistry.register(ColumnCyclerCyclable.INSTANCE);
 
-        // Column Cycler HUD overlay — Mini-hotbar style strip to the
-        // right of the vanilla hotbar, showing the active column's
-        // cycle members with a slide animation on rotation. Subscribes
-        // to ColumnCyclerRotator's rotation events (must register after
-        // the rotator is loaded, which happens implicitly above when
-        // the Column Cycler classes initialize).
-        ColumnCyclerHud.register();
+        // Shared cycle HUD — Mini-hotbar strip to the right of the vanilla
+        // hotbar, showing whichever cycler is active on the selected hotbar
+        // slot (Column Cycler here; Pocket Cycler in IPP registers its own
+        // source into the same registry). Generalized 2026-06-02: the render
+        // is cycler-agnostic (CycleHud reads CycleHudRegistry); Column
+        // Cycler's contents + animation bridge live in ColumnCyclerHudSource.
+        ColumnCyclerHudSource.register();
+        CycleHud.register();
 
         // Power Users toolbar — right-of-grid vertical stack for opt-in
         // PU buttons. Currently holds just the Column Cycler edit
