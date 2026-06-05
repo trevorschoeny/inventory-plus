@@ -63,6 +63,12 @@ public final class ColumnCyclerHudSource implements CycleHudSource {
         return 100;
     }
 
+    /** Column Cycler is the vertical arm of the cross — a column is vertical. */
+    @Override
+    public boolean verticalInCross() {
+        return true;
+    }
+
     @Override
     public CycleView cycleViewForHotbar(int hotbarSlot) {
         // Gating — all three must hold or this source contributes nothing.

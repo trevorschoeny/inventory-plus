@@ -40,4 +40,16 @@ public interface CycleHudSource {
     default int hudStackOrder() {
         return 100;
     }
+
+    /**
+     * In the cross layout (when two cyclers share the selected hotbar slot),
+     * which axis this cycler's strip runs along: {@code true} = vertical,
+     * {@code false} = horizontal. Column Cycler is vertical (a column literally
+     * is one); Pocket Cycler is horizontal. They share the held-item cell at the
+     * cross center. Ignored when only one cycler is active — a lone cycler
+     * always renders as the horizontal mini-hotbar.
+     */
+    default boolean verticalInCross() {
+        return false;
+    }
 }
