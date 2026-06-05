@@ -151,6 +151,16 @@ public final class AutoRestockTicker {
         Inventory inv = player.getInventory();
         int selected = inv.getSelectedSlot();
 
+        // ─── 0. Suppress refill for a deliberately-changing slot ────────────
+        // A sibling feature (e.g. IPP's pocket cycler) may swap the held item
+        // wholesale — a wrap can even bring an empty pocket into the hand. That
+        // isn't depletion, but the snapshot diff below can't tell. Re-baseline
+        // the slot to its current contents so none of the refill paths fire for
+        // it this tick; the window re-baselines each tick until the change lands.
+        if (AutoRestockSuppression.isExternallyChanging(selected)) {
+            previousSnapshot[selected] = inv.getItem(selected).copy();
+        }
+
         // ─── 1. Non-damageable item refill (food / blocks / arrows / etc.) ──
         // Active hand + offhand only. Damageable items are NOT handled here;
         // they go through the break-refill or durability-delta paths below.
