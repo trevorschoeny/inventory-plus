@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "inventoryplus",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": "Inventory Plus",
   "description": "Vanilla-faithful, friction-free, player-controlled inventory QoL — Phase 18b fresh-build. Client-only; installs on any vanilla server. Depends on MenuKit 1.0.0 (widgets artifact).",
   "authors": ["trevorschoeny"],
