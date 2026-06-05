@@ -5,7 +5,6 @@ import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
 import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
 
 import dev.isxander.yacl3.api.ConfigCategory;
-import dev.isxander.yacl3.api.LabelOption;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.OptionDescription;
 import dev.isxander.yacl3.api.OptionGroup;
@@ -21,18 +20,13 @@ import net.minecraft.network.chat.Component;
  *
  * <h3>Tab structure</h3>
  *
- * Three tabs across the top, per Trev 2026-05-17:
+ * One tab — <b>IP</b> — holding every IP feature: Auto-Restock, Auto Tool
+ * Switch, Sort, Move Matching, Locked Slots, Column Cycler. Keybindery
+ * auto-appends a second <b>Keybinds</b> tab.
  *
- * <ul>
- *   <li><b>IP</b> — default-scope IP feature configs, one section per
- *       feature (Auto-Restock / Sort / Move Matching / Locked Slots).</li>
- *   <li><b>IPP</b> — Inventory Plus Plus configs. Empty until IPP ships.</li>
- *   <li><b>Power Users</b> — opt-in advanced configs that span both IP
- *       and IPP. Empty until the first Power User feature ships.</li>
- * </ul>
- *
- * <p>Empty tabs intentionally show as such (placeholder label) — gives
- * a stable shape that doesn't reflow as IPP / PU features land.
+ * <p>IPP keeps its own separate ModMenu screen — the one-way IPP→IP
+ * dependency means IP can't host an IPP tab. Unifying the two into one
+ * screen is deferred (Trev 2026-06-04).
  *
  * <h3>Save semantics</h3>
  *
@@ -49,8 +43,6 @@ public final class IPConfigScreen {
         return YetAnotherConfigLib.createBuilder()
                 .title(Component.literal("Inventory Plus"))
                 .category(ipCategory())
-                .category(ippCategory())
-                .category(powerUsersCategory())
                 .build()
                 .generateScreen(parent);
     }
@@ -65,6 +57,7 @@ public final class IPConfigScreen {
                 .group(sortGroup())
                 .group(moveMatchingGroup())
                 .group(lockedSlotsGroup())
+                .group(columnCyclerGroup())
                 .build();
     }
 
@@ -259,29 +252,10 @@ public final class IPConfigScreen {
                 .build();
     }
 
-    // ─── IPP tab ─────────────────────────────────────────────────────
-    // Empty for now — IPP features are deferred. The tab is visible to
-    // give the UI a stable shape; LabelOption acts as a placeholder
-    // (YACL categories with no entries render awkwardly).
-
-    private static ConfigCategory ippCategory() {
-        return ConfigCategory.createBuilder()
-                .name(Component.literal("IPP"))
-                .option(LabelOption.create(Component.literal(
-                        "Inventory Plus Plus configs will appear here once IPP ships.")))
-                .build();
-    }
-
-    // ─── Power Users tab ─────────────────────────────────────────────
-    // Opt-in advanced features. Each section corresponds to one PU
-    // feature, with a master enable toggle plus per-feature sub-toggles.
-
-    private static ConfigCategory powerUsersCategory() {
-        return ConfigCategory.createBuilder()
-                .name(Component.literal("Power Users"))
-                .group(columnCyclerGroup())
-                .build();
-    }
+    // ─── Column Cycler ───────────────────────────────────────────────
+    // Was its own "Power Users" tab; folded into the IP tab as just
+    // another group per Trev's single-tab cleanup (2026-06-04). Master
+    // enable toggle plus per-feature sub-toggles.
 
     private static OptionGroup columnCyclerGroup() {
         Option<Boolean> enabled = booleanOption(

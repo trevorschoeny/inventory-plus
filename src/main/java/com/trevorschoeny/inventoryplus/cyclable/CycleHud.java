@@ -21,9 +21,18 @@ import java.util.List;
  * This was formerly {@code ColumnCyclerHud}, hard-wired to Column Cycler.
  * It now reads from {@link CycleHudRegistry}: any cycler (Column Cycler in IP,
  * Pocket Cycler in IPP, …) registers a {@link CycleHudSource} and fires the
- * shared animation clock, and this one HUD draws whichever cycler is active on
- * the current hotbar slot. The render math is unchanged from the verified
+ * shared animation clock, and this one HUD draws whichever cyclers are active
+ * on the current hotbar slot. The render math is unchanged from the verified
  * Column Cycler HUD — only the data source moved behind the registry.
+ *
+ * <h3>Stacking (2026-06-04)</h3>
+ *
+ * When more than one cycler is active on the selected slot (e.g. Column Cycler
+ * AND Pocket Cycler both on the held slot), each gets its own strip, stacked
+ * vertically. The registry hands them back bottom→top by
+ * {@link CycleHudSource#hudStackOrder()}: Pocket Cycler pins to the bottom
+ * (flush with the vanilla hotbar), Column Cycler sits above it. Each strip
+ * reads its OWN source's animation, so cycling one slides only that strip.
  *
  * <h3>Display + animation</h3>
  *
@@ -54,6 +63,8 @@ public final class CycleHud {
     private static final int STRIP_GAP_FROM_HOTBAR_PX = 4;
     private static final int HOTBAR_HALF_WIDTH_PX = 91;
     private static final int ITEM_OFFSET_PX = 3;
+    /** Vertical gap between stacked strips when multiple cyclers are active. */
+    private static final int STACK_GAP_PX = 2;
 
     // ─── Vanilla sprites ─────────────────────────────────────────────
 
@@ -93,7 +104,7 @@ public final class CycleHud {
         if (mc == null || mc.player == null) return false;
         int selectedSlot = mc.player.getInventory().getSelectedSlot();
         if (selectedSlot < 0 || selectedSlot > 8) return false;
-        return CycleHudRegistry.activeView(selectedSlot) != null;
+        return !CycleHudRegistry.activeViews(selectedSlot).isEmpty();
     }
 
     // ─── Rendering ───────────────────────────────────────────────────
@@ -104,29 +115,80 @@ public final class CycleHud {
         int activeSlot = mc.player.getInventory().getSelectedSlot();
         if (activeSlot < 0 || activeSlot > 8) return;
 
-        CycleView view = CycleHudRegistry.activeView(activeSlot);
-        if (view == null) return;
+        List<CycleHudRegistry.ActiveCycle> cycles = CycleHudRegistry.activeViews(activeSlot);
+        if (cycles.isEmpty()) return;
+
+        int screenW = mc.getWindow().getGuiScaledWidth();
+        int screenH = mc.getWindow().getGuiScaledHeight();
+        int stripX = screenW / 2 + HOTBAR_HALF_WIDTH_PX + STRIP_GAP_FROM_HOTBAR_PX;
+
+        // Highlight alignment — ONLY when more than one strip is showing. A
+        // 2-slot strip highlights its leftmost cell (index 0); a 3+-slot strip
+        // highlights one cell in (index 1). Left-aligned, those highlights sit
+        // a slot-width apart. So shift each strip right by
+        // (maxHighlight − thisHighlight) slots: the strip whose held slot is
+        // furthest in stays put, and shorter strips slide right until every
+        // highlighted/held slot lands at the same x. With a single strip there's
+        // nothing to align — offset 0, exactly the original behavior.
+        boolean aligning = cycles.size() > 1;
+        int maxHighlight = 0;
+        if (aligning) {
+            for (CycleHudRegistry.ActiveCycle ac : cycles) {
+                maxHighlight = Math.max(maxHighlight, highlightIndexOf(ac.view()));
+            }
+        }
+
+        // Stack bottom→top: index 0 (lowest hudStackOrder — Pocket) sits flush
+        // with the vanilla hotbar; each next strip is one strip-height (+ gap)
+        // higher up the screen.
+        for (int i = 0; i < cycles.size(); i++) {
+            CycleHudRegistry.ActiveCycle cycle = cycles.get(i);
+            int stripY = screenH - STRIP_HEIGHT_PX - i * (STRIP_HEIGHT_PX + STACK_GAP_PX);
+            int alignOffsetPx = aligning
+                    ? (maxHighlight - highlightIndexOf(cycle.view())) * SLOT_PX
+                    : 0;
+            renderStrip(graphics, mc, cycle, activeSlot, stripX + alignOffsetPx, stripY);
+        }
+    }
+
+    /**
+     * The clamped highlight index a strip will draw at — matches the clamp in
+     * {@link #renderStrip}. Used for cross-strip highlight alignment so both
+     * computations agree on where each strip's held slot lands.
+     */
+    private static int highlightIndexOf(CycleView view) {
+        int n = view.orderedItems().size();
+        return Math.max(0, Math.min(n - 1, view.highlightIndex()));
+    }
+
+    /**
+     * Render a single cycle strip at {@code (stripX, stripY)}. Reads the slide
+     * animation from this cycle's OWN source, so stacked strips animate
+     * independently. This body is the verified single-strip render, lifted out
+     * of {@code render} unchanged except for the per-source animation lookup
+     * and the parameterized strip origin.
+     */
+    private static void renderStrip(GuiGraphics graphics, Minecraft mc,
+                                    CycleHudRegistry.ActiveCycle cycle, int activeSlot,
+                                    int stripX, int stripY) {
+        CycleView view = cycle.view();
         List<ItemStack> displayItems = view.orderedItems();
         int n = displayItems.size();
         if (n < 2) return;
 
-        int screenW = mc.getWindow().getGuiScaledWidth();
-        int screenH = mc.getWindow().getGuiScaledHeight();
         int stripWidth = n * SLOT_PX + 2 * OUTER_BORDER_PX;
-        int stripX = screenW / 2 + HOTBAR_HALF_WIDTH_PX + STRIP_GAP_FROM_HOTBAR_PX;
-        int stripY = screenH - STRIP_HEIGHT_PX;
 
-        // Animation progress + slide offset — keyed on the selected hotbar slot.
+        // Animation progress + slide offset — keyed on THIS source's clock.
         float progress = 1.0f;
         CyclerDirection direction = null;
-        if (CycleHudRegistry.animatingSlot() == activeSlot
-                && CycleHudRegistry.animationDirection() != null) {
-            long elapsed = System.currentTimeMillis() - CycleHudRegistry.animationStartMillis();
+        CycleHudRegistry.Animation anim = CycleHudRegistry.animationFor(cycle.source());
+        if (anim != null && anim.hotbarSlot() == activeSlot && anim.direction() != null) {
+            long elapsed = System.currentTimeMillis() - anim.startMillis();
             if (elapsed < ANIMATION_DURATION_MILLIS) {
                 progress = easeOutBack((float) elapsed / ANIMATION_DURATION_MILLIS);
-                direction = CycleHudRegistry.animationDirection();
+                direction = anim.direction();
             } else {
-                CycleHudRegistry.clearAnimation();
+                CycleHudRegistry.clearAnimation(cycle.source());
             }
         }
         float remainingFraction = 1.0f - progress;

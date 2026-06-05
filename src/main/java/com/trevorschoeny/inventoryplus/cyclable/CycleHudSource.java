@@ -26,4 +26,18 @@ public interface CycleHudSource {
      * cheap (O(small)).
      */
     CycleView cycleViewForHotbar(int hotbarSlot);
+
+    /**
+     * Stack position when several cyclers are active on the same hotbar slot.
+     * The HUD stacks strips bottom→top by ASCENDING value — a LOWER value sits
+     * nearer the hotbar (the bottom of the stack). Pocket Cycler returns the
+     * lowest so it's ALWAYS on the bottom (Trev 2026-06-04); Column Cycler sits
+     * above it. Ties fall back to registration order.
+     *
+     * <p>Default {@code 100} leaves room for future cyclers to slot in above
+     * the bottom-pinned Pocket Cycler without colliding.
+     */
+    default int hudStackOrder() {
+        return 100;
+    }
 }

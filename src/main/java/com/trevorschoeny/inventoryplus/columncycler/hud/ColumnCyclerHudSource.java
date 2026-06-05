@@ -46,10 +46,21 @@ public final class ColumnCyclerHudSource implements CycleHudSource {
         // column index IS the hotbar slot (0–8).
         ColumnCyclerRotator.addRotationListener((column, dir) ->
                 CycleHudRegistry.fireCycleAnimation(
+                        INSTANCE,
                         column,
                         dir == ColumnCyclerRotator.Direction.FORWARD
                                 ? CyclerDirection.FORWARD
                                 : CyclerDirection.BACKWARD));
+    }
+
+    /**
+     * Column Cycler stacks ABOVE the bottom-pinned Pocket Cycler when both are
+     * active on the same hotbar slot. Uses the interface default rank (100);
+     * declared explicitly so the stacking intent is visible here.
+     */
+    @Override
+    public int hudStackOrder() {
+        return 100;
     }
 
     @Override
