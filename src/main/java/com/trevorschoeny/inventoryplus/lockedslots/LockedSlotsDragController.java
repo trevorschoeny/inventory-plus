@@ -23,16 +23,26 @@ import java.util.Set;
  * touched slot. Two trigger modes:
  *
  * <ul>
- *   <li><b>Edit-mode drag</b> — held LMB. Inv + hotbar only (matches
- *       edit-mode's per-slot click scope). Started by
+ *   <li><b>Edit-mode drag</b> — held LMB. The lock-edit-toggleable set
+ *       (inv + hotbar + ender + placed containers), matching edit-mode's
+ *       per-slot click scope. Started by
  *       {@link LockedSlotsClickInterceptor}'s allow-click handler
  *       after the first click toggles the initial slot.</li>
  *   <li><b>L-key drag</b> — held L key. Full lockable range (inv +
- *       hotbar + armor + offhand). Started by
+ *       hotbar + armor + offhand + ender + placed containers). Started by
  *       {@link LockedSlotKeybind}'s after-key-press handler after
  *       the L-press toggles the initial slot. LMB is NOT required —
  *       any cursor motion while L is held coerces entered slots.</li>
  * </ul>
+ *
+ * <h3>Slot keying</h3>
+ *
+ * The touched-set keys by {@link Slot#index} (menu-unique), not
+ * {@code getContainerSlot()} — in a chest menu the container's slot indices
+ * (0-26) overlap the player-inventory portion's, so container-slot keying
+ * would conflate a chest slot with a player slot. Coercion routes through
+ * {@link LockedSlots#setLockedSlot(Slot, boolean)}, which dispatches to the
+ * right store/provider per slot kind.
  *
  * <h3>State semantics</h3>
  *
@@ -65,20 +75,21 @@ public final class LockedSlotsDragController {
 
     private static Mode mode = Mode.NONE;
     private static boolean targetLocked;
+    /** Menu-unique slot.index values already coerced this drag. */
     private static final Set<Integer> touchedSlots = new HashSet<>();
 
-    public static void startEditModeDrag(int firstSlotContainerIdx, boolean newState) {
+    public static void startEditModeDrag(int firstSlotMenuIndex, boolean newState) {
         mode = Mode.EDIT_LMB;
         targetLocked = newState;
         touchedSlots.clear();
-        touchedSlots.add(firstSlotContainerIdx);
+        touchedSlots.add(firstSlotMenuIndex);
     }
 
-    public static void startLKeyDrag(int firstSlotContainerIdx, boolean newState) {
+    public static void startLKeyDrag(int firstSlotMenuIndex, boolean newState) {
         mode = Mode.L_KEY;
         targetLocked = newState;
         touchedSlots.clear();
-        touchedSlots.add(firstSlotContainerIdx);
+        touchedSlots.add(firstSlotMenuIndex);
     }
 
     public static void endDrag() {
@@ -125,15 +136,15 @@ public final class LockedSlotsDragController {
 
         Slot hovered = slotUnderMouse(acs, mc);
         if (hovered == null) return;
-        int slotIdx = hovered.getContainerSlot();
-        if (touchedSlots.contains(slotIdx)) return;
+        int key = hovered.index;
+        if (touchedSlots.contains(key)) return;
 
-        // Per-mode slot-kind filter. Edit-mode drag is scoped to inv +
-        // hotbar (matches edit-mode click behavior); L-drag covers the
-        // full lockable range.
+        // Per-mode slot-kind filter. Edit-mode drag matches edit-mode click
+        // scope (inv+hotbar + ender + containers); L-drag covers the full
+        // lockable range (adds armor / offhand).
         boolean valid = (mode == Mode.EDIT_LMB)
-                ? LockedSlots.isInvOrHotbarSlot(hovered)
-                : LockedSlots.isLockable(hovered);
+                ? LockedSlots.isEditModeToggleable(hovered)
+                : LockedSlots.isLockableHere(hovered);
         if (!valid) return;
 
         // When cycleSlotsLocked is ON, cycle slots are inert to the lock
@@ -141,12 +152,14 @@ public final class LockedSlotsDragController {
         // be toggled by lock gestures. Add to touched-set so we don't
         // retry on every tick, but don't change lock state.
         if (IPConfig.cycleSlotsLocked() && ColumnCycler.isCycleSlot(hovered)) {
-            touchedSlots.add(slotIdx);
+            touchedSlots.add(key);
             return;
         }
 
-        touchedSlots.add(slotIdx);
-        LockedSlots.setLocked(slotIdx, targetLocked);
+        touchedSlots.add(key);
+        // Unified dispatch — player + ender → IP client store, containers →
+        // the registered provider.
+        LockedSlots.setLockedSlot(hovered, targetLocked);
     }
 
     private static boolean isMouseHeld(Minecraft mc, int button) {

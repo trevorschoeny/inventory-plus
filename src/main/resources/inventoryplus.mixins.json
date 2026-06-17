@@ -8,6 +8,7 @@
     "AbstractContainerScreenRenderSlotMixin",
     "CompoundContainerAccessor",
     "InventoryGetFreeSlotMixin",
+    "LockedSlotPickAllMixin",
     "MouseHandlerScrollMixin",
     "MultiPlayerGameModeAttackMixin",
     "MultiPlayerGameModeBlockAttackMixin",

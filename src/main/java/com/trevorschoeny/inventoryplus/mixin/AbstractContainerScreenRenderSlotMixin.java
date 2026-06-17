@@ -71,12 +71,13 @@ public abstract class AbstractContainerScreenRenderSlotMixin {
     @Inject(method = "renderSlot", at = @At("TAIL"))
     private void inventoryplus$renderOverlays(GuiGraphics graphics, Slot slot,
                                               int mouseX, int mouseY, CallbackInfo ci) {
-        boolean anyEditMode = LockEditMode.isOn() || ColumnCyclerEditMode.isOn();
-
-        // 1. Edit-mode gray overlay on inv + hotbar slots only. The inv +
-        // hotbar check is identical for both edit modes (cycler is scoped
-        // 0-35; lock-edit uses isInvOrHotbarSlot which is also 0-35).
-        if (anyEditMode && LockedSlots.isInvOrHotbarSlot(slot)) {
+        // 1. Edit-mode gray overlay. The two edit modes diverge now that
+        // lock-edit reaches beyond the player inventory: lock-edit grays every
+        // lock-toggleable slot (inv+hotbar + ender + placed containers), while
+        // cycler-edit stays scoped to the player inv+hotbar slots it operates on.
+        boolean overlay = (LockEditMode.isOn() && LockedSlots.isEditModeToggleable(slot))
+                || (ColumnCyclerEditMode.isOn() && LockedSlots.isInvOrHotbarSlot(slot));
+        if (overlay) {
             graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16,
                     INVENTORYPLUS$EDIT_OVERLAY_COLOR);
         }

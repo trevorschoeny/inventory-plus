@@ -5,9 +5,12 @@ import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.level.block.Block;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -100,5 +103,32 @@ public final class ContainerOpenTracker {
     /** Returns the BlockPos associated with the given menu's containerId, or null. */
     public static @Nullable BlockPos getBlockPos(int containerId) {
         return openMenuBlockPos.get(containerId);
+    }
+
+    /**
+     * The {@link Block} backing the currently-open container menu, or null if no
+     * container is open, none was opened via a tracked right-click, or the
+     * position is unloaded.
+     *
+     * <p>This is the cross-feature primitive for "what container am I actually
+     * in" on the client — where the open menu's slots wrap a generic
+     * {@code SimpleContainer}, not the real BlockEntity, so the slot itself
+     * can't tell you it's a chest vs. an ender chest vs. a furnace. Container
+     * Locks uses it to route ender → IP's client store and placed simple
+     * containers → the shared channel; Sort uses the position form above.
+     *
+     * <p>Client-only (reads {@link Minecraft}); callers on the integrated-server
+     * thread must guard against calling it (the real container is visible there
+     * directly). Returns whatever block is at the tracked position, so callers
+     * decide which block types they accept.
+     */
+    public static @Nullable Block openContainerBlock() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.player == null || mc.level == null) return null;
+        AbstractContainerMenu menu = mc.player.containerMenu;
+        if (menu == null) return null;
+        BlockPos pos = getBlockPos(menu.containerId);
+        if (pos == null) return null;
+        return mc.level.getBlockState(pos).getBlock();
     }
 }

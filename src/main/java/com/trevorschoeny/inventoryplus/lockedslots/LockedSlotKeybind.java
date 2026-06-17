@@ -61,25 +61,29 @@ public final class LockedSlotKeybind {
                                 / (double) mc.getWindow().getScreenHeight();
 
                         Slot hovered = slotUnderMouse(currentAcs, mouseX, mouseY);
-                        if (hovered == null || !LockedSlots.isLockable(hovered)) return;
+                        if (hovered == null || !LockedSlots.isLockableHere(hovered)) return;
                         // When cycleSlotsLocked is ON, a cycle slot's lock
                         // state is bound to its cycle state — L can't toggle
                         // it independently. The player removes the lock by
                         // removing the cycle (C). When cycleSlotsLocked is
                         // OFF, cycle and lock are fully independent — L
-                        // works normally on cycle slots.
+                        // works normally on cycle slots. (Cycle slots are
+                        // player-inv only; container/ender never match.)
                         if (IPConfig.cycleSlotsLocked() && ColumnCycler.isCycleSlot(hovered)) return;
-                        int slotIdx = hovered.getContainerSlot();
-                        LockedSlots.toggleByContainerSlot(slotIdx);
-                        boolean newState = LockedSlots.isLocked(slotIdx);
+                        // Unified dispatch: player + ender route to IP's
+                        // client store, placed containers to the registered
+                        // provider (IPP's shared channel).
+                        LockedSlots.toggleSlot(hovered);
+                        boolean newState = LockedSlots.isLockedSlot(hovered);
                         // Start an L-drag in non-edit mode so the user can
                         // hold L and sweep the cursor across more slots,
                         // coercing each to the first slot's new state. In
                         // edit mode the drag is the LMB-drag mechanic;
                         // L stays a single-slot toggle for armor/offhand
-                        // reach.
+                        // reach. Keyed by slot.index (menu-unique) so a
+                        // container slot can't collide with a player slot.
                         if (!LockEditMode.isOn()) {
-                            LockedSlotsDragController.startLKeyDrag(slotIdx, newState);
+                            LockedSlotsDragController.startLKeyDrag(hovered.index, newState);
                         }
                     });
         });

@@ -15,13 +15,15 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Screen-level mouse handler for Locked Slots — edit-mode dispatch only.
  *
- * <h3>Edit mode (narrowed per Trev 2026-05-16)</h3>
+ * <h3>Edit mode</h3>
  *
- * Edit mode only blocks clicks on <b>inventory + hotbar slots</b>
- * (container-slot 0-35). Armor / offhand and external container slots
- * stay vanilla-interactable in edit mode. Clicks outside slots (e.g.,
- * on the lock-edit button itself, or MM widgets) pass through to vanilla
- * so widgets work — including the lock-edit button's toggle-off click.
+ * Edit mode blocks clicks on the <b>lock-toggleable</b> slots — the
+ * inv+hotbar subset (container-slot 0-35), the ender chest, and (with IPP)
+ * placed-container slots — toggling each slot's lock instead. Armor / offhand
+ * stay vanilla-interactable in edit mode (they're lockable via {@code L} only,
+ * per Trev 2026-05-16). Clicks outside slots (e.g., on the lock-edit button
+ * itself, or MM widgets) pass through to vanilla so widgets work — including
+ * the lock-edit button's toggle-off click.
  *
  * <h3>Why no manual-click recording anymore</h3>
  *
@@ -55,7 +57,7 @@ public final class LockedSlotsClickInterceptor {
                     // Click outside slot bounds — let widgets handle it.
                     return true;
                 }
-                if (LockedSlots.isInvOrHotbarSlot(hovered)) {
+                if (LockedSlots.isEditModeToggleable(hovered)) {
                     // When cycleSlotsLocked is ON, a cycle slot's lock
                     // state is bound to its cycle state — clicks in
                     // lock-edit mode can't toggle it. Consume the click
@@ -64,21 +66,24 @@ public final class LockedSlotsClickInterceptor {
                     if (IPConfig.cycleSlotsLocked() && ColumnCycler.isCycleSlot(hovered)) {
                         return false;
                     }
-                    // Inv / hotbar click in edit mode → toggle lock.
-                    int slotIdx = hovered.getContainerSlot();
-                    LockedSlots.toggleByContainerSlot(slotIdx);
-                    boolean newState = LockedSlots.isLocked(slotIdx);
+                    // Inv / hotbar / ender / placed-container click in edit
+                    // mode → toggle lock. Unified dispatch routes player +
+                    // ender to IP's client store, containers to the provider.
+                    LockedSlots.toggleSlot(hovered);
+                    boolean newState = LockedSlots.isLockedSlot(hovered);
                     // Start an LMB drag so the user can sweep across
                     // adjacent slots, coercing each to the new state of
                     // the first slot. Other mouse buttons toggle the
-                    // single slot but don't drag.
+                    // single slot but don't drag. Keyed by slot.index
+                    // (menu-unique) so a container slot can't collide
+                    // with a player slot in the same menu.
                     if (event.button() == 0) {
-                        LockedSlotsDragController.startEditModeDrag(slotIdx, newState);
+                        LockedSlotsDragController.startEditModeDrag(hovered.index, newState);
                     }
                     return false;
                 }
-                // Armor / offhand / external container slot → vanilla
-                // handles normally.
+                // Armor / offhand slot → vanilla handles normally (those are
+                // lockable only via L, not edit-mode click).
                 return true;
             });
         });
