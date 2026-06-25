@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.autorestock;
 
+import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclable.ExtraSlot;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 
 import net.minecraft.core.component.DataComponents;
@@ -10,6 +11,8 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.equipment.Equippable;
+
+import java.util.List;
 
 /**
  * Source lookup for auto-restock. Scans the player's hotbar (0–8) and
@@ -97,9 +100,27 @@ public final class AutoRestockSearch {
      *                    {@link #NONE} for no exclusion.
      */
     public static int findSource(Inventory inv, ItemStack brokenStack, int excludeSlot) {
+        return findSource(inv, brokenStack, excludeSlot, List.of());
+    }
+
+    /**
+     * Extra-slots overload of {@link #findSource(Inventory, ItemStack, int)}.
+     * Scans the real inventory (0–35) first exactly as the base method
+     * does, then folds in {@code extras} — searchable slots that live
+     * outside the 0-35 model (e.g., Pocket Cycler's pockets), surfaced via
+     * {@link com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry#extraSearchSlots}.
+     * A returned value ≥ the extras' encoded-id range is one of those slot
+     * ids, not an inventory index — the caller routes it back through the
+     * cyclable registry. Passing an empty list reproduces the base method
+     * byte-for-byte.
+     */
+    public static int findSource(Inventory inv, ItemStack brokenStack, int excludeSlot,
+                                 List<ExtraSlot> extras) {
         if (brokenStack == null || brokenStack.isEmpty()) return NONE;
 
         // Pass 1 — exact same-Item match. Locked sources skipped per spec.
+        // Inventory (0–35) first, then extras (pockets) — inventory wins so
+        // we don't disturb a curated pocket when a loose copy exists.
         for (int i = HOTBAR_START; i < MAIN_INV_END; i++) {
             if (i == excludeSlot) continue;
             if (LockedSlots.isLocked(i)) continue;
@@ -109,6 +130,13 @@ public final class AutoRestockSearch {
                 return i;
             }
         }
+        for (ExtraSlot ex : extras) {
+            ItemStack candidate = ex.stack();
+            if (candidate.isEmpty()) continue;
+            if (candidate.is(brokenStack.getItem())) {
+                return ex.id();
+            }
+        }
         // Pass 2 — best-material fallback within the same tool kind.
         // Non-tool items (food/blocks/shield/etc.) return null here and
         // skip the fallback; they only have same-Item refill.
@@ -116,7 +144,7 @@ public final class AutoRestockSearch {
         if (toolTag == null) return NONE;
         // On-break path: no minRemaining constraint — any same-kind tool
         // beats an empty hand, even one that's also worn.
-        return findBestByMaxDamage(inv, toolTag, excludeSlot, 0);
+        return findBestByMaxDamage(inv, toolTag, excludeSlot, 0, extras);
     }
 
     /**
@@ -135,13 +163,24 @@ public final class AutoRestockSearch {
      * items to their matching empty armor slot.
      */
     public static int findArmorSource(Inventory inv, ItemStack brokenArmor) {
+        return findArmorSource(inv, brokenArmor, List.of());
+    }
+
+    /**
+     * Extra-slots overload of {@link #findArmorSource(Inventory, ItemStack)}
+     * — scans the real inventory (0–35) first, then folds in {@code extras}
+     * (e.g., pockets). See {@link #findSource(Inventory, ItemStack, int, List)}
+     * for the id-namespace contract. Passing an empty list reproduces the
+     * base method byte-for-byte.
+     */
+    public static int findArmorSource(Inventory inv, ItemStack brokenArmor, List<ExtraSlot> extras) {
         if (brokenArmor == null || brokenArmor.isEmpty()) return NONE;
         EquipmentSlot wantedSlot = equippableSlot(brokenArmor);
         if (wantedSlot == null) return NONE;
 
         // Pass 1 — exact same-Item match (with Equippable-slot guard). No
         // excludeSlot needed because the armor destination isn't in the
-        // hotbar/main-inv scan range.
+        // hotbar/main-inv scan range. Inventory first, then extras.
         for (int i = HOTBAR_START; i < MAIN_INV_END; i++) {
             if (LockedSlots.isLocked(i)) continue;
             ItemStack candidate = inv.getItem(i);
@@ -156,11 +195,18 @@ public final class AutoRestockSearch {
                 }
             }
         }
+        for (ExtraSlot ex : extras) {
+            ItemStack candidate = ex.stack();
+            if (candidate.isEmpty()) continue;
+            if (candidate.is(brokenArmor.getItem()) && isEquippableToSlot(candidate, wantedSlot)) {
+                return ex.id();
+            }
+        }
         // Pass 2 — best-material fallback for the matching armor slot.
         TagKey<Item> armorTag = armorTagOf(wantedSlot);
         if (armorTag == null) return NONE;
         // On-break path: no minRemaining constraint.
-        return findBestArmorByMaxDamage(inv, armorTag, wantedSlot, 0);
+        return findBestArmorByMaxDamage(inv, armorTag, wantedSlot, 0, extras);
     }
 
     /**
@@ -177,6 +223,19 @@ public final class AutoRestockSearch {
      * next swap. Returns {@link #NONE} if no candidate exists.
      */
     public static int findHigherDurability(Inventory inv, ItemStack current, int excludeSlot) {
+        return findHigherDurability(inv, current, excludeSlot, List.of());
+    }
+
+    /**
+     * Extra-slots overload of {@link #findHigherDurability(Inventory, ItemStack, int)}.
+     * The least-damaged tracking spans inventory (0–35) then {@code extras}
+     * (e.g., pockets) with a strict {@code <} on damage, so an inventory
+     * copy wins ties over an equally-fresh pocket copy. See
+     * {@link #findSource(Inventory, ItemStack, int, List)} for the
+     * id-namespace contract. Empty list → base behavior byte-for-byte.
+     */
+    public static int findHigherDurability(Inventory inv, ItemStack current, int excludeSlot,
+                                           List<ExtraSlot> extras) {
         if (current == null || current.isEmpty()) return NONE;
 
         // Pass 1 — same-Item with strictly lower damage value than current.
@@ -195,6 +254,18 @@ public final class AutoRestockSearch {
                 bestSlot = i;
             }
         }
+        // Extras compete on the same accumulator — strict < means a pocket
+        // copy must be fresher than the best inventory copy to win.
+        for (ExtraSlot ex : extras) {
+            ItemStack candidate = ex.stack();
+            if (candidate.isEmpty()) continue;
+            if (!candidate.is(current.getItem())) continue;
+            int candidateDamage = candidate.getDamageValue();
+            if (candidateDamage < bestDamage) {
+                bestDamage = candidateDamage;
+                bestSlot = ex.id();
+            }
+        }
         if (bestSlot != NONE) return bestSlot;
 
         // Pass 2 — best-material fallback within the same tool kind.
@@ -202,7 +273,7 @@ public final class AutoRestockSearch {
         // don't pull another about-to-break tool into the active slot.
         TagKey<Item> toolTag = toolTagOf(current);
         if (toolTag == null) return NONE;
-        return findBestByMaxDamage(inv, toolTag, excludeSlot, FALLBACK_MIN_REMAINING);
+        return findBestByMaxDamage(inv, toolTag, excludeSlot, FALLBACK_MIN_REMAINING, extras);
     }
 
     /**
@@ -212,6 +283,18 @@ public final class AutoRestockSearch {
      * different-component edge cases).
      */
     public static int findHigherDurabilityArmor(Inventory inv, ItemStack currentArmor) {
+        return findHigherDurabilityArmor(inv, currentArmor, List.of());
+    }
+
+    /**
+     * Extra-slots overload of {@link #findHigherDurabilityArmor(Inventory, ItemStack)}
+     * — least-damaged tracking spans inventory (0–35) then {@code extras}
+     * (e.g., pockets), with the equippable-slot guard applied to both. See
+     * {@link #findSource(Inventory, ItemStack, int, List)} for the
+     * id-namespace contract. Empty list → base behavior byte-for-byte.
+     */
+    public static int findHigherDurabilityArmor(Inventory inv, ItemStack currentArmor,
+                                                List<ExtraSlot> extras) {
         if (currentArmor == null || currentArmor.isEmpty()) return NONE;
         EquipmentSlot wantedSlot = equippableSlot(currentArmor);
         if (wantedSlot == null) return NONE;
@@ -233,13 +316,24 @@ public final class AutoRestockSearch {
                 bestSlot = i;
             }
         }
+        for (ExtraSlot ex : extras) {
+            ItemStack candidate = ex.stack();
+            if (candidate.isEmpty()) continue;
+            if (!candidate.is(currentArmor.getItem())) continue;
+            if (!isEquippableToSlot(candidate, wantedSlot)) continue;
+            int candidateDamage = candidate.getDamageValue();
+            if (candidateDamage < bestDamage) {
+                bestDamage = candidateDamage;
+                bestSlot = ex.id();
+            }
+        }
         if (bestSlot != NONE) return bestSlot;
 
         // Pass 2 — best-material armor fallback for the matching slot.
         // Candidate must have remaining > FALLBACK_MIN_REMAINING.
         TagKey<Item> armorTag = armorTagOf(wantedSlot);
         if (armorTag == null) return NONE;
-        return findBestArmorByMaxDamage(inv, armorTag, wantedSlot, FALLBACK_MIN_REMAINING);
+        return findBestArmorByMaxDamage(inv, armorTag, wantedSlot, FALLBACK_MIN_REMAINING, extras);
     }
 
     /**
@@ -285,7 +379,7 @@ public final class AutoRestockSearch {
      *                     no constraint (on-break path).
      */
     private static int findBestByMaxDamage(Inventory inv, TagKey<Item> tag, int excludeSlot,
-                                           int minRemaining) {
+                                           int minRemaining, List<ExtraSlot> extras) {
         int bestSlot = NONE;
         int bestMaxDamage = -1;
         for (int i = HOTBAR_START; i < MAIN_INV_END; i++) {
@@ -304,12 +398,28 @@ public final class AutoRestockSearch {
                 bestSlot = i;
             }
         }
+        // Extras (pockets) compete with strict > — inventory keeps ties.
+        for (ExtraSlot ex : extras) {
+            ItemStack candidate = ex.stack();
+            if (candidate.isEmpty()) continue;
+            if (!candidate.is(tag)) continue;
+            if (minRemaining > 0) {
+                int remaining = candidate.getMaxDamage() - candidate.getDamageValue();
+                if (remaining <= minRemaining) continue;
+            }
+            int maxDamage = candidate.getMaxDamage();
+            if (maxDamage > bestMaxDamage) {
+                bestMaxDamage = maxDamage;
+                bestSlot = ex.id();
+            }
+        }
         return bestSlot;
     }
 
     /** Armor variant: also enforces matching equippable slot. */
     private static int findBestArmorByMaxDamage(Inventory inv, TagKey<Item> tag,
-                                                EquipmentSlot wantedSlot, int minRemaining) {
+                                                EquipmentSlot wantedSlot, int minRemaining,
+                                                List<ExtraSlot> extras) {
         int bestSlot = NONE;
         int bestMaxDamage = -1;
         for (int i = HOTBAR_START; i < MAIN_INV_END; i++) {
@@ -326,6 +436,21 @@ public final class AutoRestockSearch {
             if (maxDamage > bestMaxDamage) {
                 bestMaxDamage = maxDamage;
                 bestSlot = i;
+            }
+        }
+        for (ExtraSlot ex : extras) {
+            ItemStack candidate = ex.stack();
+            if (candidate.isEmpty()) continue;
+            if (!candidate.is(tag)) continue;
+            if (!isEquippableToSlot(candidate, wantedSlot)) continue;
+            if (minRemaining > 0) {
+                int remaining = candidate.getMaxDamage() - candidate.getDamageValue();
+                if (remaining <= minRemaining) continue;
+            }
+            int maxDamage = candidate.getMaxDamage();
+            if (maxDamage > bestMaxDamage) {
+                bestMaxDamage = maxDamage;
+                bestSlot = ex.id();
             }
         }
         return bestSlot;

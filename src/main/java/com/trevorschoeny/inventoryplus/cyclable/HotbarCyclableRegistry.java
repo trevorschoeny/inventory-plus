@@ -1,5 +1,7 @@
 package com.trevorschoeny.inventoryplus.cyclable;
 
+import net.minecraft.world.entity.player.Player;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -71,6 +73,29 @@ public final class HotbarCyclableRegistry {
     }
 
     /**
+     * Aggregate every registered cycler's {@linkplain
+     * HotbarCyclable#extraSearchSlots(Player) extra searchable slots} —
+     * the slots that live outside the 0-35 inventory model (e.g., Pocket
+     * Cycler's pockets). Callers fold these into tool search alongside the
+     * real 0-35 slots; the returned {@link HotbarCyclable.ExtraSlot} ids
+     * route back through {@link #cyclablePosition} / {@link #bringToHotbar}
+     * like any other claimed slot.
+     *
+     * <p>Returns an empty list when no cycler contributes extras (the
+     * common case — Column Cycler alone). Order follows registration order
+     * then each cycler's own ordering; callers that care about priority
+     * (e.g., "inventory before pockets") scan 0-35 first, then this.
+     */
+    public static List<HotbarCyclable.ExtraSlot> extraSearchSlots(Player player) {
+        if (CYCLERS.isEmpty()) return List.of();
+        List<HotbarCyclable.ExtraSlot> all = new ArrayList<>();
+        for (HotbarCyclable c : CYCLERS) {
+            all.addAll(c.extraSearchSlots(player));
+        }
+        return all;
+    }
+
+    /**
      * Dispatch a bring-to-hotbar operation to whichever cycler claims
      * the slot. Returns the cycler's undo handle, or
      * {@link CyclerOperation#NO_OP} if no cycler claims the slot.
@@ -86,5 +111,20 @@ public final class HotbarCyclableRegistry {
             }
         }
         return CyclerOperation.NO_OP;
+    }
+
+    /**
+     * Dispatch a {@linkplain HotbarCyclable#quickMoveOut(int) quick-move-out}
+     * to whichever cycler owns the slot. Returns {@code true} if a cycler
+     * handled it — an extra/out-of-inventory slot (e.g., a pocket) whose
+     * content was moved server-side toward its destination. Returns
+     * {@code false} when no cycler claims the slot, signalling the caller to
+     * move it as an ordinary inventory slot via a normal client-side click.
+     */
+    public static boolean quickMoveOut(int slot) {
+        for (HotbarCyclable c : CYCLERS) {
+            if (c.quickMoveOut(slot)) return true;
+        }
+        return false;
     }
 }

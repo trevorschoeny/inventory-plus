@@ -2,6 +2,7 @@ package com.trevorschoeny.inventoryplus.autorestock;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
+import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclable.ExtraSlot;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 
 import net.minecraft.client.Minecraft;
@@ -11,6 +12,8 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.item.ItemStack;
+
+import java.util.List;
 
 /**
  * Per-tick auto-restock detection + action loop.
@@ -241,7 +244,12 @@ public final class AutoRestockTicker {
         if (isDamageable(prev)) return;   // damageable items handled by path 2/3
         boolean isActiveHotbar = targetClickKey != SWAP_OFFHAND_KEY;
         int excludeSlot = isActiveHotbar ? targetClickKey : AutoRestockSearch.NONE;
-        int source = AutoRestockSearch.findSource(inv, prev, excludeSlot);
+        // The active hand can dynamic-switch to a cycler's extra slots
+        // (pockets); the offhand is a non-held move (deferred), so it stays
+        // inventory-only for now.
+        List<ExtraSlot> extras = isActiveHotbar
+                ? HotbarCyclableRegistry.extraSearchSlots(player) : List.of();
+        int source = AutoRestockSearch.findSource(inv, prev, excludeSlot, extras);
         if (source == AutoRestockSearch.NONE) return;
         if (isActiveHotbar) {
             refillActiveHotbarSlot(gameMode, player, source, targetClickKey, "item-restock", prev);
@@ -276,7 +284,11 @@ public final class AutoRestockTicker {
         }
         boolean isActiveHotbar = targetClickKey != SWAP_OFFHAND_KEY;
         int excludeSlot = isActiveHotbar ? targetClickKey : AutoRestockSearch.NONE;
-        int source = AutoRestockSearch.findSource(inv, prev, excludeSlot);
+        // Active hand can dynamic-switch to a cycler's extra slots (pockets);
+        // offhand stays inventory-only (non-held move, deferred).
+        List<ExtraSlot> extras = isActiveHotbar
+                ? HotbarCyclableRegistry.extraSearchSlots(player) : List.of();
+        int source = AutoRestockSearch.findSource(inv, prev, excludeSlot, extras);
         if (source == AutoRestockSearch.NONE) {
             InventoryPlusClient.LOGGER.debug(
                     "[break-restock] no replacement for target={} item={}",
@@ -312,10 +324,23 @@ public final class AutoRestockTicker {
                     slot);
             return;
         }
-        int source = AutoRestockSearch.findArmorSource(inv, prev);
+        // Armor can be restocked from a cycler's extra slots (pockets) too —
+        // it's a non-held move, so it routes via quickMoveOut, not a dynamic
+        // switch.
+        List<ExtraSlot> extras = HotbarCyclableRegistry.extraSearchSlots(player);
+        int source = AutoRestockSearch.findArmorSource(inv, prev, extras);
         if (source == AutoRestockSearch.NONE) {
             InventoryPlusClient.LOGGER.debug(
                     "[break-restock] no replacement for armor[{}] item={}",
+                    slot, prev.getItem());
+            return;
+        }
+        // A pocket source moves server-side (inert client-side in-world); an
+        // ordinary 0–35 source falls through to the client quick-move, which
+        // vanilla routes to the now-empty armor slot.
+        if (HotbarCyclableRegistry.quickMoveOut(source)) {
+            InventoryPlusClient.LOGGER.debug(
+                    "[break-restock] armor[{}] ← pocket (server quick-move) ({})",
                     slot, prev.getItem());
             return;
         }
@@ -336,7 +361,10 @@ public final class AutoRestockTicker {
                                                 LocalPlayer player, int selected) {
         ItemStack now = inv.getItem(selected);
         if (!tookDamageThisTick(now)) return;
-        int source = AutoRestockSearch.findHigherDurability(inv, now, selected);
+        // Before-break swap can pull a fresher copy from a cycler's extra slots
+        // (pockets) into the active hand — the dynamic-switch path.
+        List<ExtraSlot> extras = HotbarCyclableRegistry.extraSearchSlots(player);
+        int source = AutoRestockSearch.findHigherDurability(inv, now, selected, extras);
         if (source == AutoRestockSearch.NONE) {
             InventoryPlusClient.LOGGER.debug(
                     "[durability-restock] no replacement for hotbar[{}] item={}",

@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.autotoolswitch;
 
 import com.trevorschoeny.inventoryplus.config.IPConfig;
+import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclable.ExtraSlot;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 
@@ -11,6 +12,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.state.BlockState;
 
+import java.util.List;
 import java.util.function.IntPredicate;
 import java.util.function.Predicate;
 import java.util.function.ToDoubleFunction;
@@ -23,9 +25,11 @@ import java.util.function.ToDoubleFunction;
  * three-tier resolution priority:
  * <ol>
  *   <li><b>Tier 1</b> — already in hotbar (slots 0-8, excluding the active slot).</li>
- *   <li><b>Tier 2</b> — in a cyclable hotbar position (slots 9-35 claimed by any
+ *   <li><b>Tier 2</b> — in a cyclable hotbar position: inv slots 9-35 claimed by any
  *       {@link com.trevorschoeny.inventoryplus.cyclable.HotbarCyclable} via
- *       {@link HotbarCyclableRegistry#cyclablePosition}).</li>
+ *       {@link HotbarCyclableRegistry#cyclablePosition}, or an extra slot outside
+ *       the 0-35 model (Pocket Cycler's pockets) via
+ *       {@link HotbarCyclableRegistry#extraSearchSlots}.</li>
  *   <li><b>Tier 3</b> — elsewhere in main inventory (slots 9-35 with no cyclable claim).</li>
  * </ol>
  *
@@ -133,17 +137,70 @@ public final class ToolFinder {
      * Three-tier search: tier 1 first; if no match, tier 2; if no match,
      * tier 3. Stops at the first tier with a match — tier-first priority
      * (minimal disruption beats material upgrade).
+     *
+     * <p>Tier 2 spans both cyclable inv slots (9-35) <b>and</b> extra
+     * cyclable slots that live outside the 0-35 model (Pocket Cycler's
+     * pockets), pulled via {@link HotbarCyclableRegistry#extraSearchSlots}.
+     * Both are reached by a cycler's native action, so they share a tier;
+     * within it, score wins, then proximity, then inventory-over-extra on a
+     * full tie (consistent with auto-restock's inventory-before-pockets
+     * ordering).
      */
     private static Match findBestByTier(Inventory inv, Predicate<ItemStack> isMatch, ToDoubleFunction<ItemStack> scorer) {
         int activeSlot = inv.getSelectedSlot();
         // Tier 1: hotbar slots (0-8), excluding the active slot itself.
         Match t1 = scanRange(inv, 0, 8, activeSlot, isMatch, scorer, slot -> true);
         if (t1 != null) return t1;
-        // Tier 2: cyclable inv slots (claimed by some HotbarCyclable).
-        Match t2 = scanRange(inv, 9, 35, activeSlot, isMatch, scorer, ToolFinder::isCyclable);
+        // Tier 2: cyclable inv slots (9-35) ∪ extra cyclable slots (pockets).
+        Match t2inv = scanRange(inv, 9, 35, activeSlot, isMatch, scorer, ToolFinder::isCyclable);
+        Match t2extra = scanExtras(
+                HotbarCyclableRegistry.extraSearchSlots(inv.player), activeSlot, isMatch, scorer);
+        Match t2 = pickBetter(t2inv, t2extra, activeSlot);
         if (t2 != null) return t2;
         // Tier 3: remaining inv slots (not cyclable).
         return scanRange(inv, 9, 35, activeSlot, isMatch, scorer, slot -> !isCyclable(slot));
+    }
+
+    /**
+     * Scan extra cyclable slots (pockets etc.) — the out-of-0-35 analogue
+     * of {@link #scanRange}. Each {@link ExtraSlot} carries its own live
+     * stack, so no inventory read is needed; the slot's <i>id</i> becomes
+     * the {@link Match} slot index, routed back through the cyclable
+     * registry by the caller (it resolves to a hotbar position like any
+     * Tier-2 slot). Proximity tiebreak uses the slot's hotbar column per
+     * {@link #columnOf}.
+     */
+    private static Match scanExtras(List<ExtraSlot> extras, int activeSlot,
+                                    Predicate<ItemStack> isMatch, ToDoubleFunction<ItemStack> scorer) {
+        Match best = null;
+        for (ExtraSlot ex : extras) {
+            ItemStack stack = ex.stack();
+            if (stack.isEmpty()) continue;
+            if (!isMatch.test(stack)) continue;
+            double score = scorer.applyAsDouble(stack);
+            if (best == null || score > best.score()) {
+                best = new Match(ex.id(), score);
+            } else if (score == best.score()) {
+                if (columnDistance(ex.id(), activeSlot) < columnDistance(best.slotIndex(), activeSlot)) {
+                    best = new Match(ex.id(), score);
+                }
+            }
+        }
+        return best;
+    }
+
+    /**
+     * Pick the higher-scoring of two matches; on a score tie the one whose
+     * column is closer to the active slot wins, and on a full tie {@code a}
+     * is kept. Tier 2 passes the inventory match as {@code a} so a loose
+     * inventory copy beats an equally-good, equally-close pocket copy.
+     */
+    private static Match pickBetter(Match a, Match b, int activeSlot) {
+        if (a == null) return b;
+        if (b == null) return a;
+        if (b.score() > a.score()) return b;
+        if (b.score() < a.score()) return a;
+        return (columnDistance(b.slotIndex(), activeSlot) < columnDistance(a.slotIndex(), activeSlot)) ? b : a;
     }
 
     /**
@@ -190,12 +247,23 @@ public final class ToolFinder {
 
     /**
      * Column-based distance from a slot to the active hotbar slot.
-     * For hotbar slots (0-8): direct column index. For inv slots
-     * (9-35): col = slot % 9. Distance = absolute column difference.
+     * Distance = absolute difference of {@link #columnOf hotbar columns}.
      */
     private static int columnDistance(int slot, int activeHotbarSlot) {
-        int col = (slot <= 8) ? slot : (slot % 9);
-        return Math.abs(col - activeHotbarSlot);
+        return Math.abs(columnOf(slot) - activeHotbarSlot);
+    }
+
+    /**
+     * The hotbar column (0-8) a slot maps to. Hotbar slots (0-8) are their
+     * own column; inv slots (9-35) use {@code slot % 9}; an extra slot id
+     * (pocket etc.) resolves through the cyclable registry to the hotbar
+     * position its native action brings it to. Unknown ids fall back to 0.
+     */
+    private static int columnOf(int slot) {
+        if (slot >= 0 && slot <= 8) return slot;
+        if (slot >= 9 && slot <= 35) return slot % 9;
+        int pos = HotbarCyclableRegistry.cyclablePosition(slot);
+        return pos != -1 ? pos : 0;
     }
 
     /**
