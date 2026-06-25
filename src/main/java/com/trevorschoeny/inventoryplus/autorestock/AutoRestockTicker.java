@@ -2,6 +2,7 @@ package com.trevorschoeny.inventoryplus.autorestock;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
+import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
@@ -481,35 +482,52 @@ public final class AutoRestockTicker {
     }
 
     /**
-     * Fills the player's active hotbar slot from {@code source}. If
-     * {@code source} is another hotbar slot (0–8, by construction not the
-     * active slot — the search excludes it), changes the selected slot
-     * to {@code source} rather than moving the item — leaves both stacks
-     * in place and just shifts the player's hand. This is the
-     * cycling-friendly form that future Auto Swap / cycling features will
-     * compose with directly. If {@code source} is in main inventory
-     * (9–35), falls back to a standard SWAP click that moves the item
-     * into the active hotbar slot.
+     * Fills the player's active hotbar slot from {@code source}, in three tiers
+     * (mirroring Auto Tool Switch's resolution):
+     * <ul>
+     *   <li><b>Hotbar source (0–8):</b> change the selected slot to {@code source}
+     *       — leaves both stacks in place, just shifts the hand.</li>
+     *   <li><b>Cyclable source:</b> the replacement is reachable into the hotbar
+     *       via a registered cycler (Column Cycler, pocket). Change the selection
+     *       to the cycler's hotbar position and have the cycler bring it down,
+     *       preserving the cycle instead of yanking the item out.</li>
+     *   <li><b>Main-inventory source (9–35):</b> standard SWAP into the active
+     *       hotbar slot.</li>
+     * </ul>
      */
     private static void refillActiveHotbarSlot(MultiPlayerGameMode gameMode, LocalPlayer player,
                                                int source, int activeSlot,
                                                String logTag, ItemStack itemForLog) {
         if (source >= AutoRestockSearch.HOTBAR_START && source < AutoRestockSearch.MAIN_INV_START) {
-            // Hotbar source — move selected. The search excluded activeSlot,
+            // Tier 1: hotbar source — move selected. The search excluded activeSlot,
             // so source != activeSlot is guaranteed.
             player.getInventory().setSelectedSlot(source);
             InventoryPlusClient.LOGGER.debug(
                     "[{}] selected {} → {} (hotbar source, no item move) ({})",
                     logTag, activeSlot, source, itemForLog.getItem());
-        } else {
-            // Main inv source — standard SWAP into active slot.
-            gameMode.handleInventoryMouseClick(
-                    player.inventoryMenu.containerId,
-                    source, activeSlot, ClickType.SWAP, player);
-            InventoryPlusClient.LOGGER.debug(
-                    "[{}] hotbar[{}] ← src[{}] (item swap) ({})",
-                    logTag, activeSlot, source, itemForLog.getItem());
+            return;
         }
+        int cyclablePos = HotbarCyclableRegistry.cyclablePosition(source);
+        if (cyclablePos != -1) {
+            // Tier 2: replacement is in a cyclable slot (Column Cycler, pocket).
+            // Don't yank it out — change the selection to the cycler's hotbar
+            // position and have the cycler bring the item down, preserving the
+            // cycle. Same dynamic switch Auto Tool Switch performs. No undo handle
+            // is kept: a restock is a permanent refill, not a temporary switch.
+            player.getInventory().setSelectedSlot(cyclablePos);
+            HotbarCyclableRegistry.bringToHotbar(source);
+            InventoryPlusClient.LOGGER.debug(
+                    "[{}] selected {} → cyclable pos {} (src {} cycled down) ({})",
+                    logTag, activeSlot, cyclablePos, source, itemForLog.getItem());
+            return;
+        }
+        // Tier 3: main inv source — standard SWAP into the active slot.
+        gameMode.handleInventoryMouseClick(
+                player.inventoryMenu.containerId,
+                source, activeSlot, ClickType.SWAP, player);
+        InventoryPlusClient.LOGGER.debug(
+                "[{}] hotbar[{}] ← src[{}] (item swap) ({})",
+                logTag, activeSlot, source, itemForLog.getItem());
     }
 
     /**
