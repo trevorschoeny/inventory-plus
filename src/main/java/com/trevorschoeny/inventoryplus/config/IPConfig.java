@@ -7,6 +7,7 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
+import com.trevorschoeny.inventoryplus.autotoolswitch.AutoSwitchReturnMode;
 import com.trevorschoeny.inventoryplus.autotoolswitch.WeaponPreference;
 import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
 
@@ -88,7 +89,10 @@ public final class IPConfig {
     // Auto Tool Switch spec + AutoToolSwitch class javadoc for the
     // three-tier resolution and auto-return mechanics.
     private static boolean autoToolSwitchEnabled = false;
-    private static boolean autoToolSwitchReturn = false;     // sub of Enabled
+    // Return mode + window: how/when the hotbar snaps back after a switch.
+    // Replaces the old boolean autoToolSwitchReturn (migrated in load()).
+    private static AutoSwitchReturnMode autoToolSwitchReturnMode = AutoSwitchReturnMode.OFF;
+    private static int autoToolSwitchReturnCooldownSeconds = 3;  // window for SNEAK / HOTKEY_TIMED
     private static boolean autoToolSwitchWeapons = false;    // sub of Enabled
     private static boolean autoToolSwitchAllMobs = false;    // sub of Weapons; false = hostile only
     // Preferred weapon type — wins regardless of material when the
@@ -153,7 +157,16 @@ public final class IPConfig {
             autoRestockShulker           = readBool(root, "autoRestockShulker",           autoRestockShulker);
             autoRestockShulkerAmmo       = readBool(root, "autoRestockShulkerAmmo",       autoRestockShulkerAmmo);
             autoToolSwitchEnabled  = readBool(root, "autoToolSwitchEnabled",  autoToolSwitchEnabled);
-            autoToolSwitchReturn   = readBool(root, "autoToolSwitchReturn",   autoToolSwitchReturn);
+            // Migrate the old boolean (true → AUTOMATIC, false → OFF), then let a
+            // present mode key override it.
+            if (root.has("autoToolSwitchReturn")) {
+                autoToolSwitchReturnMode = readBool(root, "autoToolSwitchReturn", false)
+                        ? AutoSwitchReturnMode.AUTOMATIC : AutoSwitchReturnMode.OFF;
+            }
+            autoToolSwitchReturnMode = AutoSwitchReturnMode.fromName(
+                    readString(root, "autoToolSwitchReturnMode", null), autoToolSwitchReturnMode);
+            autoToolSwitchReturnCooldownSeconds = readInt(root, "autoToolSwitchReturnCooldownSeconds",
+                    autoToolSwitchReturnCooldownSeconds);
             autoToolSwitchWeapons  = readBool(root, "autoToolSwitchWeapons",  autoToolSwitchWeapons);
             autoToolSwitchAllMobs  = readBool(root, "autoToolSwitchAllMobs",  autoToolSwitchAllMobs);
             autoToolSwitchWeaponPreference = WeaponPreference.fromName(readString(root, "autoToolSwitchWeaponPreference", null), autoToolSwitchWeaponPreference);
@@ -189,6 +202,12 @@ public final class IPConfig {
                 : fallback;
     }
 
+    private static int readInt(JsonObject root, String key, int fallback) {
+        return root.has(key) && root.get(key).isJsonPrimitive()
+                ? root.get(key).getAsInt()
+                : fallback;
+    }
+
     private static void save() {
         Path path = filePath();
         try {
@@ -203,7 +222,8 @@ public final class IPConfig {
             root.addProperty("autoRestockShulker",          autoRestockShulker);
             root.addProperty("autoRestockShulkerAmmo",      autoRestockShulkerAmmo);
             root.addProperty("autoToolSwitchEnabled",   autoToolSwitchEnabled);
-            root.addProperty("autoToolSwitchReturn",    autoToolSwitchReturn);
+            root.addProperty("autoToolSwitchReturnMode", autoToolSwitchReturnMode.name());
+            root.addProperty("autoToolSwitchReturnCooldownSeconds", autoToolSwitchReturnCooldownSeconds);
             root.addProperty("autoToolSwitchWeapons",   autoToolSwitchWeapons);
             root.addProperty("autoToolSwitchAllMobs",   autoToolSwitchAllMobs);
             root.addProperty("autoToolSwitchWeaponPreference", autoToolSwitchWeaponPreference.name());
@@ -232,7 +252,8 @@ public final class IPConfig {
     public static boolean autoRestockShulker()          { return autoRestockShulker; }
     public static boolean autoRestockShulkerAmmo()      { return autoRestockShulkerAmmo; }
     public static boolean autoToolSwitchEnabled()       { return autoToolSwitchEnabled; }
-    public static boolean autoToolSwitchReturn()        { return autoToolSwitchReturn; }
+    public static AutoSwitchReturnMode autoToolSwitchReturnMode() { return autoToolSwitchReturnMode; }
+    public static int autoToolSwitchReturnCooldownSeconds()       { return autoToolSwitchReturnCooldownSeconds; }
     public static boolean autoToolSwitchWeapons()       { return autoToolSwitchWeapons; }
     public static boolean autoToolSwitchAllMobs()       { return autoToolSwitchAllMobs; }
     public static WeaponPreference autoToolSwitchWeaponPreference() { return autoToolSwitchWeaponPreference; }
@@ -254,7 +275,8 @@ public final class IPConfig {
     public static void setAutoRestockShulker(boolean v)          { autoRestockShulker = v; save(); }
     public static void setAutoRestockShulkerAmmo(boolean v)      { autoRestockShulkerAmmo = v; save(); }
     public static void setAutoToolSwitchEnabled(boolean v)       { autoToolSwitchEnabled = v; save(); }
-    public static void setAutoToolSwitchReturn(boolean v)        { autoToolSwitchReturn = v; save(); }
+    public static void setAutoToolSwitchReturnMode(AutoSwitchReturnMode v) { autoToolSwitchReturnMode = v; save(); }
+    public static void setAutoToolSwitchReturnCooldownSeconds(int v)       { autoToolSwitchReturnCooldownSeconds = v; save(); }
     public static void setAutoToolSwitchWeapons(boolean v)       { autoToolSwitchWeapons = v; save(); }
     public static void setAutoToolSwitchAllMobs(boolean v)       { autoToolSwitchAllMobs = v; save(); }
     public static void setAutoToolSwitchWeaponPreference(WeaponPreference v) { autoToolSwitchWeaponPreference = v; save(); }

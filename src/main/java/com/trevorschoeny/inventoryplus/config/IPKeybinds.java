@@ -91,6 +91,20 @@ public final class IPKeybinds {
             GLFW.GLFW_KEY_LEFT_BRACKET,
             CATEGORY);
 
+    /**
+     * Auto Tool Switch "return to previous tool" — defaults to <b>Left Shift
+     * (Sneak)</b> so "sneak to return" works out of the box (rebindable; it
+     * shares the key with vanilla Sneak, which is fine — both fire). Unlike the
+     * others (screen-scoped via {@code afterKeyPress}), this one is game-world
+     * input, polled via {@link KeyMapping#consumeClick()} on the client tick.
+     * Used by the HOTKEY_TIMED / HOTKEY_ANYTIME return modes.
+     */
+    public static final KeyMapping AUTO_SWITCH_RETURN = new KeyMapping(
+            "key.inventoryplus.auto_switch_return",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_LEFT_SHIFT,
+            CATEGORY);
+
     /** Register all keybinds with Fabric. Call once from client init. */
     public static void register() {
         KeyBindingHelper.registerKeyBinding(LOCK_SLOT);
@@ -100,5 +114,6 @@ public final class IPKeybinds {
         KeyBindingHelper.registerKeyBinding(CYCLE_SLOT);
         KeyBindingHelper.registerKeyBinding(CYCLE_FORWARD);
         KeyBindingHelper.registerKeyBinding(CYCLE_BACKWARD);
+        KeyBindingHelper.registerKeyBinding(AUTO_SWITCH_RETURN);
     }
 }

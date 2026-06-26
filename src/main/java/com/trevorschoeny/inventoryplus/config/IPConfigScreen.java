@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.config;
 
+import com.trevorschoeny.inventoryplus.autotoolswitch.AutoSwitchReturnMode;
 import com.trevorschoeny.inventoryplus.autotoolswitch.WeaponPreference;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
 import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
@@ -11,6 +12,7 @@ import dev.isxander.yacl3.api.OptionGroup;
 import dev.isxander.yacl3.api.YetAnotherConfigLib;
 import dev.isxander.yacl3.api.controller.BooleanControllerBuilder;
 import dev.isxander.yacl3.api.controller.EnumControllerBuilder;
+import dev.isxander.yacl3.api.controller.IntegerSliderControllerBuilder;
 
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -151,12 +153,32 @@ public final class IPConfigScreen {
                 IPConfig::autoToolSwitchEnabled,
                 IPConfig::setAutoToolSwitchEnabled);
 
-        Option<Boolean> returnAfter = booleanOption(
-                "    Auto-Return After Action",
-                "Restore your previous slot (and any cycling) after the action completes — on LMB release for mining; after attack-cooldown for combat.",
-                false,
-                IPConfig::autoToolSwitchReturn,
-                IPConfig::setAutoToolSwitchReturn);
+        Option<AutoSwitchReturnMode> returnMode = Option.<AutoSwitchReturnMode>createBuilder()
+                .name(Component.literal("    Return To Previous"))
+                .description(OptionDescription.of(Component.literal(
+                        "When/how the hotbar snaps back after a switch. "
+                        + "Off keeps the new tool. Automatic returns after the window, once you've stopped. "
+                        + "Hotkey (timed): press the Return keybind within the window (else the tool stays). "
+                        + "Hotkey (anytime): press the Return keybind whenever. "
+                        + "The Return keybind defaults to Sneak (Shift) — rebind under Controls > Inventory Plus.")))
+                .binding(AutoSwitchReturnMode.OFF,
+                        IPConfig::autoToolSwitchReturnMode,
+                        IPConfig::setAutoToolSwitchReturnMode)
+                .controller(opt -> EnumControllerBuilder.create(opt)
+                        .enumClass(AutoSwitchReturnMode.class)
+                        .valueFormatter(m -> Component.literal(m.displayName())))
+                .build();
+
+        Option<Integer> returnCooldown = Option.<Integer>createBuilder()
+                .name(Component.literal("        Return Window (seconds)"))
+                .description(OptionDescription.of(Component.literal(
+                        "How long after you stop before Automatic returns / the Hotkey (timed) window "
+                        + "stays open. Unused by Hotkey (anytime).")))
+                .binding(3,
+                        IPConfig::autoToolSwitchReturnCooldownSeconds,
+                        IPConfig::setAutoToolSwitchReturnCooldownSeconds)
+                .controller(opt -> IntegerSliderControllerBuilder.create(opt).range(1, 10).step(1))
+                .build();
 
         Option<Boolean> weapons = booleanOption(
                 "    Switch Weapons Too",
@@ -188,16 +210,22 @@ public final class IPConfigScreen {
         // Parent-gating: sub-toggles greyed out when master is off;
         // Weapons sub-toggles (All Mobs + Preferred Weapon) additionally
         // require Switch Weapons Too.
-        returnAfter.setAvailable(IPConfig.autoToolSwitchEnabled());
+        returnMode.setAvailable(IPConfig.autoToolSwitchEnabled());
+        returnCooldown.setAvailable(IPConfig.autoToolSwitchEnabled()
+                && IPConfig.autoToolSwitchReturnMode().isWindowed());
         weapons.setAvailable(IPConfig.autoToolSwitchEnabled());
         allMobs.setAvailable(IPConfig.autoToolSwitchEnabled() && IPConfig.autoToolSwitchWeapons());
         weaponPref.setAvailable(IPConfig.autoToolSwitchEnabled() && IPConfig.autoToolSwitchWeapons());
         enabled.addListener((opt, val) -> {
-            returnAfter.setAvailable(val);
+            returnMode.setAvailable(val);
+            returnCooldown.setAvailable(val && returnMode.pendingValue().isWindowed());
             weapons.setAvailable(val);
             allMobs.setAvailable(val && IPConfig.autoToolSwitchWeapons());
             weaponPref.setAvailable(val && IPConfig.autoToolSwitchWeapons());
         });
+        // Window slider only matters for the timed return modes.
+        returnMode.addListener((opt, val) ->
+                returnCooldown.setAvailable(enabled.pendingValue() && val.isWindowed()));
         weapons.addListener((opt, val) -> {
             allMobs.setAvailable(IPConfig.autoToolSwitchEnabled() && val);
             weaponPref.setAvailable(IPConfig.autoToolSwitchEnabled() && val);
@@ -208,7 +236,8 @@ public final class IPConfigScreen {
                 .description(OptionDescription.of(Component.literal(
                         "Auto-swap to the right tool when you hit a block. Optionally extend to weapons on mobs.")))
                 .option(enabled)
-                .option(returnAfter)
+                .option(returnMode)
+                .option(returnCooldown)
                 .option(weapons)
                 .option(allMobs)
                 .option(weaponPref)

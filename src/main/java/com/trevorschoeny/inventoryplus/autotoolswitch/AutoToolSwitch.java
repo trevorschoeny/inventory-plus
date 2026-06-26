@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.autotoolswitch;
 
 import com.trevorschoeny.inventoryplus.config.IPConfig;
+import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.cyclable.CyclerOperation;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 
@@ -73,7 +74,7 @@ import java.util.UUID;
  *
  * <h3>Auto-return (optional)</h3>
  *
- * When {@link IPConfig#autoToolSwitchReturn} is on, the mod captures
+ * When the return mode ({@link IPConfig#autoToolSwitchReturnMode}) isn't OFF, the mod captures
  * pre-switch state (previous selected slot + cycler undo handle or
  * inv-swap reversal info) into {@link #inFlight}, then restores it
  * when the action completes:
@@ -107,6 +108,20 @@ public final class AutoToolSwitch {
      * handler (for return triggering).
      */
     private static InFlight inFlight = null;
+
+    /**
+     * Delayed return state for the non-AUTOMATIC return modes (SNEAK /
+     * HOTKEY_*). Kept SEPARATE from {@link #inFlight} on purpose: inFlight stays
+     * exactly as before — short-lived, cleared the moment the action completes,
+     * which keeps the anti-thrash commit-at-start guard and re-switching working
+     * unchanged. When the action completes in a delayed mode, inFlight's captured
+     * state moves here and survives past the action so a sneak / keybind can
+     * return it later. Null when nothing is awaiting a delayed return.
+     */
+    private static InFlight pendingReturn = null;
+
+    /** {@code player.tickCount} when the pending-return window opened (windowed modes). */
+    private static int pendingReturnWindowStart = -1;
 
     /**
      * Tick (player.tickCount) of the most recent qualifying combat
@@ -159,6 +174,9 @@ public final class AutoToolSwitch {
         if (mc.player == null) return;
         Player player = mc.player;
         if (!IPConfig.autoToolSwitchEnabled()) return;
+        // Never auto-switch in creative — instant-break + infinite items make it
+        // pointless, and a switch there is just noise.
+        if (player.isCreative()) return;
         // Sneak suppression — player wants exact control.
         if (player.isShiftKeyDown()) return;
         // Commit-at-start: skip if a switch is already in flight
@@ -189,6 +207,8 @@ public final class AutoToolSwitch {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || !player.getUUID().equals(mc.player.getUUID())) return;
         if (!IPConfig.autoToolSwitchEnabled()) return;
+        // Never auto-switch in creative.
+        if (player.isCreative()) return;
         // Weapons toggle gates the combat path entirely.
         if (!IPConfig.autoToolSwitchWeapons()) return;
         // Only LivingEntity targets — projectiles, items, etc. don't get
@@ -257,14 +277,12 @@ public final class AutoToolSwitch {
             }
         }
 
-        // Only retain in-flight state if auto-return is on. When off,
-        // the switch is permanent (player keeps the new tool until
-        // they manually switch — scroll, slot key, etc.).
-        if (IPConfig.autoToolSwitchReturn()) {
-            inFlight = state;
-        } else {
-            inFlight = null;
-        }
+        // Retain in-flight state whenever the return mode returns at all (any
+        // mode but OFF). A new switch supersedes any still-pending return from a
+        // prior switch — you keep that earlier tool, and this switch's
+        // previous-state becomes the new thing we can return to.
+        pendingReturn = null;
+        inFlight = IPConfig.autoToolSwitchReturnMode().returnsAtAll() ? state : null;
     }
 
     /**
@@ -310,42 +328,137 @@ public final class AutoToolSwitch {
     // ─── Auto-return ─────────────────────────────────────────────────
 
     private static void onClientTick(Minecraft mc) {
-        if (inFlight == null) return;
+        // Always drain the return keybind, even when nothing's switched, so a
+        // stray press doesn't fire on the next switch.
+        boolean keyReturn = drainReturnKeybind();
+
         Player player = mc.player;
         if (player == null) {
-            // Lost the player (disconnect, dimension change, etc.) —
-            // discard pending state; reversal would be unsafe anyway.
+            // Lost the player (disconnect, dimension change, etc.) — discard
+            // pending state; reversal would be unsafe anyway.
             inFlight = null;
+            pendingReturn = null;
             return;
         }
+        if (inFlight == null && pendingReturn == null) return;
 
-        boolean shouldReturn = false;
-        if (inFlight.action == Action.MINING) {
-            // LMB released → mining session over. Trigger return.
-            // (The same key controls "attack" and mining LMB.)
-            if (!mc.options.keyAttack.isDown()) {
-                shouldReturn = true;
+        AutoSwitchReturnMode mode = IPConfig.autoToolSwitchReturnMode();
+
+        // HOTKEY_ANYTIME: the keybind returns whatever's active right now —
+        // a still-pending return, or an in-flight switch mid-action — no window.
+        if (mode == AutoSwitchReturnMode.HOTKEY_ANYTIME && keyReturn) {
+            if (pendingReturn != null) {
+                doReturn(pendingReturn, mc);
+                pendingReturn = null;
+            } else if (inFlight != null) {
+                doReturn(inFlight, mc);
+                inFlight = null;
             }
-        } else if (inFlight.action == Action.COMBAT) {
-            // Return when the player has clearly stopped attacking: a
-            // full weapon-cooldown plus a small grace buffer has elapsed
-            // since the last qualifying attack. Using the held weapon's
-            // own cooldown (getCurrentItemAttackStrengthDelay) makes this
-            // cadence-aware — a slow mace gets a longer window than a
-            // fast sword — and the grace buffer avoids returning BETWEEN
-            // swings when the player is swinging at near-max cadence
-            // (which would thrash the weapon out and back in).
-            float cooldownTicks = player.getCurrentItemAttackStrengthDelay();
-            int ticksSinceAttack = player.tickCount - combatLastAttackTick;
-            if (combatLastAttackTick >= 0 && ticksSinceAttack >= cooldownTicks + COMBAT_RETURN_GRACE_TICKS) {
-                shouldReturn = true;
-            }
+            keyReturn = false; // consumed
         }
 
-        if (shouldReturn) {
-            doReturn(inFlight, mc);
+        // When the triggering action finishes, hand the captured state off to
+        // pendingReturn — for ALL returning modes (AUTOMATIC waits out the window
+        // too now). inFlight clears here, keeping the anti-thrash guard +
+        // re-switching exactly as before.
+        if (inFlight != null && isActionComplete(inFlight, mc, player)) {
+            if (mode != AutoSwitchReturnMode.OFF) {
+                // Snapshot the (now-settled) post-switch state as the baseline;
+                // if it later drifts, the player took manual control → void it.
+                inFlight.baselineSlot = player.getInventory().getSelectedSlot();
+                inFlight.baselineItem = player.getInventory().getItem(inFlight.baselineSlot).copy();
+                pendingReturn = inFlight;
+                pendingReturnWindowStart = player.tickCount;
+            }
             inFlight = null;
         }
+
+        // Manual control voids the return: the instant the player's selected slot
+        // or the switched tool's slot drifts from the post-switch baseline (scroll,
+        // number-key, manual cycle, move, break), drop the pending return so the
+        // keybind / auto-return does nothing.
+        if (pendingReturn != null && divergedFromBaseline(player)) {
+            pendingReturn = null;
+        }
+
+        // Pending return.
+        if (pendingReturn != null) {
+            // Windowed modes (AUTOMATIC + HOTKEY_TIMED): hold the window open while
+            // the action has resumed, so it only counts down once you've truly
+            // stopped — the return never fires mid-action.
+            if (mode.isWindowed() && !isActionComplete(pendingReturn, mc, player)) {
+                pendingReturnWindowStart = player.tickCount;
+            }
+            switch (mode) {
+                case AUTOMATIC -> {
+                    // Auto-return once the idle window elapses.
+                    if (windowExpired(player)) {
+                        doReturn(pendingReturn, mc);
+                        pendingReturn = null;
+                    }
+                }
+                case HOTKEY_TIMED -> {
+                    // Keybind within the window returns; else the window passes
+                    // and the tool stays (new baseline).
+                    if (keyReturn) {
+                        doReturn(pendingReturn, mc);
+                        pendingReturn = null;
+                    } else if (windowExpired(player)) {
+                        pendingReturn = null;
+                    }
+                }
+                case HOTKEY_ANYTIME -> {
+                    if (keyReturn) {
+                        doReturn(pendingReturn, mc);
+                        pendingReturn = null;
+                    }
+                }
+                default -> pendingReturn = null; // OFF mid-flight → drop
+            }
+        }
+    }
+
+    /**
+     * Whether the switch's triggering action has finished: mining LMB released,
+     * or a full weapon-cooldown + grace buffer elapsed since the last combat
+     * attack (cadence-aware via the held weapon's own cooldown, so a combo isn't
+     * cut between swings). This is the same completion test the original
+     * auto-return used; it now also gates opening the delayed-return window.
+     */
+    private static boolean isActionComplete(InFlight state, Minecraft mc, Player player) {
+        if (state.action == Action.MINING) {
+            return !mc.options.keyAttack.isDown();
+        }
+        float cooldownTicks = player.getCurrentItemAttackStrengthDelay();
+        int ticksSinceAttack = player.tickCount - combatLastAttackTick;
+        return combatLastAttackTick >= 0 && ticksSinceAttack >= cooldownTicks + COMBAT_RETURN_GRACE_TICKS;
+    }
+
+    /** Whether the pending-return window has elapsed (config seconds → ticks). */
+    private static boolean windowExpired(Player player) {
+        int cooldownTicks = Math.max(1, IPConfig.autoToolSwitchReturnCooldownSeconds()) * 20;
+        return player.tickCount - pendingReturnWindowStart >= cooldownTicks;
+    }
+
+    /**
+     * Whether the player has manually changed state since the switch: the selected
+     * slot moved off the baseline, or the switched tool's slot no longer holds
+     * that tool (scroll, number-key, manual cycle, move, swap, break). Compared
+     * against the post-switch baseline (the auto-switch state), so the switch's own
+     * effect doesn't count; durability ticks don't count (same-item compare).
+     */
+    private static boolean divergedFromBaseline(Player player) {
+        if (pendingReturn == null) return false;
+        Inventory inv = player.getInventory();
+        if (inv.getSelectedSlot() != pendingReturn.baselineSlot) return true;
+        return !ItemStack.isSameItem(inv.getItem(pendingReturn.baselineSlot), pendingReturn.baselineItem);
+    }
+
+    /** Consume + drain the return keybind; true if it was pressed this tick. */
+    private static boolean drainReturnKeybind() {
+        boolean pressed = false;
+        while (IPKeybinds.AUTO_SWITCH_RETURN.consumeClick()) pressed = true;
+        return pressed;
     }
 
     /**
@@ -403,5 +516,14 @@ public final class AutoToolSwitch {
          * restock. EMPTY for tiers 1 and 2.
          */
         ItemStack invSwapExpectedActiveItem = ItemStack.EMPTY;
+        /**
+         * Post-switch baseline, captured when the switch hands off to
+         * pendingReturn (action complete, so settled — incl. pocket round-trip):
+         * the selected slot + the item in it. If either later drifts, the player
+         * took manual control and the pending return is voided. Compared against
+         * THIS (the auto-switch state), not the pre-switch state.
+         */
+        int baselineSlot = -1;
+        ItemStack baselineItem = ItemStack.EMPTY;
     }
 }

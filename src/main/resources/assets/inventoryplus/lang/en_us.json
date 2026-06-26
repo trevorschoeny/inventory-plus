@@ -7,5 +7,6 @@
   "key.inventoryplus.move_matching_out":  "Move Matching OUT",
   "key.inventoryplus.cycle_slot":         "Toggle Cycle Slot",
   "key.inventoryplus.cycle_forward":      "Cycle Forward",
-  "key.inventoryplus.cycle_backward":     "Cycle Backward"
+  "key.inventoryplus.cycle_backward":     "Cycle Backward",
+  "key.inventoryplus.auto_switch_return": "Auto-Switch: Return to Previous Tool"
 }
