@@ -50,6 +50,9 @@ public final class CycleHud {
     private static final int STRIP_GAP_FROM_HOTBAR_PX = 4;
     private static final int HOTBAR_HALF_WIDTH_PX = 91;
     private static final int ITEM_OFFSET_PX = 3;
+    /** Item X inset is 1px less than Y — the icons were sitting a pixel right of
+     *  center in their cell (Trev 2026-06-25). */
+    private static final int ITEM_OFFSET_X_PX = ITEM_OFFSET_PX - 1;
     /** The floating vertical stack clears the shared hotbar cell by this many px. */
     private static final int COLUMN_RISE_PX = 1;
     /** The floating vertical stack sits this many px right of the shared held cell. */
@@ -340,7 +343,7 @@ public final class CycleHud {
 
     private static void renderItem(GuiGraphics graphics, Minecraft mc, ItemStack stack, int slotX, int slotY) {
         if (stack.isEmpty()) return;
-        int itemX = slotX + ITEM_OFFSET_PX;
+        int itemX = slotX + ITEM_OFFSET_X_PX;
         int itemY = slotY + ITEM_OFFSET_PX;
         graphics.renderItem(stack, itemX, itemY);
         graphics.renderItemDecorations(mc.font, stack, itemX, itemY);
