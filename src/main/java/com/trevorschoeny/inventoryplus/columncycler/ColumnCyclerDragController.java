@@ -88,7 +88,7 @@ public final class ColumnCyclerDragController {
             return;
         }
 
-        Screen screen = mc.screen;
+        Screen screen = mc.gui.screen();
         if (!(screen instanceof AbstractContainerScreen<?> acs)) {
             endDrag();
             return;

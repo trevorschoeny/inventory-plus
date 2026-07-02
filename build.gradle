@@ -15,7 +15,9 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 plugins {
-    id 'fabric-loom' version '1.14-SNAPSHOT'
+    // 26.x migration (2026-07-02): Loom plugin id is namespaced at 1.15+;
+    // 1.17 is the 26.2-era line. Version pinned at the workspace root.
+    id 'net.fabricmc.fabric-loom' version '1.17-SNAPSHOT'
     id 'java'
     id 'com.modrinth.minotaur' version '2.+'
 }
@@ -26,8 +28,9 @@ group   = property('maven_group')
 base.archivesName = 'inventory-plus'
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
+    // Minecraft 26.x runs on Java 25.
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
 }
 
 repositories {
@@ -35,43 +38,45 @@ repositories {
     // ModMenu — Terraformers' Maven; used for the per-mod config entry
     // point on the mods list.
     maven { url 'https://maven.terraformersmc.com/releases/' }
-    // YACL — isXander's Maven; modern Fabric config-screen framework
-    // (horizontal tabs, right-pane descriptions, per-entry reset arrows).
-    // Same look as Sodium / Iris / Debugify configs.
-    maven { url 'https://maven.isxander.dev/releases/' }
+    // YACL — modern Fabric config-screen framework (horizontal tabs,
+    // right-pane descriptions, per-entry reset arrows). Same look as
+    // Sodium / Iris / Debugify configs.
+    // 26.x: isxander's own maven stops at the 3.8.x line; the 26.2 builds
+    // (3.9.x) ship via the Modrinth maven only (verified 2026-07-02).
+    maven { url 'https://api.modrinth.com/maven' }
 }
 
 dependencies {
+    // 26.x: the game is unobfuscated — no mappings line, and mod deps use the
+    // standard java configurations (modImplementation → implementation etc.).
     minecraft "com.mojang:minecraft:${property('minecraft_version')}"
-    mappings loom.officialMojangMappings()
-    modImplementation "net.fabricmc:fabric-loader:${property('loader_version')}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${property('fabric_version')}"
+    implementation "net.fabricmc:fabric-loader:${property('loader_version')}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${property('fabric_version')}"
 
     // ModMenu — surfaces IP's config screen from the mods list. Optional
     // at runtime; declared as a soft dep in fabric.mod.json. compileOnly
-    // here means we compile against ModMenu's API; modLocalRuntime brings
-    // it into the dev launch.
-    modCompileOnly "com.terraformersmc:modmenu:17.0.0"
-    modLocalRuntime "com.terraformersmc:modmenu:17.0.0"
+    // here means we compile against ModMenu's API; the runtime-only line
+    // brings it into the dev launch. (⚠️ beta — only 26.2 build available.)
+    compileOnly "com.terraformersmc:modmenu:20.0.0-beta.4"
+    localRuntime "com.terraformersmc:modmenu:20.0.0-beta.4"
 
     // YACL — config-screen framework. Bundled into IP's jar via Loom's
     // `include` (Jar-in-Jar), so players install IP and YACL comes along
-    // for free. `modImplementation` covers compile + dev runtime; the
+    // for free. `implementation` covers compile + dev runtime; the
     // `include` line is what JIJs YACL into the production jar.
-    modImplementation "dev.isxander:yet-another-config-lib:3.8.1+1.21.11-fabric"
-    include          "dev.isxander:yet-another-config-lib:3.8.1+1.21.11-fabric"
+    implementation "maven.modrinth:yacl:3.9.5+26.2-fabric"
+    include        "maven.modrinth:yacl:3.9.5+26.2-fabric"
 
     // §0042 / §0005 + 18b brief: depend on MK 1.0.0 (the widgets artifact)
     // and ONLY MK. Adding :menukit-containers here would put MKC types on
     // the classpath and violate the partition test — IP is client-only by
     // construction, including by classpath shape.
     //
-    // The workspace-level project dep gives us the locally-built MK 1.0.0
-    // artifact (same content as a future Modrinth-published 1.0.0). When
-    // MK is published to Modrinth and consumed off-workspace, this line
-    // becomes `modImplementation 'maven.modrinth:menukit:1.0.0'`; the
-    // semantic dep is identical.
-    implementation project(path: ':menukit', configuration: 'namedElements')
+    // The workspace-level project dep gives us the locally-built MK
+    // artifact (same content as the Modrinth-published one). (26.x: the
+    // remap layer is gone, so the `namedElements` variant no longer
+    // exists — a plain project dep is THE artifact now.)
+    implementation project(':menukit')
 }
 
 loom {
@@ -113,7 +118,8 @@ Everything new since 1.1.0:
 - Auto-Restock can now pull from Inventory Max pockets when Inventory Max is installed.
 - Reworked config: Features and Advanced tabs, with new toggles including a Before-Break threshold slider.
 - Updated for MenuKit 2.0. Now requires MenuKit 2.0.0+ and Keybindery 1.0.2+.'''
-    uploadFile = remapJar
+    // 26.x: no remap step — `jar` IS the shippable artifact (remapJar is gone).
+    uploadFile = jar
     gameVersions = [property('minecraft_version')]
     loaders = ["fabric"]
     dependencies {

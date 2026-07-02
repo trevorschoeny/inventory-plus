@@ -79,7 +79,7 @@ public final class MoveMatchingButtons {
     }
 
     private static boolean isMoveMatchingScreenNow() {
-        Screen screen = Minecraft.getInstance().screen;
+        Screen screen = Minecraft.getInstance().gui.screen();
         return screen != null && SlotGroupDetector.isMoveMatchingScreen(screen);
     }
 
@@ -87,7 +87,7 @@ public final class MoveMatchingButtons {
     private static void triggerMoveMatching(Direction direction) {
         if (LockEditMode.isOn()) return;
         Minecraft mc = Minecraft.getInstance();
-        Screen screen = mc.screen;
+        Screen screen = mc.gui.screen();
         if (!(screen instanceof AbstractContainerScreen<?>)) return;
         List<SlotGroup> groups = SlotGroupDetector.detect(screen);
         SlotGroup playerMainInv = findPlayerMainInv(groups);

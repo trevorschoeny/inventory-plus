@@ -96,7 +96,7 @@ public final class SortButton {
         if (LockEditMode.isOn()) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.gameMode == null) return;
-        Screen screen = mc.screen;
+        Screen screen = mc.gui.screen();
         if (!(screen instanceof AbstractContainerScreen<?> acs)) return;
         AbstractContainerMenu menu = acs.getMenu();
 

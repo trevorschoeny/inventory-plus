@@ -8,7 +8,7 @@ import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
@@ -20,8 +20,8 @@ import java.util.Map;
 
 /**
  * Applies a sort to a list of slots in a container, using
- * {@link ClickType#PICKUP} clicks routed through
- * {@link MultiPlayerGameMode#handleInventoryMouseClick} so the server
+ * {@link ContainerInput#PICKUP} clicks routed through
+ * {@link MultiPlayerGameMode#handleContainerInput} so the server
  * universally respects them — same mechanism as the locked-slot
  * shift-click synthesis.
  *
@@ -258,9 +258,9 @@ public final class Sorter {
         if (a == b) return;
         Slot slotA = unlocked.get(a);
         Slot slotB = unlocked.get(b);
-        gameMode.handleInventoryMouseClick(menu.containerId, slotA.index, 0, ClickType.PICKUP, player);
-        gameMode.handleInventoryMouseClick(menu.containerId, slotB.index, 0, ClickType.PICKUP, player);
-        gameMode.handleInventoryMouseClick(menu.containerId, slotA.index, 0, ClickType.PICKUP, player);
+        gameMode.handleContainerInput(menu.containerId, slotA.index, 0, ContainerInput.PICKUP, player);
+        gameMode.handleContainerInput(menu.containerId, slotB.index, 0, ContainerInput.PICKUP, player);
+        gameMode.handleContainerInput(menu.containerId, slotA.index, 0, ContainerInput.PICKUP, player);
 
         // Update working model based on what actually happened.
         // For different items: pure swap.
@@ -304,11 +304,11 @@ public final class Sorter {
 
         Slot slotSrc = unlocked.get(source);
         Slot slotDst = unlocked.get(dest);
-        gameMode.handleInventoryMouseClick(menu.containerId, slotSrc.index, 0, ClickType.PICKUP, player);
-        gameMode.handleInventoryMouseClick(menu.containerId, slotDst.index, 0, ClickType.PICKUP, player);
+        gameMode.handleContainerInput(menu.containerId, slotSrc.index, 0, ContainerInput.PICKUP, player);
+        gameMode.handleContainerInput(menu.containerId, slotDst.index, 0, ContainerInput.PICKUP, player);
         // Third PICKUP returns leftover (if any) to source. Safe even if cursor
         // is empty — empty PICKUP on empty slot is a no-op.
-        gameMode.handleInventoryMouseClick(menu.containerId, slotSrc.index, 0, ClickType.PICKUP, player);
+        gameMode.handleContainerInput(menu.containerId, slotSrc.index, 0, ContainerInput.PICKUP, player);
 
         // Update model.
         int total = current[source].getCount() + current[dest].getCount();

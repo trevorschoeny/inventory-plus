@@ -20,7 +20,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * <ul>
  *   <li>Column Cycler is enabled (master flag).</li>
  *   <li>Scroll-to-Cycle is enabled (sub-flag).</li>
- *   <li>No screen is open ({@code mc.screen == null}) — we don't
+ *   <li>No screen is open ({@code mc.gui.screen() == null}) — we don't
  *       intercept scroll inside chests/inventories.</li>
  *   <li>The active hotbar slot's column has cycle members (the slot
  *       is itself a cycle slot, direct or derived).</li>
@@ -44,7 +44,7 @@ public abstract class MouseHandlerScrollMixin {
         if (!IPConfig.columnCyclerEnabled()) return;
         if (!IPConfig.columnCyclerScrollToCycle()) return;
         Minecraft mc = Minecraft.getInstance();
-        if (mc.screen != null) return;
+        if (mc.gui.screen() != null) return;
         LocalPlayer player = mc.player;
         if (player == null) return;
 

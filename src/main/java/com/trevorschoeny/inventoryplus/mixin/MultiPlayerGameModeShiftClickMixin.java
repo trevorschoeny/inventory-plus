@@ -6,7 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
@@ -35,7 +35,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *   <li><b>Dedicated MP</b> — server JVM doesn't run our mixins,
  *       so vanilla shift-click would place items in locked slots
  *       server-side. This mixin cancels the original packet and
- *       synthesizes the move via {@link ClickType#PICKUP} packets
+ *       synthesizes the move via {@link ContainerInput#PICKUP} packets
  *       targeted at non-locked slots — PICKUP is universally
  *       server-respected, no server-side companion needed.</li>
  * </ol>
@@ -56,7 +56,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * 9) and continue forward through hotbar, armor, offhand. For each
  * candidate, skip locked slots, skip same-half (vanilla never
  * shift-clicks main→main or hotbar→hotbar), and skip slots where
- * {@code canMergeOrPlace} is false. Send a {@link ClickType#PICKUP}
+ * {@code canMergeOrPlace} is false. Send a {@link ContainerInput#PICKUP}
  * for the first eligible slot, then continue if the cursor still
  * has items.
  *
@@ -80,17 +80,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class MultiPlayerGameModeShiftClickMixin {
 
     @Inject(
-            method = "handleInventoryMouseClick(IIILnet/minecraft/world/inventory/ClickType;Lnet/minecraft/world/entity/player/Player;)V",
+            method = "handleContainerInput(IIILnet/minecraft/world/inventory/ContainerInput;Lnet/minecraft/world/entity/player/Player;)V",
             at = @At("HEAD"),
             cancellable = true)
     private void inventoryplus$handleLockedShiftClick(
-            int containerId, int slotId, int button, ClickType clickType,
+            int containerId, int slotId, int button, ContainerInput clickType,
             Player player, CallbackInfo ci) {
         // Only gate shift-click (QUICK_MOVE) and Q-drop (THROW).
         // PICKUP / SWAP / CLONE / PICKUP_ALL / QUICK_CRAFT all pass
         // through — including the synthesized PICKUPs this mixin
         // recurses into below.
-        if (clickType != ClickType.QUICK_MOVE && clickType != ClickType.THROW) return;
+        if (clickType != ContainerInput.QUICK_MOVE && clickType != ContainerInput.THROW) return;
 
         AbstractContainerMenu menu = player.containerMenu;
         if (menu == null || menu.containerId != containerId) return;
@@ -106,7 +106,7 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
         }
 
         // Destination-block applies to QUICK_MOVE only.
-        if (clickType != ClickType.QUICK_MOVE) return;
+        if (clickType != ContainerInput.QUICK_MOVE) return;
 
         // SP/LAN: vanilla iteration skip handles it. Let the click go
         // through normally.
@@ -136,8 +136,8 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
         if (source.getItem().isEmpty()) return;
 
         // Phase 1: pick up source onto cursor.
-        self.handleInventoryMouseClick(containerId, sourceSlotId, 0,
-                ClickType.PICKUP, player);
+        self.handleContainerInput(containerId, sourceSlotId, 0,
+                ContainerInput.PICKUP, player);
         if (menu.getCarried().isEmpty()) return;
 
         // Source classification for same-half filtering.
@@ -172,14 +172,14 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
             }
 
             if (!canMergeOrPlace(dest, menu.getCarried())) continue;
-            self.handleInventoryMouseClick(containerId, i, 0,
-                    ClickType.PICKUP, player);
+            self.handleContainerInput(containerId, i, 0,
+                    ContainerInput.PICKUP, player);
         }
 
         // Phase 3: leftover goes back on the source.
         if (!menu.getCarried().isEmpty()) {
-            self.handleInventoryMouseClick(containerId, sourceSlotId, 0,
-                    ClickType.PICKUP, player);
+            self.handleContainerInput(containerId, sourceSlotId, 0,
+                    ContainerInput.PICKUP, player);
         }
     }
 

@@ -158,7 +158,7 @@ public final class AutoRestockSearch {
      * constraint since the original is already gone.
      *
      * <p>The returned slot's stack is suitable for a
-     * {@link net.minecraft.world.inventory.ClickType#QUICK_MOVE} from main
+     * {@link net.minecraft.world.inventory.ContainerInput#QUICK_MOVE} from main
      * inventory — vanilla's quick-move on InventoryMenu routes Equippable
      * items to their matching empty armor slot.
      */

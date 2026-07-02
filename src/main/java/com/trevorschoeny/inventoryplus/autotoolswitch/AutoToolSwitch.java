@@ -19,7 +19,7 @@ import net.minecraft.world.item.ItemStack;
 // Entity is referenced by preAttackEntity's signature; LivingEntity for
 // the post-cast match check; Monster for the hostile filter.
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -302,11 +302,11 @@ public final class AutoToolSwitch {
         if (menu == null) return;
         int sourceMenuSlot = findMenuSlot(menu, sourceContainerSlot, player.getUUID());
         if (sourceMenuSlot < 0) return;
-        gameMode.handleInventoryMouseClick(
+        gameMode.handleContainerInput(
                 menu.containerId,
                 sourceMenuSlot,
                 hotbarSlot,   // button = target hotbar slot (0-8)
-                ClickType.SWAP,
+                ContainerInput.SWAP,
                 player);
     }
 

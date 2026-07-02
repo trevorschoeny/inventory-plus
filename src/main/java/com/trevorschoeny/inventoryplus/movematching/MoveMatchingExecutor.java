@@ -8,7 +8,7 @@ import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -180,11 +180,11 @@ public final class MoveMatchingExecutor {
 
     private static void clickPickup(MultiPlayerGameMode gameMode, LocalPlayer player,
                                     AbstractContainerMenu menu, int slotIndex) {
-        gameMode.handleInventoryMouseClick(
+        gameMode.handleContainerInput(
                 menu.containerId,
                 slotIndex,
                 /* mouseButton */ 0,
-                ClickType.PICKUP,
+                ContainerInput.PICKUP,
                 player);
     }
 

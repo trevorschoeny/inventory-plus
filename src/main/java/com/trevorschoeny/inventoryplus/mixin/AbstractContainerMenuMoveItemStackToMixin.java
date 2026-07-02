@@ -55,7 +55,7 @@ import org.spongepowered.asm.mixin.injection.At;
  *
  * {@code Slot.mayPlace} is also consulted from
  * {@code AbstractContainerMenu.doClick} for {@link
- * net.minecraft.world.inventory.ClickType#PICKUP} — manual cursor
+ * net.minecraft.world.inventory.ContainerInput#PICKUP} — manual cursor
  * placement. We don't want to block manual placement (per spec,
  * "manual cursor interaction is allowed"). Scoping the wrap to
  * {@code moveItemStackTo} keeps the block on shift-click only.

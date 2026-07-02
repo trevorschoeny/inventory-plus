@@ -7,7 +7,7 @@ import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 
 import java.util.ArrayList;
@@ -17,7 +17,7 @@ import java.util.UUID;
 /**
  * Physical-rotation engine for Column Cycler. Given a column index +
  * direction, walks the column's cycle members (top inv slots → hotbar)
- * and sends a {@link ClickType#PICKUP} click sequence that physically
+ * and sends a {@link ContainerInput#PICKUP} click sequence that physically
  * moves items through the slots.
  *
  * <h3>Cycle list layout</h3>
@@ -181,7 +181,7 @@ public final class ColumnCyclerRotator {
         // behaves correctly without per-click round-trips.
         int containerId = menu.containerId;
         for (int slotIdx : clickSeq) {
-            gameMode.handleInventoryMouseClick(containerId, slotIdx, 0, ClickType.PICKUP, player);
+            gameMode.handleContainerInput(containerId, slotIdx, 0, ContainerInput.PICKUP, player);
         }
 
         // Notify listeners — fired only after a successful rotation

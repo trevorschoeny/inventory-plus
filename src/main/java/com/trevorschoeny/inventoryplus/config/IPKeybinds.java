@@ -2,7 +2,7 @@ package com.trevorschoeny.inventoryplus.config;
 
 import com.mojang.blaze3d.platform.InputConstants;
 
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 
 import net.minecraft.client.KeyMapping;
 import net.minecraft.resources.Identifier;
@@ -107,13 +107,13 @@ public final class IPKeybinds {
 
     /** Register all keybinds with Fabric. Call once from client init. */
     public static void register() {
-        KeyBindingHelper.registerKeyBinding(LOCK_SLOT);
-        KeyBindingHelper.registerKeyBinding(SORT);
-        KeyBindingHelper.registerKeyBinding(MOVE_MATCHING_IN);
-        KeyBindingHelper.registerKeyBinding(MOVE_MATCHING_OUT);
-        KeyBindingHelper.registerKeyBinding(CYCLE_SLOT);
-        KeyBindingHelper.registerKeyBinding(CYCLE_FORWARD);
-        KeyBindingHelper.registerKeyBinding(CYCLE_BACKWARD);
-        KeyBindingHelper.registerKeyBinding(AUTO_SWITCH_RETURN);
+        KeyMappingHelper.registerKeyMapping(LOCK_SLOT);
+        KeyMappingHelper.registerKeyMapping(SORT);
+        KeyMappingHelper.registerKeyMapping(MOVE_MATCHING_IN);
+        KeyMappingHelper.registerKeyMapping(MOVE_MATCHING_OUT);
+        KeyMappingHelper.registerKeyMapping(CYCLE_SLOT);
+        KeyMappingHelper.registerKeyMapping(CYCLE_FORWARD);
+        KeyMappingHelper.registerKeyMapping(CYCLE_BACKWARD);
+        KeyMappingHelper.registerKeyMapping(AUTO_SWITCH_RETURN);
     }
 }

@@ -74,7 +74,7 @@ public final class ColumnCyclerRotationKeybind {
     private static boolean canFireHud(Minecraft mc) {
         return mc != null
                 && mc.player != null
-                && mc.screen == null
+                && mc.gui.screen() == null
                 && IPConfig.columnCyclerEnabled();
     }
 

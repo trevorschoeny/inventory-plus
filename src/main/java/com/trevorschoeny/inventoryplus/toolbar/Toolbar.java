@@ -165,7 +165,7 @@ public final class Toolbar {
      * entirely in Creative.
      */
     private static boolean isToolbarScope() {
-        Screen screen = Minecraft.getInstance().screen;
+        Screen screen = Minecraft.getInstance().gui.screen();
         return screen instanceof AbstractContainerScreen<?>
                 && !(screen instanceof CreativeModeInventoryScreen);
     }

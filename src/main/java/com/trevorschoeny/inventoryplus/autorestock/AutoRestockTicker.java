@@ -10,7 +10,7 @@ import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
@@ -82,7 +82,7 @@ import java.util.List;
  * Vanilla 1.21.11 keeps equipment off the {@code Inventory.armor} /
  * {@code Inventory.offhand} lists and on a unified {@code EntityEquipment}
  * accessed via {@link LocalPlayer#getItemBySlot(EquipmentSlot)}. We read
- * those slots through that API and write via {@link ClickType} packets
+ * those slots through that API and write via {@link ContainerInput} packets
  * keyed off vanilla's InventoryMenu slot mapping (helmet=5, chest=6,
  * legs=7, boots=8, offhand button=40 for SWAP).
  *
@@ -257,9 +257,9 @@ public final class AutoRestockTicker {
         if (isActiveHotbar) {
             refillActiveHotbarSlot(gameMode, player, source, targetClickKey, "item-restock", prev);
         } else {
-            gameMode.handleInventoryMouseClick(
+            gameMode.handleContainerInput(
                     player.inventoryMenu.containerId,
-                    source, SWAP_OFFHAND_KEY, ClickType.SWAP, player);
+                    source, SWAP_OFFHAND_KEY, ContainerInput.SWAP, player);
             InventoryPlusClient.LOGGER.debug(
                     "[item-restock] offhand ← src[{}] ({})", source, prev.getItem());
         }
@@ -301,9 +301,9 @@ public final class AutoRestockTicker {
         if (isActiveHotbar) {
             refillActiveHotbarSlot(gameMode, player, source, targetClickKey, "break-restock", prev);
         } else {
-            gameMode.handleInventoryMouseClick(
+            gameMode.handleContainerInput(
                     player.inventoryMenu.containerId,
-                    source, SWAP_OFFHAND_KEY, ClickType.SWAP, player);
+                    source, SWAP_OFFHAND_KEY, ContainerInput.SWAP, player);
             InventoryPlusClient.LOGGER.debug(
                     "[break-restock] offhand ← src[{}] ({})", source, prev.getItem());
         }
@@ -347,11 +347,11 @@ public final class AutoRestockTicker {
                     slot, prev.getItem());
             return;
         }
-        gameMode.handleInventoryMouseClick(
+        gameMode.handleContainerInput(
                 player.inventoryMenu.containerId,
                 source,
                 0,
-                ClickType.QUICK_MOVE,
+                ContainerInput.QUICK_MOVE,
                 player);
         InventoryPlusClient.LOGGER.debug(
                 "[break-restock] armor[{}] ← main[{}] ({})",
@@ -388,11 +388,11 @@ public final class AutoRestockTicker {
                     now.getItem());
             return;
         }
-        gameMode.handleInventoryMouseClick(
+        gameMode.handleContainerInput(
                 player.inventoryMenu.containerId,
                 source,
                 SWAP_OFFHAND_KEY,
-                ClickType.SWAP,
+                ContainerInput.SWAP,
                 player);
         InventoryPlusClient.LOGGER.debug(
                 "[durability-restock] offhand ← src[{}] ({})",
@@ -426,9 +426,9 @@ public final class AutoRestockTicker {
             return;
         }
         int containerId = player.inventoryMenu.containerId;
-        gameMode.handleInventoryMouseClick(containerId, source,        0, ClickType.PICKUP, player);
-        gameMode.handleInventoryMouseClick(containerId, menuArmorSlot, 0, ClickType.PICKUP, player);
-        gameMode.handleInventoryMouseClick(containerId, source,        0, ClickType.PICKUP, player);
+        gameMode.handleContainerInput(containerId, source,        0, ContainerInput.PICKUP, player);
+        gameMode.handleContainerInput(containerId, menuArmorSlot, 0, ContainerInput.PICKUP, player);
+        gameMode.handleContainerInput(containerId, source,        0, ContainerInput.PICKUP, player);
         InventoryPlusClient.LOGGER.debug(
                 "[durability-restock] armor[{}] ← main[{}] ({})",
                 slot, source, now.getItem());
@@ -553,9 +553,9 @@ public final class AutoRestockTicker {
             return;
         }
         // Tier 3: main inv source — standard SWAP into the active slot.
-        gameMode.handleInventoryMouseClick(
+        gameMode.handleContainerInput(
                 player.inventoryMenu.containerId,
-                source, activeSlot, ClickType.SWAP, player);
+                source, activeSlot, ContainerInput.SWAP, player);
         InventoryPlusClient.LOGGER.debug(
                 "[{}] hotbar[{}] ← src[{}] (item swap) ({})",
                 logTag, activeSlot, source, itemForLog.getItem());

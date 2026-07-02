@@ -5,7 +5,7 @@ import com.trevorschoeny.menukit.hud.MKHudPanel;
 
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
@@ -94,7 +94,7 @@ public final class CycleHud {
 
     // ─── Dispatch ────────────────────────────────────────────────────
 
-    private static void render(GuiGraphics graphics, int ux, int uy, int uw, int uh, DeltaTracker delta) {
+    private static void render(GuiGraphicsExtractor graphics, int ux, int uy, int uw, int uh, DeltaTracker delta) {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null) return;
         int activeSlot = mc.player.getInventory().getSelectedSlot();
@@ -151,7 +151,7 @@ public final class CycleHud {
 
     // ─── Horizontal strip (solo, and the cross's Pocket arm) ─────────
 
-    private static void renderHorizontalStrip(GuiGraphics graphics, Minecraft mc,
+    private static void renderHorizontalStrip(GuiGraphicsExtractor graphics, Minecraft mc,
                                               CycleHudRegistry.ActiveCycle cycle, int activeSlot,
                                               int stripX, int stripY, boolean includeHeld) {
         CycleView view = cycle.view();
@@ -210,7 +210,7 @@ public final class CycleHud {
      *                    the horizontal arm owns the held cell (it's animating, or
      *                    nothing is) — avoids a duplicate of the held item.
      */
-    private static void renderColumnStrip(GuiGraphics graphics, Minecraft mc,
+    private static void renderColumnStrip(GuiGraphicsExtractor graphics, Minecraft mc,
                                           CycleHudRegistry.ActiveCycle cycle, int activeSlot,
                                           int cellX, int heldTop, boolean includeHeld) {
         List<ItemStack> visual = cycle.view().visualOrder();
@@ -320,14 +320,14 @@ public final class CycleHud {
     // ─── Vanilla-texture drawing ─────────────────────────────────────
 
     /** One vanilla hotbar slot background (20×20 slice of the hud/hotbar sprite) — vertical cells. */
-    private static void drawHotbarCellBackground(GuiGraphics graphics, int x, int y) {
+    private static void drawHotbarCellBackground(GuiGraphicsExtractor graphics, int x, int y) {
         graphics.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR_SPRITE,
                 HOTBAR_SPRITE_W, HOTBAR_SPRITE_H, OUTER_BORDER_PX, 0,
                 x, y, SLOT_PX, SLOT_PX);
     }
 
     /** A horizontal hotbar bar of {@code width} px: left cap + tiled slots + right cap. */
-    private static void renderStripBackground(GuiGraphics graphics, int x, int y, int width) {
+    private static void renderStripBackground(GuiGraphicsExtractor graphics, int x, int y, int width) {
         int slotsCount = (width - 2 * OUTER_BORDER_PX) / SLOT_PX;
         int slotsLeftX = x + OUTER_BORDER_PX;
         graphics.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR_SPRITE,
@@ -341,15 +341,15 @@ public final class CycleHud {
                 slotsLeftX + slotsCount * SLOT_PX, y, OUTER_BORDER_PX, STRIP_HEIGHT_PX);
     }
 
-    private static void renderItem(GuiGraphics graphics, Minecraft mc, ItemStack stack, int slotX, int slotY) {
+    private static void renderItem(GuiGraphicsExtractor graphics, Minecraft mc, ItemStack stack, int slotX, int slotY) {
         if (stack.isEmpty()) return;
         int itemX = slotX + ITEM_OFFSET_X_PX;
         int itemY = slotY + ITEM_OFFSET_PX;
-        graphics.renderItem(stack, itemX, itemY);
-        graphics.renderItemDecorations(mc.font, stack, itemX, itemY);
+        graphics.item(stack, itemX, itemY);
+        graphics.itemDecorations(mc.font, stack, itemX, itemY);
     }
 
-    private static void renderHighlight(GuiGraphics graphics, int slotX, int slotY) {
+    private static void renderHighlight(GuiGraphicsExtractor graphics, int slotX, int slotY) {
         graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SELECTION_SPRITE,
                 SELECTION_SPRITE_W, SELECTION_SPRITE_H, 0, 0,
                 slotX - 1, slotY - 1, SELECTION_SPRITE_W, SELECTION_SPRITE_H);

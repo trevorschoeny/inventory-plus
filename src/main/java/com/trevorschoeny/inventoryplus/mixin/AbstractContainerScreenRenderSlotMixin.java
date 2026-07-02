@@ -6,7 +6,7 @@ import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockedslots.LockEditMode;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
@@ -62,14 +62,14 @@ public abstract class AbstractContainerScreenRenderSlotMixin {
     /**
      * ARGB tint for the corner indicator sprites — alpha 0xAB (67%),
      * RGB 0xFFFFFF (white = no color modulation). Applied via the
-     * color-overload of {@link GuiGraphics#blit} so the icons read
+     * color-overload of {@link GuiGraphicsExtractor#blit} so the icons read
      * as subtle hints rather than dominating the slot content
      * (Trev 2026-05-19).
      */
     private static final int INVENTORYPLUS$INDICATOR_TINT = 0xABFFFFFF;
 
-    @Inject(method = "renderSlot", at = @At("TAIL"))
-    private void inventoryplus$renderOverlays(GuiGraphics graphics, Slot slot,
+    @Inject(method = "extractSlot", at = @At("TAIL"))   // 26.2 extract/draw rename
+    private void inventoryplus$renderOverlays(GuiGraphicsExtractor graphics, Slot slot,
                                               int mouseX, int mouseY, CallbackInfo ci) {
         // 1. Edit-mode gray overlay. The two edit modes diverge now that
         // lock-edit reaches beyond the player inventory: lock-edit grays every
