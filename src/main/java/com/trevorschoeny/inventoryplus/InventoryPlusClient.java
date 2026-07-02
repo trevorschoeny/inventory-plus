@@ -45,8 +45,9 @@ import org.slf4j.LoggerFactory;
  * <ol>
  *   <li>Auto-restock — tick-driven detection + slot-click action; no MK
  *       widgets on the runtime path (config UI is a later concern).</li>
- *   <li>Move-matching — MK Button + keybind, registered against every
- *       simplecontainer screen via {@link com.trevorschoeny.menukit.inject.ScreenPanelAdapter}.</li>
+ *   <li>Move-matching — MK Button + keybind, riding the toolbar's
+ *       slot-group-anchored panels (explicit {@code SlotGroupCategory}
+ *       targeting; see {@code Toolbar}).</li>
  *   <li>Sorting — same shape as move-matching; second button stacked
  *       below at {@code MenuRegion.RIGHT_ALIGN_TOP}.</li>
  * </ol>

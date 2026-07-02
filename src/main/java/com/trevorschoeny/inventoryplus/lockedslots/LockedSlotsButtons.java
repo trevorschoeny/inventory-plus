@@ -62,7 +62,10 @@ public final class LockedSlotsButtons {
     public static Toggle toolbarToggle(int x, int y) {
         return Toggle.spriteLinked(x, y, SIZE, SIZE,
                         LockEditMode::isOn,
-                        LockEditMode::toggle,
+                        // 2.0.0: the widget computes the new state off the linked
+                        // supplier and hands it to us; set() applies it (incl. the
+                        // edit-mode mutual exclusion) — no self-flip here.
+                        LockEditMode::set,
                         TEXTURE)
                 .tooltip(() -> Component.literal(
                         LockEditMode.isOn()
