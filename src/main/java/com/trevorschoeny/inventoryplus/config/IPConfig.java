@@ -76,6 +76,10 @@ public final class IPConfig {
     private static boolean autoRestockItem = true;
     private static boolean autoRestockShulker = false;          // parent
     private static boolean autoRestockShulkerAmmo = false;      // sub of Shulker
+    // Durability floor for the two Before-Break swaps (armor + tool share it) —
+    // a swap fires when remaining durability sits at or below this. Was the
+    // hardcoded AutoRestockTicker.BEFORE_BREAK_THRESHOLD = 10.
+    private static int autoRestockBeforeBreakThreshold = 10;
 
     // NOTE: the Shulker / ShulkerAmmo flags above are STATE-ONLY today —
     // the mechanics behind them aren't implemented yet, so toggling them in
@@ -156,6 +160,8 @@ public final class IPConfig {
             autoRestockItem              = readBool(root, "autoRestockItem",              autoRestockItem);
             autoRestockShulker           = readBool(root, "autoRestockShulker",           autoRestockShulker);
             autoRestockShulkerAmmo       = readBool(root, "autoRestockShulkerAmmo",       autoRestockShulkerAmmo);
+            autoRestockBeforeBreakThreshold = readInt(root, "autoRestockBeforeBreakThreshold",
+                    autoRestockBeforeBreakThreshold);
             autoToolSwitchEnabled  = readBool(root, "autoToolSwitchEnabled",  autoToolSwitchEnabled);
             // Migrate the old boolean (true → AUTOMATIC, false → OFF), then let a
             // present mode key override it.
@@ -221,6 +227,7 @@ public final class IPConfig {
             root.addProperty("autoRestockItem",             autoRestockItem);
             root.addProperty("autoRestockShulker",          autoRestockShulker);
             root.addProperty("autoRestockShulkerAmmo",      autoRestockShulkerAmmo);
+            root.addProperty("autoRestockBeforeBreakThreshold", autoRestockBeforeBreakThreshold);
             root.addProperty("autoToolSwitchEnabled",   autoToolSwitchEnabled);
             root.addProperty("autoToolSwitchReturnMode", autoToolSwitchReturnMode.name());
             root.addProperty("autoToolSwitchReturnCooldownSeconds", autoToolSwitchReturnCooldownSeconds);
@@ -251,6 +258,7 @@ public final class IPConfig {
     public static boolean autoRestockItem()             { return autoRestockItem; }
     public static boolean autoRestockShulker()          { return autoRestockShulker; }
     public static boolean autoRestockShulkerAmmo()      { return autoRestockShulkerAmmo; }
+    public static int autoRestockBeforeBreakThreshold() { return autoRestockBeforeBreakThreshold; }
     public static boolean autoToolSwitchEnabled()       { return autoToolSwitchEnabled; }
     public static AutoSwitchReturnMode autoToolSwitchReturnMode() { return autoToolSwitchReturnMode; }
     public static int autoToolSwitchReturnCooldownSeconds()       { return autoToolSwitchReturnCooldownSeconds; }
@@ -274,6 +282,7 @@ public final class IPConfig {
     public static void setAutoRestockItem(boolean v)             { autoRestockItem = v; save(); }
     public static void setAutoRestockShulker(boolean v)          { autoRestockShulker = v; save(); }
     public static void setAutoRestockShulkerAmmo(boolean v)      { autoRestockShulkerAmmo = v; save(); }
+    public static void setAutoRestockBeforeBreakThreshold(int v) { autoRestockBeforeBreakThreshold = v; save(); }
     public static void setAutoToolSwitchEnabled(boolean v)       { autoToolSwitchEnabled = v; save(); }
     public static void setAutoToolSwitchReturnMode(AutoSwitchReturnMode v) { autoToolSwitchReturnMode = v; save(); }
     public static void setAutoToolSwitchReturnCooldownSeconds(int v)       { autoToolSwitchReturnCooldownSeconds = v; save(); }

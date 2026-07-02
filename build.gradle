@@ -17,9 +17,10 @@
 plugins {
     id 'fabric-loom' version '1.14-SNAPSHOT'
     id 'java'
+    id 'com.modrinth.minotaur' version '2.+'
 }
 
-version = property('mod_version')
+version = property('inventoryplus_version')
 group   = property('maven_group')
 
 base.archivesName = 'inventory-plus'
@@ -82,4 +83,38 @@ loom {
 
 jar {
     from('LICENSE') { rename { "${it}_${project.name}" } }
+}
+
+// Stamp the real project version into fabric.mod.json at build — the manifest
+// declares "version": "${version}"; a hardcoded manifest version silently
+// breaks every dependency gate against this mod (the 2026-07-01 incident).
+processResources {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") {
+        expand "version": inputs.properties.version
+    }
+}
+
+// ── Modrinth Publishing ────────────────────────────────────────────────
+// Inventory Plus — Modrinth project id ZeMbvaXz (slug inventory-plus).
+// Lead @ Trevlar Mods owns the publish (§0032).
+modrinth {
+    token = System.getenv("MODRINTH_TOKEN")
+    projectId = "ZeMbvaXz"
+    versionNumber = property('inventoryplus_version')
+    versionName = "Inventory Plus ${property('inventoryplus_version')}"
+    versionType = "release"
+    changelog = '''Inventory Plus 1.2.0
+
+- Auto Tool Switch: new return options - off, automatic after a delay, or on a keybind (timed window or anytime). Manual hotbar changes cancel the return. Disabled in creative.
+- Auto-Restock can now pull from Inventory Max pockets when Inventory Max is installed.
+- Updated for MenuKit 2.0. Now requires MenuKit 2.0.0+ and Keybindery 1.0.2+.'''
+    uploadFile = remapJar
+    gameVersions = [property('minecraft_version')]
+    loaders = ["fabric"]
+    dependencies {
+        required.project "fabric-api"
+        required.project "menukit"
+        required.project "keybindery"
+    }
 }

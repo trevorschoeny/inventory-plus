@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "id": "inventoryplus",
-  "version": "1.1.0",
+  "version": "${version}",
   "name": "Inventory Plus",
-  "description": "Vanilla-faithful, friction-free, player-controlled inventory QoL — Phase 18b fresh-build. Client-only; installs on any vanilla server. Depends on MenuKit 1.0.0 (widgets artifact).",
+  "description": "Client-side inventory quality-of-life: auto-restock, auto tool switch, sorting, move matching, locked slots, column cycler. Installs on any server.",
   "authors": ["trevorschoeny"],
   "license": "MIT",
   "environment": "client",
@@ -18,7 +18,7 @@
     "fabricloader": ">=0.15.0",
     "fabric-api": "*",
     "minecraft": "~1.21",
-    "menukit": ">=1.0.0",
-    "keybindery": ">=1.0.0"
+    "menukit": ">=2.0.0",
+    "keybindery": ">=1.0.2"
   }
 }

@@ -24,7 +24,7 @@ import java.util.List;
  *   <li><b>Durability-delta restock</b> (for damageable items): the core
  *       mechanism. Each tick, we compare every player-owned slot to the
  *       previous-tick snapshot. If a slot's current stack is a damageable
- *       item, sits at or below {@link #BEFORE_BREAK_THRESHOLD} remaining
+ *       item, sits at or below the configured Before-Break threshold remaining
  *       durability, AND its exact content (Item + components + damage
  *       value) was not present anywhere in the prev snapshot, the item
  *       just took durability damage — fire a swap from main inventory if
@@ -95,8 +95,11 @@ public final class AutoRestockTicker {
 
     private AutoRestockTicker() {}
 
-    /** Durability remaining at or below which a swap fires. Per spec verbatim. */
-    private static final int BEFORE_BREAK_THRESHOLD = 10;
+    // Durability floor for a before-break swap — was a hardcoded 10 ("per
+    // spec verbatim"); now the IPConfig Advanced slider (default unchanged).
+    private static int beforeBreakThreshold() {
+        return com.trevorschoeny.inventoryplus.config.IPConfig.autoRestockBeforeBreakThreshold();
+    }
 
     // ─── Snapshot slot indices ────────────────────────────────────────────
     // 0–35  hotbar + main inventory   (via inv.getItem)
@@ -443,7 +446,7 @@ public final class AutoRestockTicker {
      *   <li>{@code now} is a damageable item ({@code maxDamage > 0}) with
      *       a current stack present.</li>
      *   <li>{@code now}'s remaining durability is ≤
-     *       {@link #BEFORE_BREAK_THRESHOLD}.</li>
+     *       the configured Before-Break threshold.</li>
      *   <li>{@code now}'s exact content (Item + components + damage value)
      *       did <b>not</b> exist anywhere in the previous-tick snapshot.
      *       Real damage produces a damage value that didn't exist before;
@@ -458,7 +461,7 @@ public final class AutoRestockTicker {
     private static boolean tookDamageThisTick(ItemStack now) {
         if (now == null || now.isEmpty() || now.getMaxDamage() <= 0) return false;
         int remaining = now.getMaxDamage() - now.getDamageValue();
-        if (remaining <= 0 || remaining > BEFORE_BREAK_THRESHOLD) return false;
+        if (remaining <= 0 || remaining > beforeBreakThreshold()) return false;
         boolean migrated = existsInPreviousSnapshot(now);
         InventoryPlusClient.LOGGER.debug(
                 "[durability-restock] threshold-hit item={} dmg={} remaining={} existsInPrev={} → {}",
