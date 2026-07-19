@@ -18,7 +18,6 @@ Pockets, extra equipment slots, and container locks live in [Inventory Max](http
 ## Requirements
 
 - **MenuKit** 2.0.0+
-- **Keybindery** 1.0.2+
 - Fabric API. Client-only.
 
 ## License

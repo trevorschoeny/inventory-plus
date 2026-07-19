@@ -125,6 +125,5 @@ Everything new since 1.1.0:
     dependencies {
         required.project "fabric-api"
         required.project "menukit"
-        required.project "keybindery"
     }
 }
