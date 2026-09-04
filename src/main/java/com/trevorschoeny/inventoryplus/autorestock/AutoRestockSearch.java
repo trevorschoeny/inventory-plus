@@ -458,7 +458,7 @@ public final class AutoRestockSearch {
 
     /**
      * Returns the {@link EquipmentSlot} this item equips to, or {@code null}
-     * if it isn't equipment. 1.21.11 routes this through the
+     * if it isn't equipment. 26.2 routes this through the
      * {@link DataComponents#EQUIPPABLE} component — there is no
      * {@code ArmorItem} subclass to instanceof-check against.
      */

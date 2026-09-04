@@ -317,7 +317,7 @@ public final class ToolFinder {
     /**
      * True if this item is a melee weapon.
      *
-     * <p>Uses vanilla 1.21.11's composite enchantable tags:
+     * <p>Uses vanilla 26.2's composite enchantable tags:
      * {@link ItemTags#WEAPON_ENCHANTABLE} (swords + spears + axes + mace)
      * union {@link ItemTags#TRIDENT_ENCHANTABLE} (trident — separate from
      * WEAPON_ENCHANTABLE because tridents take a different enchant set).

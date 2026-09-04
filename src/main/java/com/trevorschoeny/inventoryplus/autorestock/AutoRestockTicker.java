@@ -77,9 +77,9 @@ import java.util.List;
  * freezes across those windows; damage taken inside still produces a
  * not-in-prev delta on the close tick.
  *
- * <h3>Slot model — 1.21.11</h3>
+ * <h3>Slot model — 26.2</h3>
  *
- * Vanilla 1.21.11 keeps equipment off the {@code Inventory.armor} /
+ * Vanilla 26.2 keeps equipment off the {@code Inventory.armor} /
  * {@code Inventory.offhand} lists and on a unified {@code EntityEquipment}
  * accessed via {@link LocalPlayer#getItemBySlot(EquipmentSlot)}. We read
  * those slots through that API and write via {@link ContainerInput} packets
