@@ -57,15 +57,15 @@ dependencies {
     // at runtime; declared as a soft dep in fabric.mod.json. compileOnly
     // here means we compile against ModMenu's API; the runtime-only line
     // brings it into the dev launch. (⚠️ beta — only 26.2 build available.)
-    compileOnly "com.terraformersmc:modmenu:20.0.0-beta.4"
-    localRuntime "com.terraformersmc:modmenu:20.0.0-beta.4"
+    compileOnly "com.terraformersmc:modmenu:20.0.1"
+    localRuntime "com.terraformersmc:modmenu:20.0.1"
 
     // YACL — config-screen framework. Bundled into IP's jar via Loom's
     // `include` (Jar-in-Jar), so players install IP and YACL comes along
     // for free. `implementation` covers compile + dev runtime; the
     // `include` line is what JIJs YACL into the production jar.
-    implementation "maven.modrinth:yacl:3.9.5+26.2-fabric"
-    include        "maven.modrinth:yacl:3.9.5+26.2-fabric"
+    implementation "maven.modrinth:yacl:3.9.6+26.2-fabric"
+    include        "maven.modrinth:yacl:3.9.6+26.2-fabric"
 
     // §0042 / §0005 + 18b brief: depend on MK 1.0.0 (the widgets artifact)
     // and ONLY MK. Adding :menukit-containers here would put MKC types on
