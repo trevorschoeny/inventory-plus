@@ -109,15 +109,11 @@ modrinth {
     versionNumber = property('inventoryplus_version')
     versionName = "Inventory Plus ${property('inventoryplus_version')}"
     versionType = "release"
-    changelog = '''Inventory Plus 1.2.1
-
-Replaces 1.2.0, which crashed outside development environments (a screen-position lookup failed in normal installs, crashing on the column-cycler keybind). If you downloaded 1.2.0, update.
-
-Everything new since 1.1.0:
-- Auto Tool Switch: new return options - off, automatic after a delay, or on a keybind (timed window or anytime). Manual hotbar changes cancel the return. Disabled in creative.
-- Auto-Restock can now pull from Inventory Max pockets when Inventory Max is installed.
-- Reworked config: Features and Advanced tabs, with new toggles including a Before-Break threshold slider.
-- Updated for MenuKit 2.0. Now requires MenuKit 2.0.0+ and Keybindery 1.0.2+.'''
+    // ci-cd.md stage 5: the player-facing changelog lives in changelog.md, one entry,
+    // overwritten each release (git keeps the history). Hardcoding it here went stale.
+    changelog = file('changelog.md').text
+    // ci-cd.md stage 7: the README is the public description; `modrinthSyncBody` pushes it.
+    syncBodyFrom = file('README.md').text
     // 26.x: no remap step — `jar` IS the shippable artifact (remapJar is gone).
     uploadFile = jar
     gameVersions = [property('minecraft_version')]
