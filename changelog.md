@@ -1,1 +1,3 @@
-Now runs on Minecraft 26.2. Same sorting, auto-restock, and move-matching as 1.2.1.
+Sort now groups by item type by default. Every stack of an item sits together, with the full stacks first and the leftover partial right after them.
+
+The old largest-stacks-first order still works and comes back as a choice once the sort type cycle lands.
