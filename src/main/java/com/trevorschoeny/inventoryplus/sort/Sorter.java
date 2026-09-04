@@ -5,7 +5,6 @@ import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
@@ -36,9 +35,8 @@ import java.util.Map;
  *   <li><b>Distribute.</b> For each group, split its total into
  *       max-stack-size chunks (full stacks + one partial remainder).
  *       Each chunk becomes one target stack.</li>
- *   <li><b>Sort the chunks.</b> Currently {@link
- *       SortType#QUANTITY_DESC} only — count descending, tiebreaker
- *       item-ID ascending. Empty slots trail.</li>
+ *   <li><b>Sort the chunks.</b> Using the comparator the {@link
+ *       SortType} carries. Empty slots trail.</li>
  *   <li><b>Apply.</b> Walk the target list slot-by-slot. For each
  *       target position, ensure the underlying inventory matches by
  *       issuing PICKUP swaps and merges from later slots.</li>
@@ -61,12 +59,15 @@ import java.util.Map;
  * the primary slot), the second PICKUP merges instead of swaps, and
  * the order matters — see {@link #consolidateInto}.
  *
- * <h3>MVP scope</h3>
+ * <h3>Which sort types work</h3>
  *
- * Only {@link SortType#QUANTITY_DESC} is implemented. Other types
- * throw {@link UnsupportedOperationException} — they're wired in the
- * type/persistence layer but won't be reachable until the type-cycle
- * power-user feature lands.
+ * Whichever ones {@link SortType} gives a comparator —
+ * {@link SortType#ID_ASC} (the default, "sort by type") and
+ * {@link SortType#QUANTITY_DESC} today. The rest are declared in the
+ * type/persistence layer but throw
+ * {@link UnsupportedOperationException} until the type-cycle
+ * power-user feature fills in their comparators. Nothing here changes
+ * when they do.
  */
 public final class Sorter {
 
@@ -81,9 +82,13 @@ public final class Sorter {
     public static void sort(AbstractContainerMenu menu, MultiPlayerGameMode gameMode,
                             Player player, List<Slot> region, SortType type) {
         if (type == SortType.DISABLED) return;
-        if (type != SortType.QUANTITY_DESC) {
+
+        // Each stop owns its chunk ordering; a null comparator means the
+        // type is declared in the spec but not implemented yet.
+        Comparator<ItemStack> order = type.comparator();
+        if (order == null) {
             throw new UnsupportedOperationException(
-                    "Sort type " + type + " not yet implemented (MVP: QUANTITY_DESC only)");
+                    "Sort type " + type + " not yet implemented (no comparator)");
         }
 
         // Locked slots stay put — sort operates only on unlocked.
@@ -94,7 +99,7 @@ public final class Sorter {
         if (unlocked.size() < 2) return;
 
         // Compute target layout.
-        List<ItemStack> target = computeTarget(unlocked, type);
+        List<ItemStack> target = computeTarget(unlocked, order);
         if (target.isEmpty()) return;
 
         // Apply by issuing PICKUP click sequences.
@@ -104,8 +109,8 @@ public final class Sorter {
                 "[sort] sorted {} unlocked slots with {}", unlocked.size(), type);
     }
 
-    /** Step 2-4: group → distribute → sort. */
-    private static List<ItemStack> computeTarget(List<Slot> unlocked, SortType type) {
+    /** Step 2-4: group → distribute → sort with the type's comparator. */
+    private static List<ItemStack> computeTarget(List<Slot> unlocked, Comparator<ItemStack> order) {
         // Group total count per (item, components). LinkedHashMap keeps insertion
         // order for stability, though we re-sort below.
         Map<ItemStack, Integer> totals = new LinkedHashMap<>();
@@ -133,12 +138,8 @@ public final class Sorter {
             }
         }
 
-        // Sort.
-        if (type == SortType.QUANTITY_DESC) {
-            chunks.sort(Comparator
-                    .<ItemStack>comparingInt(s -> -s.getCount())
-                    .thenComparing(Sorter::idOf));
-        }
+        // Sort. The ordering is entirely the sort type's business.
+        chunks.sort(order);
 
         // Pad with empties to match the unlocked slot count.
         while (chunks.size() < unlocked.size()) {
@@ -161,10 +162,6 @@ public final class Sorter {
             if (ItemStack.isSameItemSameComponents(key, stack)) return key;
         }
         return null;
-    }
-
-    private static String idOf(ItemStack stack) {
-        return BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
     }
 
     /** Step 5: apply by walking target slots in order, fixing each. */
