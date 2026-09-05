@@ -14,7 +14,9 @@ Move Matching moves every matching item between your inventory and a container i
 
 Locked Slots keeps sorting and quick-move away from slots you mark.
 
-Column Cycler turns a vertical column of inventory slots into a cycle you rotate through a hotbar slot, with a mini-hotbar HUD.
+Column Cycler turns a vertical column of inventory slots into a cycle you rotate through a hotbar slot with the Up and Down arrows, shown as a vertical overlay beside the hotbar.
+
+Hotbar Cycler rotates whole rows of your inventory through the hotbar, so a mining row and a combat row are one key apart. Hover a row and click the button beside it to add it to the cycle. Press ] to bring the next row down into your hotbar and [ to send it back up. Items keep their columns, and the hotbar slides to show the change. It is off by default and lives under Power Users.
 
 Every feature has its own toggle and settings under Mod Menu, Inventory Plus.
 
