@@ -4,7 +4,7 @@ import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockedslots.LockEditMode;
 
-import com.trevorschoeny.menukit.core.Button;
+import com.trevlar.menukit.core.Button;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;

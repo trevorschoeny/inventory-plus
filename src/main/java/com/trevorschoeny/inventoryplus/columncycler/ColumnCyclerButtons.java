@@ -2,7 +2,7 @@ package com.trevorschoeny.inventoryplus.columncycler;
 
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 
-import com.trevorschoeny.menukit.core.Toggle;
+import com.trevlar.menukit.core.Toggle;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 

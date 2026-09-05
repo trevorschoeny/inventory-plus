@@ -1,7 +1,7 @@
 package com.trevorschoeny.inventoryplus.cyclable;
 
-import com.trevorschoeny.menukit.core.HudRegion;
-import com.trevorschoeny.menukit.hud.MKHudPanel;
+import com.trevlar.menukit.core.HudRegion;
+import com.trevlar.menukit.hud.MKHudPanel;
 
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;

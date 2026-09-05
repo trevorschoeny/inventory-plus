@@ -3,15 +3,15 @@ package com.trevorschoeny.inventoryplus.hotbarcycler;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockedslots.LockEditMode;
 
-import com.trevorschoeny.menukit.core.Panel;
-import com.trevorschoeny.menukit.core.PanelElement;
-import com.trevorschoeny.menukit.core.PanelPosition;
-import com.trevorschoeny.menukit.core.PanelStyle;
-import com.trevorschoeny.menukit.core.Toggle;
-import com.trevorschoeny.menukit.inject.ScreenOrigin;
-import com.trevorschoeny.menukit.inject.ScreenPanelAdapter;
-import com.trevorschoeny.menukit.inject.SlotScreenRect;
-import com.trevorschoeny.menukit.inject.VanillaSlotResolver;
+import com.trevlar.menukit.core.Panel;
+import com.trevlar.menukit.core.PanelElement;
+import com.trevlar.menukit.core.PanelPosition;
+import com.trevlar.menukit.core.PanelStyle;
+import com.trevlar.menukit.core.Toggle;
+import com.trevlar.menukit.inject.ScreenOrigin;
+import com.trevlar.menukit.inject.ScreenPanelAdapter;
+import com.trevlar.menukit.inject.SlotScreenRect;
+import com.trevlar.menukit.inject.VanillaSlotResolver;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;

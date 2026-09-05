@@ -4,13 +4,13 @@ import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsButtons;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingButtons;
 import com.trevorschoeny.inventoryplus.sort.SortButton;
 
-import com.trevorschoeny.menukit.core.Panel;
-import com.trevorschoeny.menukit.core.PanelElement;
-import com.trevorschoeny.menukit.core.PanelPosition;
-import com.trevorschoeny.menukit.core.PanelStyle;
-import com.trevorschoeny.menukit.core.SlotGroupCategory;
-import com.trevorschoeny.menukit.core.SlotGroupRegion;
-import com.trevorschoeny.menukit.inject.SlotGroupPanelAdapter;
+import com.trevlar.menukit.core.Panel;
+import com.trevlar.menukit.core.PanelElement;
+import com.trevlar.menukit.core.PanelPosition;
+import com.trevlar.menukit.core.PanelStyle;
+import com.trevlar.menukit.core.SlotGroupCategory;
+import com.trevlar.menukit.core.SlotGroupRegion;
+import com.trevlar.menukit.inject.SlotGroupPanelAdapter;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
