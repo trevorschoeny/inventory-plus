@@ -10,6 +10,7 @@ import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerDragController;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerKeybind;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerRotationKeybind;
 import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCycler;
+import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCyclerHud;
 import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCyclerKeybind;
 import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCyclerRowButtons;
 import com.trevorschoeny.inventoryplus.columncycler.hud.ColumnCyclerHudSource;
@@ -159,6 +160,12 @@ public class InventoryPlusClient implements ClientModInitializer {
         HotbarCyclerRowButtons.register();
         HotbarCyclerKeybind.register();
         ClientTickEvents.END_CLIENT_TICK.register(HotbarCyclerKeybind::tick);
+        // The hotbar slide and the change-gated preview slides. Init order
+        // relative to the HUD sources below is irrelevant: this only adds a
+        // rotation listener now, and consults the source registry at rotation
+        // time. That is also what lets Pocket Cycler's source, registered by
+        // Inventory Max at its own init, take part without IP referencing it.
+        HotbarCyclerHud.register();
 
         // HotbarCyclable registration — Column Cycler is the first
         // implementer of the cycler-agnostic "bring this slot's item to

@@ -223,6 +223,13 @@ public final class HotbarCycler {
         if (rows.isEmpty()) return false;
         Collections.sort(rows); // visual top → bottom, so the wrap lands on the topmost
 
+        // Listeners that animate need the world as it was, and the clicks
+        // below change the client's predicted inventory immediately. So the
+        // "before" hook fires here, not after.
+        for (RotationListener listener : ROTATION_LISTENERS) {
+            listener.beforeRotation();
+        }
+
         boolean any = false;
         for (int column = 0; column < COLUMNS; column++) {
             // Cycle list for this column: each toggled row's slot in the
@@ -247,8 +254,18 @@ public final class HotbarCycler {
      * per-column and a row rotation is not a column cycle advance; the
      * hotbar slide and the preview slides listen here.
      */
-    @FunctionalInterface
     public interface RotationListener {
+        /**
+         * Fired just before the clicks go out, once the rotation is going to
+         * be attempted (rows are toggled). The inventory is still in its
+         * pre-rotation state here; anything that wants a "before" snapshot
+         * takes it now. May fire without a matching {@link #onRotation} if
+         * the rotation then no-ops (cursor occupied); a stale snapshot is
+         * harmless and the next call overwrites it.
+         */
+        default void beforeRotation() {}
+
+        /** Fired after clicks were sent for at least one column. */
         void onRotation(ColumnCyclerRotator.Direction direction);
     }
 

@@ -68,8 +68,8 @@ public final class CycleHud {
     private static final int SELECTION_SPRITE_H = 23;
 
     // ─── Animation ───────────────────────────────────────────────────
-
-    private static final long ANIMATION_DURATION_MILLIS = 220L;
+    // Duration and easing live in CycleSlide, shared with the hotbar slide so
+    // every cycler animation runs on one curve and one clock.
 
     // ─── Registration ────────────────────────────────────────────────
 
@@ -290,7 +290,7 @@ public final class CycleHud {
         CyclerDirection dir = animDirection(source, activeSlot);
         if (dir == null) return 0;
         CycleHudRegistry.Animation anim = CycleHudRegistry.animationFor(source);
-        float remaining = 1.0f - easeOutBack((float) (System.currentTimeMillis() - anim.startMillis()) / ANIMATION_DURATION_MILLIS);
+        float remaining = 1.0f - CycleSlide.progress(anim.startMillis());
         int px = Math.round(remaining * SLOT_PX);
         return (dir == CyclerDirection.FORWARD) ? px : -px;
     }
@@ -298,7 +298,7 @@ public final class CycleHud {
     private static CyclerDirection animDirection(CycleHudSource source, int activeSlot) {
         CycleHudRegistry.Animation anim = CycleHudRegistry.animationFor(source);
         if (anim == null || anim.hotbarSlot() != activeSlot || anim.direction() == null) return null;
-        if (System.currentTimeMillis() - anim.startMillis() >= ANIMATION_DURATION_MILLIS) {
+        if (CycleSlide.isDone(anim.startMillis())) {
             CycleHudRegistry.clearAnimation(source);
             return null;
         }
@@ -314,7 +314,7 @@ public final class CycleHud {
     private static float animProgress(CycleHudSource source, int activeSlot) {
         CycleHudRegistry.Animation anim = CycleHudRegistry.animationFor(source);
         if (animDirection(source, activeSlot) == null || anim == null) return 1f;
-        return easeOutBack((float) (System.currentTimeMillis() - anim.startMillis()) / ANIMATION_DURATION_MILLIS);
+        return CycleSlide.progress(anim.startMillis());
     }
 
     // ─── Vanilla-texture drawing ─────────────────────────────────────
@@ -353,15 +353,5 @@ public final class CycleHud {
         graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SELECTION_SPRITE,
                 SELECTION_SPRITE_W, SELECTION_SPRITE_H, 0, 0,
                 slotX - 1, slotY - 1, SELECTION_SPRITE_W, SELECTION_SPRITE_H);
-    }
-
-    /** Ease-out-back spring curve: overshoots ~10% then settles to 1.0. */
-    private static float easeOutBack(float t) {
-        if (t <= 0f) return 0f;
-        if (t >= 1f) return 1f;
-        final float c1 = 1.70158f;
-        final float c3 = c1 + 1f;
-        float tm1 = t - 1f;
-        return 1f + c3 * tm1 * tm1 * tm1 + c1 * tm1 * tm1;
     }
 }

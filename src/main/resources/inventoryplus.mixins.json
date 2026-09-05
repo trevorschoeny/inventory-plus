@@ -8,6 +8,8 @@
     "AbstractContainerScreenAccessor",
     "AbstractContainerScreenRenderSlotMixin",
     "CompoundContainerAccessor",
+    "HudAccessor",
+    "HudHotbarSlideMixin",
     "InventoryGetFreeSlotMixin",
     "LockedSlotPickAllMixin",
     "MouseHandlerScrollMixin",

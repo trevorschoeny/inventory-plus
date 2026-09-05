@@ -1,5 +1,7 @@
 package com.trevorschoeny.inventoryplus.cyclable;
 
+import net.minecraft.world.item.ItemStack;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -91,5 +93,54 @@ public final class CycleHudRegistry {
     /** Clear {@code source}'s slide (called by the HUD when it completes). */
     public static void clearAnimation(CycleHudSource source) {
         ANIMATIONS.remove(source);
+    }
+
+    // ─── Change-gated slides ─────────────────────────────────────────
+    // Hotbar Cycler rotates whole rows, which may or may not alter what a
+    // given preview shows: a column whose cycle members sit in untouched rows
+    // changes only its held cell; a pocket's own slots never change at all.
+    // The spec says a preview slides only where the rotation actually changed
+    // its contents. That decision is made here, generically, so a cycler that
+    // fires it never needs to know which sources exist (Pocket Cycler lives in
+    // another mod) or how each one derives its view.
+
+    /**
+     * Every source's current view for {@code hotbarSlot}, keyed by source, for
+     * a later {@link #fireChangedViews}. Sources with no active cycle there
+     * map to {@code null}, so a cycle appearing or vanishing also counts as a
+     * change.
+     */
+    public static Map<CycleHudSource, CycleView> snapshotViews(int hotbarSlot) {
+        Map<CycleHudSource, CycleView> out = new HashMap<>();
+        for (CycleHudSource s : SOURCES) {
+            out.put(s, s.cycleViewForHotbar(hotbarSlot));
+        }
+        return out;
+    }
+
+    /**
+     * Fire a slide in {@code direction} for each source whose view on
+     * {@code hotbarSlot} now differs from {@code before} (a
+     * {@link #snapshotViews} taken before the rotation). Sources whose
+     * contents did not change are left alone and do not move.
+     */
+    public static void fireChangedViews(int hotbarSlot, CyclerDirection direction,
+                                        Map<CycleHudSource, CycleView> before) {
+        for (CycleHudSource s : SOURCES) {
+            CycleView was = before.get(s);
+            CycleView now = s.cycleViewForHotbar(hotbarSlot);
+            if (viewChanged(was, now)) fireCycleAnimation(s, hotbarSlot, direction);
+        }
+    }
+
+    /** Item-by-item comparison of the raw visual order; ItemStack has no content equals. */
+    private static boolean viewChanged(CycleView was, CycleView now) {
+        if (was == null || now == null) return was != now;
+        List<ItemStack> a = was.visualOrder(), b = now.visualOrder();
+        if (a.size() != b.size()) return true;
+        for (int i = 0; i < a.size(); i++) {
+            if (!ItemStack.matches(a.get(i), b.get(i))) return true;
+        }
+        return false;
     }
 }
