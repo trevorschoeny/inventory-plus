@@ -1,3 +1,3 @@
-Sort now groups by item type by default. Every stack of an item sits together, with the full stacks first and the leftover partial right after them.
+Sort now keeps every stack of an item together. A chest holding three stacks of cobblestone puts all three side by side instead of leaving the odd partial stranded further down the chest.
 
-The old largest-stacks-first order still works and comes back as a choice once the sort type cycle lands.
+Sorting still leads with the items you have most of.

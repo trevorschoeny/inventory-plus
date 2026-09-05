@@ -125,21 +125,34 @@ public final class Sorter {
             }
         }
 
-        // Distribute each group's total into max-stack chunks.
-        List<ItemStack> chunks = new ArrayList<>();
+        // Order the GROUPS, not the individual stacks. Ranking loose stacks
+        // strands an item's leftover partial away from its full stacks (a
+        // 51-coal sorting next to a 53-iron rather than beside the 64-coal it
+        // came from), which reads in-game as "it didn't sort". Sorting one
+        // entry per item type and only then splitting into stacks keeps every
+        // chunk of an item adjacent, whatever the sort type.
+        //
+        // Each entry is a representative stack whose count is the group's
+        // TOTAL, so a comparator's getCount() means "how much of this item you
+        // have". That total may exceed the item's max stack size; these stacks
+        // are only ever compared and then discarded, never handed to the game.
+        List<ItemStack> groups = new ArrayList<>();
         for (var entry : totals.entrySet()) {
-            ItemStack key = entry.getKey();
-            int remaining = entry.getValue();
-            int max = key.getMaxStackSize();
+            groups.add(entry.getKey().copyWithCount(entry.getValue()));
+        }
+        groups.sort(order);
+
+        // Split each group into max-stack chunks, full stacks first.
+        List<ItemStack> chunks = new ArrayList<>();
+        for (ItemStack group : groups) {
+            int remaining = group.getCount();
+            int max = group.getMaxStackSize();
             while (remaining > 0) {
                 int n = Math.min(remaining, max);
-                chunks.add(key.copyWithCount(n));
+                chunks.add(group.copyWithCount(n));
                 remaining -= n;
             }
         }
-
-        // Sort. The ordering is entirely the sort type's business.
-        chunks.sort(order);
 
         // Pad with empties to match the unlocked slot count.
         while (chunks.size() < unlocked.size()) {

@@ -25,48 +25,48 @@ import java.util.Comparator;
  * {@code UnsupportedOperationException} for those so a stored value
  * can't silently misbehave.
  *
- * <h3>Comparators order chunks, not slots</h3>
+ * <h3>Comparators order item groups, not stacks</h3>
  *
- * <p>By the time a comparator runs, {@link Sorter} has already merged
- * every same-item stack into max-size chunks. Each element is one
- * target stack, so the comparator decides purely what order those
- * stacks sit in. Empty slots are padded on afterwards and always trail.
+ * <p>A comparator sees exactly one entry per item type, and that
+ * entry's {@code getCount()} is the total of the item across the whole
+ * region. So "quantity" means "how much of this item you have", not
+ * "how big is this one stack". {@link Sorter} splits each group into
+ * max-size stacks only after the ordering is decided, which is what
+ * keeps every stack of an item adjacent. Empty slots are padded on
+ * afterwards and always trail.
  *
- * <h3>Why ID_ASC is the default</h3>
- *
- * <p>Quantity-primary ordering scatters an item's leftover partial
- * stack away from its full stacks — a 51-coal sorts next to a 53-iron
- * rather than next to the 64-coal it came from — which reads as "it
- * didn't sort" even though it matched the spec exactly. Sorting by item
- * ID keeps every chunk of a type adjacent by construction, which is
- * what players mean by "sorted". Trev 2026-09-04.
+ * <p>This is deliberate. Ranking loose stacks instead strands an item's
+ * leftover partial away from its full stacks, and a chest where coal
+ * appears in two unrelated places reads as unsorted however correct the
+ * ordering is. Trev 2026-09-04.
  */
 public enum SortType {
 
     /**
-     * Largest stacks first; ties broken alphabetically.
+     * Most of an item first; ties broken alphabetically. Default.
      *
-     * <p>This deliberately splits an item's partial stack away from its
-     * full ones — inherent to ranking by count, not a defect. Kept
-     * because "show me the biggest stacks" is a real use (see the
-     * spec's rationale), just no longer the default.
+     * <p>Ranks by the item's total across the region, so a chest with
+     * 150 cobblestone leads with all three of its cobblestone stacks
+     * before moving to the next item. An item held as many small stacks
+     * can therefore outrank one held as a single full stack, which is
+     * the honest reading of "sort by quantity" once stacks of a type
+     * are kept together.
      */
     QUANTITY_DESC(Comparator
             .<ItemStack>comparingInt(s -> -s.getCount())
             .thenComparing(SortType::idOf)),
 
-    /** Smallest stacks first. */
+    /** Least of an item first. */
     QUANTITY_ASC(null),
 
     /** Alphabetical descending (Z first). */
     ID_DESC(null),
 
     /**
-     * Alphabetical ascending (A first) — "sort by type". Default.
+     * Alphabetical ascending (A first) — "sort by type".
      *
-     * <p>Item ID is the primary key, so all chunks of one item land
-     * adjacent. Within a type, bigger stacks come first, which puts the
-     * full stacks ahead of the leftover partial.
+     * <p>Item ID is the primary key. The count tiebreaker never fires,
+     * since there is one entry per item type.
      */
     ID_ASC(Comparator
             .<ItemStack, String>comparing(SortType::idOf)
@@ -103,10 +103,6 @@ public enum SortType {
         return BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
     }
 
-    /**
-     * Default for containers with no stored type — "sort by type"
-     * (alphabetical, A first). See the class javadoc for why this isn't
-     * {@link #QUANTITY_DESC}.
-     */
-    public static final SortType DEFAULT = ID_ASC;
+    /** Default for containers with no stored type. */
+    public static final SortType DEFAULT = QUANTITY_DESC;
 }
