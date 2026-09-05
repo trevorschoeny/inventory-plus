@@ -18,12 +18,19 @@ import java.util.List;
  * when a cycle rotates. Cycler-agnostic: any cycler registers a
  * {@link CycleHudSource} and fires the shared per-source animation clock.
  *
- * <h3>Two layouts</h3>
+ * <h3>Three layouts</h3>
+ *
+ * Each source declares its axis ({@link CycleHudSource#vertical()}) and keeps
+ * it whether alone or sharing the slot.
  *
  * <ul>
- *   <li><b>Solo</b> — one cycler on the slot: a horizontal mini-hotbar strip
+ *   <li><b>Solo horizontal</b> — Pocket alone: a horizontal mini-hotbar strip
  *       (vanilla {@code hud/hotbar} sprite), right of the real hotbar at the
  *       same height.</li>
+ *   <li><b>Solo vertical</b> — Column alone: a one-cell bar at that same spot
+ *       holding the held item, with the column rising above it. The column
+ *       always reads as a column (Trev 2026-09-05; this withdrew the earlier
+ *       rule that a lone cycler renders horizontally).</li>
  *   <li><b>Cross</b> — two cyclers on the same slot (Column + Pocket): the
  *       horizontal arm (Pocket) is that mini-hotbar at hotbar height; the
  *       vertical arm (Column) floats straight up from the held item. The held
@@ -108,21 +115,27 @@ public final class CycleHud {
         int stripX = screenW / 2 + HOTBAR_HALF_WIDTH_PX + STRIP_GAP_FROM_HOTBAR_PX;
         int stripY = screenH - STRIP_HEIGHT_PX; // hotbar height
 
-        if (cycles.size() == 1) {
-            renderHorizontalStrip(graphics, mc, cycles.get(0), activeSlot, stripX, stripY, true);
-            return;
-        }
-
-        // Cross: horizontal arm (Pocket) + vertical arm (Column) sharing the held cell.
+        // Partition by axis first. Each source declares which way its strip
+        // runs, and that holds whether it is alone or sharing the slot: Column
+        // Cycler is vertical always (Trev 2026-09-05, withdrawing the earlier
+        // rule that a lone cycler renders as the horizontal mini-hotbar);
+        // Pocket Cycler is horizontal.
         CycleHudRegistry.ActiveCycle horizontal = null, vertical = null;
         for (CycleHudRegistry.ActiveCycle ac : cycles) {
-            if (ac.source().verticalInCross()) {
+            if (ac.source().vertical()) {
                 if (vertical == null) vertical = ac;
             } else if (horizontal == null) {
                 horizontal = ac;
             }
         }
 
+        // A lone horizontal cycler (Pocket alone) is the plain mini-hotbar strip.
+        if (vertical == null) {
+            renderHorizontalStrip(graphics, mc, horizontal, activeSlot, stripX, stripY, true);
+            return;
+        }
+
+        // From here the column is present, alone or in the cross with a pocket.
         int heldHi = (horizontal != null)
                 ? Math.max(0, Math.min(horizontal.view().size() - 1, horizontal.view().highlightIndex()))
                 : 0;
@@ -134,16 +147,26 @@ public final class CycleHud {
         // non-owning arm skips the held item (otherwise it draws a static second
         // copy the moving one slides over — a brief duplicate near the end).
         boolean pocketAnim = horizontal != null && animDirection(horizontal.source(), activeSlot) != null;
-        boolean columnAnim = vertical != null && animDirection(vertical.source(), activeSlot) != null;
-        boolean columnOwnsHeld = columnAnim && !pocketAnim;
+        boolean columnAnim = animDirection(vertical.source(), activeSlot) != null;
+        // With no horizontal arm there is no one to hand the held cell to, so
+        // the column owns it unconditionally; the cross rule applies only when
+        // both arms are present.
+        boolean columnOwnsHeld = horizontal == null || (columnAnim && !pocketAnim);
 
-        if (!columnOwnsHeld && vertical != null) {
+        // A lone column still needs a frame under its held cell. In the cross
+        // the horizontal arm's bar provides it; alone, a one-cell bar does, so
+        // the held item sits on hotbar-styled chrome either way.
+        if (horizontal == null) {
+            renderStripBackground(graphics, stripX, stripY, SLOT_PX + 2 * OUTER_BORDER_PX);
+        }
+
+        if (!columnOwnsHeld) {
             renderColumnStrip(graphics, mc, vertical, activeSlot, heldCellX, stripY, false);
         }
         if (horizontal != null) {
             renderHorizontalStrip(graphics, mc, horizontal, activeSlot, stripX, stripY, !columnOwnsHeld);
         }
-        if (columnOwnsHeld && vertical != null) {
+        if (columnOwnsHeld) {
             renderColumnStrip(graphics, mc, vertical, activeSlot, heldCellX, stripY, true);
         }
         renderHighlight(graphics, heldCellX, stripY);
@@ -191,8 +214,9 @@ public final class CycleHud {
 
     /**
      * Draw the column rising from the held cell at {@code heldTop}. Static slot
-     * frames for the cells ABOVE the held (the held cell's frame is the
-     * horizontal arm's hotbar bar); the floating stack is lifted
+     * frames for the cells ABOVE the held; the held cell's frame is the
+     * caller's (the horizontal arm's bar in the cross, a one-cell bar when the
+     * column is alone). The floating stack is lifted
      * {@link #COLUMN_RISE_PX} so it clears the bar.
      *
      * <p>Animation is a per-cell interpolation: each item slides FROM the cell it
@@ -225,7 +249,7 @@ public final class CycleHud {
         int floatX = cellX + COLUMN_NUDGE_X_PX;
 
         // Static frames for the cells above the held cell (lifted to clear the
-        // hotbar bar). The held cell's frame is the horizontal arm's bar.
+        // hotbar bar). The held cell's frame is drawn by the caller.
         for (int j = 0; j <= n - 2; j++) {
             drawHotbarCellBackground(graphics, floatX, columnCellY(heldTop, j, n));
         }

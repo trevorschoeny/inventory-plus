@@ -63,9 +63,9 @@ public final class ColumnCyclerHudSource implements CycleHudSource {
         return 100;
     }
 
-    /** Column Cycler is the vertical arm of the cross — a column is vertical. */
+    /** A column is vertical, alone or as the cross's vertical arm. */
     @Override
-    public boolean verticalInCross() {
+    public boolean vertical() {
         return true;
     }
 

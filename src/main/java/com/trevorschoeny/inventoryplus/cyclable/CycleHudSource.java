@@ -42,14 +42,18 @@ public interface CycleHudSource {
     }
 
     /**
-     * In the cross layout (when two cyclers share the selected hotbar slot),
-     * which axis this cycler's strip runs along: {@code true} = vertical,
-     * {@code false} = horizontal. Column Cycler is vertical (a column literally
-     * is one); Pocket Cycler is horizontal. They share the held-item cell at the
-     * cross center. Ignored when only one cycler is active — a lone cycler
-     * always renders as the horizontal mini-hotbar.
+     * Which axis this cycler's strip runs along: {@code true} = vertical,
+     * {@code false} = horizontal. It holds whether the cycler is alone or
+     * sharing the slot. Column Cycler is vertical (a column literally is one);
+     * Pocket Cycler is horizontal. In the cross the two share the held-item
+     * cell at the centre; alone, a vertical cycler gets a one-cell bar under
+     * its held item and a horizontal one is the plain mini-hotbar strip.
+     *
+     * <p>Was {@code verticalInCross} until 2026-09-05, when Trev withdrew the
+     * rule that a lone cycler always renders horizontally. Renamed because the
+     * flag now decides the solo layout too, and the old name said otherwise.
      */
-    default boolean verticalInCross() {
+    default boolean vertical() {
         return false;
     }
 }
