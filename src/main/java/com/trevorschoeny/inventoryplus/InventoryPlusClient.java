@@ -9,6 +9,9 @@ import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerCyclable;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerDragController;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerKeybind;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerRotationKeybind;
+import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCycler;
+import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCyclerKeybind;
+import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCyclerRowButtons;
 import com.trevorschoeny.inventoryplus.columncycler.hud.ColumnCyclerHudSource;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.cyclable.CycleHud;
@@ -139,6 +142,24 @@ public class InventoryPlusClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(ColumnCyclerDragController::tick);
         ClientTickEvents.END_CLIENT_TICK.register(ColumnCyclerRotationKeybind::tick);
 
+        // Hotbar Cycler — rotates whole inventory rows through the hotbar.
+        // Membership is per row (buttons, not a per-slot overlay), and the
+        // rotation reuses ColumnCyclerRotator's engine across all nine
+        // columns, which is what keeps items in their own column.
+        //
+        // The row lock is registered as a DERIVED lock rather than written
+        // into the stored set: it belongs to the position, has to stay put
+        // while items rotate through it, and has to appear and vanish the
+        // instant a row or either lock config is toggled. Registering the
+        // predicate here means Sort, Move Matching, shift-click and the
+        // lock icon all honour it through the one enforcement predicate
+        // they already call.
+        HotbarCycler.load();
+        LockedSlots.registerDerivedPlayerLock(HotbarCycler::rowLockApplies);
+        HotbarCyclerRowButtons.register();
+        HotbarCyclerKeybind.register();
+        ClientTickEvents.END_CLIENT_TICK.register(HotbarCyclerKeybind::tick);
+
         // HotbarCyclable registration — Column Cycler is the first
         // implementer of the cycler-agnostic "bring this slot's item to
         // the hotbar" contract that Auto Tool Switch (and future
@@ -182,6 +203,7 @@ public class InventoryPlusClient implements ClientModInitializer {
         SortKeybind.register();
 
         LOGGER.info("[inventoryplus] Client initialized — auto-restock + "
-                + "move-matching + locked-slots + sort + column-cycler active.");
+                + "move-matching + locked-slots + sort + column-cycler + "
+                + "hotbar-cycler active.");
     }
 }

@@ -123,27 +123,65 @@ public final class ColumnCyclerRotator {
      */
     public static void rotate(int column, Direction direction) {
         if (column < 0 || column > 8) return;
+
+        // Build the cycle slot list: visually top → bottom, hotbar last.
+        // Shared with planBringSlotToHotbar so both call sites agree on
+        // index ordering and membership filtering.
+        if (!rotateSlots(buildCycleList(column), direction, "column-cycler")) return;
+
+        // Notify listeners — fired only after a successful rotation
+        // (all early-return paths above skip this). Used by the HUD
+        // overlay's slide animation, among other consumers.
+        for (RotationListener listener : ROTATION_LISTENERS) {
+            listener.onRotation(column, direction);
+        }
+    }
+
+    /**
+     * The rotation engine: physically rotate an arbitrary ordered list of
+     * the local player's container slots by one step.
+     *
+     * <p>Public and membership-agnostic so Hotbar Cycler can reuse it
+     * rather than growing a second rotator. Column Cycler passes one
+     * column's cycle members; Hotbar Cycler passes one column's toggled
+     * row slots plus that column's hotbar slot, nine times over. The
+     * click sequence, the cursor rule, and the wrap semantics are
+     * identical either way — only the choice of slots differs, and that
+     * is the caller's business.
+     *
+     * <p>{@code containerSlots} is ordered visually top → bottom with
+     * the destination (hotbar) slot LAST, matching {@link #buildCycleList}.
+     * FORWARD shifts items toward that last slot and wraps it to the
+     * front; BACKWARD reverses.
+     *
+     * <p>Each call is self-contained: it starts by picking the last
+     * slot's item onto the cursor and ends by dropping the cursor there,
+     * so consecutive calls compose safely.
+     *
+     * @param feature label for the debug log, so a skipped rotation names
+     *                the cycler that asked for it
+     * @return true if clicks were sent; false for any no-op case (fewer
+     *         than 2 slots, cursor occupied, slot not in the open menu)
+     */
+    public static boolean rotateSlots(List<Integer> containerSlots, Direction direction,
+                                      String feature) {
+        int n = containerSlots.size();
+        if (n < 2) return false;
+
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         MultiPlayerGameMode gameMode = mc.gameMode;
-        if (player == null || gameMode == null) return;
+        if (player == null || gameMode == null) return false;
         AbstractContainerMenu menu = player.containerMenu;
-        if (menu == null) return;
+        if (menu == null) return false;
 
         // Cursor must be empty — otherwise rotation interleaves the
         // carried item into the cycle. Player should drop it first.
         if (!menu.getCarried().isEmpty()) {
             InventoryPlusClient.LOGGER.debug(
-                    "[column-cycler] rotate skipped — cursor holding {}", menu.getCarried());
-            return;
+                    "[{}] rotate skipped — cursor holding {}", feature, menu.getCarried());
+            return false;
         }
-
-        // Build the cycle slot list: visually top → bottom, hotbar last.
-        // Shared with planBringSlotToHotbar so both call sites agree on
-        // index ordering and membership filtering.
-        List<Integer> containerSlots = buildCycleList(column);
-        int n = containerSlots.size();
-        if (n < 2) return;
 
         // Resolve menu slot indices.
         int[] menuSlots = new int[n];
@@ -152,9 +190,9 @@ public final class ColumnCyclerRotator {
             int menuIdx = findMenuSlotIndex(menu, containerSlots.get(i), localUuid);
             if (menuIdx < 0) {
                 InventoryPlusClient.LOGGER.debug(
-                        "[column-cycler] rotate skipped — container slot {} not in current menu",
-                        containerSlots.get(i));
-                return;
+                        "[{}] rotate skipped — container slot {} not in current menu",
+                        feature, containerSlots.get(i));
+                return false;
             }
             menuSlots[i] = menuIdx;
         }
@@ -183,13 +221,7 @@ public final class ColumnCyclerRotator {
         for (int slotIdx : clickSeq) {
             gameMode.handleContainerInput(containerId, slotIdx, 0, ContainerInput.PICKUP, player);
         }
-
-        // Notify listeners — fired only after a successful rotation
-        // (all early-return paths above skip this). Used by the HUD
-        // overlay's slide animation, among other consumers.
-        for (RotationListener listener : ROTATION_LISTENERS) {
-            listener.onRotation(column, direction);
-        }
+        return true;
     }
 
     /**

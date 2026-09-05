@@ -33,8 +33,8 @@ import org.lwjgl.glfw.GLFW;
  *   <li>{@code O} — Move Matching OUT</li>
  *   <li>{@code S} — Sort</li>
  *   <li>{@code C} — Toggle Cycle Slot (Column Cycler feature)</li>
- *   <li>{@code ]} — Cycle Forward (Column Cycler — items shift toward hotbar)</li>
- *   <li>{@code [} — Cycle Backward (Column Cycler — items shift away from hotbar)</li>
+ *   <li>Down / Up — Cycle Forward / Backward (Column Cycler)</li>
+ *   <li>{@code ]} / {@code [} — Cycle Forward / Backward (Hotbar Cycler)</li>
  * </ul>
  *
  * <p>Translation keys follow the convention
@@ -79,14 +79,32 @@ public final class IPKeybinds {
             GLFW.GLFW_KEY_C,
             CATEGORY);
 
+    // Column Cycler moved off the brackets to the arrows on 2026-09-04 so
+    // Hotbar Cycler could take them; see cycle-modes.md for the six-keybind
+    // table. Minecraft stores bindings in options.txt, so existing installs
+    // keep the brackets and get Hotbar Cycler double-bound until rebound.
     public static final KeyMapping CYCLE_FORWARD = new KeyMapping(
             "key.inventoryplus.cycle_forward",
             InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_RIGHT_BRACKET,
+            GLFW.GLFW_KEY_DOWN,
             CATEGORY);
 
     public static final KeyMapping CYCLE_BACKWARD = new KeyMapping(
             "key.inventoryplus.cycle_backward",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_UP,
+            CATEGORY);
+
+    /** Hotbar Cycler forward — rows shift down toward the hotbar. */
+    public static final KeyMapping HOTBAR_CYCLE_FORWARD = new KeyMapping(
+            "key.inventoryplus.hotbar_cycle_forward",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_RIGHT_BRACKET,
+            CATEGORY);
+
+    /** Hotbar Cycler backward — rows shift up away from the hotbar. */
+    public static final KeyMapping HOTBAR_CYCLE_BACKWARD = new KeyMapping(
+            "key.inventoryplus.hotbar_cycle_backward",
             InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_LEFT_BRACKET,
             CATEGORY);
@@ -114,6 +132,8 @@ public final class IPKeybinds {
         KeyMappingHelper.registerKeyMapping(CYCLE_SLOT);
         KeyMappingHelper.registerKeyMapping(CYCLE_FORWARD);
         KeyMappingHelper.registerKeyMapping(CYCLE_BACKWARD);
+        KeyMappingHelper.registerKeyMapping(HOTBAR_CYCLE_FORWARD);
+        KeyMappingHelper.registerKeyMapping(HOTBAR_CYCLE_BACKWARD);
         KeyMappingHelper.registerKeyMapping(AUTO_SWITCH_RETURN);
     }
 }

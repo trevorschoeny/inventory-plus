@@ -126,6 +126,16 @@ public final class IPConfig {
     // Default OFF; opt-in trade-off — scrolling on a cycle-active column
     // rotates the cycle instead of switching the hotbar slot.
     private static boolean columnCyclerScrollToCycle = false;
+
+    // ── Hotbar Cycler (Power Users) ─────────────────────────────────────
+    // Rotates whole inventory rows through the hotbar. Off by default like
+    // every Power Users feature. lockCycledRows stacks ON TOP of the global
+    // cycleSlotsLocked: both must be on for rows to lock, so a player can
+    // keep column and pocket locking while leaving rows free to sort.
+    private static boolean hotbarCyclerEnabled = false;
+    private static boolean hotbarCyclerShowButtons = true;
+    private static boolean lockCycledRows = true;
+    private static boolean hotbarCyclerScrollToCycle = false;
     // Column Cycler HUD overlay mode. MINI_HOTBAR is the default per
     // Trev's spec — when Column Cycler is enabled, the HUD strip shows
     // automatically. NONE disables the HUD without disabling the
@@ -183,6 +193,10 @@ public final class IPConfig {
             columnCyclerShowButton    = readBool(root, "columnCyclerShowButton",    columnCyclerShowButton);
             cycleSlotsLocked          = readBool(root, "cycleSlotsLocked",          cycleSlotsLocked);
             columnCyclerScrollToCycle = readBool(root, "columnCyclerScrollToCycle", columnCyclerScrollToCycle);
+            hotbarCyclerEnabled       = readBool(root, "hotbarCyclerEnabled",       hotbarCyclerEnabled);
+            hotbarCyclerShowButtons   = readBool(root, "hotbarCyclerShowButtons",   hotbarCyclerShowButtons);
+            lockCycledRows            = readBool(root, "lockCycledRows",            lockCycledRows);
+            hotbarCyclerScrollToCycle = readBool(root, "hotbarCyclerScrollToCycle", hotbarCyclerScrollToCycle);
             columnCyclerHudMode       = HudMode.fromName(readString(root, "columnCyclerHudMode", null), columnCyclerHudMode);
             InventoryPlusClient.LOGGER.info("[config] loaded from {}", path);
         } catch (IOException | JsonSyntaxException | IllegalStateException e) {
@@ -241,6 +255,10 @@ public final class IPConfig {
             root.addProperty("columnCyclerShowButton",    columnCyclerShowButton);
             root.addProperty("cycleSlotsLocked",          cycleSlotsLocked);
             root.addProperty("columnCyclerScrollToCycle", columnCyclerScrollToCycle);
+            root.addProperty("hotbarCyclerEnabled",       hotbarCyclerEnabled);
+            root.addProperty("hotbarCyclerShowButtons",   hotbarCyclerShowButtons);
+            root.addProperty("lockCycledRows",            lockCycledRows);
+            root.addProperty("hotbarCyclerScrollToCycle", hotbarCyclerScrollToCycle);
             root.addProperty("columnCyclerHudMode",       columnCyclerHudMode.name());
             Files.writeString(path, GSON.toJson(root));
         } catch (IOException e) {
@@ -272,6 +290,10 @@ public final class IPConfig {
     public static boolean columnCyclerShowButton()      { return columnCyclerShowButton; }
     public static boolean cycleSlotsLocked()            { return cycleSlotsLocked; }
     public static boolean columnCyclerScrollToCycle()   { return columnCyclerScrollToCycle; }
+    public static boolean hotbarCyclerEnabled()         { return hotbarCyclerEnabled; }
+    public static boolean hotbarCyclerShowButtons()     { return hotbarCyclerShowButtons; }
+    public static boolean lockCycledRows()              { return lockCycledRows; }
+    public static boolean hotbarCyclerScrollToCycle()   { return hotbarCyclerScrollToCycle; }
     public static HudMode columnCyclerHudMode()         { return columnCyclerHudMode; }
 
     // ─── Setters ─────────────────────────────────────────────────────
@@ -295,6 +317,21 @@ public final class IPConfig {
     public static void setColumnCyclerEnabled(boolean v)         { columnCyclerEnabled = v; save(); }
     public static void setColumnCyclerShowButton(boolean v)      { columnCyclerShowButton = v; save(); }
     public static void setCycleSlotsLocked(boolean v)            { cycleSlotsLocked = v; save(); }
-    public static void setColumnCyclerScrollToCycle(boolean v)   { columnCyclerScrollToCycle = v; save(); }
+    // Scroll-to-cycle has a single owner: the wheel is one input, so turning
+    // it on for one cycler turns it off for the other (cycle-modes.md). Both
+    // setters enforce it, so the rule holds wherever it's set from.
+    public static void setColumnCyclerScrollToCycle(boolean v) {
+        columnCyclerScrollToCycle = v;
+        if (v) hotbarCyclerScrollToCycle = false;
+        save();
+    }
+    public static void setHotbarCyclerEnabled(boolean v)         { hotbarCyclerEnabled = v; save(); }
+    public static void setHotbarCyclerShowButtons(boolean v)     { hotbarCyclerShowButtons = v; save(); }
+    public static void setLockCycledRows(boolean v)              { lockCycledRows = v; save(); }
+    public static void setHotbarCyclerScrollToCycle(boolean v) {
+        hotbarCyclerScrollToCycle = v;
+        if (v) columnCyclerScrollToCycle = false;
+        save();
+    }
     public static void setColumnCyclerHudMode(HudMode v)         { columnCyclerHudMode = v; save(); }
 }

@@ -157,7 +157,7 @@ public final class IPConfigScreen {
                 "Enable Column Cycler",
                 "Cycle items along a vertical column of toggled inventory slots — "
                         + "press C while hovering a slot to add it to its column's cycle; "
-                        + "] and [ rotate. More refinements under Advanced.",
+                        + "the Down and Up arrows rotate. More refinements under Advanced.",
                 false, IPConfig::columnCyclerEnabled, IPConfig::setColumnCyclerEnabled);
         Option<Boolean> cyclerShowHud = booleanOption(
                 "    Show HUD",
@@ -187,10 +187,32 @@ public final class IPConfigScreen {
                 .build();
         Option<Boolean> scrollToCycle = booleanOption(
                 "Scroll to Cycle",
-                "Use the scroll wheel as an alternative to the ]/[ keybinds. On a hotbar slot "
+                "Use the scroll wheel as an alternative to the arrow keybinds. On a hotbar slot "
                         + "whose column has cycle members, scrolling rotates the cycle instead of "
                         + "switching hotbar slots.",
                 false, IPConfig::columnCyclerScrollToCycle, IPConfig::setColumnCyclerScrollToCycle);
+
+        // ─── Hotbar Cycler (Features + Advanced) ─────────────────────────
+        Option<Boolean> hotbarCyclerEnabled = booleanOption(
+                "Enable Hotbar Cycler",
+                "Rotate whole inventory rows through the hotbar — hover a row and click the "
+                        + "button on its left to add it to the cycle; ] and [ rotate. Swaps a "
+                        + "whole loadout in one press. More refinements under Advanced.",
+                false, IPConfig::hotbarCyclerEnabled, IPConfig::setHotbarCyclerEnabled);
+        Option<Boolean> lockCycledRows = booleanOption(
+                "Lock Cycled Rows",
+                "Keep Sort, Move Matching, and other automation off the rows in the cycle. "
+                        + "Needs Lock Cycle Slots on as well; turning either off frees the rows.",
+                true, IPConfig::lockCycledRows, IPConfig::setLockCycledRows);
+        Option<Boolean> hotbarScrollToCycle = booleanOption(
+                "Scroll to Cycle (Hotbar)",
+                "Use the scroll wheel as an alternative to the ]/[ keybinds. Only one cycler "
+                        + "can own the wheel at a time.",
+                false, IPConfig::hotbarCyclerScrollToCycle, IPConfig::setHotbarCyclerScrollToCycle);
+        Option<Boolean> hotbarRowButtons = booleanOption(
+                "Hotbar Cycler",
+                "Show the row buttons beside the inventory rows. The ]/[ keybinds still work when off.",
+                true, IPConfig::hotbarCyclerShowButtons, IPConfig::setHotbarCyclerShowButtons);
 
         // ─── Toolbar buttons (Advanced — one concern, one group) ─────────
         Option<Boolean> sortButton = booleanOption(
@@ -268,6 +290,15 @@ public final class IPConfigScreen {
             cyclerButton.setAvailable(val);
         });
 
+        lockCycledRows.setAvailable(IPConfig.hotbarCyclerEnabled());
+        hotbarScrollToCycle.setAvailable(IPConfig.hotbarCyclerEnabled());
+        hotbarRowButtons.setAvailable(IPConfig.hotbarCyclerEnabled());
+        hotbarCyclerEnabled.addListener((opt, val) -> {
+            lockCycledRows.setAvailable(val);
+            hotbarScrollToCycle.setAvailable(val);
+            hotbarRowButtons.setAvailable(val);
+        });
+
         // ─── Tab 1: Features ─────────────────────────────────────────────
         ConfigCategory features = ConfigCategory.createBuilder()
                 .name(Component.literal("Features"))
@@ -292,6 +323,12 @@ public final class IPConfigScreen {
                         .description(OptionDescription.of(Component.literal(
                                 "Extend the effective hotbar by cycling items along inventory columns.")))
                         .option(cyclerEnabled).option(cyclerShowHud)
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(Component.literal("Hotbar Cycler"))
+                        .description(OptionDescription.of(Component.literal(
+                                "Swap a whole hotbar loadout by rotating inventory rows through it.")))
+                        .option(hotbarCyclerEnabled)
                         .build())
                 .group(OptionGroup.createBuilder()
                         .name(Component.literal("Always-On Tools"))
@@ -329,6 +366,7 @@ public final class IPConfigScreen {
                         .option(mmButtons)
                         .option(lockButton)
                         .option(cyclerButton)
+                        .option(hotbarRowButtons)
                         .build())
                 .group(OptionGroup.createBuilder()
                         .name(Component.literal("Column Cycler"))
@@ -336,6 +374,13 @@ public final class IPConfigScreen {
                                 "Power-user refinements for the cycler.")))
                         .option(lockCycleSlots)
                         .option(scrollToCycle)
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(Component.literal("Hotbar Cycler"))
+                        .description(OptionDescription.of(Component.literal(
+                                "Power-user refinements for the row cycler.")))
+                        .option(lockCycledRows)
+                        .option(hotbarScrollToCycle)
                         .build())
                 .build();
 

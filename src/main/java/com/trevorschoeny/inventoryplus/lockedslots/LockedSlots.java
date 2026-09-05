@@ -30,6 +30,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.IntPredicate;
 
 /**
  * Central state + persistence for Locked Slots.
@@ -101,6 +102,42 @@ public final class LockedSlots {
     // here at its init and the unified predicates below dispatch container slots
     // to it. IP itself registers nothing.
     private static final List<SlotLockProvider> PROVIDERS = new ArrayList<>();
+
+    // ── Derived player-slot locks ───────────────────────────────────────
+    //
+    // Some features lock player slots without owning an entry in the stored
+    // set: the lock is derived from feature state and must appear and vanish
+    // the instant that state or its config changes, with nothing to migrate.
+    // Hotbar Cycler's toggled rows are the first case (see hotbar-cycler.md:
+    // the lock is positional, stays put across a rotation, and is governed by
+    // two configs at once).
+    //
+    // A seam rather than a direct call because the alternative inverts the
+    // package dependency: hotbarcycler already imports this package, so
+    // importing it back would close a cycle. Features register themselves at
+    // init and this class stays ignorant of them, the same shape as
+    // SlotLockProvider above.
+    private static final List<IntPredicate> DERIVED_PLAYER_LOCKS = new ArrayList<>();
+
+    /**
+     * Registers a predicate over player container-slot indices that reports
+     * additional locked slots. Consulted by {@link #isLockedSlot(Slot)} on top
+     * of the stored set; it never writes, so the player's manual locks are
+     * untouched and a slot stops being derived-locked as soon as the feature
+     * says so.
+     */
+    public static void registerDerivedPlayerLock(IntPredicate predicate) {
+        if (predicate == null || DERIVED_PLAYER_LOCKS.contains(predicate)) return;
+        DERIVED_PLAYER_LOCKS.add(predicate);
+    }
+
+    /** True if any registered feature derives a lock for this player slot. */
+    private static boolean isDerivedLocked(int containerSlotIndex) {
+        for (IntPredicate p : DERIVED_PLAYER_LOCKS) {
+            if (p.test(containerSlotIndex)) return true;
+        }
+        return false;
+    }
 
     /** Registers a downstream provider (called by IPP at mod init). */
     public static void registerProvider(SlotLockProvider provider) {
@@ -258,7 +295,10 @@ public final class LockedSlots {
      * every existing rule keeps working unchanged on player + ender slots.
      */
     public static boolean isLockedSlot(Slot slot) {
-        if (isLockable(slot)) return isLocked(slot.getContainerSlot());
+        if (isLockable(slot)) {
+            int cs = slot.getContainerSlot();
+            return isLocked(cs) || isDerivedLocked(cs);
+        }
         if (isEnderSlot(slot)) return isEnderLocked(slot.getContainerSlot());
         // Placed-container locks: the provider drives client prediction + the
         // feature skip-paths (sort / move-matching) + the lock icon, all on the
