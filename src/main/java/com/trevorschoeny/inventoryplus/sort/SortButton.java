@@ -98,10 +98,6 @@ public final class SortButton {
         if (identity == null) return;
 
         SortType type = SortState.getType(identity);
-        if (type == SortType.DISABLED) {
-            InventoryPlusClient.LOGGER.debug("[sort] button ({}): {} is Disabled", target, identity.key());
-            return;
-        }
         List<Slot> region = SortKeybind.collectRegion(menu, anchor);
         if (region.size() < 2) return;
         InventoryPlusClient.LOGGER.debug("[sort] button ({}): {} {} over {} slots",

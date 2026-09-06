@@ -59,15 +59,12 @@ import java.util.Map;
  * the primary slot), the second PICKUP merges instead of swaps, and
  * the order matters — see {@link #consolidateInto}.
  *
- * <h3>Which sort types work</h3>
+ * <h3>Sort types</h3>
  *
- * Whichever ones {@link SortType} gives a comparator —
- * {@link SortType#ID_ASC} (the default, "sort by type") and
- * {@link SortType#QUANTITY_DESC} today. The rest are declared in the
- * type/persistence layer but throw
- * {@link UnsupportedOperationException} until the type-cycle
- * power-user feature fills in their comparators. Nothing here changes
- * when they do.
+ * Every {@link SortType} carries its own comparator, so this class never
+ * branches on the type: it groups, hands the groups to the comparator,
+ * and splits the result into stacks. Adding a stop is a one-line
+ * comparator on the enum with no change here.
  */
 public final class Sorter {
 
@@ -76,20 +73,12 @@ public final class Sorter {
     /**
      * Sorts the given region. Caller resolves the region (sortable
      * slots in the menu) and the type (from {@link SortState} or
-     * caller-driven). No-ops if the type is {@link SortType#DISABLED}
-     * or the region has nothing to sort.
+     * caller-driven). No-ops if the region has nothing to sort.
      */
     public static void sort(AbstractContainerMenu menu, MultiPlayerGameMode gameMode,
                             Player player, List<Slot> region, SortType type) {
-        if (type == SortType.DISABLED) return;
-
-        // Each stop owns its chunk ordering; a null comparator means the
-        // type is declared in the spec but not implemented yet.
+        // Each stop owns its chunk ordering.
         Comparator<ItemStack> order = type.comparator();
-        if (order == null) {
-            throw new UnsupportedOperationException(
-                    "Sort type " + type + " not yet implemented (no comparator)");
-        }
 
         // Locked slots stay put — sort operates only on unlocked.
         List<Slot> unlocked = new ArrayList<>();

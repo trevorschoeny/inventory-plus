@@ -5,12 +5,10 @@ import com.trevorschoeny.inventoryplus.buttonmode.ModeStop;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.ItemStack;
 
-import org.jetbrains.annotations.Nullable;
-
 import java.util.Comparator;
 
 /**
- * The five sort orders, in cycle order (`features/sorting.md`). Right-click
+ * The four sort orders, in cycle order (`features/sorting.md`). Right-click
  * on the Sort button walks this list; `features/button-modes.md` has the
  * gesture and scope rules.
  *
@@ -19,7 +17,6 @@ import java.util.Comparator;
  * <p>The comparator lives on the constant rather than in a branch inside
  * {@link Sorter}. Stops differ only in how they order the chunk list, so
  * adding one is a one-line comparator with no edit to the sorter.
- * {@link #DISABLED} has none: {@link Sorter} returns before ordering.
  *
  * <h3>Comparators order item groups, not stacks</h3>
  *
@@ -31,7 +28,8 @@ import java.util.Comparator;
  *
  * <p>Three stops from the earlier seven (Quantity ↑, ID ↓, Rarity ↑) were
  * cut on 2026-09-05: with a right-click cycle every stop costs presses, so
- * symmetry stopped being free.
+ * symmetry stopped being free. Disabled went the same day (Trev): a stop
+ * that does nothing still costs a press on every lap of the cycle.
  */
 public enum SortType implements ModeStop {
 
@@ -57,15 +55,12 @@ public enum SortType implements ModeStop {
     /** Highest rarity first (Epic → Rare → Uncommon → Common); ties alphabetical. */
     RARITY_DESC("Rarity ↓", Comparator
             .<ItemStack>comparingInt(s -> -s.getRarity().ordinal())
-            .thenComparing(SortType::idOf)),
-
-    /** Sort off for this container: the button and the keybind do nothing. */
-    DISABLED("Disabled", null);
+            .thenComparing(SortType::idOf));
 
     private final String label;
-    private final @Nullable Comparator<ItemStack> comparator;
+    private final Comparator<ItemStack> comparator;
 
-    SortType(String label, @Nullable Comparator<ItemStack> comparator) {
+    SortType(String label, Comparator<ItemStack> comparator) {
         this.label = label;
         this.comparator = comparator;
     }
@@ -75,8 +70,8 @@ public enum SortType implements ModeStop {
         return label;
     }
 
-    /** The chunk ordering, or null for {@link #DISABLED}. */
-    public @Nullable Comparator<ItemStack> comparator() {
+    /** The chunk ordering. Every stop has one. */
+    public Comparator<ItemStack> comparator() {
         return comparator;
     }
 

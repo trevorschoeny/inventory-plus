@@ -33,8 +33,7 @@ import java.util.List;
  *   <li>Find the slot under the cursor. If none, no-op.</li>
  *   <li>Resolve a {@link ContainerIdentity} from that slot. If
  *       {@code null} (specialized UI, hotbar, armor, etc.), no-op.</li>
- *   <li>Read sort type from {@link SortState}. If
- *       {@link SortType#DISABLED}, no-op.</li>
+ *   <li>Read sort type from {@link SortState}..</li>
  *   <li>Collect the sortable region (slots in the same container,
  *       with player-inv main-only filter), call {@link Sorter}.</li>
  * </ol>
@@ -100,11 +99,6 @@ public final class SortKeybind {
         }
 
         SortType type = SortState.getType(identity);
-        if (type == SortType.DISABLED) {
-            InventoryPlusClient.LOGGER.debug(
-                    "[sort] S pressed; identity={} is DISABLED — no-op", identity.key());
-            return;
-        }
 
         List<Slot> region = collectRegion(acs.getMenu(), hovered);
         if (region.size() < 2) {
@@ -118,11 +112,7 @@ public final class SortKeybind {
                 "[sort] S pressed; {} identity={} type={} region={} slots — sorting",
                 hoveredDesc, identity.key(), type, region.size());
 
-        try {
-            Sorter.sort(acs.getMenu(), mc.gameMode, mc.player, region, type);
-        } catch (UnsupportedOperationException e) {
-            InventoryPlusClient.LOGGER.warn("[sort] {}", e.getMessage());
-        }
+        Sorter.sort(acs.getMenu(), mc.gameMode, mc.player, region, type);
     }
 
     /**
