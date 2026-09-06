@@ -24,6 +24,7 @@ import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsClickInterceptor;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsDragController;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotKeybind;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingKeybind;
+import com.trevorschoeny.inventoryplus.movematching.MoveMatchingModes;
 import com.trevorschoeny.inventoryplus.sort.ContainerOpenTracker;
 import com.trevorschoeny.inventoryplus.sort.SortKeybind;
 import com.trevorschoeny.inventoryplus.sort.SortState;
@@ -98,6 +99,7 @@ public class InventoryPlusClient implements ClientModInitializer {
         // the IP toolbar. Screen-scoped I / O keybinds register
         // separately. Per-button visibility (.showWhen on the buttons)
         // hides MM IN/OUT on screens without an external container.
+        MoveMatchingModes.load();
         MoveMatchingKeybind.register();
 
         // Locked Slots — per-world client-side persistence + L keybind

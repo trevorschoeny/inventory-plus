@@ -1,5 +1,7 @@
 package com.trevorschoeny.inventoryplus.sort;
 
+import com.trevorschoeny.inventoryplus.buttonmode.ModeStop;
+
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.ItemStack;
 
@@ -8,101 +10,81 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Comparator;
 
 /**
- * Sort modes the cycle stops on, per IP spec (`IP features/sorting.md`).
+ * The five sort orders, in cycle order (`features/sorting.md`). Right-click
+ * on the Sort button walks this list; `features/button-modes.md` has the
+ * gesture and scope rules.
  *
  * <h3>Each stop carries its own ordering</h3>
  *
- * <p>The comparator lives on the enum constant rather than in a branch
- * inside {@link Sorter}. Sort types differ <em>only</em> in how they
- * order the chunk list — group, distribute, and apply are shared by all
- * of them — so the ordering is the one thing a stop actually owns.
- * Putting it here means adding a stop is a one-line change with no edit
- * to {@link Sorter}, instead of another arm on a branch that would grow
- * to seven.
- *
- * <p>A {@code null} comparator means "declared in the spec, not
- * implemented yet". {@link Sorter} throws
- * {@code UnsupportedOperationException} for those so a stored value
- * can't silently misbehave.
+ * <p>The comparator lives on the constant rather than in a branch inside
+ * {@link Sorter}. Stops differ only in how they order the chunk list, so
+ * adding one is a one-line comparator with no edit to the sorter.
+ * {@link #DISABLED} has none: {@link Sorter} returns before ordering.
  *
  * <h3>Comparators order item groups, not stacks</h3>
  *
- * <p>A comparator sees exactly one entry per item type, and that
- * entry's {@code getCount()} is the total of the item across the whole
- * region. So "quantity" means "how much of this item you have", not
- * "how big is this one stack". {@link Sorter} splits each group into
- * max-size stacks only after the ordering is decided, which is what
- * keeps every stack of an item adjacent. Empty slots are padded on
- * afterwards and always trail.
+ * <p>A comparator sees one entry per item type, whose {@code getCount()} is
+ * the item's total across the region. {@link Sorter} splits each group into
+ * max-size stacks only after the ordering is decided, which keeps every
+ * stack of an item adjacent. Category and Rarity look the item up once per
+ * type for the same reason. Empty slots are padded on afterwards and trail.
  *
- * <p>This is deliberate. Ranking loose stacks instead strands an item's
- * leftover partial away from its full stacks, and a chest where coal
- * appears in two unrelated places reads as unsorted however correct the
- * ordering is. Trev 2026-09-04.
+ * <p>Three stops from the earlier seven (Quantity ↑, ID ↓, Rarity ↑) were
+ * cut on 2026-09-05: with a right-click cycle every stop costs presses, so
+ * symmetry stopped being free.
  */
-public enum SortType {
+public enum SortType implements ModeStop {
 
     /**
-     * Most of an item first; ties broken alphabetically. Default.
-     *
-     * <p>Ranks by the item's total across the region, so a chest with
-     * 150 cobblestone leads with all three of its cobblestone stacks
-     * before moving to the next item. An item held as many small stacks
-     * can therefore outrank one held as a single full stack, which is
-     * the honest reading of "sort by quantity" once stacks of a type
-     * are kept together.
+     * Vanilla's creative-tab order: blocks with blocks, tools with tools,
+     * food with food. Default. Rank comes from the game's own tabs
+     * ({@link CategoryOrder}) so it tracks vanilla across versions.
      */
-    QUANTITY_DESC(Comparator
+    CATEGORY("Category", Comparator
+            .<ItemStack>comparingInt(CategoryOrder::rankOf)
+            .thenComparing(SortType::idOf)),
+
+    /** Most of an item first; ties alphabetical. */
+    QUANTITY_DESC("Quantity ↓", Comparator
             .<ItemStack>comparingInt(s -> -s.getCount())
             .thenComparing(SortType::idOf)),
 
-    /** Least of an item first. */
-    QUANTITY_ASC(null),
-
-    /** Alphabetical descending (Z first). */
-    ID_DESC(null),
-
-    /**
-     * Alphabetical ascending (A first) — "sort by type".
-     *
-     * <p>Item ID is the primary key. The count tiebreaker never fires,
-     * since there is one entry per item type.
-     */
-    ID_ASC(Comparator
+    /** Alphabetical by item id, A first. */
+    ID_ASC("ID ↑", Comparator
             .<ItemStack, String>comparing(SortType::idOf)
             .thenComparingInt(s -> -s.getCount())),
 
-    /** Highest rarity first (Epic → Common). */
-    RARITY_DESC(null),
+    /** Highest rarity first (Epic → Rare → Uncommon → Common); ties alphabetical. */
+    RARITY_DESC("Rarity ↓", Comparator
+            .<ItemStack>comparingInt(s -> -s.getRarity().ordinal())
+            .thenComparing(SortType::idOf)),
 
-    /** Lowest rarity first. */
-    RARITY_ASC(null),
+    /** Sort off for this container: the button and the keybind do nothing. */
+    DISABLED("Disabled", null);
 
-    /** Sort off for this container — keybind no-ops while stored. */
-    DISABLED(null);
-
-    /** Chunk ordering for this stop, or null if not implemented yet. */
+    private final String label;
     private final @Nullable Comparator<ItemStack> comparator;
 
-    SortType(@Nullable Comparator<ItemStack> comparator) {
+    SortType(String label, @Nullable Comparator<ItemStack> comparator) {
+        this.label = label;
         this.comparator = comparator;
     }
 
-    /**
-     * The chunk ordering for this stop, or {@code null} if the type is
-     * declared but not implemented. Callers must handle null —
-     * {@link Sorter} turns it into an
-     * {@code UnsupportedOperationException}.
-     */
+    @Override
+    public String label() {
+        return label;
+    }
+
+    /** The chunk ordering, or null for {@link #DISABLED}. */
     public @Nullable Comparator<ItemStack> comparator() {
         return comparator;
     }
 
-    /** Registry ID — the ordering key for ID sorts, the tiebreaker for the rest. */
+    /** Registry id: the key for ID ↑, the tiebreaker for the rest. */
     private static String idOf(ItemStack stack) {
         return BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
     }
 
-    /** Default for containers with no stored type. */
-    public static final SortType DEFAULT = QUANTITY_DESC;
+    /** Global default. Category is the order that reads as tidy (`sorting.md`). */
+    public static final SortType DEFAULT = CATEGORY;
 }

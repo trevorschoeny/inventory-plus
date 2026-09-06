@@ -1,5 +1,7 @@
 package com.trevorschoeny.inventoryplus.movematching;
 
+import com.trevorschoeny.inventoryplus.buttonmode.ModeGestures;
+import com.trevorschoeny.inventoryplus.buttonmode.PressFeedback;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockedslots.LockEditMode;
 
@@ -8,7 +10,6 @@ import com.trevlar.menukit.core.Button;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
 import org.jetbrains.annotations.Nullable;
@@ -16,27 +17,15 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 /**
- * Move Matching toolbar-button factories. Each method returns a
- * configured MK {@link Button} ready to drop into the IP toolbar
- * panel (see {@code toolbar/Toolbar.java}).
+ * Move Matching toolbar buttons. Each carries the shared Move Matching
+ * mode ({@code features/button-modes.md}): left-click runs the operation
+ * in the mode in force, right-click changes the mode, shift+right-click
+ * goes back, middle-click pins it to the open container. IN and OUT are
+ * one operation in two directions and share the one mode, so a gesture
+ * on either button changes both.
  *
- * <h3>Per-button visibility</h3>
- *
- * Both buttons attach {@code .showWhen(() -> isMoveMatchingScreen)} so
- * they appear only on screens that pair the player inventory with an
- * external simple container (chest, shulker, hopper, dispenser,
- * dropper). On pure inventory or specialized-UI screens the toolbar
- * stays visible (because the lock-edit toggle is always-on) but the
- * MM buttons hide — the toolbar's panel width auto-collapses to fit
- * just the visible elements.
- *
- * <h3>SlotGroup resolution at click time</h3>
- *
- * MK doesn't pass the IP-side {@link SlotGroup} into the click
- * callback. The button onClick resolves the player main inv via
- * {@link SlotGroupDetector} just-in-time, since
- * {@link MoveMatchingExecutor#execute} takes the IP SlotGroup. Cheap
- * (one menu walk) and keeps the executor unchanged.
+ * <p>Shown only on screens that pair the inventory with a simple
+ * container; inert in locked-slots edit mode, gestures included.
  */
 public final class MoveMatchingButtons {
 
@@ -49,31 +38,31 @@ public final class MoveMatchingButtons {
 
     public static final int SIZE = 9;
 
-    /**
-     * Move-Matching-OUT button. Triggers an OUT operation (inventory →
-     * external container) on click.
-     */
     public static Button toolbarOutButton(int x, int y) {
-        return Button.sprite(x, y, SIZE, SIZE,
-                        TEXTURE_OUT,
-                        btn -> triggerMoveMatching(Direction.OUT))
-                .tooltip(Component.literal("Move Matching Items Out"))
-                .showWhen(MoveMatchingButtons::shouldShow);
+        return build(x, y, TEXTURE_OUT, "Move Matching Items Out", Direction.OUT);
     }
 
-    /**
-     * Move-Matching-IN button. Triggers an IN operation (external
-     * container → inventory) on click.
-     */
     public static Button toolbarInButton(int x, int y) {
-        return Button.sprite(x, y, SIZE, SIZE,
-                        TEXTURE_IN,
-                        btn -> triggerMoveMatching(Direction.IN))
-                .tooltip(Component.literal("Move Matching Items In"))
+        return build(x, y, TEXTURE_IN, "Move Matching Items In", Direction.IN);
+    }
+
+    private static Button build(int x, int y, Identifier texture, String what, Direction direction) {
+        PressFeedback feedback = new PressFeedback();
+        var gestures = ModeGestures.handler(MoveMatchingModes.MODE, MoveMatchingModes::currentIdentity, feedback);
+        return Button.sprite(x, y, SIZE, SIZE, texture,
+                        btn -> {
+                            feedback.press();
+                            triggerMoveMatching(direction);
+                        })
+                .tooltip(ModeGestures.tooltip(what, MoveMatchingModes.MODE, MoveMatchingModes::currentIdentity))
+                .onSecondaryClick(click -> {
+                    if (LockEditMode.isOn()) return;
+                    gestures.accept(click);
+                })
+                .tint(ModeGestures.tint(MoveMatchingModes.MODE, MoveMatchingModes::currentIdentity, feedback))
                 .showWhen(MoveMatchingButtons::shouldShow);
     }
 
-    /** Combined visibility: the user-config toggle AND the screen-scope check. */
     private static boolean shouldShow() {
         return IPConfig.moveMatchingShowButtons() && isMoveMatchingScreenNow();
     }
@@ -83,7 +72,6 @@ public final class MoveMatchingButtons {
         return screen != null && SlotGroupDetector.isMoveMatchingScreen(screen);
     }
 
-    /** Edit-mode-gated executor trigger. */
     private static void triggerMoveMatching(Direction direction) {
         if (LockEditMode.isOn()) return;
         Minecraft mc = Minecraft.getInstance();
@@ -92,10 +80,9 @@ public final class MoveMatchingButtons {
         List<SlotGroup> groups = SlotGroupDetector.detect(screen);
         SlotGroup playerMainInv = findPlayerMainInv(groups);
         if (playerMainInv == null) return;
-        MoveMatchingExecutor.execute(mc, playerMainInv, direction);
+        MoveMatchingExecutor.execute(mc, playerMainInv, direction, MoveMatchingModes.current());
     }
 
-    /** Returns the first {@link SlotRole#PLAYER_MAIN_INV} group, or null. */
     public static @Nullable SlotGroup findPlayerMainInv(List<SlotGroup> groups) {
         for (SlotGroup g : groups) {
             if (g.role() == SlotRole.PLAYER_MAIN_INV) return g;

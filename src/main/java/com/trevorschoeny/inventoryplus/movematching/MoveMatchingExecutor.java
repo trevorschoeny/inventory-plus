@@ -14,64 +14,59 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
- * Executes Move Matching (IN or OUT) between the player inventory and
- * the open container.
+ * Executes Move Matching (IN or OUT) between the player inventory and the
+ * open container, in one of the four {@link MoveMatchingMode}s.
  *
- * <h3>Direction semantics (Trev / Lead 2026-05-16 simplification)</h3>
+ * <h3>Direction</h3>
  *
- * Move Matching is now <b>inventory-centric</b> — buttons live on the
- * player inventory only, and every operation pairs the inventory with
- * the single open container. The {@code clickedGroup} passed in is
- * always the player main inventory; the executor uses
- * {@link Direction} to decide which side is source vs destination:
+ * Inventory-centric: {@code clickedGroup} is always the player main
+ * inventory. IN makes it the destination (match-set = types already in
+ * it, sources = every other non-hotbar slot); OUT makes it the source
+ * (match-set and destinations = the other slots). The match-set always
+ * comes from the receiving side.
  *
+ * <h3>Modes, decided per item type</h3>
+ *
+ * Sources are grouped by item type and each type is handled whole:
  * <ul>
- *   <li><b>{@link Direction#IN}</b> — inventory is the <i>destination</i>.
- *       Match-set = items in the inventory ("matches" = item types
- *       already in inv). Sources = every other visible slot (excluding
- *       hotbar). For each matching source slot, push into the inventory.</li>
- *   <li><b>{@link Direction#OUT}</b> — inventory is the <i>source</i>.
- *       Match-set = items in every OTHER visible slot (excluding hotbar)
- *       — i.e., item types the container already has. For each matching
- *       slot in the inventory, push out to the other slots.</li>
+ *   <li><b>All</b>: every stack moves.</li>
+ *   <li><b>But-one</b>: each stack leaves one item behind; a stack of 1
+ *       is left as it is.</li>
+ *   <li><b>But-one-stack</b>: one full stack's worth of the type stays.
+ *       The largest stacks are kept first, so at most one stack is
+ *       split, and a type with no more than a stack does not move.</li>
+ *   <li><b>No-overflow</b>: the type moves only if the destination has
+ *       room for all of it at the moment it is processed; otherwise none
+ *       of it moves. Checked per type against current room, so a type
+ *       that fits still moves even when another does not.</li>
  * </ul>
  *
- * <p>The "match-set comes from the receiving side" invariant holds for
- * both directions — IN's receiver is inv, OUT's receiver is container.
+ * <h3>Leaving some behind</h3>
  *
- * <h3>No cycle / no disable</h3>
- *
- * The previous 3-stop cycle (ALL/STACKABLE/DISABLED) was removed in the
- * 2026-05-16 simplification. The operation always behaves like the old
- * "ALL_MATCHING" stop — every matching item type moves, including
- * non-stackables. Protection is delegated to Locked Slots / Locked
- * Items (filed in DEFERRED.md until those features land).
- *
- * <h3>Hotbar exclusion</h3>
- *
- * Hotbar is never a source AND never a destination. Spec §"Scope":
- * "Hotbar excluded by default — Move Matching doesn't pull from or push
- * to hotbar slots." A future config toggle will allow inclusion (see
- * DEFERRED.md).
+ * A left-click PICKUP lifts the whole stack, so "leave k" is: lift the
+ * stack, right-click the now-empty source k times (each places one back),
+ * then distribute the cursor. Same clicks a player would make.
  *
  * <h3>Why not QUICK_MOVE</h3>
  *
- * Vanilla {@code quickMoveStack} routes via "the other half of the
- * screen" and fills the hotbar end first for chest screens. Manual
- * PICKUP / PICKUP sequences let us place into specific destination
- * slots and stop when the eligible destinations are full, respecting
- * the hotbar exclusion in both directions.
+ * Vanilla's quick move routes to "the other half" and fills the hotbar
+ * first in chest screens. Explicit PICKUPs place into chosen slots, stop
+ * when the eligible ones are full, and honour the hotbar exclusion and
+ * locked slots in both directions.
  */
 public final class MoveMatchingExecutor {
 
     private MoveMatchingExecutor() {}
 
-    public static void execute(Minecraft mc, SlotGroup clickedGroup, Direction direction) {
+    public static void execute(Minecraft mc, SlotGroup clickedGroup, Direction direction, MoveMatchingMode mode) {
         if (!clickedGroup.targetable()) return;
 
         LocalPlayer player = mc.player;
@@ -82,21 +77,14 @@ public final class MoveMatchingExecutor {
         if (menu == null) return;
 
         Inventory playerInv = player.getInventory();
-
-        // The "other slots" set — used in both directions:
-        //   IN:  source candidates (match-set comes from clickedGroup)
-        //   OUT: match-set source AND destinations
         List<Slot> otherSlots = collectOtherSlots(menu, clickedGroup, playerInv);
 
-        List<Slot> matchSetSlots;
-        List<Slot> sourceCandidates;
-        List<Slot> destinationSlots;
-
+        List<Slot> matchSetSlots, sourceCandidates, destinationSlots;
         if (direction == Direction.IN) {
             matchSetSlots = clickedGroup.slots();
             sourceCandidates = otherSlots;
             destinationSlots = clickedGroup.slots();
-        } else { // OUT
+        } else {
             matchSetSlots = otherSlots;
             sourceCandidates = new ArrayList<>(clickedGroup.slots());
             destinationSlots = otherSlots;
@@ -104,130 +92,150 @@ public final class MoveMatchingExecutor {
 
         Set<Item> matchSet = buildMatchSet(matchSetSlots);
         if (matchSet.isEmpty()) {
-            InventoryPlusClient.LOGGER.debug(
-                    "[move-matching {}] match-set empty — no-op", direction);
+            InventoryPlusClient.LOGGER.debug("[move-matching {} {}] match-set empty", direction, mode);
             return;
         }
-
         List<Slot> sources = filterToMatching(sourceCandidates, matchSet);
         if (sources.isEmpty()) {
-            InventoryPlusClient.LOGGER.debug(
-                    "[move-matching {}] no matching items on the source side — no-op",
-                    direction);
+            InventoryPlusClient.LOGGER.debug("[move-matching {} {}] nothing matching on the source side", direction, mode);
             return;
         }
 
-        int totalMoved = 0;
-        for (Slot source : sources) {
-            ItemStack stackBefore = source.getItem();
-            if (stackBefore.isEmpty()) continue;
-            if (!matchSet.contains(stackBefore.getItem())) continue;
-            int moved = moveSourceIntoSlots(gameMode, player, menu, source, destinationSlots);
-            if (moved > 0) totalMoved++;
-        }
+        // Group by type, in source order, so a mode can decide a whole type at once.
+        Map<Item, List<Slot>> byType = new LinkedHashMap<>();
+        for (Slot s : sources) byType.computeIfAbsent(s.getItem().getItem(), k -> new ArrayList<>()).add(s);
 
-        InventoryPlusClient.LOGGER.debug(
-                "[move-matching {}] processed {} source slot(s)",
-                direction, totalMoved);
+        int stacksMoved = 0;
+        for (Map.Entry<Item, List<Slot>> entry : byType.entrySet()) {
+            stacksMoved += moveType(gameMode, player, menu, entry.getKey(), entry.getValue(), destinationSlots, mode);
+        }
+        InventoryPlusClient.LOGGER.debug("[move-matching {} {}] moved from {} stack(s)", direction, mode, stacksMoved);
+    }
+
+    /** Applies the mode to one item type's source stacks. Returns stacks that moved anything. */
+    private static int moveType(MultiPlayerGameMode gameMode, LocalPlayer player, AbstractContainerMenu menu,
+                                Item item, List<Slot> stacks, List<Slot> destinations, MoveMatchingMode mode) {
+        int moved = 0;
+        switch (mode) {
+            case ALL -> {
+                for (Slot s : stacks) if (moveSourceIntoSlots(gameMode, player, menu, s, destinations, 0) > 0) moved++;
+            }
+            case BUT_ONE -> {
+                for (Slot s : stacks) {
+                    if (s.getItem().getCount() <= 1) continue; // already at the minimum; untouched
+                    if (moveSourceIntoSlots(gameMode, player, menu, s, destinations, 1) > 0) moved++;
+                }
+            }
+            case BUT_ONE_STACK -> {
+                // Keep the biggest stacks first so the kept amount costs at most one split.
+                List<Slot> ordered = new ArrayList<>(stacks);
+                ordered.sort(Comparator.comparingInt((Slot s) -> s.getItem().getCount()).reversed());
+                int keep = ordered.get(0).getItem().getMaxStackSize();
+                for (Slot s : ordered) {
+                    int count = s.getItem().getCount();
+                    if (keep >= count) { keep -= count; continue; }   // whole stack stays
+                    int leave = keep;                                  // split this one, then keep nothing more
+                    keep = 0;
+                    if (moveSourceIntoSlots(gameMode, player, menu, s, destinations, leave) > 0) moved++;
+                }
+            }
+            case NO_OVERFLOW -> {
+                int total = 0;
+                for (Slot s : stacks) total += s.getItem().getCount();
+                int room = roomFor(stacks.get(0).getItem(), destinations);
+                if (room < total) {
+                    InventoryPlusClient.LOGGER.debug("[move-matching no-overflow] {} needs {}, room {}; left in place",
+                            item, total, room);
+                    return 0;
+                }
+                for (Slot s : stacks) if (moveSourceIntoSlots(gameMode, player, menu, s, destinations, 0) > 0) moved++;
+            }
+        }
+        return moved;
+    }
+
+    /** Free room for {@code sample}'s type across unlocked destinations, as the game would fill them. */
+    private static int roomFor(ItemStack sample, List<Slot> destinations) {
+        int room = 0;
+        for (Slot dest : destinations) {
+            if (LockedSlots.isLockedSlot(dest)) continue;
+            int limit = Math.min(dest.getMaxStackSize(sample), sample.getMaxStackSize());
+            ItemStack in = dest.getItem();
+            if (in.isEmpty()) room += limit;
+            else if (in.is(sample.getItem())) room += Math.max(0, limit - in.getCount());
+        }
+        return room;
     }
 
     /**
-     * Moves the source slot's stack into the given destination slot
-     * list, preferring same-item-with-space slots first (merges), then
-     * empty slots. Anything that doesn't fit is put back on the source.
+     * Lifts the source stack, puts {@code leaveInSource} items back, then
+     * merges into same-item destinations with room and fills empties.
+     * Whatever still does not fit returns to the source.
      */
-    private static int moveSourceIntoSlots(MultiPlayerGameMode gameMode,
-                                           LocalPlayer player,
-                                           AbstractContainerMenu menu,
-                                           Slot source,
-                                           List<Slot> destinationSlots) {
+    private static int moveSourceIntoSlots(MultiPlayerGameMode gameMode, LocalPlayer player,
+                                           AbstractContainerMenu menu, Slot source,
+                                           List<Slot> destinationSlots, int leaveInSource) {
         int initialCount = source.getItem().getCount();
+        if (leaveInSource >= initialCount) return 0;
 
         clickPickup(gameMode, player, menu, source.index);
+        for (int i = 0; i < leaveInSource; i++) clickPlaceOne(gameMode, player, menu, source.index);
 
         Item cursorItem = menu.getCarried().getItem();
 
-        // Pass 1: merge into existing same-item destinations with space.
-        // Locked player slots skipped per spec §"Locked Slots" — "a locked
-        // target slot is not filled."
         for (Slot dest : destinationSlots) {
-            ItemStack carried = menu.getCarried();
-            if (carried.isEmpty()) break;
+            if (menu.getCarried().isEmpty()) break;
             if (LockedSlots.isLockedSlot(dest)) continue;
             ItemStack destStack = dest.getItem();
-            if (destStack.isEmpty()) continue;
-            if (!destStack.is(cursorItem)) continue;
+            if (destStack.isEmpty() || !destStack.is(cursorItem)) continue;
             if (destStack.getCount() >= destStack.getMaxStackSize()) continue;
             clickPickup(gameMode, player, menu, dest.index);
         }
-
-        // Pass 2: place remainder into empty destinations.
         for (Slot dest : destinationSlots) {
-            ItemStack carried = menu.getCarried();
-            if (carried.isEmpty()) break;
+            if (menu.getCarried().isEmpty()) break;
             if (LockedSlots.isLockedSlot(dest)) continue;
             if (!dest.getItem().isEmpty()) continue;
             clickPickup(gameMode, player, menu, dest.index);
         }
-
-        // Leftover — put back on source.
-        if (!menu.getCarried().isEmpty()) {
-            clickPickup(gameMode, player, menu, source.index);
-        }
+        if (!menu.getCarried().isEmpty()) clickPickup(gameMode, player, menu, source.index);
 
         return Math.max(0, initialCount - source.getItem().getCount());
     }
 
     private static void clickPickup(MultiPlayerGameMode gameMode, LocalPlayer player,
                                     AbstractContainerMenu menu, int slotIndex) {
-        gameMode.handleContainerInput(
-                menu.containerId,
-                slotIndex,
-                /* mouseButton */ 0,
-                ContainerInput.PICKUP,
-                player);
+        gameMode.handleContainerInput(menu.containerId, slotIndex, 0, ContainerInput.PICKUP, player);
     }
 
-    /** Items present in the given slots — keyed by Item identity. */
+    /** Right-click with a carried stack: places exactly one item into the slot. */
+    private static void clickPlaceOne(MultiPlayerGameMode gameMode, LocalPlayer player,
+                                      AbstractContainerMenu menu, int slotIndex) {
+        gameMode.handleContainerInput(menu.containerId, slotIndex, 1, ContainerInput.PICKUP, player);
+    }
+
     private static Set<Item> buildMatchSet(List<Slot> slots) {
         Set<Item> matchSet = new HashSet<>();
         for (Slot slot : slots) {
             ItemStack stack = slot.getItem();
-            if (stack.isEmpty()) continue;
-            matchSet.add(stack.getItem());
+            if (!stack.isEmpty()) matchSet.add(stack.getItem());
         }
         return matchSet;
     }
 
-    /**
-     * Slots from the candidate list whose current item is in the
-     * match-set. Locked player slots are excluded per spec §"Locked
-     * Slots" — "a locked source slot is not pulled from."
-     */
+    /** Candidates whose item is in the match-set; locked slots are never pulled from. */
     private static List<Slot> filterToMatching(List<Slot> candidates, Set<Item> matchSet) {
         List<Slot> filtered = new ArrayList<>();
         for (Slot slot : candidates) {
             if (LockedSlots.isLockedSlot(slot)) continue;
             ItemStack stack = slot.getItem();
-            if (stack.isEmpty()) continue;
-            if (!matchSet.contains(stack.getItem())) continue;
+            if (stack.isEmpty() || !matchSet.contains(stack.getItem())) continue;
             filtered.add(slot);
         }
         return filtered;
     }
 
-    /**
-     * Every slot in the menu EXCEPT (a) hotbar and (b) the clicked
-     * group's own slots. Used for both directions:
-     *
-     * <ul>
-     *   <li>IN: as the source candidates.</li>
-     *   <li>OUT: as the match-set source AND the destinations.</li>
-     * </ul>
-     */
-    private static List<Slot> collectOtherSlots(AbstractContainerMenu menu,
-                                                SlotGroup clickedGroup,
-                                                Inventory playerInv) {
+    /** Every slot except the hotbar and the clicked group's own. */
+    private static List<Slot> collectOtherSlots(AbstractContainerMenu menu, SlotGroup clickedGroup, Inventory playerInv) {
         List<Slot> result = new ArrayList<>();
         for (Slot slot : menu.slots) {
             if (isHotbarSlot(slot, playerInv)) continue;
