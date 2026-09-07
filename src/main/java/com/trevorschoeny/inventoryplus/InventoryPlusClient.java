@@ -233,7 +233,7 @@ public class InventoryPlusClient implements ClientModInitializer {
         SortKeybind.register();
 
         LOGGER.info("[inventoryplus] Client initialized — auto-restock + "
-                + "move-matching + locked-slots + sort + column-cycler + "
+                + "move-matching + locked-slots + locked-items + sort + column-cycler + "
                 + "hotbar-cycler active.");
     }
 }
