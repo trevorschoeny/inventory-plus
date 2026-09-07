@@ -155,6 +155,13 @@ public final class LockedSlotKeybind {
         int leftPos = ScreenLayout.leftPos(acs);
         int topPos = ScreenLayout.topPos(acs);
         for (Slot slot : acs.getMenu().slots) {
+            // Same rule as vanilla's isHovering: an inactive slot is not there.
+            // A created slot (an IM pocket) is appended AFTER the vanilla slot it
+            // covers, and MenuKit marks that covered slot inactive for the frame,
+            // so without this the scan returned the buried slot first: L locked
+            // the inventory slot under the pocket and never reached the pocket
+            // itself (Trev, 2026-09-07).
+            if (!slot.isActive()) continue;
             int sx = leftPos + slot.x;
             int sy = topPos + slot.y;
             if (mouseX >= sx && mouseX < sx + 16
