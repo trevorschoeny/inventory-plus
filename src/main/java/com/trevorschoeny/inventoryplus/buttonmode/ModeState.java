@@ -41,6 +41,14 @@ import java.util.Map;
  * cannot be pinned and simply follows the global. Pins on session-only
  * identities live until the game closes and are not written out.
  *
+ * <h3>Global-only modes</h3>
+ *
+ * <p>A mode built with {@link #globalOnly} has no per-container scope at
+ * all: middle-click does nothing and the tooltip does not offer it. That
+ * is for a button whose rule genuinely cannot vary by container, such as
+ * Move Matching's push into a chest, whose stops describe what the player
+ * keeps on themselves rather than anything about the chest.
+ *
  * <h3>Persistence</h3>
  *
  * {@code config/inventoryplus/<feature>.json}, version 2:
@@ -61,22 +69,41 @@ public final class ModeState<E extends Enum<E> & ModeStop> {
     private final Class<E> type;
     private final E[] stops;
     private final E fallback;
+    /** False for a mode with one value everywhere; see {@link #globalOnly}. */
+    private final boolean pinnable;
     private E global;
     /** worldId -> identity key -> pinned value. */
     private final Map<String, Map<String, E>> pins = new HashMap<>();
     private boolean loaded;
 
-    private ModeState(String feature, Class<E> type, E fallback) {
+    private ModeState(String feature, Class<E> type, E fallback, boolean pinnable) {
         this.feature = feature;
         this.type = type;
         this.stops = type.getEnumConstants();
         this.fallback = fallback;
+        this.pinnable = pinnable;
         this.global = fallback;
     }
 
     /** @param feature file stem under {@code config/inventoryplus/}, also the log tag */
     public static <E extends Enum<E> & ModeStop> ModeState<E> of(String feature, Class<E> type, E fallback) {
-        return new ModeState<>(feature, type, fallback);
+        return new ModeState<>(feature, type, fallback, true);
+    }
+
+    /**
+     * A mode with one value everywhere and no pins, for a button whose
+     * rule cannot sensibly differ per container.
+     *
+     * @param feature file stem under {@code config/inventoryplus/}, also the log tag
+     */
+    public static <E extends Enum<E> & ModeStop> ModeState<E> globalOnly(
+            String feature, Class<E> type, E fallback) {
+        return new ModeState<>(feature, type, fallback, false);
+    }
+
+    /** Whether this mode can be pinned to a container at all. */
+    public boolean pinnable() {
+        return pinnable;
     }
 
     /** True when there is more than one stop, i.e. the gestures do something. */
@@ -105,14 +132,14 @@ public final class ModeState<E extends Enum<E> & ModeStop> {
     }
 
     public boolean isPinned(@Nullable ContainerIdentity id) {
-        if (id == null) return false;
+        if (!pinnable || id == null) return false;
         Map<String, E> m = worldPins(false);
         return m != null && m.containsKey(id.key());
     }
 
     /** The mode in force for this container: its pin if it has one, else the global. */
     public E effective(@Nullable ContainerIdentity id) {
-        if (id != null) {
+        if (pinnable && id != null) {
             Map<String, E> m = worldPins(false);
             if (m != null) {
                 E pinned = m.get(id.key());
@@ -146,7 +173,7 @@ public final class ModeState<E extends Enum<E> & ModeStop> {
      * global), or release it if already pinned. No-op without an identity.
      */
     public void togglePin(@Nullable ContainerIdentity id) {
-        if (id == null) return;
+        if (!pinnable || id == null) return;
         Map<String, E> m = worldPins(true);
         if (m.containsKey(id.key())) {
             m.remove(id.key());

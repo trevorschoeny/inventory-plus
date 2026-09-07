@@ -15,36 +15,25 @@ package com.trevorschoeny.inventoryplus.movematching;
  * </ul>
  *
  * <p>Each direction has its own keybind ({@code I} for IN, {@code O} for
- * OUT) and its own per-container cycle setting (IN cycle is independent
- * of OUT cycle, per spec's resolution of the open question).
+ * OUT) and its own mode, held separately in {@link MoveMatchingModes}.
  *
- * <h3>Storage prefix</h3>
- *
- * {@link #storageKey()} returns the prefix used in
- * {@link MoveMatchingPrefs}'s JSON keys ({@code "in:"} / {@code "out:"})
- * so the same prefs file can track both directions per container
- * without collision.
+ * <p>Both names are relative to the player inventory, which is always the
+ * clicked group. {@code IN} is therefore the direction a player would
+ * describe as taking things <em>out of</em> the chest.
  */
 public enum Direction {
 
-    IN("IN", "in"),
-    OUT("OUT", "out");
+    IN("IN"),
+    OUT("OUT");
 
     private final String label;
-    private final String storageKey;
 
-    Direction(String label, String storageKey) {
+    Direction(String label) {
         this.label = label;
-        this.storageKey = storageKey;
     }
 
     /** Display label — "IN" or "OUT" — used in tooltip text. */
     public String label() {
         return label;
-    }
-
-    /** Storage-key prefix for {@link MoveMatchingPrefs} — "in" or "out". */
-    public String storageKey() {
-        return storageKey;
     }
 }

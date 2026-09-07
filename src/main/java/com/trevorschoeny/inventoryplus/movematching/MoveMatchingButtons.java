@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.movematching;
 
 import com.trevorschoeny.inventoryplus.buttonmode.ModeGestures;
+import com.trevorschoeny.inventoryplus.buttonmode.ModeState;
 import com.trevorschoeny.inventoryplus.buttonmode.PressFeedback;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockedslots.LockEditMode;
@@ -17,12 +18,15 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 /**
- * Move Matching toolbar buttons. Each carries the shared Move Matching
- * mode ({@code features/button-modes.md}): left-click runs the operation
- * in the mode in force, right-click changes the mode, shift+right-click
- * goes back, middle-click pins it to the open container. IN and OUT are
- * one operation in two directions and share the one mode, so a gesture
- * on either button changes both.
+ * Move Matching toolbar buttons. Each carries its own Move Matching mode
+ * ({@code features/button-modes.md}): left-click runs the operation in the
+ * mode in force, right-click changes the mode, shift+right-click goes
+ * back, middle-click pins it to the open container.
+ *
+ * <p>The two buttons are independent. A gesture on one leaves the other
+ * alone, and only IN can be pinned at all, for the reasons in
+ * {@link MoveMatchingModes}. OUT drops the middle-click line from its
+ * tooltip rather than offering a gesture that does nothing.
  *
  * <p>Shown only on screens that pair the inventory with a simple
  * container; inert in locked-slots edit mode, gestures included.
@@ -48,18 +52,19 @@ public final class MoveMatchingButtons {
 
     private static Button build(int x, int y, Identifier texture, String what, Direction direction) {
         PressFeedback feedback = new PressFeedback();
-        var gestures = ModeGestures.handler(MoveMatchingModes.MODE, MoveMatchingModes::currentIdentity, feedback);
+        ModeState<MoveMatchingMode> state = MoveMatchingModes.state(direction);
+        var gestures = ModeGestures.handler(state, MoveMatchingModes::currentIdentity, feedback);
         return Button.sprite(x, y, SIZE, SIZE, texture,
                         btn -> {
                             feedback.press();
                             triggerMoveMatching(direction);
                         })
-                .tooltip(ModeGestures.tooltip(what, MoveMatchingModes.MODE, MoveMatchingModes::currentIdentity))
+                .tooltip(ModeGestures.tooltip(what, state, MoveMatchingModes::currentIdentity))
                 .onSecondaryClick(click -> {
                     if (LockEditMode.isOn()) return;
                     gestures.accept(click);
                 })
-                .tint(ModeGestures.tint(MoveMatchingModes.MODE, MoveMatchingModes::currentIdentity, feedback))
+                .tint(ModeGestures.tint(state, MoveMatchingModes::currentIdentity, feedback))
                 .showWhen(MoveMatchingButtons::shouldShow);
     }
 
@@ -80,7 +85,7 @@ public final class MoveMatchingButtons {
         List<SlotGroup> groups = SlotGroupDetector.detect(screen);
         SlotGroup playerMainInv = findPlayerMainInv(groups);
         if (playerMainInv == null) return;
-        MoveMatchingExecutor.execute(mc, playerMainInv, direction, MoveMatchingModes.current());
+        MoveMatchingExecutor.execute(mc, playerMainInv, direction, MoveMatchingModes.current(direction));
     }
 
     public static @Nullable SlotGroup findPlayerMainInv(List<SlotGroup> groups) {

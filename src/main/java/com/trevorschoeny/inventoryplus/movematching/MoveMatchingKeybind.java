@@ -57,7 +57,7 @@ public final class MoveMatchingKeybind {
 
                         MoveMatchingExecutor.execute(
                                 Minecraft.getInstance(), playerMainInv, direction,
-                                MoveMatchingModes.current());
+                                MoveMatchingModes.current(direction));
                     });
         });
     }

@@ -4,7 +4,8 @@ import com.trevorschoeny.inventoryplus.buttonmode.ModeStop;
 
 /**
  * Move Matching's four modes, in cycle order (`features/move-matching.md`).
- * IN and OUT share one value. Exclusive, not combinable, by decision.
+ * Exclusive, not combinable, by decision. Each direction carries its own
+ * value; see {@link MoveMatchingModes}.
  */
 public enum MoveMatchingMode implements ModeStop {
 
