@@ -15,6 +15,7 @@ import net.minecraft.world.inventory.HopperMenu;
 import net.minecraft.world.inventory.PlayerEnderChestContainer;
 import net.minecraft.world.inventory.ShulkerBoxMenu;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -229,5 +230,43 @@ public final class ContainerIdentity {
     /** The identity a block at {@code pos} would have, for pruning when it is broken. */
     public static ContainerIdentity forBlock(BlockPos pos) {
         return blockIdentity(pos);
+    }
+
+    /**
+     * The persistent key of a container, derived from the container itself
+     * rather than the client's open-click tracker, or null if it is not
+     * block-anchored.
+     *
+     * <p><b>Thread-agnostic, and that is the point.</b> On the integrated
+     * server thread {@code slot.container} is the real {@link BlockEntity} (or
+     * the {@link CompoundContainer} wrapping two of them), so position and
+     * dimension are both readable without touching {@link Minecraft}. The
+     * client's menu wraps a bare container with no block identity, which is why
+     * the render thread still goes through the tracker. Both paths canonicalise
+     * the same way, so a double chest cannot resolve to two different keys
+     * depending on which thread asked.
+     *
+     * <p>Added for 1.5.1: 1.5.0 gated placed-container locks on the render
+     * thread, so the authoritative server-side move could not see them.
+     */
+    public static @Nullable String keyForContainer(Container container) {
+        BlockPos pos = blockPosOf(container);
+        if (pos == null) return null;
+        Level level = levelOf(container);
+        if (level == null) return null;
+        BlockPos canon = canonical(level.getBlockState(pos), pos);
+        return "block:" + level.dimension().identifier() + ":"
+                + canon.getX() + "," + canon.getY() + "," + canon.getZ();
+    }
+
+    /** The level behind a block-anchored container, on either thread. */
+    private static @Nullable Level levelOf(Container container) {
+        if (container instanceof BlockEntity be) return be.getLevel();
+        if (container instanceof CompoundContainer compound) {
+            CompoundContainerAccessor a = (CompoundContainerAccessor) compound;
+            if (a.inventoryplus$getContainer1() instanceof BlockEntity be) return be.getLevel();
+            if (a.inventoryplus$getContainer2() instanceof BlockEntity be) return be.getLevel();
+        }
+        return null;
     }
 }

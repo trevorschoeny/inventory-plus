@@ -9,6 +9,8 @@ import com.google.gson.JsonSyntaxException;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.sort.ContainerIdentity;
+import net.minecraft.world.CompoundContainer;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import com.trevorschoeny.inventoryplus.sort.ContainerOpenTracker;
 
@@ -443,8 +445,12 @@ public final class LockedSlots {
      * business consulting a client lock store.
      */
     public static boolean isCreatedSlot(Slot slot) {
-        if (!isRenderThread()) return false;
-        if (slot.container instanceof Inventory) return false;   // a player slot
+        if (slot.container instanceof Inventory) return false;      // a player slot
+        // Block-anchored containers are the placed-container namespace. Ruling
+        // them out here keeps the created-slot probe off every chest slot on
+        // the server thread, where a vanilla slot costs a caught exception.
+        if (slot.container instanceof BlockEntity || slot.container instanceof CompoundContainer) return false;
+        if (isEnderSlot(slot)) return false;
         return CreatedSlotKey.of(slot) != null;
     }
 
@@ -479,6 +485,7 @@ public final class LockedSlots {
      * a different block now stands there).
      */
     private static @Nullable String currentContainerKey() {
+        if (!isRenderThread()) return null;   // server thread reads the block entity; see containerKeyFor
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null) return null;
         AbstractContainerMenu menu = mc.player.containerMenu;
@@ -535,14 +542,28 @@ public final class LockedSlots {
      * {@link Inventory}) and the ender chest, which have their own namespaces.
      */
     public static boolean isPlacedContainerSlot(Slot slot) {
-        if (!isRenderThread()) return false;
         if (slot.container instanceof Inventory) return false;
         if (isEnderSlot(slot)) return false;
-        return currentContainerKey() != null;
+        return containerKeyFor(slot) != null;
+    }
+
+    /**
+     * The key of the container {@code slot} belongs to, on either thread. The
+     * render thread uses the cached open-menu key, since the client's menu has
+     * no block identity of its own; the server thread reads the real block
+     * entity. Both canonicalise a double chest identically, so the two threads
+     * cannot disagree about which container a slot is in.
+     *
+     * <p>1.5.0 had no server-thread answer here at all, which is the defect
+     * 1.5.1 fixes.
+     */
+    private static @Nullable String containerKeyFor(Slot slot) {
+        return isRenderThread() ? currentContainerKey()
+                                : ContainerIdentity.keyForContainer(slot.container);
     }
 
     public static boolean isContainerLocked(Slot slot) {
-        String key = currentContainerKey();
+        String key = containerKeyFor(slot);
         if (key == null) return false;
         Set<Integer> set = containerMap(false).get(key);
         return set != null && set.contains(slot.getContainerSlot());

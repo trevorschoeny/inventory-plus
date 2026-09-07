@@ -7,8 +7,6 @@ import com.trevlar.menukit.window.OwnerRef;
 import com.trevlar.menukit.window.OwnerScope;
 import com.trevlar.menukit.window.Token;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 
 import org.jetbrains.annotations.Nullable;
@@ -63,13 +61,16 @@ public final class CreatedSlotKey {
      * garbage into the store.
      */
     public static @Nullable String of(Slot slot) {
-        Minecraft mc = Minecraft.getInstance();
-        AbstractContainerMenu menu = mc != null && mc.player != null ? mc.player.containerMenu : null;
         Address address;
         try {
-            address = ClientSlotAddressing.addressOf(menu, slot);
+            // Null menu deliberately. MenuKit: Containers dispatches a created
+            // slot by TYPE and never reads the menu on that branch, so this
+            // resolves on the integrated server thread too, which is what the
+            // 1.5.1 fix needs. A vanilla slot falls through to the menu-based
+            // minter and throws on the null; it is not ours either way.
+            address = ClientSlotAddressing.addressOf(null, slot);
         } catch (RuntimeException e) {
-            return null; // a vanilla slot with no menu to fall back on; not ours anyway
+            return null;
         }
         if (address == null || address.kind() != KindTag.CREATED_SLOT) return null;
 

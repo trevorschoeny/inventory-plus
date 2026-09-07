@@ -1,3 +1,5 @@
+Fixes container and pocket locks in single player. In 1.5.0 a locked slot inside a chest, barrel or pocket still accepted a shift-click: the lock was checked as your game drew the screen but not as your world actually moved the item, so it looked blocked for an instant and then took the item anyway. On a server it worked correctly. Locks now hold in both places. Also refuses to load next to Inventory Max 1.0.1 or older, which crashes with Inventory Plus 1.4.0 and newer; update Inventory Max to 1.0.2.
+
 The Sort and Move Matching buttons now carry a mode. Right-click a button to change its mode and shift and right-click to go back. Middle-click pins the mode to the open container and turns the button pink; middle-click again releases it. Left-click still does the action, and buttons now flash when pressed.
 
 Sort has four orders: Category, Quantity, ID, and Rarity. Category is vanilla's creative-tab order, blocks with blocks and tools with tools, and it is now the default for everyone, including existing installs. Any per-container sort orders you had saved are cleared by this update. Every container follows the one global order until you pin it.

@@ -110,6 +110,20 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
 
         // SP/LAN: vanilla iteration skip handles it. Let the click go
         // through normally.
+        //
+        // TRAP, and it cost a released defect. Returning here hands the whole
+        // decision to AbstractContainerMenuMoveItemStackToMixin, which the
+        // integrated server runs on the SERVER thread. A lock namespace whose
+        // predicate is gated on the render thread is therefore INVISIBLE on
+        // this path, and the server's move is the authoritative one. IP 1.5.0
+        // shipped exactly that: container and created locks were render-thread
+        // only, so a single-player shift-click still landed items in a locked
+        // slot while the client briefly predicted otherwise. Fixed in 1.5.1 by
+        // giving both namespaces real server-thread branches, the way
+        // isEnderSlot always had one.
+        //
+        // Any NEW lock namespace must answer isLockedSlot correctly on the
+        // server thread before it counts as enforced.
         if (Minecraft.getInstance().hasSingleplayerServer()) return;
 
         // Dedicated MP: check whether the click would even touch a
