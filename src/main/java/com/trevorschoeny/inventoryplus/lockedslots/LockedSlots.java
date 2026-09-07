@@ -351,14 +351,20 @@ public final class LockedSlots {
 
     /**
      * True if {@code slot} responds to lock-edit-mode click/drag toggling and
-     * gets the gray overlay. This is {@link #isLockableHere} <i>minus</i> armor
-     * and offhand: edit-mode click was deliberately narrowed to the inv+hotbar
-     * subset (Trev 2026-05-16, so armor/offhand stay vanilla-interactable in
-     * edit mode), and ender + placed-container slots — which have no such
-     * carve-out — join that toggleable set.
+     * gets the gray overlay. This is exactly {@link #isLockableHere}: every
+     * slot that can carry a lock can be edited in edit mode.
+     *
+     * <p>Until 2026-09-07 this was {@code isLockableHere} <i>minus</i> armor and
+     * offhand (Trev 2026-05-16: only inventory and hotbar greyed and
+     * click-toggled; armor and offhand stayed vanilla-interactable and were
+     * locked by {@code L} alone). That carve-out collided with the newer rule
+     * that created slots behave like vanilla slots: an Inventory Max elytra
+     * slot greyed while the vanilla chestplate slot beside it did not. Trev
+     * resolved it the other way: the vanilla outline slots should grey too.
+     * So the carve-out goes and the two predicates are one.
      */
     public static boolean isEditModeToggleable(Slot slot) {
-        return isInvOrHotbarSlot(slot) || isEnderSlot(slot) || isCreatedSlot(slot) || providerFor(slot) != null;
+        return isLockableHere(slot);
     }
 
     /** Toggles {@code slot}'s lock, routing to the right namespace or provider. */
