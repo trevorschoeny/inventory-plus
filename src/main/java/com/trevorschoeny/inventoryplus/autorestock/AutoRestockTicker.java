@@ -8,6 +8,7 @@ import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Inventory;
@@ -67,16 +68,26 @@ import java.util.List;
  * at many call sites, so bare references wouldn't preserve the prior
  * tick's state.
  *
- * <h3>Active container gate</h3>
+ * <h3>Two gates, for two different questions</h3>
  *
- * We poll + fire only when {@code player.containerMenu ==
- * player.inventoryMenu} — that's HUD or the player's own E-key inventory
- * screen, both of which share the same container ID and slot mapping, so
- * our clicks land cleanly. For chest / anvil / crafting-table screens
- * the active container is something else and our hard-coded slot
- * indices don't apply, so we skip both polling and firing. Snapshot
- * freezes across those windows; damage taken inside still produces a
- * not-in-prev delta on the close tick.
+ * <b>Can our clicks land?</b> Only when {@code player.containerMenu ==
+ * player.inventoryMenu}. That's the HUD or the player's own E-key
+ * inventory screen, which share the same container ID and slot mapping.
+ * For chest / anvil / crafting-table screens the active container is
+ * something else and our hard-coded slot indices don't apply.
+ *
+ * <p><b>Is this change consumption, or the player's own hand?</b> Any
+ * open {@link AbstractContainerScreen} means the hand: with a screen up
+ * the player cannot mine, eat, place, or take durability damage, so a
+ * watched slot that changed was dragged, shift-clicked or swapped. We
+ * re-baseline the snapshot each such tick and fire nothing.
+ *
+ * <p>These were one gate until 2026-09-06, which is why the E-key
+ * inventory screen — passing the first question — had its manual moves
+ * treated as depletion. The snapshot also froze rather than
+ * re-baselined across external containers, so a chest session's moves
+ * all diffed on the close tick and fired restock at a menu that had
+ * just closed.
  *
  * <h3>Slot model — 26.2</h3>
  *
@@ -146,13 +157,34 @@ public final class AutoRestockTicker {
         MultiPlayerGameMode gameMode = mc.gameMode;
         if (gameMode == null) return;
 
-        // Skip when the active container isn't the player's own inventory
-        // — see class javadoc. Snapshot freezes across that window.
-        if (player.containerMenu != player.inventoryMenu) return;
-
         if (!initialized) {
             snapshot(player);
             initialized = true;
+            return;
+        }
+
+        // ─── Is this the player's own hand, or consumption? ─────────────────
+        // Two different questions used to share one gate. "containerMenu ==
+        // inventoryMenu" answers whether our synthesized clicks can land; it
+        // does NOT answer whether a change was the player's doing, because the
+        // E-key inventory screen passes it. So every manual move made there
+        // diffed as depletion and got refilled (Trev 2026-09-06: taking a stack
+        // out of the hotbar made the inventory copy jump into it).
+        //
+        // While ANY container screen is open the player cannot mine, eat, place
+        // or take durability damage, so nothing can be genuinely consumed and
+        // every watched-slot change is a manual move. Re-baseline and fire
+        // nothing.
+        //
+        // Re-baselining rather than freezing matters. The old code returned
+        // without snapshotting for external containers, so moves made inside a
+        // chest stayed invisible until it closed and then all diffed at once,
+        // firing restock against a menu that had just gone away. The class
+        // javadoc defended the freeze as letting damage taken inside surface on
+        // the close tick, but damage cannot be taken with a screen open.
+        if ((mc.gui != null && mc.gui.screen() instanceof AbstractContainerScreen<?>)
+                || player.containerMenu != player.inventoryMenu) {
+            snapshot(player);
             return;
         }
 
