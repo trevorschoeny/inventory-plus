@@ -12,4 +12,8 @@ Auto Tool Switch and Auto-Restock use locked items anyway, by default. The tool 
 
 Auto-Restock no longer mistakes you for the game. Moving a stack out of your hotbar while your inventory or a chest is open used to look like the item running out, and a spare would jump in to replace it. Restock now holds off while any container screen is open.
 
+Locked Slots now reaches placed containers. Press L on a slot in a chest, barrel, shulker box, hopper or dispenser and it locks the way your inventory slots do: sorting and move matching leave it alone, and shift-clicking will not move items into it or out of it. The lock is yours, stored on your side and remembered per world, so it works on any server whether or not the server runs anything. A double chest is one chest to a lock, whichever half you open. Breaking a container forgets its locks. With Inventory Max installed, these per-player locks take the place of its shared ones.
+
+Lock edit mode tints slots pink, and it now reaches armor and offhand slots and Inventory Max's pockets and equipment slots, which lock like any other.
+
 Requires MenuKit 3.1.0 or newer.

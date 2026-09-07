@@ -8,6 +8,8 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
+import com.trevorschoeny.inventoryplus.sort.ContainerIdentity;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import com.trevorschoeny.inventoryplus.sort.ContainerOpenTracker;
 
 import net.fabricmc.loader.api.FabricLoader;
@@ -101,6 +103,21 @@ public final class LockedSlots {
      * every lock feature.
      */
     private static final Map<String, Set<String>> PER_WORLD_CREATED = new HashMap<>();
+    /**
+     * worldId -> container identity ({@code block:<dim>:<x>,<y>,<z>}, see
+     * {@link ContainerIdentity}) -> locked slot indices. Placed-container locks,
+     * client-side and per player (Trev 2026-09-07: intentional reversal of
+     * Inventory Max's shared model; IP locks them for you). Claimed BEFORE any
+     * downstream provider, so IM's shared channel no longer answers for placed
+     * containers while IP is present.
+     */
+    private static final Map<String, Map<String, Set<Integer>>> PER_WORLD_CONTAINERS = new HashMap<>();
+
+    // Per-open-screen cache of the container key. isLockedSlot runs per slot per
+    // frame; resolving the identity re-reads the tracker and a block state, so
+    // it is done once per containerId and reused until the menu changes.
+    private static int cachedContainerId = Integer.MIN_VALUE;
+    private static @Nullable String cachedContainerKey;
 
     // ── Downstream lock providers (the SlotLockProvider seam) ───────────────
     //
@@ -218,9 +235,22 @@ public final class LockedSlots {
                     createdTotal += set.size();
                 }
             }
+            // Placed-container locks: world -> container key -> [slot indices].
+            JsonObject containersPerWorld = root.has("containersPerWorld")
+                    ? root.getAsJsonObject("containersPerWorld") : new JsonObject();
+            int containerTotal = 0;
+            for (var worldEntry : containersPerWorld.entrySet()) {
+                Map<String, Set<Integer>> byKey = new HashMap<>();
+                for (var c : worldEntry.getValue().getAsJsonObject().entrySet()) {
+                    Set<Integer> set = new HashSet<>();
+                    for (var i : c.getValue().getAsJsonArray()) set.add(i.getAsInt());
+                    if (!set.isEmpty()) { byKey.put(c.getKey(), set); containerTotal += set.size(); }
+                }
+                if (!byKey.isEmpty()) PER_WORLD_CONTAINERS.put(worldEntry.getKey(), byKey);
+            }
             InventoryPlusClient.LOGGER.info(
-                    "[locked-slots] loaded {} player + {} ender + {} created entries across {} world(s) from {}",
-                    total, enderTotal, createdTotal, PER_WORLD.size(), path);
+                    "[locked-slots] loaded {} player + {} ender + {} created + {} container entries across {} world(s) from {}",
+                    total, enderTotal, createdTotal, containerTotal, PER_WORLD.size(), path);
         } catch (IOException | JsonSyntaxException | IllegalStateException e) {
             InventoryPlusClient.LOGGER.error(
                     "[locked-slots] failed to parse {} — starting with empty prefs",
@@ -323,6 +353,10 @@ public final class LockedSlots {
         }
         if (isEnderSlot(slot)) return isEnderLocked(slot.getContainerSlot());
         if (isCreatedSlot(slot)) return isCreatedLocked(slot);
+        // IP's own client-side container locks come first: a placed container
+        // IP can identify is IP's, per player, and any downstream provider is
+        // only consulted for containers IP cannot name (Trev 2026-09-07).
+        if (isPlacedContainerSlot(slot)) return isContainerLocked(slot);
         // Placed-container locks: the provider drives client prediction + the
         // feature skip-paths (sort / move-matching) + the lock icon, all on the
         // render thread. We deliberately do NOT consult it on the integrated-
@@ -346,7 +380,8 @@ public final class LockedSlots {
      * armor / offhand, which are lockable via {@code L} only.
      */
     public static boolean isLockableHere(Slot slot) {
-        return isLockable(slot) || isEnderSlot(slot) || isCreatedSlot(slot) || providerFor(slot) != null;
+        return isLockable(slot) || isEnderSlot(slot) || isCreatedSlot(slot)
+                || isPlacedContainerSlot(slot) || providerFor(slot) != null;
     }
 
     /**
@@ -375,6 +410,8 @@ public final class LockedSlots {
             toggleEnder(slot.getContainerSlot());
         } else if (isCreatedSlot(slot)) {
             toggleCreated(slot);
+        } else if (isPlacedContainerSlot(slot)) {
+            toggleContainer(slot);
         } else {
             SlotLockProvider p = providerFor(slot);
             if (p != null) p.setLocked(slot, !p.isLocked(slot));
@@ -389,6 +426,8 @@ public final class LockedSlots {
             setEnderLocked(slot.getContainerSlot(), locked);
         } else if (isCreatedSlot(slot)) {
             setCreatedLocked(slot, locked);
+        } else if (isPlacedContainerSlot(slot)) {
+            setContainerLocked(slot, locked);
         } else {
             SlotLockProvider p = providerFor(slot);
             if (p != null) p.setLocked(slot, locked);
@@ -429,6 +468,98 @@ public final class LockedSlots {
 
     public static void toggleCreated(Slot slot) {
         setCreatedLocked(slot, !isCreatedLocked(slot));
+    }
+
+    // ── Placed-container slots (client-side, per-player, own namespace) ─────
+
+    /**
+     * The persistent key of the container the open menu shows, cached per
+     * containerId. Null when nothing identifiable is open. First resolution
+     * for a menu also prunes indices the container cannot hold (it shrank, or
+     * a different block now stands there).
+     */
+    private static @Nullable String currentContainerKey() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.player == null) return null;
+        AbstractContainerMenu menu = mc.player.containerMenu;
+        if (menu == null) return null;
+        if (menu.containerId != cachedContainerId) {
+            cachedContainerId = menu.containerId;
+            ContainerIdentity id = ContainerIdentity.forMenu(menu);
+            cachedContainerKey = (id != null && id.isPersistent()) ? id.key() : null;
+            if (cachedContainerKey != null) pruneToCapacity(cachedContainerKey, menu);
+        }
+        return cachedContainerKey;
+    }
+
+    /** Drop locked indices at or past the open container's size; drop the key if that empties it. */
+    private static void pruneToCapacity(String key, AbstractContainerMenu menu) {
+        int size = -1;
+        for (Slot s : menu.slots) {
+            if (!(s.container instanceof Inventory)) { size = s.container.getContainerSize(); break; }
+        }
+        if (size < 0) return;
+        final int cap = size;   // effectively final for the lambda
+        Map<String, Set<Integer>> world = containerMap(false);
+        Set<Integer> set = world.get(key);
+        if (set == null) return;
+        int before = set.size();
+        set.removeIf(i -> i >= cap);
+        if (set.isEmpty()) world.remove(key);
+        if (set.size() != before) {
+            InventoryPlusClient.LOGGER.info("[locked-slots] pruned {} container lock(s) at {} (capacity {})", before - set.size(), key, size);
+            save();
+        }
+    }
+
+    /** Forget every lock on the container at {@code pos}. Called when the local player breaks it. */
+    public static void pruneContainerAt(String key) {
+        Map<String, Set<Integer>> world = containerMap(false);
+        if (world.remove(key) != null) {
+            InventoryPlusClient.LOGGER.info("[locked-slots] container broken, dropped its locks: {}", key);
+            if (key.equals(cachedContainerKey)) cachedContainerKey = null;
+            save();
+        }
+    }
+
+    private static Map<String, Set<Integer>> containerMap(boolean create) {
+        String w = WorldIdentity.current(Minecraft.getInstance());
+        if (w == null) return create ? new HashMap<>() : Map.of();
+        return create ? PER_WORLD_CONTAINERS.computeIfAbsent(w, k -> new HashMap<>()) : PER_WORLD_CONTAINERS.getOrDefault(w, Map.of());
+    }
+
+    /**
+     * True if {@code slot} belongs to an identifiable placed container on the
+     * open screen. Render-thread-gated like ender: identity comes from the
+     * client's open-click tracker. Excludes player slots (a real
+     * {@link Inventory}) and the ender chest, which have their own namespaces.
+     */
+    public static boolean isPlacedContainerSlot(Slot slot) {
+        if (!isRenderThread()) return false;
+        if (slot.container instanceof Inventory) return false;
+        if (isEnderSlot(slot)) return false;
+        return currentContainerKey() != null;
+    }
+
+    public static boolean isContainerLocked(Slot slot) {
+        String key = currentContainerKey();
+        if (key == null) return false;
+        Set<Integer> set = containerMap(false).get(key);
+        return set != null && set.contains(slot.getContainerSlot());
+    }
+
+    public static void setContainerLocked(Slot slot, boolean locked) {
+        String key = currentContainerKey();
+        if (key == null) return;
+        Map<String, Set<Integer>> world = containerMap(true);
+        Set<Integer> set = world.computeIfAbsent(key, k -> new HashSet<>());
+        boolean changed = locked ? set.add(slot.getContainerSlot()) : set.remove(slot.getContainerSlot());
+        if (set.isEmpty()) world.remove(key);
+        if (changed) save();
+    }
+
+    public static void toggleContainer(Slot slot) {
+        setContainerLocked(slot, !isContainerLocked(slot));
     }
 
     // ── Ender chest slots (client-side, per-player, own namespace) ──────────
@@ -560,6 +691,17 @@ public final class LockedSlots {
                 createdPerWorld.add(entry.getKey(), arr);
             }
             root.add("createdPerWorld", createdPerWorld);
+            JsonObject containersPerWorld = new JsonObject();
+            for (var world : PER_WORLD_CONTAINERS.entrySet()) {
+                JsonObject byKey = new JsonObject();
+                for (var c : world.getValue().entrySet()) {
+                    JsonArray arr = new JsonArray();
+                    for (Integer i : c.getValue()) arr.add(i);
+                    byKey.add(c.getKey(), arr);
+                }
+                containersPerWorld.add(world.getKey(), byKey);
+            }
+            root.add("containersPerWorld", containersPerWorld);
             Files.writeString(path, GSON.toJson(root));
         } catch (IOException e) {
             InventoryPlusClient.LOGGER.error(

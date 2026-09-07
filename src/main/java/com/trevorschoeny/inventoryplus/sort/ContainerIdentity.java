@@ -15,7 +15,10 @@ import net.minecraft.world.inventory.HopperMenu;
 import net.minecraft.world.inventory.PlayerEnderChestContainer;
 import net.minecraft.world.inventory.ShulkerBoxMenu;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.ChestType;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -185,10 +188,46 @@ public final class ContainerIdentity {
         String dim;
         if (player != null && player.level() != null) {
             dim = player.level().dimension().identifier().toString();
+            pos = canonical(player.level().getBlockState(pos), pos);
         } else {
             dim = "unknown";
         }
         return new ContainerIdentity(
                 "block:" + dim + ":" + pos.getX() + "," + pos.getY() + "," + pos.getZ());
+    }
+
+    /**
+     * One identity per double chest, whichever half was clicked. A double
+     * chest is two block positions and one inventory; without this, a pin
+     * or a lock set from the left half vanished when the right half was
+     * opened. The canonical half is the lexicographically smaller
+     * position, which is stable under joining and splitting (Trev
+     * 2026-09-07, for Locked Slots; Sort's pins get it for free).
+     */
+    static BlockPos canonical(BlockState state, BlockPos pos) {
+        if (!(state.getBlock() instanceof ChestBlock)) return pos;
+        if (!state.hasProperty(ChestBlock.TYPE) || state.getValue(ChestBlock.TYPE) == ChestType.SINGLE) return pos;
+        BlockPos other = pos.relative(ChestBlock.getConnectedDirection(state));
+        int c = Integer.compare(pos.getX(), other.getX());
+        if (c == 0) c = Integer.compare(pos.getY(), other.getY());
+        if (c == 0) c = Integer.compare(pos.getZ(), other.getZ());
+        return c <= 0 ? pos : other;
+    }
+
+    /**
+     * The persistent block identity of the container an open menu shows, or
+     * null when the menu is not a simple container or the opening block is
+     * unknown (a non-click open path). Menu-level, so Locked Slots can key a
+     * whole screen once rather than per hovered slot.
+     */
+    public static @Nullable ContainerIdentity forMenu(AbstractContainerMenu menu) {
+        if (!isSortableContainerMenu(menu)) return null;
+        BlockPos tracked = ContainerOpenTracker.getBlockPos(menu.containerId);
+        return tracked == null ? null : blockIdentity(tracked);
+    }
+
+    /** The identity a block at {@code pos} would have, for pruning when it is broken. */
+    public static ContainerIdentity forBlock(BlockPos pos) {
+        return blockIdentity(pos);
     }
 }

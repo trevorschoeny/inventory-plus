@@ -15,6 +15,7 @@
     "MouseHandlerScrollMixin",
     "MultiPlayerGameModeAttackMixin",
     "MultiPlayerGameModeBlockAttackMixin",
+    "MultiPlayerGameModeDestroyBlockMixin",
     "MultiPlayerGameModeShiftClickMixin"
   ],
   "injectors": {
