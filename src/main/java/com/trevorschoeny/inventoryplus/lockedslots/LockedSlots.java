@@ -93,6 +93,14 @@ public final class LockedSlots {
      * client-doable stays in IP; also works on a vanilla server without IPP).
      */
     private static final Map<String, Set<Integer>> PER_WORLD_ENDER = new HashMap<>();
+    /**
+     * worldId -> created-slot keys ({@link CreatedSlotKey}). MenuKit: Containers
+     * slots (pockets, equipment) locked by the player. Own namespace, like ender,
+     * because a created slot's container index collides with vanilla's.
+     * Trev 2026-09-07: created slots are treated exactly like vanilla slots for
+     * every lock feature.
+     */
+    private static final Map<String, Set<String>> PER_WORLD_CREATED = new HashMap<>();
 
     // ── Downstream lock providers (the SlotLockProvider seam) ───────────────
     //
@@ -196,9 +204,23 @@ public final class LockedSlots {
                     enderTotal += set.size();
                 }
             }
+            // Created-slot locks (MenuKit: Containers) live under "createdPerWorld"
+            // as opaque CreatedSlotKey strings. Absent in older files.
+            JsonObject createdPerWorld = root.has("createdPerWorld")
+                    ? root.getAsJsonObject("createdPerWorld")
+                    : new JsonObject();
+            int createdTotal = 0;
+            for (var worldEntry : createdPerWorld.entrySet()) {
+                Set<String> set = new HashSet<>();
+                for (var key : worldEntry.getValue().getAsJsonArray()) set.add(key.getAsString());
+                if (!set.isEmpty()) {
+                    PER_WORLD_CREATED.put(worldEntry.getKey(), set);
+                    createdTotal += set.size();
+                }
+            }
             InventoryPlusClient.LOGGER.info(
-                    "[locked-slots] loaded {} player + {} ender entries across {} world(s) from {}",
-                    total, enderTotal, PER_WORLD.size(), path);
+                    "[locked-slots] loaded {} player + {} ender + {} created entries across {} world(s) from {}",
+                    total, enderTotal, createdTotal, PER_WORLD.size(), path);
         } catch (IOException | JsonSyntaxException | IllegalStateException e) {
             InventoryPlusClient.LOGGER.error(
                     "[locked-slots] failed to parse {} — starting with empty prefs",
@@ -300,6 +322,7 @@ public final class LockedSlots {
             return isLocked(cs) || isDerivedLocked(cs);
         }
         if (isEnderSlot(slot)) return isEnderLocked(slot.getContainerSlot());
+        if (isCreatedSlot(slot)) return isCreatedLocked(slot);
         // Placed-container locks: the provider drives client prediction + the
         // feature skip-paths (sort / move-matching) + the lock icon, all on the
         // render thread. We deliberately do NOT consult it on the integrated-
@@ -323,7 +346,7 @@ public final class LockedSlots {
      * armor / offhand, which are lockable via {@code L} only.
      */
     public static boolean isLockableHere(Slot slot) {
-        return isLockable(slot) || isEnderSlot(slot) || providerFor(slot) != null;
+        return isLockable(slot) || isEnderSlot(slot) || isCreatedSlot(slot) || providerFor(slot) != null;
     }
 
     /**
@@ -335,7 +358,7 @@ public final class LockedSlots {
      * carve-out — join that toggleable set.
      */
     public static boolean isEditModeToggleable(Slot slot) {
-        return isInvOrHotbarSlot(slot) || isEnderSlot(slot) || providerFor(slot) != null;
+        return isInvOrHotbarSlot(slot) || isEnderSlot(slot) || isCreatedSlot(slot) || providerFor(slot) != null;
     }
 
     /** Toggles {@code slot}'s lock, routing to the right namespace or provider. */
@@ -344,6 +367,8 @@ public final class LockedSlots {
             toggleByContainerSlot(slot.getContainerSlot());
         } else if (isEnderSlot(slot)) {
             toggleEnder(slot.getContainerSlot());
+        } else if (isCreatedSlot(slot)) {
+            toggleCreated(slot);
         } else {
             SlotLockProvider p = providerFor(slot);
             if (p != null) p.setLocked(slot, !p.isLocked(slot));
@@ -356,10 +381,48 @@ public final class LockedSlots {
             setLocked(slot.getContainerSlot(), locked);
         } else if (isEnderSlot(slot)) {
             setEnderLocked(slot.getContainerSlot(), locked);
+        } else if (isCreatedSlot(slot)) {
+            setCreatedLocked(slot, locked);
         } else {
             SlotLockProvider p = providerFor(slot);
             if (p != null) p.setLocked(slot, locked);
         }
+    }
+
+    // ── Created slots (MenuKit: Containers; client-side, own namespace) ────
+
+    /**
+     * True if {@code slot} is a MenuKit: Containers created slot (a pocket, an
+     * equipment slot). Render-thread-gated like the ender check: the identity
+     * comes from MenuKit's client addressing, and the server thread has no
+     * business consulting a client lock store.
+     */
+    public static boolean isCreatedSlot(Slot slot) {
+        if (!isRenderThread()) return false;
+        if (slot.container instanceof Inventory) return false;   // a player slot
+        return CreatedSlotKey.of(slot) != null;
+    }
+
+    private static Set<String> createdSet(boolean create) {
+        String w = WorldIdentity.current(Minecraft.getInstance());
+        if (w == null) return create ? new HashSet<>() : Set.of();
+        return create ? PER_WORLD_CREATED.computeIfAbsent(w, k -> new HashSet<>()) : PER_WORLD_CREATED.getOrDefault(w, Set.of());
+    }
+
+    public static boolean isCreatedLocked(Slot slot) {
+        String key = CreatedSlotKey.of(slot);
+        return key != null && createdSet(false).contains(key);
+    }
+
+    public static void setCreatedLocked(Slot slot, boolean locked) {
+        String key = CreatedSlotKey.of(slot);
+        if (key == null) return;
+        boolean changed = locked ? createdSet(true).add(key) : createdSet(true).remove(key);
+        if (changed) save();
+    }
+
+    public static void toggleCreated(Slot slot) {
+        setCreatedLocked(slot, !isCreatedLocked(slot));
     }
 
     // ── Ender chest slots (client-side, per-player, own namespace) ──────────
@@ -484,6 +547,13 @@ public final class LockedSlots {
                 enderPerWorld.add(entry.getKey(), arr);
             }
             root.add("enderPerWorld", enderPerWorld);
+            JsonObject createdPerWorld = new JsonObject();
+            for (var entry : PER_WORLD_CREATED.entrySet()) {
+                JsonArray arr = new JsonArray();
+                for (String key : entry.getValue()) arr.add(key);
+                createdPerWorld.add(entry.getKey(), arr);
+            }
+            root.add("createdPerWorld", createdPerWorld);
             Files.writeString(path, GSON.toJson(root));
         } catch (IOException e) {
             InventoryPlusClient.LOGGER.error(
