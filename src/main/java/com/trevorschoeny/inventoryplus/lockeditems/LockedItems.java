@@ -37,6 +37,21 @@ import java.util.Set;
  * (`plans/locked-items.md`). A protected item is skipped by every piece
  * of automation the mod runs, wherever it happens to be sitting.
  *
+ * <h3>The kinds are independent, not alternatives</h3>
+ *
+ * <p>An item can carry any combination of locks at once: locked by id,
+ * locked exactly, and slot-locked over in {@link
+ * com.trevorschoeny.inventoryplus.lockedslots.LockedSlots}. Each is its
+ * own dimension and {@code L} only ever touches the one the lock button's
+ * stop names.
+ *
+ * <p>This was not the first design. Until 2026-09-06 a press removed
+ * every lock on the item at once, so switching to Exact and locking an
+ * already-id-locked pickaxe read as "already locked" and cleared it
+ * instead. The old rule justified itself as never "revealing a second
+ * lock underneath", which is exactly what a player with two locks needs
+ * to see (Trev).
+ *
  * <h3>Two kinds, and why they are not one</h3>
  *
  * <ul>
@@ -136,11 +151,13 @@ public final class LockedItems {
     // ── Matching ────────────────────────────────────────────────────────
 
     /**
-     * The one predicate every automation path calls. True when the mod
-     * must leave this stack alone: Sorting sorts around it, Move Matching
-     * will not take it in either direction, Auto Tool Switch will not
-     * fetch it, Auto-restock will not consume it, and the cyclers rotate
-     * past it.
+     * True when this stack carries any item lock. The predicate for the
+     * automations that honour locks unconditionally: Sorting sorts around
+     * it, Move Matching will not take it in either direction, and the
+     * cyclers rotate past it.
+     *
+     * <p>Auto Tool Switch and Auto-Restock call {@link #blocks} instead,
+     * since the player can let those two use a locked item anyway.
      */
     public static boolean isLocked(ItemStack stack) {
         if (stack == null || stack.isEmpty()) return false;
@@ -185,46 +202,51 @@ public final class LockedItems {
     // ── Locking and unlocking ───────────────────────────────────────────
 
     /**
-     * Locks {@code stack} in the given kind, or removes whatever lock it
-     * already has. Returns true when something changed, so the caller can
-     * decide whether the press did anything.
+     * Adds or removes the {@code kind} lock on {@code stack}, leaving
+     * every other kind exactly as it was. Returns true when something
+     * changed, so the caller can decide whether the press did anything.
      *
-     * <p>Unlocking deliberately ignores {@code kind}: a player who locked
-     * an item exactly and later has the button on another stop still
-     * expects {@code L} to take the lock off. Locking is the only
-     * direction the stop governs.
+     * <p>Only this one dimension is consulted. An item that is locked by
+     * id and then locked exactly carries both, and unlocking one leaves
+     * the other standing. That is the point: the mark drops from solid to
+     * hollow rather than disappearing, which is how the player sees a
+     * lock still remains.
      */
     public static boolean toggle(ItemStack stack, LockKind kind) {
         if (stack == null || stack.isEmpty()) return false;
         if (!ensureDecoded()) return false;
 
-        if (BY_ID.contains(stack.getItem()) || matchesExact(stack)) {
-            unlock(stack);
-            save();
-            InventoryPlusClient.LOGGER.debug("[locked-items] unlocked {}", stack.getItem());
-            return true;
-        }
+        boolean locked;
         switch (kind) {
-            case ITEM -> BY_ID.add(stack.getItem());
-            case EXACT -> EXACT.add(normalize(stack));
+            case ITEM -> {
+                locked = !BY_ID.remove(stack.getItem());
+                if (locked) BY_ID.add(stack.getItem());
+            }
+            case EXACT -> {
+                ItemStack probe = normalize(stack);
+                locked = !EXACT.removeIf(entry -> ItemStack.isSameItemSameComponents(probe, entry));
+                if (locked) EXACT.add(probe);
+            }
             // The slot stop never reaches here; the keybind routes it to LockedSlots.
-            case SLOT -> { return false; }
+            default -> { return false; }
         }
         save();
-        InventoryPlusClient.LOGGER.debug("[locked-items] locked {} ({})", stack.getItem(), kind);
+        InventoryPlusClient.LOGGER.debug("[locked-items] {} {} ({})",
+                locked ? "locked" : "unlocked", stack.getItem(), kind);
         return true;
     }
 
     /**
-     * Removes every lock that covers this stack, of either kind. Both are
-     * cleared rather than just the one that matched, so a single press
-     * always leaves the item genuinely unprotected instead of revealing a
-     * second lock underneath.
+     * True when {@code user} must leave this stack alone: it carries an
+     * item lock and that feature is set to honour locks. The cheap
+     * boolean is read first so a player who left the defaults alone never
+     * pays for the set lookup.
+     *
+     * @see LockedItemUser for why these two features get a say and the
+     *      others do not
      */
-    private static void unlock(ItemStack stack) {
-        BY_ID.remove(stack.getItem());
-        ItemStack probe = normalize(stack);
-        EXACT.removeIf(entry -> ItemStack.isSameItemSameComponents(probe, entry));
+    public static boolean blocks(LockedItemUser user, ItemStack stack) {
+        return !user.usesLockedItems() && isLocked(stack);
     }
 
     // ── Per-world decode / encode ───────────────────────────────────────

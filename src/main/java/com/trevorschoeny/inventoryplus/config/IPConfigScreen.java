@@ -63,6 +63,11 @@ public final class IPConfigScreen {
                 "Swap armor with a fresh piece from inventory before it breaks "
                         + "(at the durability threshold — tune it under Advanced).",
                 false, IPConfig::autoRestockArmorBeforeBreak, IPConfig::setAutoRestockArmorBeforeBreak);
+        Option<Boolean> armorUsesLocked = booleanOption(
+                "    Use Locked Items",
+                "Restock from items you have locked. Off means a locked item is left alone here too. Locked SLOTS are always respected either way.",
+                true, IPConfig::autoRestockArmorUsesLockedItems,
+                IPConfig::setAutoRestockArmorUsesLockedItems);
         Option<Boolean> tool = booleanOption(
                 "Tool Restock",
                 "Replace tools and weapons in the active hand or offhand when they break.",
@@ -72,10 +77,20 @@ public final class IPConfigScreen {
                 "Swap tools with a fresh one from inventory before they break "
                         + "(at the durability threshold — tune it under Advanced).",
                 false, IPConfig::autoRestockToolBeforeBreak, IPConfig::setAutoRestockToolBeforeBreak);
+        Option<Boolean> toolUsesLocked = booleanOption(
+                "    Use Locked Items",
+                "Restock from items you have locked. Off means a locked item is left alone here too. Locked SLOTS are always respected either way.",
+                true, IPConfig::autoRestockToolUsesLockedItems,
+                IPConfig::setAutoRestockToolUsesLockedItems);
         Option<Boolean> item = booleanOption(
                 "Item Restock",
                 "Refill the active hand or offhand stack when it runs out (food, blocks, arrows, etc.).",
                 true, IPConfig::autoRestockItem, IPConfig::setAutoRestockItem);
+        Option<Boolean> itemUsesLocked = booleanOption(
+                "    Use Locked Items",
+                "Restock from items you have locked. Off means a locked item is left alone here too. Locked SLOTS are always respected either way.",
+                true, IPConfig::autoRestockItemUsesLockedItems,
+                IPConfig::setAutoRestockItemUsesLockedItems);
         Option<Boolean> shulker = booleanOption(
                 "Pull from Shulker Boxes",
                 "Search shulker boxes in your inventory for restock items.",
@@ -105,6 +120,12 @@ public final class IPConfigScreen {
                         + "the mod auto-swaps the right tool into your active hand. "
                         + "Sneak (Shift) suppresses the switch.",
                 false, IPConfig::autoToolSwitchEnabled, IPConfig::setAutoToolSwitchEnabled);
+        Option<Boolean> switchUsesLocked = booleanOption(
+                "    Use Locked Items",
+                "Switch to tools you have locked. Off means a locked tool is never "
+                        + "auto-selected. Locked SLOTS are always respected either way.",
+                true, IPConfig::autoToolSwitchUsesLockedItems,
+                IPConfig::setAutoToolSwitchUsesLockedItems);
         Option<AutoSwitchReturnMode> returnMode = Option.<AutoSwitchReturnMode>createBuilder()
                 .name(Component.literal("    Return To Previous"))
                 .description(OptionDescription.of(Component.literal(
@@ -236,13 +257,19 @@ public final class IPConfigScreen {
         armorBeforeBreak.setAvailable(IPConfig.autoRestockArmor());
         armor.addListener((opt, val) -> {
             armorBeforeBreak.setAvailable(val);
+            armorUsesLocked.setAvailable(val);
             beforeBreakThreshold.setAvailable(
                     (val && armorBeforeBreak.pendingValue())
                     || (tool.pendingValue() && toolBeforeBreak.pendingValue()));
         });
+        armorUsesLocked.setAvailable(IPConfig.autoRestockArmor());
+        toolUsesLocked.setAvailable(IPConfig.autoRestockTool());
+        itemUsesLocked.setAvailable(IPConfig.autoRestockItem());
+        item.addListener((opt, val) -> itemUsesLocked.setAvailable(val));
         toolBeforeBreak.setAvailable(IPConfig.autoRestockTool());
         tool.addListener((opt, val) -> {
             toolBeforeBreak.setAvailable(val);
+            toolUsesLocked.setAvailable(val);
             beforeBreakThreshold.setAvailable(
                     (armor.pendingValue() && armorBeforeBreak.pendingValue())
                     || (val && toolBeforeBreak.pendingValue()));
@@ -262,12 +289,14 @@ public final class IPConfigScreen {
         returnMode.setAvailable(IPConfig.autoToolSwitchEnabled());
         returnCooldown.setAvailable(IPConfig.autoToolSwitchEnabled()
                 && IPConfig.autoToolSwitchReturnMode().isWindowed());
+        switchUsesLocked.setAvailable(IPConfig.autoToolSwitchEnabled());
         weapons.setAvailable(IPConfig.autoToolSwitchEnabled());
         allMobs.setAvailable(IPConfig.autoToolSwitchEnabled() && IPConfig.autoToolSwitchWeapons());
         weaponPref.setAvailable(IPConfig.autoToolSwitchEnabled() && IPConfig.autoToolSwitchWeapons());
         switchEnabled.addListener((opt, val) -> {
             returnMode.setAvailable(val);
             returnCooldown.setAvailable(val && returnMode.pendingValue().isWindowed());
+            switchUsesLocked.setAvailable(val);
             weapons.setAvailable(val);
             allMobs.setAvailable(val && weapons.pendingValue());
             weaponPref.setAvailable(val && weapons.pendingValue());
@@ -306,16 +335,16 @@ public final class IPConfigScreen {
                         .name(Component.literal("Auto-Restock"))
                         .description(OptionDescription.of(Component.literal(
                                 "Refill items in your active hand, offhand, and armor when they break or run out.")))
-                        .option(armor).option(armorBeforeBreak)
-                        .option(tool).option(toolBeforeBreak)
-                        .option(item)
+                        .option(armor).option(armorBeforeBreak).option(armorUsesLocked)
+                        .option(tool).option(toolBeforeBreak).option(toolUsesLocked)
+                        .option(item).option(itemUsesLocked)
                         .option(shulker).option(shulkerAmmo)
                         .build())
                 .group(OptionGroup.createBuilder()
                         .name(Component.literal("Auto Tool Switch"))
                         .description(OptionDescription.of(Component.literal(
                                 "Auto-swap to the right tool when you hit a block. Optionally extend to weapons on mobs.")))
-                        .option(switchEnabled).option(returnMode)
+                        .option(switchEnabled).option(switchUsesLocked).option(returnMode)
                         .option(weapons).option(allMobs).option(weaponPref)
                         .build())
                 .group(OptionGroup.createBuilder()

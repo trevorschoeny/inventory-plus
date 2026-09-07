@@ -15,11 +15,13 @@ import com.trevorschoeny.inventoryplus.buttonmode.ModeStop;
  * type" to one chest would be meaningless, since the protection it
  * creates is not container-shaped in the first place.
  *
- * <h3>Unlocking ignores the stop</h3>
+ * <h3>The stop governs both directions</h3>
  *
- * <p>Only locking consults this. {@code L} on something already locked
- * removes the lock whatever stop is showing, so a player never has to
- * remember which stop created it. See
+ * <p>{@code L} adds or removes the lock of the kind showing, and touches
+ * no other kind. The three are independent, so an item can be locked by
+ * id and exactly and by slot in any combination; unlocking one leaves the
+ * rest standing. Until 2026-09-06 unlocking ignored the stop and cleared
+ * everything, which made a second lock impossible to add. See
  * {@link com.trevorschoeny.inventoryplus.lockedslots.LockedSlotKeybind}.
  */
 public enum LockKind implements ModeStop {

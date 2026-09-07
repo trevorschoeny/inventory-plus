@@ -4,6 +4,7 @@ import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclable.ExtraSlot;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
+import com.trevorschoeny.inventoryplus.lockeditems.LockedItemUser;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 
 import net.minecraft.tags.ItemTags;
@@ -235,7 +236,7 @@ public final class ToolFinder {
             // pickaxe is the thing they asked us not to do. A player who
             // locks their only pickaxe has opted it out of auto-switching,
             // which is the feature working (locked-items.md).
-            if (LockedItems.isLocked(stack)) continue;
+            if (LockedItems.blocks(LockedItemUser.AUTO_TOOL_SWITCH, stack)) continue;
             if (!isMatch.test(stack)) continue;
             double score = scorer.applyAsDouble(stack);
             if (best == null || score > best.score()) {

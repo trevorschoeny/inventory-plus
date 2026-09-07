@@ -2,6 +2,7 @@ package com.trevorschoeny.inventoryplus.autorestock;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
+import com.trevorschoeny.inventoryplus.lockeditems.LockedItemUser;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclable.ExtraSlot;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 
@@ -252,7 +253,8 @@ public final class AutoRestockTicker {
         // inventory-only for now.
         List<ExtraSlot> extras = isActiveHotbar
                 ? HotbarCyclableRegistry.extraSearchSlots(player) : List.of();
-        int source = AutoRestockSearch.findSource(inv, prev, excludeSlot, extras);
+        int source = AutoRestockSearch.findSource(inv, prev, excludeSlot, extras,
+                LockedItemUser.RESTOCK_ITEM);
         if (source == AutoRestockSearch.NONE) return;
         if (isActiveHotbar) {
             refillActiveHotbarSlot(gameMode, player, source, targetClickKey, "item-restock", prev);
@@ -291,7 +293,8 @@ public final class AutoRestockTicker {
         // offhand stays inventory-only (non-held move, deferred).
         List<ExtraSlot> extras = isActiveHotbar
                 ? HotbarCyclableRegistry.extraSearchSlots(player) : List.of();
-        int source = AutoRestockSearch.findSource(inv, prev, excludeSlot, extras);
+        int source = AutoRestockSearch.findSource(inv, prev, excludeSlot, extras,
+                LockedItemUser.RESTOCK_TOOL);
         if (source == AutoRestockSearch.NONE) {
             InventoryPlusClient.LOGGER.debug(
                     "[break-restock] no replacement for target={} item={}",
@@ -331,7 +334,7 @@ public final class AutoRestockTicker {
         // it's a non-held move, so it routes via quickMoveOut, not a dynamic
         // switch.
         List<ExtraSlot> extras = HotbarCyclableRegistry.extraSearchSlots(player);
-        int source = AutoRestockSearch.findArmorSource(inv, prev, extras);
+        int source = AutoRestockSearch.findArmorSource(inv, prev, extras, LockedItemUser.RESTOCK_ARMOR);
         if (source == AutoRestockSearch.NONE) {
             InventoryPlusClient.LOGGER.debug(
                     "[break-restock] no replacement for armor[{}] item={}",
@@ -367,7 +370,8 @@ public final class AutoRestockTicker {
         // Before-break swap can pull a fresher copy from a cycler's extra slots
         // (pockets) into the active hand — the dynamic-switch path.
         List<ExtraSlot> extras = HotbarCyclableRegistry.extraSearchSlots(player);
-        int source = AutoRestockSearch.findHigherDurability(inv, now, selected, extras);
+        int source = AutoRestockSearch.findHigherDurability(inv, now, selected, extras,
+                LockedItemUser.RESTOCK_TOOL);
         if (source == AutoRestockSearch.NONE) {
             InventoryPlusClient.LOGGER.debug(
                     "[durability-restock] no replacement for hotbar[{}] item={}",
@@ -381,7 +385,8 @@ public final class AutoRestockTicker {
                                                  LocalPlayer player) {
         ItemStack now = player.getItemBySlot(EquipmentSlot.OFFHAND);
         if (!tookDamageThisTick(now)) return;
-        int source = AutoRestockSearch.findHigherDurability(inv, now, AutoRestockSearch.NONE);
+        int source = AutoRestockSearch.findHigherDurability(inv, now, AutoRestockSearch.NONE,
+                LockedItemUser.RESTOCK_TOOL);
         if (source == AutoRestockSearch.NONE) {
             InventoryPlusClient.LOGGER.debug(
                     "[durability-restock] no replacement for offhand item={}",
@@ -418,7 +423,7 @@ public final class AutoRestockTicker {
                                                int menuArmorSlot) {
         ItemStack now = player.getItemBySlot(slot);
         if (!tookDamageThisTick(now)) return;
-        int source = AutoRestockSearch.findHigherDurabilityArmor(inv, now);
+        int source = AutoRestockSearch.findHigherDurabilityArmor(inv, now, LockedItemUser.RESTOCK_ARMOR);
         if (source == AutoRestockSearch.NONE) {
             InventoryPlusClient.LOGGER.debug(
                     "[durability-restock] no replacement for armor[{}] item={}",

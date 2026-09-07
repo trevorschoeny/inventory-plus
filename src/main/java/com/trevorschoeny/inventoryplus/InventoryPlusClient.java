@@ -128,14 +128,20 @@ public class InventoryPlusClient implements ClientModInitializer {
         // Locked Items — protection that belongs to the item rather than the
         // slot, so it follows the item wherever it goes. Shares the L keybind
         // with Locked Slots; the lock button's stop decides which kind a press
-        // creates, and unlocking works from any stop.
+        // adds or removes, and it touches only that kind. The three kinds
+        // (slot, by id, exact) are independent and combine freely.
         //
-        // Enforcement is a plain predicate, LockedItems.isLocked(stack), called
-        // by the automation paths themselves (Sorter, MoveMatchingExecutor's
-        // source filter, AutoRestockSearch, ToolFinder's one scan, and the
-        // cyclers' rotation engine). Deliberately NOT wired into the shift-click
-        // or auto-pickup mixins that Locked Slots uses: this feature constrains
-        // what the mod does, never what the player can do by hand.
+        // Enforcement splits by what the automation is doing. The features that
+        // TIDY AN ITEM AWAY honour locks unconditionally via
+        // LockedItems.isLocked(stack): Sorter, MoveMatchingExecutor's source
+        // filter, and the cyclers' rotation engine. The features that HAND THE
+        // ITEM BACK ask LockedItems.blocks(user, stack) instead, so the player
+        // can let them use a locked item anyway: AutoRestockSearch and
+        // ToolFinder. Those default to using locked items (see LockedItemUser).
+        //
+        // Deliberately NOT wired into the shift-click or auto-pickup mixins
+        // that Locked Slots uses: this feature constrains what the mod does,
+        // never what the player can do by hand.
         //
         // The list is per world or server and its entries are ItemStacks, which
         // need the level's registries to decode — so load() only reads the file

@@ -2,6 +2,7 @@ package com.trevorschoeny.inventoryplus.autorestock;
 
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclable.ExtraSlot;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
+import com.trevorschoeny.inventoryplus.lockeditems.LockedItemUser;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 
 import net.minecraft.core.component.DataComponents;
@@ -100,8 +101,9 @@ public final class AutoRestockSearch {
      *                    destination, not a valid source). Pass
      *                    {@link #NONE} for no exclusion.
      */
-    public static int findSource(Inventory inv, ItemStack brokenStack, int excludeSlot) {
-        return findSource(inv, brokenStack, excludeSlot, List.of());
+    public static int findSource(Inventory inv, ItemStack brokenStack, int excludeSlot,
+                                 LockedItemUser user) {
+        return findSource(inv, brokenStack, excludeSlot, List.of(), user);
     }
 
     /**
@@ -116,7 +118,7 @@ public final class AutoRestockSearch {
      * byte-for-byte.
      */
     public static int findSource(Inventory inv, ItemStack brokenStack, int excludeSlot,
-                                 List<ExtraSlot> extras) {
+                                 List<ExtraSlot> extras, LockedItemUser user) {
         if (brokenStack == null || brokenStack.isEmpty()) return NONE;
 
         // Pass 1 — exact same-Item match. Locked sources skipped per spec.
@@ -124,7 +126,7 @@ public final class AutoRestockSearch {
         // we don't disturb a curated pocket when a loose copy exists.
         for (int i = HOTBAR_START; i < MAIN_INV_END; i++) {
             if (i == excludeSlot) continue;
-            if (isProtectedSource(inv, i)) continue;
+            if (isProtectedSource(inv, i, user)) continue;
             ItemStack candidate = inv.getItem(i);
             if (candidate.isEmpty()) continue;
             if (candidate.is(brokenStack.getItem())) {
@@ -134,7 +136,7 @@ public final class AutoRestockSearch {
         for (ExtraSlot ex : extras) {
             ItemStack candidate = ex.stack();
             if (candidate.isEmpty()) continue;
-            if (LockedItems.isLocked(candidate)) continue;
+            if (LockedItems.blocks(user, candidate)) continue;
             if (candidate.is(brokenStack.getItem())) {
                 return ex.id();
             }
@@ -146,7 +148,7 @@ public final class AutoRestockSearch {
         if (toolTag == null) return NONE;
         // On-break path: no minRemaining constraint — any same-kind tool
         // beats an empty hand, even one that's also worn.
-        return findBestByMaxDamage(inv, toolTag, excludeSlot, 0, extras);
+        return findBestByMaxDamage(inv, toolTag, excludeSlot, 0, extras, user);
     }
 
     /**
@@ -164,8 +166,8 @@ public final class AutoRestockSearch {
      * inventory — vanilla's quick-move on InventoryMenu routes Equippable
      * items to their matching empty armor slot.
      */
-    public static int findArmorSource(Inventory inv, ItemStack brokenArmor) {
-        return findArmorSource(inv, brokenArmor, List.of());
+    public static int findArmorSource(Inventory inv, ItemStack brokenArmor, LockedItemUser user) {
+        return findArmorSource(inv, brokenArmor, List.of(), user);
     }
 
     /**
@@ -175,7 +177,8 @@ public final class AutoRestockSearch {
      * for the id-namespace contract. Passing an empty list reproduces the
      * base method byte-for-byte.
      */
-    public static int findArmorSource(Inventory inv, ItemStack brokenArmor, List<ExtraSlot> extras) {
+    public static int findArmorSource(Inventory inv, ItemStack brokenArmor, List<ExtraSlot> extras,
+                                      LockedItemUser user) {
         if (brokenArmor == null || brokenArmor.isEmpty()) return NONE;
         EquipmentSlot wantedSlot = equippableSlot(brokenArmor);
         if (wantedSlot == null) return NONE;
@@ -184,7 +187,7 @@ public final class AutoRestockSearch {
         // excludeSlot needed because the armor destination isn't in the
         // hotbar/main-inv scan range. Inventory first, then extras.
         for (int i = HOTBAR_START; i < MAIN_INV_END; i++) {
-            if (isProtectedSource(inv, i)) continue;
+            if (isProtectedSource(inv, i, user)) continue;
             ItemStack candidate = inv.getItem(i);
             if (candidate.isEmpty()) continue;
             if (candidate.is(brokenArmor.getItem())) {
@@ -200,7 +203,7 @@ public final class AutoRestockSearch {
         for (ExtraSlot ex : extras) {
             ItemStack candidate = ex.stack();
             if (candidate.isEmpty()) continue;
-            if (LockedItems.isLocked(candidate)) continue;
+            if (LockedItems.blocks(user, candidate)) continue;
             if (candidate.is(brokenArmor.getItem()) && isEquippableToSlot(candidate, wantedSlot)) {
                 return ex.id();
             }
@@ -209,7 +212,7 @@ public final class AutoRestockSearch {
         TagKey<Item> armorTag = armorTagOf(wantedSlot);
         if (armorTag == null) return NONE;
         // On-break path: no minRemaining constraint.
-        return findBestArmorByMaxDamage(inv, armorTag, wantedSlot, 0, extras);
+        return findBestArmorByMaxDamage(inv, armorTag, wantedSlot, 0, extras, user);
     }
 
     /**
@@ -225,8 +228,9 @@ public final class AutoRestockSearch {
      * freshest available so the player gets maximum mileage before the
      * next swap. Returns {@link #NONE} if no candidate exists.
      */
-    public static int findHigherDurability(Inventory inv, ItemStack current, int excludeSlot) {
-        return findHigherDurability(inv, current, excludeSlot, List.of());
+    public static int findHigherDurability(Inventory inv, ItemStack current, int excludeSlot,
+                                           LockedItemUser user) {
+        return findHigherDurability(inv, current, excludeSlot, List.of(), user);
     }
 
     /**
@@ -238,7 +242,7 @@ public final class AutoRestockSearch {
      * id-namespace contract. Empty list → base behavior byte-for-byte.
      */
     public static int findHigherDurability(Inventory inv, ItemStack current, int excludeSlot,
-                                           List<ExtraSlot> extras) {
+                                           List<ExtraSlot> extras, LockedItemUser user) {
         if (current == null || current.isEmpty()) return NONE;
 
         // Pass 1 — same-Item with strictly lower damage value than current.
@@ -247,7 +251,7 @@ public final class AutoRestockSearch {
         int bestDamage = currentDamage;       // candidate must be strictly < this
         for (int i = HOTBAR_START; i < MAIN_INV_END; i++) {
             if (i == excludeSlot) continue;
-            if (isProtectedSource(inv, i)) continue;
+            if (isProtectedSource(inv, i, user)) continue;
             ItemStack candidate = inv.getItem(i);
             if (candidate.isEmpty()) continue;
             if (!candidate.is(current.getItem())) continue;
@@ -262,7 +266,7 @@ public final class AutoRestockSearch {
         for (ExtraSlot ex : extras) {
             ItemStack candidate = ex.stack();
             if (candidate.isEmpty()) continue;
-            if (LockedItems.isLocked(candidate)) continue;
+            if (LockedItems.blocks(user, candidate)) continue;
             if (!candidate.is(current.getItem())) continue;
             int candidateDamage = candidate.getDamageValue();
             if (candidateDamage < bestDamage) {
@@ -277,7 +281,7 @@ public final class AutoRestockSearch {
         // don't pull another about-to-break tool into the active slot.
         TagKey<Item> toolTag = toolTagOf(current);
         if (toolTag == null) return NONE;
-        return findBestByMaxDamage(inv, toolTag, excludeSlot, FALLBACK_MIN_REMAINING, extras);
+        return findBestByMaxDamage(inv, toolTag, excludeSlot, FALLBACK_MIN_REMAINING, extras, user);
     }
 
     /**
@@ -286,8 +290,9 @@ public final class AutoRestockSearch {
      * defensive check as {@link #findArmorSource} against same-id
      * different-component edge cases).
      */
-    public static int findHigherDurabilityArmor(Inventory inv, ItemStack currentArmor) {
-        return findHigherDurabilityArmor(inv, currentArmor, List.of());
+    public static int findHigherDurabilityArmor(Inventory inv, ItemStack currentArmor,
+                                                LockedItemUser user) {
+        return findHigherDurabilityArmor(inv, currentArmor, List.of(), user);
     }
 
     /**
@@ -298,7 +303,7 @@ public final class AutoRestockSearch {
      * id-namespace contract. Empty list → base behavior byte-for-byte.
      */
     public static int findHigherDurabilityArmor(Inventory inv, ItemStack currentArmor,
-                                                List<ExtraSlot> extras) {
+                                                List<ExtraSlot> extras, LockedItemUser user) {
         if (currentArmor == null || currentArmor.isEmpty()) return NONE;
         EquipmentSlot wantedSlot = equippableSlot(currentArmor);
         if (wantedSlot == null) return NONE;
@@ -309,7 +314,7 @@ public final class AutoRestockSearch {
         int bestSlot = NONE;
         int bestDamage = currentDamage;
         for (int i = HOTBAR_START; i < MAIN_INV_END; i++) {
-            if (isProtectedSource(inv, i)) continue;
+            if (isProtectedSource(inv, i, user)) continue;
             ItemStack candidate = inv.getItem(i);
             if (candidate.isEmpty()) continue;
             if (!candidate.is(currentArmor.getItem())) continue;
@@ -323,7 +328,7 @@ public final class AutoRestockSearch {
         for (ExtraSlot ex : extras) {
             ItemStack candidate = ex.stack();
             if (candidate.isEmpty()) continue;
-            if (LockedItems.isLocked(candidate)) continue;
+            if (LockedItems.blocks(user, candidate)) continue;
             if (!candidate.is(currentArmor.getItem())) continue;
             if (!isEquippableToSlot(candidate, wantedSlot)) continue;
             int candidateDamage = candidate.getDamageValue();
@@ -338,7 +343,7 @@ public final class AutoRestockSearch {
         // Candidate must have remaining > FALLBACK_MIN_REMAINING.
         TagKey<Item> armorTag = armorTagOf(wantedSlot);
         if (armorTag == null) return NONE;
-        return findBestArmorByMaxDamage(inv, armorTag, wantedSlot, FALLBACK_MIN_REMAINING, extras);
+        return findBestArmorByMaxDamage(inv, armorTag, wantedSlot, FALLBACK_MIN_REMAINING, extras, user);
     }
 
     /**
@@ -384,12 +389,13 @@ public final class AutoRestockSearch {
      *                     no constraint (on-break path).
      */
     private static int findBestByMaxDamage(Inventory inv, TagKey<Item> tag, int excludeSlot,
-                                           int minRemaining, List<ExtraSlot> extras) {
+                                           int minRemaining, List<ExtraSlot> extras,
+                                           LockedItemUser user) {
         int bestSlot = NONE;
         int bestMaxDamage = -1;
         for (int i = HOTBAR_START; i < MAIN_INV_END; i++) {
             if (i == excludeSlot) continue;
-            if (isProtectedSource(inv, i)) continue;
+            if (isProtectedSource(inv, i, user)) continue;
             ItemStack candidate = inv.getItem(i);
             if (candidate.isEmpty()) continue;
             if (!candidate.is(tag)) continue;
@@ -407,7 +413,7 @@ public final class AutoRestockSearch {
         for (ExtraSlot ex : extras) {
             ItemStack candidate = ex.stack();
             if (candidate.isEmpty()) continue;
-            if (LockedItems.isLocked(candidate)) continue;
+            if (LockedItems.blocks(user, candidate)) continue;
             if (!candidate.is(tag)) continue;
             if (minRemaining > 0) {
                 int remaining = candidate.getMaxDamage() - candidate.getDamageValue();
@@ -425,11 +431,11 @@ public final class AutoRestockSearch {
     /** Armor variant: also enforces matching equippable slot. */
     private static int findBestArmorByMaxDamage(Inventory inv, TagKey<Item> tag,
                                                 EquipmentSlot wantedSlot, int minRemaining,
-                                                List<ExtraSlot> extras) {
+                                                List<ExtraSlot> extras, LockedItemUser user) {
         int bestSlot = NONE;
         int bestMaxDamage = -1;
         for (int i = HOTBAR_START; i < MAIN_INV_END; i++) {
-            if (isProtectedSource(inv, i)) continue;
+            if (isProtectedSource(inv, i, user)) continue;
             ItemStack candidate = inv.getItem(i);
             if (candidate.isEmpty()) continue;
             if (!candidate.is(tag)) continue;
@@ -447,7 +453,7 @@ public final class AutoRestockSearch {
         for (ExtraSlot ex : extras) {
             ItemStack candidate = ex.stack();
             if (candidate.isEmpty()) continue;
-            if (LockedItems.isLocked(candidate)) continue;
+            if (LockedItems.blocks(user, candidate)) continue;
             if (!candidate.is(tag)) continue;
             if (!isEquippableToSlot(candidate, wantedSlot)) continue;
             if (minRemaining > 0) {
@@ -480,10 +486,16 @@ public final class AutoRestockSearch {
      * place because all six inventory scans want the same rule, and a scan
      * that missed one of them would be a silent hole in the protection
      * rather than an obvious one. Pocket scans call
-     * {@link LockedItems#isLocked} directly, having no slot index.
+     * {@link LockedItems#blocks} directly, having no slot index.
+     *
+     * <p>The two halves are not symmetrical. A locked <b>slot</b> is always
+     * refused: these settings say "use locked items", not "ignore locked
+     * slots". A locked <b>item</b> is refused only when {@code user}'s
+     * setting says to honour locks, which by default it does not
+     * (Trev 2026-09-06).
      */
-    private static boolean isProtectedSource(Inventory inv, int slot) {
-        return LockedSlots.isLocked(slot) || LockedItems.isLocked(inv.getItem(slot));
+    private static boolean isProtectedSource(Inventory inv, int slot, LockedItemUser user) {
+        return LockedSlots.isLocked(slot) || LockedItems.blocks(user, inv.getItem(slot));
     }
 
     /**

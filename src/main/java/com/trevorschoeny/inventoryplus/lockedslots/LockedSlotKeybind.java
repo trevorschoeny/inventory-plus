@@ -100,13 +100,13 @@ public final class LockedSlotKeybind {
                         Slot hovered = slotUnderMouse(currentAcs, mouseX, mouseY);
                         if (hovered == null) return;
 
-                        // Item locks resolve before slot locks, because the
-                        // stop that decides between them is theirs to read.
+                        // The stop alone decides which lock L acts on. Existing
+                        // locks are not consulted: the three kinds are independent,
+                        // so an item-locked stack must still accept a slot lock or
+                        // an exact lock on top (Trev 2026-09-06).
                         ItemStack hoveredStack = hovered.getItem();
                         LockKind kind = LockedItemModes.current();
-                        boolean alreadyItemLocked =
-                                !hoveredStack.isEmpty() && LockedItems.isLocked(hoveredStack);
-                        if (alreadyItemLocked || kind != LockKind.SLOT) {
+                        if (kind != LockKind.SLOT) {
                             // The item path starts no drag, so it has no drag to
                             // suppress GLFW auto-repeat for it. Without this latch
                             // a held L would lock and unlock many times a second.
