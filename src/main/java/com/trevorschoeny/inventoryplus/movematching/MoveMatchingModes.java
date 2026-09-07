@@ -16,28 +16,25 @@ import org.jetbrains.annotations.Nullable;
  * Move Matching's mode state: <b>one per direction</b>, because the two
  * directions do not describe one operation seen from two sides.
  *
- * <h3>Why the directions differ, and why only one of them pins</h3>
+ * <h3>Why the directions are independent</h3>
  *
  * <p>The stops (All, But-one, But-one-stack) are quantity rules about
- * what is left behind in the <em>source</em>. Which side the source is on
- * flips with the direction, and that is what decides the scope:
+ * what is left behind in the <em>source</em>, and which side the source
+ * is on flips with the direction. {@link Direction#IN} leaves its
+ * remainder in the chest; {@link Direction#OUT} leaves it on the player.
+ * Those are different questions, so they get different answers, and a
+ * gesture on one button no longer touches the other.
  *
- * <ul>
- *   <li>{@link Direction#IN} pulls out of the chest into the player. What
- *       gets left behind is left <em>in that chest</em>, so "leave a stack
- *       of cobble in this one" is a fact about a particular chest.
- *       Global by default, <b>pinnable</b>.</li>
- *   <li>{@link Direction#OUT} pushes out of the player into the chest.
- *       What gets left behind stays <em>on the player</em>, who is the
- *       same player at every chest in the world. There is nothing for a
- *       pin to vary, so this one is <b>global only</b> and middle-click
- *       does nothing on it.</li>
- * </ul>
+ * <p>Both are global by default and both can be pinned. An earlier cut of
+ * this made OUT global-only, reasoning that its remainder sits on the
+ * player and so cannot vary by chest. Trev reversed that the same day: it
+ * reads as an arbitrary hole in the gesture, and "this is the chest I dump
+ * everything into" is still a fact about a chest. Two buttons that answer
+ * the same gestures beats a rule that has to be explained.
  *
- * <p>The two globals are independent: changing the pull rule does not
- * touch the push rule. This reverses `features/move-matching.md` ("IN and
- * OUT share one mode") and `features/button-modes.md`, on Trev's call
- * 2026-09-06, after pinning one button was found to pin both.
+ * <p>This reverses `features/move-matching.md` ("IN and OUT share one
+ * mode") and `features/button-modes.md`, on Trev's call 2026-09-06, after
+ * pinning one button was found to pin both.
  *
  * <p>Beware the naming: {@code IN} and {@code OUT} are relative to the
  * player inventory, not to the chest, so {@code IN} is the button a
@@ -51,13 +48,13 @@ public final class MoveMatchingModes {
 
     private MoveMatchingModes() {}
 
-    /** Chest to player. Pinnable: its rule is about what stays in that chest. */
+    /** Chest to player. Its rule is about what stays in that chest. */
     public static final ModeState<MoveMatchingMode> IN =
             ModeState.of("move-matching-in", MoveMatchingMode.class, MoveMatchingMode.ALL);
 
-    /** Player to chest. Global only: its rule is about what stays on the player. */
+    /** Player to chest. Its rule is about what stays on the player. */
     public static final ModeState<MoveMatchingMode> OUT =
-            ModeState.globalOnly("move-matching-out", MoveMatchingMode.class, MoveMatchingMode.ALL);
+            ModeState.of("move-matching-out", MoveMatchingMode.class, MoveMatchingMode.ALL);
 
     public static void load() {
         IN.load();
@@ -80,7 +77,7 @@ public final class MoveMatchingModes {
 
     /**
      * The mode in force for {@code direction} right now: the open
-     * container's pin if that direction has one, else its global.
+     * container's pin for that direction if it has one, else its global.
      */
     public static MoveMatchingMode current(Direction direction) {
         return state(direction).effective(currentIdentity());

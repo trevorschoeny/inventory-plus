@@ -23,10 +23,9 @@ import java.util.List;
  * mode in force, right-click changes the mode, shift+right-click goes
  * back, middle-click pins it to the open container.
  *
- * <p>The two buttons are independent. A gesture on one leaves the other
- * alone, and only IN can be pinned at all, for the reasons in
- * {@link MoveMatchingModes}. OUT drops the middle-click line from its
- * tooltip rather than offering a gesture that does nothing.
+ * <p>The two buttons are independent: each carries its own mode and its
+ * own pins, so a gesture on one leaves the other alone. See
+ * {@link MoveMatchingModes} for why they are not one shared value.
  *
  * <p>Shown only on screens that pair the inventory with a simple
  * container; inert in locked-slots edit mode, gestures included.
