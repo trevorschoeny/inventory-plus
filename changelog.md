@@ -10,4 +10,6 @@ The three kinds are independent. An item can be slot locked, item locked and exa
 
 Auto Tool Switch and Auto-Restock use locked items anyway, by default. The tool you went to the trouble of locking is usually the one you want in your hand. If you would rather they left it alone, each has its own Use Locked Items setting: one under Auto Tool Switch, and one under each of Armor, Tool and Item Restock. A locked slot is always respected whatever these are set to.
 
+Auto-Restock no longer mistakes you for the game. Moving a stack out of your hotbar while your inventory or a chest is open used to look like the item running out, and a spare would jump in to replace it. Restock now holds off while any container screen is open.
+
 Requires MenuKit 3.1.0 or newer.

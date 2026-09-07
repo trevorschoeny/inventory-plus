@@ -8,11 +8,13 @@ Auto-Restock refills your held stack from your inventory when it runs out, and r
 
 Auto Tool Switch puts the right tool in your hand when you hit a block. It can also switch to a weapon when you attack a mob, with a preferred-weapon setting. You choose how to return to what you were holding: never, automatically after a delay, or on a keybind. Hold sneak to suppress it. It is disabled in creative.
 
-Sort tidies any container or your inventory with a button or a keybind.
+Sort tidies any container or your inventory with a button or a keybind. Right-click the button to change the order between category, quantity, ID and rarity.
 
-Move Matching moves every matching item between your inventory and a container in one click.
+Move Matching moves every matching item between your inventory and a container in one click. Right-click a button to choose how much moves: everything, everything but one, everything but a full stack, or only what fits. The in and out buttons keep separate settings, and middle-clicking any of these buttons pins its setting to the container you have open.
 
 Locked Slots keeps sorting and quick-move away from slots you mark.
+
+Locked Items protects the item instead of the slot, so it stays protected wherever it ends up. Press L on an item to lock its whole type, or lock one particular item with its enchantments and name, and it keeps that lock as it wears down. Sorting, move matching and the cyclers all leave it where it is. Auto Tool Switch and Auto-Restock still use it, since the tool you went to the trouble of locking is usually the one you want in your hand, and each has a setting if you would rather they did not.
 
 Column Cycler turns a vertical column of inventory slots into a cycle you rotate through a hotbar slot with the Up and Down arrows, shown as a vertical overlay beside the hotbar.
 
