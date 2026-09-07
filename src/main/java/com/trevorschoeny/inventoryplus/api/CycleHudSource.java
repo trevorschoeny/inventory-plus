@@ -1,4 +1,4 @@
-package com.trevorschoeny.inventoryplus.cyclable;
+package com.trevorschoeny.inventoryplus.api;
 
 /**
  * A source the shared cycle HUD can ask: "is there an active cycle on this

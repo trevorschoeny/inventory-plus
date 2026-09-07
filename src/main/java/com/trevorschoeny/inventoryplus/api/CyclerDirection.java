@@ -1,4 +1,4 @@
-package com.trevorschoeny.inventoryplus.cyclable;
+package com.trevorschoeny.inventoryplus.api;
 
 /**
  * Direction of a cycle rotation, used by the shared HUD's slide animation.

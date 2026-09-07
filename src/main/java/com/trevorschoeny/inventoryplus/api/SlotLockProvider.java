@@ -1,4 +1,4 @@
-package com.trevorschoeny.inventoryplus.lockedslots;
+package com.trevorschoeny.inventoryplus.api;
 
 import net.minecraft.world.inventory.Slot;
 

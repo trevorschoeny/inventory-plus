@@ -1,7 +1,8 @@
 package com.trevorschoeny.inventoryplus.autotoolswitch;
 
+import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
+import com.trevorschoeny.inventoryplus.api.HotbarCyclable.ExtraSlot;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
-import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclable.ExtraSlot;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItemUser;

@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.columncycler;
 
+import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 

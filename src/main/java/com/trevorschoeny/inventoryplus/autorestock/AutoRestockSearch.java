@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.autorestock;
 
-import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclable.ExtraSlot;
+import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
+import com.trevorschoeny.inventoryplus.api.HotbarCyclable.ExtraSlot;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItemUser;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;

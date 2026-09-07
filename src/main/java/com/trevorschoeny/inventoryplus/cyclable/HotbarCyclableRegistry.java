@@ -1,5 +1,8 @@
 package com.trevorschoeny.inventoryplus.cyclable;
 
+import com.trevorschoeny.inventoryplus.api.CyclerOperation;
+import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
+import com.trevorschoeny.inventoryplus.api.HotbarCyclable.ExtraSlot;
 import net.minecraft.world.entity.player.Player;
 
 import java.util.ArrayList;

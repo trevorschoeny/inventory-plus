@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus;
 
+import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
 import com.trevorschoeny.inventoryplus.autorestock.AutoRestockTicker;
 import com.trevorschoeny.inventoryplus.autotoolswitch.AutoToolSwitch;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;

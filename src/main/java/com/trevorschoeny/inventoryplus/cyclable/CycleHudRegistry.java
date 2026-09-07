@@ -1,5 +1,8 @@
 package com.trevorschoeny.inventoryplus.cyclable;
 
+import com.trevorschoeny.inventoryplus.api.CycleHudSource;
+import com.trevorschoeny.inventoryplus.api.CycleView;
+import com.trevorschoeny.inventoryplus.api.CyclerDirection;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;

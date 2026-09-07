@@ -1,5 +1,8 @@
 package com.trevorschoeny.inventoryplus.cyclable;
 
+import com.trevorschoeny.inventoryplus.api.CycleHudSource;
+import com.trevorschoeny.inventoryplus.api.CycleView;
+import com.trevorschoeny.inventoryplus.api.CyclerDirection;
 import com.trevlar.menukit.core.HudRegion;
 import com.trevlar.menukit.hud.MKHudPanel;
 

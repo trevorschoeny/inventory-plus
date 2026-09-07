@@ -1,9 +1,10 @@
 package com.trevorschoeny.inventoryplus.autorestock;
 
+import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
+import com.trevorschoeny.inventoryplus.api.HotbarCyclable.ExtraSlot;
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItemUser;
-import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclable.ExtraSlot;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 
 import net.minecraft.client.Minecraft;

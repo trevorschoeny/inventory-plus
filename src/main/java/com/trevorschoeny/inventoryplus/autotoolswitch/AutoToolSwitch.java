@@ -1,8 +1,8 @@
 package com.trevorschoeny.inventoryplus.autotoolswitch;
 
+import com.trevorschoeny.inventoryplus.api.CyclerOperation;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
-import com.trevorschoeny.inventoryplus.cyclable.CyclerOperation;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;

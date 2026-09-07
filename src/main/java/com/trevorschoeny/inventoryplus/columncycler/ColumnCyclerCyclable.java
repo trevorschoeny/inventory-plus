@@ -1,7 +1,8 @@
 package com.trevorschoeny.inventoryplus.columncycler;
 
-import com.trevorschoeny.inventoryplus.cyclable.CyclerOperation;
-import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclable;
+import com.trevorschoeny.inventoryplus.api.CyclerOperation;
+import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
+
 
 /**
  * Adapts Column Cycler's "rotate column" mechanic to the

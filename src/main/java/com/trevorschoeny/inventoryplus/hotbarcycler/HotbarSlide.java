@@ -1,7 +1,7 @@
 package com.trevorschoeny.inventoryplus.hotbarcycler;
 
+import com.trevorschoeny.inventoryplus.api.CyclerDirection;
 import com.trevorschoeny.inventoryplus.cyclable.CycleSlide;
-import com.trevorschoeny.inventoryplus.cyclable.CyclerDirection;
 
 import net.minecraft.world.item.ItemStack;
 

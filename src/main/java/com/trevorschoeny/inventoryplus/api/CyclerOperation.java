@@ -1,4 +1,4 @@
-package com.trevorschoeny.inventoryplus.cyclable;
+package com.trevorschoeny.inventoryplus.api;
 
 /**
  * Undo handle returned by {@link HotbarCyclable#bringToHotbar(int)}.

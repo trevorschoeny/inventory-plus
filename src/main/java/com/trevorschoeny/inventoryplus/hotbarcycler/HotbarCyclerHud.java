@@ -1,10 +1,10 @@
 package com.trevorschoeny.inventoryplus.hotbarcycler;
 
+import com.trevorschoeny.inventoryplus.api.CycleHudSource;
+import com.trevorschoeny.inventoryplus.api.CycleView;
+import com.trevorschoeny.inventoryplus.api.CyclerDirection;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerRotator;
 import com.trevorschoeny.inventoryplus.cyclable.CycleHudRegistry;
-import com.trevorschoeny.inventoryplus.cyclable.CycleHudSource;
-import com.trevorschoeny.inventoryplus.cyclable.CycleView;
-import com.trevorschoeny.inventoryplus.cyclable.CyclerDirection;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;

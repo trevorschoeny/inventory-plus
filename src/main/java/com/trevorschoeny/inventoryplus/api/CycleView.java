@@ -1,4 +1,4 @@
-package com.trevorschoeny.inventoryplus.cyclable;
+package com.trevorschoeny.inventoryplus.api;
 
 import net.minecraft.world.item.ItemStack;
 

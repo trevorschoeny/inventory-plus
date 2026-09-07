@@ -1,6 +1,6 @@
 package com.trevorschoeny.inventoryplus.mixin;
 
-import com.trevorschoeny.inventoryplus.cyclable.CyclerDirection;
+import com.trevorschoeny.inventoryplus.api.CyclerDirection;
 import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarSlide;
 
 import net.minecraft.client.DeltaTracker;
