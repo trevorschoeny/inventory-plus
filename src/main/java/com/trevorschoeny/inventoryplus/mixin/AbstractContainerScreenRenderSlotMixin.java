@@ -23,9 +23,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * Renders Locked-Slots + Column-Cycler overlays on top of vanilla slot rendering:
  *
  * <ol>
- *   <li><b>Gray edit-mode overlay</b> on inv + hotbar slots when ANY edit
- *       mode is on ({@link LockEditMode} or {@link ColumnCyclerEditMode}).
- *       Both edit modes are mutually exclusive and use the same visual.
+ *   <li><b>Edit-mode tint</b> on every editable slot: light pink for
+ *       {@link LockEditMode} (Trev 2026-09-07), gray for
+ *       {@link ColumnCyclerEditMode}. The two modes are mutually exclusive.
  *       Reinforces "no item interactions in this slot during edit mode"
  *       (Trev 2026-05-16).</li>
  *   <li><b>Lock icon</b> on locked player slots — 5×6 PNG at top-right
@@ -82,7 +82,15 @@ public abstract class AbstractContainerScreenRenderSlotMixin {
     private static final int INVENTORYPLUS$ITEM_MARK_SIZE = 5;
 
     /** 50%-translucent light gray for the edit-mode overlay. */
-    private static final int INVENTORYPLUS$EDIT_OVERLAY_COLOR = 0x80808080;
+    /**
+     * Lock edit mode tints every lockable slot a light pink (Trev 2026-09-07).
+     * Same hue as {@link com.trevorschoeny.inventoryplus.buttonmode.ModeGestures#PIN_TINT}
+     * so the mod has one pink; lower alpha because this covers whole slots
+     * rather than a nine-pixel button.
+     */
+    private static final int INVENTORYPLUS$LOCK_EDIT_TINT = 0x48FF6EC7;
+    /** The Column Cycler's edit mode keeps its neutral gray. */
+    private static final int INVENTORYPLUS$CYCLER_EDIT_TINT = 0x80808080;
 
     /**
      * ARGB tint for the corner indicator sprites — alpha 0xAB (67%),
@@ -100,11 +108,15 @@ public abstract class AbstractContainerScreenRenderSlotMixin {
         // lock-edit reaches beyond the player inventory: lock-edit grays every
         // lock-toggleable slot (inv+hotbar + ender + placed containers), while
         // cycler-edit stays scoped to the player inv+hotbar slots it operates on.
-        boolean overlay = (LockEditMode.isOn() && LockedSlots.isEditModeToggleable(slot))
-                || (ColumnCyclerEditMode.isOn() && LockedSlots.isInvOrHotbarSlot(slot));
-        if (overlay) {
-            graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16,
-                    INVENTORYPLUS$EDIT_OVERLAY_COLOR);
+        // The two edit modes are mutually exclusive, so at most one tint applies.
+        int tint = 0;
+        if (LockEditMode.isOn() && LockedSlots.isEditModeToggleable(slot)) {
+            tint = INVENTORYPLUS$LOCK_EDIT_TINT;
+        } else if (ColumnCyclerEditMode.isOn() && LockedSlots.isInvOrHotbarSlot(slot)) {
+            tint = INVENTORYPLUS$CYCLER_EDIT_TINT;
+        }
+        if (tint != 0) {
+            graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, tint);
         }
 
         boolean locked = LockedSlots.isLockedSlot(slot);
