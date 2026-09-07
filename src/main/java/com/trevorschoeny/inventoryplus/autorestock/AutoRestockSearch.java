@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.autorestock;
 
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclable.ExtraSlot;
+import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 
 import net.minecraft.core.component.DataComponents;
@@ -123,7 +124,7 @@ public final class AutoRestockSearch {
         // we don't disturb a curated pocket when a loose copy exists.
         for (int i = HOTBAR_START; i < MAIN_INV_END; i++) {
             if (i == excludeSlot) continue;
-            if (LockedSlots.isLocked(i)) continue;
+            if (isProtectedSource(inv, i)) continue;
             ItemStack candidate = inv.getItem(i);
             if (candidate.isEmpty()) continue;
             if (candidate.is(brokenStack.getItem())) {
@@ -133,6 +134,7 @@ public final class AutoRestockSearch {
         for (ExtraSlot ex : extras) {
             ItemStack candidate = ex.stack();
             if (candidate.isEmpty()) continue;
+            if (LockedItems.isLocked(candidate)) continue;
             if (candidate.is(brokenStack.getItem())) {
                 return ex.id();
             }
@@ -182,7 +184,7 @@ public final class AutoRestockSearch {
         // excludeSlot needed because the armor destination isn't in the
         // hotbar/main-inv scan range. Inventory first, then extras.
         for (int i = HOTBAR_START; i < MAIN_INV_END; i++) {
-            if (LockedSlots.isLocked(i)) continue;
+            if (isProtectedSource(inv, i)) continue;
             ItemStack candidate = inv.getItem(i);
             if (candidate.isEmpty()) continue;
             if (candidate.is(brokenArmor.getItem())) {
@@ -198,6 +200,7 @@ public final class AutoRestockSearch {
         for (ExtraSlot ex : extras) {
             ItemStack candidate = ex.stack();
             if (candidate.isEmpty()) continue;
+            if (LockedItems.isLocked(candidate)) continue;
             if (candidate.is(brokenArmor.getItem()) && isEquippableToSlot(candidate, wantedSlot)) {
                 return ex.id();
             }
@@ -244,7 +247,7 @@ public final class AutoRestockSearch {
         int bestDamage = currentDamage;       // candidate must be strictly < this
         for (int i = HOTBAR_START; i < MAIN_INV_END; i++) {
             if (i == excludeSlot) continue;
-            if (LockedSlots.isLocked(i)) continue;
+            if (isProtectedSource(inv, i)) continue;
             ItemStack candidate = inv.getItem(i);
             if (candidate.isEmpty()) continue;
             if (!candidate.is(current.getItem())) continue;
@@ -259,6 +262,7 @@ public final class AutoRestockSearch {
         for (ExtraSlot ex : extras) {
             ItemStack candidate = ex.stack();
             if (candidate.isEmpty()) continue;
+            if (LockedItems.isLocked(candidate)) continue;
             if (!candidate.is(current.getItem())) continue;
             int candidateDamage = candidate.getDamageValue();
             if (candidateDamage < bestDamage) {
@@ -305,7 +309,7 @@ public final class AutoRestockSearch {
         int bestSlot = NONE;
         int bestDamage = currentDamage;
         for (int i = HOTBAR_START; i < MAIN_INV_END; i++) {
-            if (LockedSlots.isLocked(i)) continue;
+            if (isProtectedSource(inv, i)) continue;
             ItemStack candidate = inv.getItem(i);
             if (candidate.isEmpty()) continue;
             if (!candidate.is(currentArmor.getItem())) continue;
@@ -319,6 +323,7 @@ public final class AutoRestockSearch {
         for (ExtraSlot ex : extras) {
             ItemStack candidate = ex.stack();
             if (candidate.isEmpty()) continue;
+            if (LockedItems.isLocked(candidate)) continue;
             if (!candidate.is(currentArmor.getItem())) continue;
             if (!isEquippableToSlot(candidate, wantedSlot)) continue;
             int candidateDamage = candidate.getDamageValue();
@@ -384,7 +389,7 @@ public final class AutoRestockSearch {
         int bestMaxDamage = -1;
         for (int i = HOTBAR_START; i < MAIN_INV_END; i++) {
             if (i == excludeSlot) continue;
-            if (LockedSlots.isLocked(i)) continue;
+            if (isProtectedSource(inv, i)) continue;
             ItemStack candidate = inv.getItem(i);
             if (candidate.isEmpty()) continue;
             if (!candidate.is(tag)) continue;
@@ -402,6 +407,7 @@ public final class AutoRestockSearch {
         for (ExtraSlot ex : extras) {
             ItemStack candidate = ex.stack();
             if (candidate.isEmpty()) continue;
+            if (LockedItems.isLocked(candidate)) continue;
             if (!candidate.is(tag)) continue;
             if (minRemaining > 0) {
                 int remaining = candidate.getMaxDamage() - candidate.getDamageValue();
@@ -423,7 +429,7 @@ public final class AutoRestockSearch {
         int bestSlot = NONE;
         int bestMaxDamage = -1;
         for (int i = HOTBAR_START; i < MAIN_INV_END; i++) {
-            if (LockedSlots.isLocked(i)) continue;
+            if (isProtectedSource(inv, i)) continue;
             ItemStack candidate = inv.getItem(i);
             if (candidate.isEmpty()) continue;
             if (!candidate.is(tag)) continue;
@@ -441,6 +447,7 @@ public final class AutoRestockSearch {
         for (ExtraSlot ex : extras) {
             ItemStack candidate = ex.stack();
             if (candidate.isEmpty()) continue;
+            if (LockedItems.isLocked(candidate)) continue;
             if (!candidate.is(tag)) continue;
             if (!isEquippableToSlot(candidate, wantedSlot)) continue;
             if (minRemaining > 0) {
@@ -465,6 +472,18 @@ public final class AutoRestockSearch {
     public static EquipmentSlot equippableSlot(ItemStack stack) {
         Equippable equippable = stack.get(DataComponents.EQUIPPABLE);
         return equippable != null ? equippable.slot() : null;
+    }
+
+    /**
+     * A source auto-restock must not consume. Two independent reasons: the
+     * player locked the slot, or the player locked the item. Checked in one
+     * place because all six inventory scans want the same rule, and a scan
+     * that missed one of them would be a silent hole in the protection
+     * rather than an obvious one. Pocket scans call
+     * {@link LockedItems#isLocked} directly, having no slot index.
+     */
+    private static boolean isProtectedSource(Inventory inv, int slot) {
+        return LockedSlots.isLocked(slot) || LockedItems.isLocked(inv.getItem(slot));
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.columncycler;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
+import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
@@ -165,8 +166,7 @@ public final class ColumnCyclerRotator {
      */
     public static boolean rotateSlots(List<Integer> containerSlots, Direction direction,
                                       String feature) {
-        int n = containerSlots.size();
-        if (n < 2) return false;
+        if (containerSlots.size() < 2) return false;
 
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
@@ -182,6 +182,15 @@ public final class ColumnCyclerRotator {
                     "[{}] rotate skipped — cursor holding {}", feature, menu.getCarried());
             return false;
         }
+
+        // A locked item does not ride the rotation: it keeps its slot and the
+        // cycle turns around it, the same way sorting works around one. Done by
+        // dropping those slots from the ring rather than special-casing the
+        // click sequence, so both cyclers inherit it — Hotbar Cycler rotates
+        // its nine columns through this same engine.
+        containerSlots = withoutLockedItems(containerSlots, player.getInventory(), feature);
+        int n = containerSlots.size();
+        if (n < 2) return false;
 
         // Resolve menu slot indices.
         int[] menuSlots = new int[n];
@@ -232,6 +241,26 @@ public final class ColumnCyclerRotator {
      * local player's inventory — the same cross-thread stability concern
      * as {@code LockedSlots.isLockable}.
      */
+    /**
+     * The ring minus any slot whose item the player has locked. Fewer than
+     * two slots left means there is nothing to rotate and the caller no-ops,
+     * which is the right outcome: a column of locked items should sit still.
+     */
+    private static List<Integer> withoutLockedItems(List<Integer> containerSlots,
+                                                    Inventory inv, String feature) {
+        List<Integer> kept = new ArrayList<>(containerSlots.size());
+        for (Integer containerSlot : containerSlots) {
+            if (LockedItems.isLocked(inv.getItem(containerSlot))) continue;
+            kept.add(containerSlot);
+        }
+        if (kept.size() != containerSlots.size()) {
+            InventoryPlusClient.LOGGER.debug(
+                    "[{}] rotating {} of {} slots — the rest hold locked items",
+                    feature, kept.size(), containerSlots.size());
+        }
+        return kept;
+    }
+
     private static int findMenuSlotIndex(AbstractContainerMenu menu, int containerSlot, UUID localUuid) {
         for (Slot slot : menu.slots) {
             if (!(slot.container instanceof Inventory inv)) continue;

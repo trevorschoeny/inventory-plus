@@ -3,6 +3,7 @@ package com.trevorschoeny.inventoryplus.autotoolswitch;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclable.ExtraSlot;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
+import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 
 import net.minecraft.tags.ItemTags;
@@ -224,11 +225,17 @@ public final class ToolFinder {
             // is auto-locked by Column Cycler. That lock is cycle-
             // derived, not user-initiated; for Auto Tool Switch, the
             // cycle IS the access path, so we want to consider the
-            // slot. Locked Items (item-type protection) not yet
-            // implemented; placeholder filter would go here.
+            // slot.
             if (LockedSlots.isLocked(i) && !isCyclable(i)) continue;
             ItemStack stack = inv.getItem(i);
             if (stack.isEmpty()) continue;
+            // Locked items get no such exemption. The slot exemption above
+            // exists because a cycle lock is the mod's own doing; an item
+            // lock is the player's, and reaching past it to grab their
+            // pickaxe is the thing they asked us not to do. A player who
+            // locks their only pickaxe has opted it out of auto-switching,
+            // which is the feature working (locked-items.md).
+            if (LockedItems.isLocked(stack)) continue;
             if (!isMatch.test(stack)) continue;
             double score = scorer.applyAsDouble(stack);
             if (best == null || score > best.score()) {

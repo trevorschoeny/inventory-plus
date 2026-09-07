@@ -18,6 +18,8 @@ import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.cyclable.CycleHud;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
+import com.trevorschoeny.inventoryplus.lockeditems.LockedItemModes;
+import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsButtons;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsClickInterceptor;
@@ -122,6 +124,25 @@ public class InventoryPlusClient implements ClientModInitializer {
         LockedSlotsClickInterceptor.register();
         LockedSlotKeybind.register();
         ClientTickEvents.END_CLIENT_TICK.register(LockedSlotsDragController::tick);
+
+        // Locked Items — protection that belongs to the item rather than the
+        // slot, so it follows the item wherever it goes. Shares the L keybind
+        // with Locked Slots; the lock button's stop decides which kind a press
+        // creates, and unlocking works from any stop.
+        //
+        // Enforcement is a plain predicate, LockedItems.isLocked(stack), called
+        // by the automation paths themselves (Sorter, MoveMatchingExecutor's
+        // source filter, AutoRestockSearch, ToolFinder's one scan, and the
+        // cyclers' rotation engine). Deliberately NOT wired into the shift-click
+        // or auto-pickup mixins that Locked Slots uses: this feature constrains
+        // what the mod does, never what the player can do by hand.
+        //
+        // The list is per world or server and its entries are ItemStacks, which
+        // need the level's registries to decode — so load() only reads the file
+        // here and the decode happens on first use inside a world.
+        LockedItems.load();
+        LockedItemModes.load();
+        ClientTickEvents.END_CLIENT_TICK.register(LockedSlotKeybind::tick);
 
         // IP toolbar — one right-aligned MK panel above the player 3×9
         // grid, holding lock-edit toggle + MM IN/OUT (and future

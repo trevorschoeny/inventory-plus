@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.movematching;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
+import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 
 import net.minecraft.client.Minecraft;
@@ -222,13 +223,26 @@ public final class MoveMatchingExecutor {
         return matchSet;
     }
 
-    /** Candidates whose item is in the match-set; locked slots are never pulled from. */
+    /**
+     * Candidates whose item is in the match-set. Locked slots and locked
+     * items are never pulled from.
+     *
+     * <p>This one filter covers both directions, because it screens the
+     * SOURCE side and the direction only decides which side that is: IN
+     * will not pull a locked type out of the container, OUT will not push
+     * one out of the inventory.
+     *
+     * <p>Destinations need no equivalent check. A locked type is filtered
+     * out here, so it is never the thing being carried, and merging into a
+     * locked stack could only happen while carrying its own type.
+     */
     private static List<Slot> filterToMatching(List<Slot> candidates, Set<Item> matchSet) {
         List<Slot> filtered = new ArrayList<>();
         for (Slot slot : candidates) {
             if (LockedSlots.isLockedSlot(slot)) continue;
             ItemStack stack = slot.getItem();
             if (stack.isEmpty() || !matchSet.contains(stack.getItem())) continue;
+            if (LockedItems.isLocked(stack)) continue;
             filtered.add(slot);
         }
         return filtered;

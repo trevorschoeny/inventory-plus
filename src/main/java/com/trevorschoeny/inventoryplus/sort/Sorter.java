@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.sort;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
+import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 
 import net.minecraft.client.Minecraft;
@@ -80,10 +81,15 @@ public final class Sorter {
         // Each stop owns its chunk ordering.
         Comparator<ItemStack> order = type.comparator();
 
-        // Locked slots stay put — sort operates only on unlocked.
+        // Locked slots and locked items both stay put — sort operates only
+        // on what is left. Dropping a slot from this list is what makes the
+        // sort work AROUND it: the slot is never read as a source and never
+        // written as a destination, so its contents survive untouched.
         List<Slot> unlocked = new ArrayList<>();
         for (Slot s : region) {
-            if (!LockedSlots.isLockedSlot(s)) unlocked.add(s);
+            if (LockedSlots.isLockedSlot(s)) continue;
+            if (LockedItems.isLocked(s.getItem())) continue;
+            unlocked.add(s);
         }
         if (unlocked.size() < 2) return;
 

@@ -1,6 +1,9 @@
 package com.trevorschoeny.inventoryplus.lockedslots;
 
+import com.trevorschoeny.inventoryplus.buttonmode.ModeGestures;
+import com.trevorschoeny.inventoryplus.buttonmode.PressFeedback;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
+import com.trevorschoeny.inventoryplus.lockeditems.LockedItemModes;
 
 import com.trevlar.menukit.core.Toggle;
 
@@ -25,6 +28,18 @@ import net.minecraft.resources.Identifier;
  * getter is {@link LockEditMode#isOn} and the toggle is
  * {@link LockEditMode#toggle}. MK reads/writes through those; the
  * mod's edit-mode state stays in its existing class.
+ *
+ * <h3>Left-click edits, right-click chooses what L locks</h3>
+ *
+ * The toggle carries {@link LockedItemModes}'s three stops (Lock Slot,
+ * Lock Item, Lock Exact Item) on its secondary click, the same gesture
+ * vocabulary Sort and Move Matching use. Left-click still enters and
+ * leaves edit mode, unchanged.
+ *
+ * <p>The mode is global-only, so middle-click does nothing and the
+ * tooltip does not offer it. The press flash still matters here: a
+ * right-click that only changes a tooltip line is otherwise
+ * indistinguishable from a missed click (`features/button-modes.md`).
  *
  * <h3>Always visible (within scope)</h3>
  *
@@ -60,6 +75,10 @@ public final class LockedSlotsButtons {
      * On state: HSL-inverted lock icon (via MK's sprite-toggle shader).
      */
     public static Toggle toolbarToggle(int x, int y) {
+        PressFeedback feedback = new PressFeedback();
+        // Global-only mode, so there is no container to resolve: the stops
+        // choose what L locks, never where.
+        var gestures = ModeGestures.handler(LockedItemModes.MODE, () -> null, feedback);
         return Toggle.spriteLinked(x, y, SIZE, SIZE,
                         LockEditMode::isOn,
                         // 2.0.0: the widget computes the new state off the linked
@@ -67,10 +86,11 @@ public final class LockedSlotsButtons {
                         // edit-mode mutual exclusion) — no self-flip here.
                         LockEditMode::set,
                         TEXTURE)
-                .tooltip(() -> Component.literal(
-                        LockEditMode.isOn()
-                                ? "Finish Editing"
-                                : "Edit Locked Slots"))
+                .tooltip(ModeGestures.tooltip(
+                        () -> LockEditMode.isOn() ? "Finish Editing" : "Edit Locked Slots",
+                        LockedItemModes.MODE, () -> null))
+                .onSecondaryClick(gestures::accept)
+                .tint(ModeGestures.tint(LockedItemModes.MODE, () -> null, feedback))
                 .showWhen(IPConfig::lockedSlotsShowButton);
     }
 }

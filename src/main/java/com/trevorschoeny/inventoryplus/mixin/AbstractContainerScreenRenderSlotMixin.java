@@ -3,6 +3,7 @@ package com.trevorschoeny.inventoryplus.mixin;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerEditMode;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
+import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockedslots.LockEditMode;
 
@@ -11,6 +12,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -32,7 +34,23 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *       locked, the cycle icon sits 1 px LEFT of the lock icon (so the
  *       two corner indicators don't touch). When NOT locked, the cycle
  *       icon takes the lock's top-right position with 1 px inset.</li>
+ *   <li><b>Locked-item mark</b> on any stack the player has protected by
+ *       type — 5×5 circle at the top-LEFT, hollow for a lock by item id
+ *       and solid for an exact lock.</li>
  * </ol>
+ *
+ * <h3>Which corner the item mark takes</h3>
+ *
+ * <p>{@code plans/locked-items.md} asks for top-right, "deliberately not
+ * top-left, where the Locked Slots icon lives". That premise is inverted:
+ * the slot lock icon has always drawn at top-RIGHT, as item 2 below shows,
+ * and the cycle icon shares that corner with it. Top-left is the corner
+ * that is actually free, so the item mark goes there.
+ *
+ * <p>This keeps what the spec was actually asking for, that a locked item
+ * in a locked slot shows both marks without collision, and it changes
+ * nothing already shipped. Raised with the Designer rather than silently
+ * swapped.
  *
  * <p>Render order: overlay → lock icon → cycle icon. The cycle icon's
  * x-position depends on whether the lock icon is also being drawn this
@@ -55,6 +73,13 @@ public abstract class AbstractContainerScreenRenderSlotMixin {
     private static final int INVENTORYPLUS$LOCK_ICON_H = 6;
     private static final int INVENTORYPLUS$CYCLE_ICON_W = 6;
     private static final int INVENTORYPLUS$CYCLE_ICON_H = 6;
+
+    /** Hollow circle: locked by item id. Solid: locked exactly. Both 5×5. */
+    private static final Identifier INVENTORYPLUS$ITEM_LOCK_ID =
+            Identifier.fromNamespaceAndPath("inventoryplus", "textures/gui/locked_item_id.png");
+    private static final Identifier INVENTORYPLUS$ITEM_LOCK_EXACT =
+            Identifier.fromNamespaceAndPath("inventoryplus", "textures/gui/locked_item_exact.png");
+    private static final int INVENTORYPLUS$ITEM_MARK_SIZE = 5;
 
     /** 50%-translucent light gray for the edit-mode overlay. */
     private static final int INVENTORYPLUS$EDIT_OVERLAY_COLOR = 0x80808080;
@@ -121,6 +146,24 @@ public abstract class AbstractContainerScreenRenderSlotMixin {
                     /*u=*/ 0f, /*v=*/ 0f,
                     INVENTORYPLUS$CYCLE_ICON_W, INVENTORYPLUS$CYCLE_ICON_H,
                     INVENTORYPLUS$CYCLE_ICON_W, INVENTORYPLUS$CYCLE_ICON_H,
+                    INVENTORYPLUS$INDICATOR_TINT);
+        }
+
+        // 4. Locked-item mark — top-left, the corner the other two leave free.
+        // Every matching stack carries it, not just the first one found, since
+        // every one of them is protected (locked-items.md).
+        ItemStack stack = slot.getItem();
+        if (!stack.isEmpty() && LockedItems.isLocked(stack)) {
+            Identifier mark = LockedItems.isExactLocked(stack)
+                    ? INVENTORYPLUS$ITEM_LOCK_EXACT
+                    : INVENTORYPLUS$ITEM_LOCK_ID;
+            graphics.blit(
+                    RenderPipelines.GUI_TEXTURED,
+                    mark,
+                    slot.x + 1, slot.y + 1,
+                    /*u=*/ 0f, /*v=*/ 0f,
+                    INVENTORYPLUS$ITEM_MARK_SIZE, INVENTORYPLUS$ITEM_MARK_SIZE,
+                    INVENTORYPLUS$ITEM_MARK_SIZE, INVENTORYPLUS$ITEM_MARK_SIZE,
                     INVENTORYPLUS$INDICATOR_TINT);
         }
     }

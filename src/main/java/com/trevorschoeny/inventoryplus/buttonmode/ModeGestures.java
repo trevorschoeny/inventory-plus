@@ -25,8 +25,9 @@ import java.util.function.Supplier;
  *   <li>Right-click: next stop. Shift+right-click: previous. Middle-click:
  *       pin or release. None of them performs the action.</li>
  *   <li>Tooltip: what the button does, the current mode, "This container"
- *       only when pinned, then one gesture line. A button with a single
- *       stop shows neither the mode line nor the gesture line.</li>
+ *       only when pinned, then one gesture line naming only the gestures
+ *       that button supports. A button with a single stop shows neither
+ *       the mode line nor the gesture line.</li>
  *   <li>Tint: the press flash while it lasts, else pink when pinned.</li>
  * </ul>
  */
@@ -55,14 +56,27 @@ public final class ModeGestures {
 
     public static <E extends Enum<E> & ModeStop> Supplier<Component> tooltip(
             String what, ModeState<E> state, Supplier<@Nullable ContainerIdentity> identity) {
+        return tooltip(() -> what, state, identity);
+    }
+
+    /**
+     * As above, for a button whose own first line changes with its state.
+     * The lock toggle is the case: it reads "Edit Locked Slots" or "Finish
+     * Editing" depending on edit mode, and carries a mode underneath either.
+     */
+    public static <E extends Enum<E> & ModeStop> Supplier<Component> tooltip(
+            Supplier<String> what, ModeState<E> state, Supplier<@Nullable ContainerIdentity> identity) {
         return () -> {
             List<String> lines = new ArrayList<>(4);
-            lines.add(what);
+            lines.add(what.get());
             if (state.hasCycle()) {
                 ContainerIdentity id = identity.get();
                 lines.add(state.effective(id).label());
                 if (state.isPinned(id)) lines.add("This container");
-                lines.add("Right-click: change. Middle-click: pin.");
+                // button-modes.md: list only the gestures this button supports.
+                lines.add(state.pinnable()
+                        ? "Right-click: change. Middle-click: pin."
+                        : "Right-click: change.");
             }
             return Component.literal(String.join("\n", lines));
         };
