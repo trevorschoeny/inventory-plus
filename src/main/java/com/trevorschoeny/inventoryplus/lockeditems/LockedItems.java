@@ -225,7 +225,23 @@ public final class LockedItems {
             case EXACT -> {
                 ItemStack probe = normalize(stack);
                 locked = !EXACT.removeIf(entry -> ItemStack.isSameItemSameComponents(probe, entry));
-                if (locked) EXACT.add(probe);
+                if (locked) {
+                    // An exact lock is meant to be unique per item identity, so
+                    // adding one while a same-ITEM entry is already present means
+                    // isSameItemSameComponents disagreed with two stacks that
+                    // normalize() should have made identical. Always a bug; dump
+                    // both sides rather than silently growing the list.
+                    for (ItemStack entry : EXACT) {
+                        if (!entry.is(probe.getItem())) continue;
+                        InventoryPlusClient.LOGGER.warn(
+                                "[locked-items] exact-match MISS on {}: "
+                                        + "probe patch {} components {} | stored patch {} components {}",
+                                probe.getItem(),
+                                probe.getComponentsPatch(), probe.getComponents(),
+                                entry.getComponentsPatch(), entry.getComponents());
+                    }
+                    EXACT.add(probe);
+                }
             }
             // The slot stop never reaches here; the keybind routes it to LockedSlots.
             default -> { return false; }
@@ -293,7 +309,21 @@ public final class LockedItems {
                 ItemStack.CODEC.parse(ops, e)
                         .resultOrPartial(err -> InventoryPlusClient.LOGGER.debug(
                                 "[locked-items] undecodable exact entry, ignoring: {}", err))
-                        .ifPresent(s -> EXACT.add(normalize(s)));
+                        .ifPresent(s -> {
+                            // Exact entries are unique by identity. Duplicates in the
+                            // file are the symptom of a failed match at lock time; drop
+                            // them on the way in so the list cannot grow without bound.
+                            ItemStack decoded = normalize(s);
+                            for (ItemStack existing : EXACT) {
+                                if (ItemStack.isSameItemSameComponents(decoded, existing)) {
+                                    InventoryPlusClient.LOGGER.warn(
+                                            "[locked-items] dropping duplicate exact entry for {}",
+                                            decoded.getItem());
+                                    return;
+                                }
+                            }
+                            EXACT.add(decoded);
+                        });
             }
         }
         InventoryPlusClient.LOGGER.info(
