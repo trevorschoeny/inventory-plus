@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.mixin;
 
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.world.inventory.Slot;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
@@ -28,6 +29,20 @@ import org.spongepowered.asm.mixin.gen.Accessor;
  *
  * Accessor names carry the {@code inventoryPlus$} prefix so they can't collide
  * with MenuKit's own accessor on the same class ({@code mk$getLeftPos}).
+ *
+ * <h3>{@code hoveredSlot}</h3>
+ *
+ * Vanilla's own answer to "what slot is under the cursor", written once per
+ * frame in {@code extractContents} by walking {@code menu.slots} and
+ * checking {@code isActive()} then {@code isHovering()} — the same
+ * resolution vanilla's click handling trusts, and the one MenuKit's
+ * {@code getHoveredSlot} interception overwrites so a created slot wins
+ * over the vanilla slot it covers (MenuKit, 2026-09-07: composited panels
+ * paint over vanilla slots without touching their {@code isActive()}, so
+ * a scan re-deriving hover independently finds the covered vanilla slot
+ * again; reading vanilla's own field agrees with whichever resolution
+ * MenuKit installs). Read it instead of re-deriving hover with a manual
+ * bounds scan.
  */
 @Mixin(AbstractContainerScreen.class)
 public interface AbstractContainerScreenAccessor {
@@ -37,4 +52,7 @@ public interface AbstractContainerScreenAccessor {
 
     @Accessor("topPos")
     int inventoryPlus$getTopPos();
+
+    @Accessor("hoveredSlot")
+    @org.jetbrains.annotations.Nullable Slot inventoryPlus$getHoveredSlot();
 }

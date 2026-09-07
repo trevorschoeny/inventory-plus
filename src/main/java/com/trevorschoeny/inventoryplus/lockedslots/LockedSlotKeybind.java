@@ -89,15 +89,7 @@ public final class LockedSlotKeybind {
                         // edit mode.
                         if (!(innerScreen instanceof AbstractContainerScreen<?> currentAcs)) return;
 
-                        Minecraft mc = Minecraft.getInstance();
-                        double mouseX = mc.mouseHandler.xpos()
-                                * (double) mc.getWindow().getGuiScaledWidth()
-                                / (double) mc.getWindow().getScreenWidth();
-                        double mouseY = mc.mouseHandler.ypos()
-                                * (double) mc.getWindow().getGuiScaledHeight()
-                                / (double) mc.getWindow().getScreenHeight();
-
-                        Slot hovered = slotUnderMouse(currentAcs, mouseX, mouseY);
+                        Slot hovered = slotUnderMouse(currentAcs);
                         if (hovered == null) return;
 
                         // The stop alone decides which lock L acts on. Existing
@@ -146,29 +138,29 @@ public final class LockedSlotKeybind {
     }
 
     /**
-     * Walks the menu's slots and returns the one whose screen-space
-     * bounds contain the mouse, or null. Uses {@link ScreenLayout} for
-     * the screen origin (reflection-cached leftPos/topPos).
+     * The slot under the cursor, agreeing with vanilla's own resolution
+     * rather than re-deriving it.
+     *
+     * <p>An earlier version of this walked {@code menu.slots} and bounds-
+     * tested each one by hand, using {@code isActive()} to skip whatever a
+     * created slot (an IM pocket) was covering. That worked only as long
+     * as MenuKit's compositing happened to leave the covered vanilla slot
+     * inactive; once MenuKit restored plain paint-over (composited panels
+     * inside vanilla's slot pass, "the covered vanilla slot is active
+     * again"), the independent scan found that vanilla slot first again —
+     * {@code L} locked the inventory slot under the pocket rather than the
+     * pocket itself (MenuKit, 2026-09-07).
+     *
+     * <p>{@link ScreenLayout#hoveredSlot} is vanilla's own per-frame answer,
+     * which MenuKit's {@code getHoveredSlot} interception already resolves
+     * a created slot ahead of the vanilla slot it covers for. Reading it
+     * agrees with whatever compositing MenuKit does internally, without
+     * this class needing to know what that is. The {@code isActive()}
+     * check stays as a defensive no-op: vanilla's own resolution already
+     * honours it before this ever sees the result.
      */
-    private static @Nullable Slot slotUnderMouse(AbstractContainerScreen<?> acs,
-                                                 double mouseX, double mouseY) {
-        int leftPos = ScreenLayout.leftPos(acs);
-        int topPos = ScreenLayout.topPos(acs);
-        for (Slot slot : acs.getMenu().slots) {
-            // Same rule as vanilla's isHovering: an inactive slot is not there.
-            // A created slot (an IM pocket) is appended AFTER the vanilla slot it
-            // covers, and MenuKit marks that covered slot inactive for the frame,
-            // so without this the scan returned the buried slot first: L locked
-            // the inventory slot under the pocket and never reached the pocket
-            // itself (Trev, 2026-09-07).
-            if (!slot.isActive()) continue;
-            int sx = leftPos + slot.x;
-            int sy = topPos + slot.y;
-            if (mouseX >= sx && mouseX < sx + 16
-                    && mouseY >= sy && mouseY < sy + 16) {
-                return slot;
-            }
-        }
-        return null;
+    private static @Nullable Slot slotUnderMouse(AbstractContainerScreen<?> acs) {
+        Slot slot = ScreenLayout.hoveredSlot(acs);
+        return (slot != null && slot.isActive()) ? slot : null;
     }
 }
