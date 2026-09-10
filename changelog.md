@@ -1,3 +1,5 @@
+Now built on MenuKit 5.0.0, and needs it: MenuKit 5.0.0 or newer, below 6.0.0. Companion mods now reach Inventory Plus through one public package, inventoryplus.api, instead of its internals; Inventory Max 1.0.2 and older used the old names and will not load next to this version, so update Inventory Max to 1.0.3.
+
 Fixes container and pocket locks in single player. In 1.5.0 a locked slot inside a chest, barrel or pocket still accepted a shift-click: the lock was checked as your game drew the screen but not as your world actually moved the item, so it looked blocked for an instant and then took the item anyway. On a server it worked correctly. Locks now hold in both places. Also refuses to load next to Inventory Max 1.0.1 or older, which crashes with Inventory Plus 1.4.0 and newer; update Inventory Max to 1.0.2.
 
 The Sort and Move Matching buttons now carry a mode. Right-click a button to change its mode and shift and right-click to go back. Middle-click pins the mode to the open container and turns the button pink; middle-click again releases it. Left-click still does the action, and buttons now flash when pressed.
