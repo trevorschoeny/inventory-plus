@@ -7,7 +7,7 @@ import com.trevlar.menukit.core.PanelElement;
 import com.trevlar.menukit.core.PanelPosition;
 import com.trevlar.menukit.core.PanelStyle;
 import com.trevlar.menukit.core.SlotGroupCategory;
-import com.trevlar.menukit.core.SlotGroupRegion;
+import com.trevlar.menukit.core.OutsideRegion;
 import com.trevlar.menukit.inject.SlotGroupPanelAdapter;
 
 import net.minecraft.client.Minecraft;
@@ -27,7 +27,7 @@ import java.util.List;
  *
  * <h3>Layout</h3>
  *
- * {@link SlotGroupRegion#RIGHT_ALIGN_TOP} + {@link PanelStyle#NONE} —
+ * {@link OutsideRegion#RIGHT_ALIGN_TOP} + {@link PanelStyle#NONE} —
  * panel sits flush to the right of the player inventory's slot group,
  * top-aligned. Children stack vertically downward at explicit
  * panel-local y offsets (1 px button gap, same as the horizontal
@@ -65,7 +65,7 @@ public final class PowerUsersToolbar {
                 PanelPosition.BODY,
                 /*toggleKey=*/ -1);
         panel.showWhen(PowerUsersToolbar::isToolbarScope);
-        new SlotGroupPanelAdapter(panel, SlotGroupRegion.RIGHT_ALIGN_TOP)
+        new SlotGroupPanelAdapter(panel, OutsideRegion.RIGHT_ALIGN_TOP)
                 .on(SlotGroupCategory.PLAYER_INVENTORY);
     }
 

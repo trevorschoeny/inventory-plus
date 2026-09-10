@@ -3,7 +3,7 @@ package com.trevorschoeny.inventoryplus.cyclable;
 import com.trevorschoeny.inventoryplus.api.CycleHudSource;
 import com.trevorschoeny.inventoryplus.api.CycleView;
 import com.trevorschoeny.inventoryplus.api.CyclerDirection;
-import com.trevlar.menukit.core.HudRegion;
+import com.trevlar.menukit.core.InsideRegion;
 import com.trevlar.menukit.hud.MKHudPanel;
 
 import net.minecraft.client.DeltaTracker;
@@ -85,7 +85,7 @@ public final class CycleHud {
 
     public static void register() {
         MKHudPanel.builder("inventoryplus-cycle-mini-hotbar")
-                .region(HudRegion.BOTTOM_CENTER)
+                .region(InsideRegion.BOTTOM_CENTER)
                 .autoSize()
                 .showWhen(CycleHud::shouldShow)
                 .onRender(CycleHud::render)

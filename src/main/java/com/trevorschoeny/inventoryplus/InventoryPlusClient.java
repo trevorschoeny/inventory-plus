@@ -57,7 +57,7 @@ import org.slf4j.LoggerFactory;
  *       slot-group-anchored panels (explicit {@code SlotGroupCategory}
  *       targeting; see {@code Toolbar}).</li>
  *   <li>Sorting — same shape as move-matching; second button stacked
- *       below at {@code MenuRegion.RIGHT_ALIGN_TOP}.</li>
+ *       below at {@code OutsideRegion.RIGHT_ALIGN_TOP}.</li>
  * </ol>
  *
  * <p>Out of scope for 18b: locked-slots, pockets, IPP — deferred per the

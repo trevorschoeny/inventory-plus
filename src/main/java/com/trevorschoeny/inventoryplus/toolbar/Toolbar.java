@@ -9,7 +9,7 @@ import com.trevlar.menukit.core.PanelElement;
 import com.trevlar.menukit.core.PanelPosition;
 import com.trevlar.menukit.core.PanelStyle;
 import com.trevlar.menukit.core.SlotGroupCategory;
-import com.trevlar.menukit.core.SlotGroupRegion;
+import com.trevlar.menukit.core.OutsideRegion;
 import com.trevlar.menukit.inject.SlotGroupPanelAdapter;
 
 import net.minecraft.client.Minecraft;
@@ -54,7 +54,7 @@ import java.util.List;
  *
  * <h3>Layout</h3>
  *
- * Both toolbars use {@link SlotGroupRegion#TOP_ALIGN_RIGHT} +
+ * Both toolbars use {@link OutsideRegion#TOP_ALIGN_RIGHT} +
  * {@link PanelStyle#NONE} (zero padding via {@link
  * Panel#interiorPadding}). The right edge anchors flush with the
  * slot group's right edge. Children laid out left-to-right at
@@ -113,7 +113,7 @@ public final class Toolbar {
                 PanelPosition.BODY,
                 /*toggleKey=*/ -1);
         panel.showWhen(Toolbar::isToolbarScope);
-        new SlotGroupPanelAdapter(panel, SlotGroupRegion.TOP_ALIGN_RIGHT)
+        new SlotGroupPanelAdapter(panel, OutsideRegion.TOP_ALIGN_RIGHT)
                 .on(SlotGroupCategory.PLAYER_INVENTORY);
     }
 
@@ -131,7 +131,7 @@ public final class Toolbar {
                 PanelStyle.NONE,
                 PanelPosition.BODY,
                 /*toggleKey=*/ -1);
-        new SlotGroupPanelAdapter(panel, SlotGroupRegion.TOP_ALIGN_RIGHT)
+        new SlotGroupPanelAdapter(panel, OutsideRegion.TOP_ALIGN_RIGHT)
                 .on(SlotGroupCategory.CHEST_STORAGE,
                     SlotGroupCategory.SHULKER_STORAGE,
                     SlotGroupCategory.DISPENSER_STORAGE,
