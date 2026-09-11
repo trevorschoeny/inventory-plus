@@ -210,4 +210,37 @@ public interface HotbarCyclable {
     default boolean quickMoveOut(int slot, BehaviorKey<TriBool> take, BehaviorKey<TriBool> put) {
         return quickMoveOut(slot);
     }
+
+    // ── Asking before choosing ──────────────────────────────────────────
+    //
+    // The two moves above can turn out to do nothing: a cycler that finds the
+    // move refused returns NO_OP or claims the slot and stops. By then a caller
+    // may already have acted on its choice (Auto Tool Switch has changed the
+    // selected slot), and it has certainly stopped looking for a better
+    // source. So a search asks the cycler first, while it is still choosing,
+    // and passes over a slot the move would refuse.
+    //
+    // Each question mirrors one move, because the two judge different slots: a
+    // bring rotates a whole ring, a quick-move out only empties the one slot.
+    // An implementer's move must refuse exactly when its query says no; the
+    // simplest way to guarantee that is for the move to call its own query.
+    // A cycler whose moves never refuse can leave the defaults.
+
+    /**
+     * Whether {@link #bringToHotbar(int, BehaviorKey, BehaviorKey)} would bring
+     * {@code slot}'s item down if asked now, as {@code take}/{@code put}.
+     * Asked only for a slot this cycler claims. Default: yes.
+     */
+    default boolean allowsBringToHotbar(int slot, BehaviorKey<TriBool> take, BehaviorKey<TriBool> put) {
+        return true;
+    }
+
+    /**
+     * Whether {@link #quickMoveOut(int, BehaviorKey, BehaviorKey)} would move
+     * {@code slot}'s item out if asked now, as {@code take}/{@code put}.
+     * Asked only for a slot this cycler claims. Default: yes.
+     */
+    default boolean allowsQuickMoveOut(int slot, BehaviorKey<TriBool> take, BehaviorKey<TriBool> put) {
+        return true;
+    }
 }

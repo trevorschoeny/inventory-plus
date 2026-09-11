@@ -120,4 +120,16 @@ public final class ColumnCyclerCyclable implements HotbarCyclable {
             }
         };
     }
+
+    /**
+     * Whether bringing {@code slot} down would deliver it. Overridden rather
+     * than left at the default because a column rotation drops refused slots
+     * instead of refusing outright, so a refused ring slot makes the bring
+     * quietly deliver the wrong item or nothing. See
+     * {@link ColumnCyclerRotator#bringAllowed}.
+     */
+    @Override
+    public boolean allowsBringToHotbar(int slot, BehaviorKey<TriBool> take, BehaviorKey<TriBool> put) {
+        return hotbarPositionOf(slot) != -1 && ColumnCyclerRotator.bringAllowed(slot, take, put);
+    }
 }

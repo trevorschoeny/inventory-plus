@@ -102,6 +102,18 @@ public final class InventoryPlusApi {
         return HotbarCyclableRegistry.quickMoveOut(slot, take, put);
     }
 
+    /**
+     * {@link #extraSearchSlots}, keeping only the slots whose cycler would let
+     * a quick-move out serving {@code take}/{@code put} use them. Pass this to
+     * {@link #findRestockSource} when the chosen source will go through
+     * {@link #quickMoveOut(int, BehaviorKey, BehaviorKey)}, so a slot that would
+     * refuse is never chosen and the search moves on to the next candidate.
+     */
+    public static List<HotbarCyclable.ExtraSlot> extraSlotsToQuickMove(
+            net.minecraft.world.entity.player.Player player, BehaviorKey<TriBool> take, BehaviorKey<TriBool> put) {
+        return HotbarCyclableRegistry.extraSlotsToQuickMove(player, take, put);
+    }
+
     /** Registers a source of cycle views for the shared cycler HUD. */
     public static void registerHudSource(CycleHudSource source) {
         CycleHudRegistry.register(source);

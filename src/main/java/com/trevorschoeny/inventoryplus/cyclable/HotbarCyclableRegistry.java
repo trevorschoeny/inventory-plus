@@ -154,4 +154,52 @@ public final class HotbarCyclableRegistry {
         }
         return false;
     }
+
+    // ── Asking before choosing (see HotbarCyclable) ─────────────────────
+
+    /**
+     * Whether the cycler that claims {@code slot} would bring it down as
+     * {@code take}/{@code put}. True for a slot no cycler claims: that is an
+     * ordinary inventory slot, judged where it is clicked.
+     */
+    public static boolean allowsBringToHotbar(int slot, BehaviorKey<TriBool> take, BehaviorKey<TriBool> put) {
+        for (HotbarCyclable c : CYCLERS) {
+            if (c.hotbarPositionOf(slot) != -1) return c.allowsBringToHotbar(slot, take, put);
+        }
+        return true;
+    }
+
+    /** {@link #allowsBringToHotbar}, for a quick-move out. */
+    public static boolean allowsQuickMoveOut(int slot, BehaviorKey<TriBool> take, BehaviorKey<TriBool> put) {
+        for (HotbarCyclable c : CYCLERS) {
+            if (c.hotbarPositionOf(slot) != -1) return c.allowsQuickMoveOut(slot, take, put);
+        }
+        return true;
+    }
+
+    /**
+     * {@link #extraSearchSlots}, keeping only the slots a bring-to-hotbar
+     * serving {@code take}/{@code put} would be allowed to use. For a search
+     * whose chosen source will be brought into the hand. The caller names the
+     * move because it is the one that knows which move it will make; the
+     * search itself stays move-agnostic.
+     */
+    public static List<HotbarCyclable.ExtraSlot> extraSlotsToBring(Player player, BehaviorKey<TriBool> take,
+                                                                   BehaviorKey<TriBool> put) {
+        List<HotbarCyclable.ExtraSlot> kept = new ArrayList<>();
+        for (HotbarCyclable.ExtraSlot ex : extraSearchSlots(player)) {
+            if (allowsBringToHotbar(ex.id(), take, put)) kept.add(ex);
+        }
+        return kept;
+    }
+
+    /** {@link #extraSlotsToBring}, for a search whose source will be quick-moved out. */
+    public static List<HotbarCyclable.ExtraSlot> extraSlotsToQuickMove(Player player, BehaviorKey<TriBool> take,
+                                                                       BehaviorKey<TriBool> put) {
+        List<HotbarCyclable.ExtraSlot> kept = new ArrayList<>();
+        for (HotbarCyclable.ExtraSlot ex : extraSearchSlots(player)) {
+            if (allowsQuickMoveOut(ex.id(), take, put)) kept.add(ex);
+        }
+        return kept;
+    }
 }

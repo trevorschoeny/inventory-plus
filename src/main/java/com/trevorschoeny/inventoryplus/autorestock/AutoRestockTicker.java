@@ -291,9 +291,10 @@ public final class AutoRestockTicker {
         int excludeSlot = isActiveHotbar ? targetClickKey : AutoRestockSearch.NONE;
         // The active hand can dynamic-switch to a cycler's extra slots
         // (pockets); the offhand is a non-held move (deferred), so it stays
-        // inventory-only for now.
+        // inventory-only for now. Only extras the cycler would bring down as a
+        // restock are offered, so a refused pocket is passed over, not picked.
         List<ExtraSlot> extras = isActiveHotbar
-                ? HotbarCyclableRegistry.extraSearchSlots(player) : List.of();
+                ? HotbarCyclableRegistry.extraSlotsToBring(player, RESTOCK_TAKE, RESTOCK_PUT) : List.of();
         int source = AutoRestockSearch.findSource(inv, prev, excludeSlot, extras,
                 LockedItemUser.RESTOCK_ITEM);
         if (source == AutoRestockSearch.NONE) return;
@@ -327,9 +328,10 @@ public final class AutoRestockTicker {
         boolean isActiveHotbar = targetClickKey != SWAP_OFFHAND_KEY;
         int excludeSlot = isActiveHotbar ? targetClickKey : AutoRestockSearch.NONE;
         // Active hand can dynamic-switch to a cycler's extra slots (pockets);
-        // offhand stays inventory-only (non-held move, deferred).
+        // offhand stays inventory-only (non-held move, deferred). Only extras
+        // the cycler would bring down as a restock are offered.
         List<ExtraSlot> extras = isActiveHotbar
-                ? HotbarCyclableRegistry.extraSearchSlots(player) : List.of();
+                ? HotbarCyclableRegistry.extraSlotsToBring(player, RESTOCK_TAKE, RESTOCK_PUT) : List.of();
         int source = AutoRestockSearch.findSource(inv, prev, excludeSlot, extras,
                 LockedItemUser.RESTOCK_TOOL);
         if (source == AutoRestockSearch.NONE) {
@@ -365,8 +367,8 @@ public final class AutoRestockTicker {
         }
         // Armor can be restocked from a cycler's extra slots (pockets) too —
         // it's a non-held move, so it routes via quickMoveOut, not a dynamic
-        // switch.
-        List<ExtraSlot> extras = HotbarCyclableRegistry.extraSearchSlots(player);
+        // switch. Only extras the cycler would quick-move out are offered.
+        List<ExtraSlot> extras = HotbarCyclableRegistry.extraSlotsToQuickMove(player, RESTOCK_TAKE, RESTOCK_PUT);
         int source = AutoRestockSearch.findArmorSource(inv, prev, extras, LockedItemUser.RESTOCK_ARMOR);
         if (source == AutoRestockSearch.NONE) {
             InventoryPlusClient.LOGGER.debug(
@@ -410,8 +412,9 @@ public final class AutoRestockTicker {
         ItemStack now = inv.getItem(selected);
         if (!tookDamageThisTick(now)) return;
         // Before-break swap can pull a fresher copy from a cycler's extra slots
-        // (pockets) into the active hand — the dynamic-switch path.
-        List<ExtraSlot> extras = HotbarCyclableRegistry.extraSearchSlots(player);
+        // (pockets) into the active hand — the dynamic-switch path. Only extras
+        // the cycler would bring down as a restock are offered.
+        List<ExtraSlot> extras = HotbarCyclableRegistry.extraSlotsToBring(player, RESTOCK_TAKE, RESTOCK_PUT);
         int source = AutoRestockSearch.findHigherDurability(inv, now, selected, extras,
                 LockedItemUser.RESTOCK_TOOL);
         if (source == AutoRestockSearch.NONE) {

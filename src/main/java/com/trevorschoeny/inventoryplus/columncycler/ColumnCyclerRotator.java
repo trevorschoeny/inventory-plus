@@ -305,6 +305,32 @@ public final class ColumnCyclerRotator {
     }
 
     /**
+     * Whether bringing {@code slot} down would deliver it: every slot in its
+     * column's ring, the hotbar slot included, allows both {@code take} and
+     * {@code put}, and is on the open menu.
+     *
+     * <p>That is the rule {@link #withoutRefused} applies, asked of the whole
+     * ring at once. A rotation does not refuse outright; it drops refused
+     * slots and rotates what is left, and the bring plan was counted on the
+     * full ring, so a single refused slot means the wrong item, or nothing,
+     * reaches the hand. Asking this before choosing is what keeps Auto Tool
+     * Switch from moving the selection for a bring that cannot land.
+     */
+    public static boolean bringAllowed(int slot, BehaviorKey<TriBool> take, BehaviorKey<TriBool> put) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null || player.containerMenu == null) return false;
+        AbstractContainerMenu menu = player.containerMenu;
+        for (int containerSlot : buildCycleList(slot % 9)) {
+            int menuIdx = PlayerMenuSlots.menuIndexOf(menu, player, containerSlot);
+            if (menuIdx < 0) return false;
+            Slot ringSlot = menu.getSlot(menuIdx);
+            if (!SlotOperations.allows(menu, ringSlot, player, take)) return false;
+            if (!put.equals(take) && !SlotOperations.allows(menu, ringSlot, player, put)) return false;
+        }
+        return true;
+    }
+
+    /**
      * Build the cycle slot list for {@code column}: directly-toggled inv
      * slots in visual top→bottom order, with the hotbar slot appended
      * last (when the column has at least one active inv member).
