@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.autotoolswitch;
 
 import com.trevorschoeny.inventoryplus.api.CyclerOperation;
+import com.trevorschoeny.inventoryplus.api.PlayerMenuSlots;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
@@ -20,10 +21,8 @@ import net.minecraft.world.item.ItemStack;
 // the post-cast match check; Monster for the hostile filter.
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
-import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.level.block.state.BlockState;
 
-import java.util.UUID;
 
 /**
  * Auto Tool Switch — on-hit auto-swap to the right tool/weapon for the
@@ -300,7 +299,7 @@ public final class AutoToolSwitch {
         if (player == null || gameMode == null) return;
         AbstractContainerMenu menu = player.containerMenu;
         if (menu == null) return;
-        int sourceMenuSlot = findMenuSlot(menu, sourceContainerSlot, player.getUUID());
+        int sourceMenuSlot = PlayerMenuSlots.menuIndexOf(menu, player, sourceContainerSlot);
         if (sourceMenuSlot < 0) return;
         gameMode.handleContainerInput(
                 menu.containerId,
@@ -310,20 +309,6 @@ public final class AutoToolSwitch {
                 player);
     }
 
-    /**
-     * Find the menu slot index for a given container slot in the local
-     * player's inventory. Uses UUID equality (not reference equality)
-     * to match across thread boundaries — same pattern as other IP
-     * features (LockedSlots, ColumnCyclerRotator).
-     */
-    private static int findMenuSlot(AbstractContainerMenu menu, int containerSlot, UUID localUuid) {
-        for (Slot slot : menu.slots) {
-            if (!(slot.container instanceof Inventory inv)) continue;
-            if (!inv.player.getUUID().equals(localUuid)) continue;
-            if (slot.getContainerSlot() == containerSlot) return slot.index;
-        }
-        return -1;
-    }
 
     // ─── Auto-return ─────────────────────────────────────────────────
 

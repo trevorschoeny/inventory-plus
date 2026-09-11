@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.columncycler;
 
 import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
+import com.trevorschoeny.inventoryplus.api.PlayerMenuSlots;
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 
@@ -10,11 +11,9 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
-import net.minecraft.world.inventory.Slot;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Physical-rotation engine for Column Cycler. Given a column index +
@@ -195,9 +194,8 @@ public final class ColumnCyclerRotator {
 
         // Resolve menu slot indices.
         int[] menuSlots = new int[n];
-        UUID localUuid = player.getUUID();
         for (int i = 0; i < n; i++) {
-            int menuIdx = findMenuSlotIndex(menu, containerSlots.get(i), localUuid);
+            int menuIdx = PlayerMenuSlots.menuIndexOf(menu, player, containerSlots.get(i));
             if (menuIdx < 0) {
                 InventoryPlusClient.LOGGER.debug(
                         "[{}] rotate skipped — container slot {} not in current menu",
@@ -235,14 +233,6 @@ public final class ColumnCyclerRotator {
     }
 
     /**
-     * Find the menu slot index for the given container slot index in the
-     * local player's inventory. Returns -1 if not present in this menu.
-     *
-     * <p>Uses UUID equality (not reference equality) to identify the
-     * local player's inventory — the same cross-thread stability concern
-     * as {@code LockedSlots.isLockable}.
-     */
-    /**
      * The ring minus any slot whose item the player has locked. Fewer than
      * two slots left means there is nothing to rotate and the caller no-ops,
      * which is the right outcome: a column of locked items should sit still.
@@ -260,15 +250,6 @@ public final class ColumnCyclerRotator {
                     feature, kept.size(), containerSlots.size());
         }
         return kept;
-    }
-
-    private static int findMenuSlotIndex(AbstractContainerMenu menu, int containerSlot, UUID localUuid) {
-        for (Slot slot : menu.slots) {
-            if (!(slot.container instanceof Inventory inv)) continue;
-            if (!inv.player.getUUID().equals(localUuid)) continue;
-            if (slot.getContainerSlot() == containerSlot) return slot.index;
-        }
-        return -1;
     }
 
     /**

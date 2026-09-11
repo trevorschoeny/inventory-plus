@@ -2,6 +2,7 @@ package com.trevorschoeny.inventoryplus.autorestock;
 
 import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
 import com.trevorschoeny.inventoryplus.api.HotbarCyclable.ExtraSlot;
+import com.trevorschoeny.inventoryplus.api.PlayerMenuSlots;
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItemUser;
@@ -292,11 +293,7 @@ public final class AutoRestockTicker {
         if (isActiveHotbar) {
             refillActiveHotbarSlot(gameMode, player, source, targetClickKey, "item-restock", prev);
         } else {
-            gameMode.handleContainerInput(
-                    player.inventoryMenu.containerId,
-                    source, SWAP_OFFHAND_KEY, ContainerInput.SWAP, player);
-            InventoryPlusClient.LOGGER.debug(
-                    "[item-restock] offhand ← src[{}] ({})", source, prev.getItem());
+            swapIntoOffhand(gameMode, player, source, "item-restock", prev);
         }
     }
 
@@ -337,11 +334,7 @@ public final class AutoRestockTicker {
         if (isActiveHotbar) {
             refillActiveHotbarSlot(gameMode, player, source, targetClickKey, "break-restock", prev);
         } else {
-            gameMode.handleContainerInput(
-                    player.inventoryMenu.containerId,
-                    source, SWAP_OFFHAND_KEY, ContainerInput.SWAP, player);
-            InventoryPlusClient.LOGGER.debug(
-                    "[break-restock] offhand ← src[{}] ({})", source, prev.getItem());
+            swapIntoOffhand(gameMode, player, source, "break-restock", prev);
         }
     }
 
@@ -383,9 +376,15 @@ public final class AutoRestockTicker {
                     slot, prev.getItem());
             return;
         }
+        // The search returns a container index; the shift-click names a menu
+        // slot. A hotbar spare (container 0-8) is menu 36-44, and passing it
+        // through unconverted shift-clicked the crafting grid or a worn armour
+        // piece instead (fixed in 1.6.0).
+        int sourceMenu = PlayerMenuSlots.menuIndexOf(player.inventoryMenu, player, source);
+        if (sourceMenu < 0) return;
         gameMode.handleContainerInput(
                 player.inventoryMenu.containerId,
-                source,
+                sourceMenu,
                 0,
                 ContainerInput.QUICK_MOVE,
                 player);
@@ -426,15 +425,7 @@ public final class AutoRestockTicker {
                     now.getItem());
             return;
         }
-        gameMode.handleContainerInput(
-                player.inventoryMenu.containerId,
-                source,
-                SWAP_OFFHAND_KEY,
-                ContainerInput.SWAP,
-                player);
-        InventoryPlusClient.LOGGER.debug(
-                "[durability-restock] offhand ← src[{}] ({})",
-                source, now.getItem());
+        swapIntoOffhand(gameMode, player, source, "durability-restock", now);
     }
 
     /**
@@ -463,10 +454,14 @@ public final class AutoRestockTicker {
                     slot, now.getItem());
             return;
         }
+        // Clicks 1 and 3 name the source, which the search gave as a container
+        // index; click 2 names the armour slot, already a menu index.
+        int sourceMenu = PlayerMenuSlots.menuIndexOf(player.inventoryMenu, player, source);
+        if (sourceMenu < 0) return;
         int containerId = player.inventoryMenu.containerId;
-        gameMode.handleContainerInput(containerId, source,        0, ContainerInput.PICKUP, player);
+        gameMode.handleContainerInput(containerId, sourceMenu,    0, ContainerInput.PICKUP, player);
         gameMode.handleContainerInput(containerId, menuArmorSlot, 0, ContainerInput.PICKUP, player);
-        gameMode.handleContainerInput(containerId, source,        0, ContainerInput.PICKUP, player);
+        gameMode.handleContainerInput(containerId, sourceMenu,    0, ContainerInput.PICKUP, player);
         InventoryPlusClient.LOGGER.debug(
                 "[durability-restock] armor[{}] ← main[{}] ({})",
                 slot, source, now.getItem());
@@ -590,13 +585,37 @@ public final class AutoRestockTicker {
                     logTag, activeSlot, cyclablePos, source, itemForLog.getItem());
             return;
         }
-        // Tier 3: main inv source — standard SWAP into the active slot.
+        // Tier 3: main inv source — standard SWAP into the active slot. Tier 1
+        // took every hotbar source, so only 9-35 reach here, where container and
+        // menu indices happen to agree; converted anyway so this stays correct
+        // if that ever stops being true.
+        int sourceMenu = PlayerMenuSlots.menuIndexOf(player.inventoryMenu, player, source);
+        if (sourceMenu < 0) return;
         gameMode.handleContainerInput(
                 player.inventoryMenu.containerId,
-                source, activeSlot, ContainerInput.SWAP, player);
+                sourceMenu, activeSlot, ContainerInput.SWAP, player);
         InventoryPlusClient.LOGGER.debug(
                 "[{}] hotbar[{}] ← src[{}] (item swap) ({})",
                 logTag, activeSlot, source, itemForLog.getItem());
+    }
+
+    /**
+     * Swaps {@code source} into the offhand as a restock. All three offhand
+     * paths (item, break, durability) come through here.
+     *
+     * <p>{@code source} is a container index, as the search returns it; the
+     * SWAP names a menu slot. Until 1.6.0 all three paths passed the container
+     * index straight through, so a spare on the hotbar (container 0-8) made
+     * the offhand swap with the crafting grid or an armour slot (menu 0-8)
+     * instead of the spare. The conversion now happens here, once.
+     */
+    private static void swapIntoOffhand(MultiPlayerGameMode gameMode, LocalPlayer player, int source,
+                                        String logTag, ItemStack itemForLog) {
+        int sourceMenu = PlayerMenuSlots.menuIndexOf(player.inventoryMenu, player, source);
+        if (sourceMenu < 0) return;
+        gameMode.handleContainerInput(
+                player.inventoryMenu.containerId, sourceMenu, SWAP_OFFHAND_KEY, ContainerInput.SWAP, player);
+        InventoryPlusClient.LOGGER.debug("[{}] offhand ← src[{}] ({})", logTag, source, itemForLog.getItem());
     }
 
     /**
