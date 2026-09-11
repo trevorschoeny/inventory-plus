@@ -162,8 +162,14 @@ tasks.register('verifyMenuKitRange') {
     inputs.file src
     inputs.property 'menukit_version', mkVersion
     doLast {
-        def major = Integer.parseInt(mkVersion.replaceAll(/\+.*$/, '').tokenize('.')[0])
-        def expected = ">=${major}.0.0 <${major + 1}.0.0".toString()
+        // Floor at major.minor, not just major: a minor can add API (MenuKit 5.1.0 added
+        // SlotOperations/SlotGroups) that a consumer built against it calls. Flooring at the
+        // major alone would let that jar load on the unrelated 5.0.0 and die with
+        // NoSuchMethodError, which is exactly the failure this check exists to prevent.
+        def parts = mkVersion.replaceAll(/\+.*$/, '').tokenize('.')
+        def major = Integer.parseInt(parts[0])
+        def minor = Integer.parseInt(parts[1])
+        def expected = ">=${major}.${minor}.0 <${major + 1}.0.0".toString()
         def depends = new groovy.json.JsonSlurper().parse(src).depends ?: [:]
         ['menukit', 'menukit-containers'].each { id ->
             def declared = depends[id]?.toString()
@@ -176,8 +182,8 @@ tasks.register('verifyMenuKitRange') {
             if (declared != expected) {
                 throw new GradleException(
                     "fabric.mod.json: '${id}' is '${declared}', expected '${expected}'. This mod is " +
-                    "built against MenuKit ${mkVersion}, so it floors at that major and stops below " +
-                    "the next one. See guidelines/ci-cd.md, 'MenuKit version pinning'.")
+                    "built against MenuKit ${mkVersion}, so it floors at that major.minor and stops " +
+                    "below the next major. See guidelines/ci-cd.md, 'MenuKit version pinning'.")
             }
         }
         println "verifyMenuKitRange: menukit '${expected}' (built against ${mkVersion})"
