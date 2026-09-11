@@ -2,6 +2,9 @@ package com.trevorschoeny.inventoryplus.mixin;
 
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 
+import com.trevlar.menukit.window.BehaviorKeys;
+import com.trevlar.menukit.window.SlotOperations;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.world.entity.player.Player;
@@ -150,8 +153,12 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
         if (source.getItem().isEmpty()) return;
 
         // Phase 1: pick up source onto cursor.
-        self.handleContainerInput(containerId, sourceSlotId, 0,
-                ContainerInput.PICKUP, player);
+        // These PICKUPs stand in for the player's shift-click, so they are sent
+        // under vanilla's own shift-click keys and judged as what the player
+        // did, not as plain clicks (plans/slot-operations.md). Lock Groups will
+        // likely retire this synthesis.
+        SlotOperations.as(BehaviorKeys.SHIFT_CLICK_OUT, BehaviorKeys.SHIFT_CLICK_IN,
+                () -> self.handleContainerInput(containerId, sourceSlotId, 0, ContainerInput.PICKUP, player));
         if (menu.getCarried().isEmpty()) return;
 
         // Source classification for same-half filtering.
@@ -174,6 +181,8 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
             Slot dest = menu.slots.get(i);
             if (dest == source) continue;
             if (LockedSlots.isLockedSlot(dest)) continue;
+            // Vanilla's own shift-click would skip a slot that refuses it.
+            if (!SlotOperations.allows(menu, dest, player, BehaviorKeys.SHIFT_CLICK_IN)) continue;
 
             // Same-half filter — vanilla doesn't shift-click within a
             // half. Skip dest if it's in the same half as the source.
@@ -186,14 +195,18 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
             }
 
             if (!canMergeOrPlace(dest, menu.getCarried())) continue;
-            self.handleContainerInput(containerId, i, 0,
-                    ContainerInput.PICKUP, player);
+            final int destSlotId = i;
+            SlotOperations.as(BehaviorKeys.SHIFT_CLICK_OUT, BehaviorKeys.SHIFT_CLICK_IN,
+                    () -> self.handleContainerInput(containerId, destSlotId, 0, ContainerInput.PICKUP, player));
         }
 
         // Phase 3: leftover goes back on the source.
+        // Putting the remainder back is part of the shift-click taking from the
+        // source, so the source's own shift-click-in rule cannot strand it on
+        // the cursor.
         if (!menu.getCarried().isEmpty()) {
-            self.handleContainerInput(containerId, sourceSlotId, 0,
-                    ContainerInput.PICKUP, player);
+            SlotOperations.as(BehaviorKeys.SHIFT_CLICK_OUT, BehaviorKeys.SHIFT_CLICK_OUT,
+                    () -> self.handleContainerInput(containerId, sourceSlotId, 0, ContainerInput.PICKUP, player));
         }
     }
 

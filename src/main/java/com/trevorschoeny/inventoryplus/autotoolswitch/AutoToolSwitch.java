@@ -5,6 +5,11 @@ import com.trevorschoeny.inventoryplus.api.PlayerMenuSlots;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
+import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
+
+import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.AUTO_TOOL_SWITCH;
+
+import com.trevlar.menukit.window.SlotOperations;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 
@@ -262,10 +267,14 @@ public final class AutoToolSwitch {
                 // hotbar position, then ask the cycler to bring the
                 // slot's item down. Cycler returns an undo handle.
                 inv.setSelectedSlot(cyclablePos);
-                state.cyclerOperation = HotbarCyclableRegistry.bringToHotbar(slot);
+                state.cyclerOperation = HotbarCyclableRegistry.bringToHotbar(slot, AUTO_TOOL_SWITCH, AUTO_TOOL_SWITCH);
             } else {
                 // Tier 3: inv slot, not in any cycler. SWAP click
                 // exchanges the slot's item with the active hotbar slot.
+                // The source was screened by ToolFinder; the hand's slot gives
+                // up its item and takes the tool, so it is asked here. Refused:
+                // no switch at all, and nothing to return from.
+                if (!IPSlotOperations.allowsPlayerSlot(player, previousSelected, AUTO_TOOL_SWITCH)) return;
                 doInventorySwap(slot, previousSelected, mc);
                 state.invSwapSlot = slot;
                 state.invSwapHotbar = previousSelected;
@@ -301,12 +310,14 @@ public final class AutoToolSwitch {
         if (menu == null) return;
         int sourceMenuSlot = PlayerMenuSlots.menuIndexOf(menu, player, sourceContainerSlot);
         if (sourceMenuSlot < 0) return;
-        gameMode.handleContainerInput(
+        // Judged as Auto Tool Switch, not as the hotbar-swap key it looks like.
+        // The auto-return swap comes back through here too.
+        SlotOperations.as(AUTO_TOOL_SWITCH, () -> gameMode.handleContainerInput(
                 menu.containerId,
                 sourceMenuSlot,
                 hotbarSlot,   // button = target hotbar slot (0-8)
                 ContainerInput.SWAP,
-                player);
+                player));
     }
 
 

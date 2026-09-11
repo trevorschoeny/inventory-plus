@@ -7,6 +7,12 @@ import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItemUser;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
+import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
+
+import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.RESTOCK_PUT;
+import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.RESTOCK_TAKE;
+
+import com.trevlar.menukit.window.SlotOperations;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
@@ -15,6 +21,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
@@ -370,7 +377,12 @@ public final class AutoRestockTicker {
         // A pocket source moves server-side (inert client-side in-world); an
         // ordinary 0–35 source falls through to the client quick-move, which
         // vanilla routes to the now-empty armor slot.
-        if (HotbarCyclableRegistry.quickMoveOut(source)) {
+        // The armour slot is the one being filled, whichever source fills it.
+        if (!IPSlotOperations.allowsMenuSlot(player, menuArmorSlot(slot), RESTOCK_PUT)) {
+            InventoryPlusClient.LOGGER.debug("[break-restock] armor[{}] refuses restock", slot);
+            return;
+        }
+        if (HotbarCyclableRegistry.quickMoveOut(source, RESTOCK_TAKE, RESTOCK_PUT)) {
             InventoryPlusClient.LOGGER.debug(
                     "[break-restock] armor[{}] ← pocket (server quick-move) ({})",
                     slot, prev.getItem());
@@ -382,12 +394,10 @@ public final class AutoRestockTicker {
         // piece instead (fixed in 1.6.0).
         int sourceMenu = PlayerMenuSlots.menuIndexOf(player.inventoryMenu, player, source);
         if (sourceMenu < 0) return;
-        gameMode.handleContainerInput(
-                player.inventoryMenu.containerId,
-                sourceMenu,
-                0,
-                ContainerInput.QUICK_MOVE,
-                player);
+        // A shift-click, judged as a restock: take on the source, put on the
+        // armour slot vanilla routes it to.
+        SlotOperations.as(RESTOCK_TAKE, RESTOCK_PUT, () -> gameMode.handleContainerInput(
+                player.inventoryMenu.containerId, sourceMenu, 0, ContainerInput.QUICK_MOVE, player));
         InventoryPlusClient.LOGGER.debug(
                 "[break-restock] armor[{}] ← main[{}] ({})",
                 slot, source, prev.getItem());
@@ -454,14 +464,26 @@ public final class AutoRestockTicker {
                     slot, now.getItem());
             return;
         }
+        // Three separate clicks, so a refusal part-way would strand the worn
+        // piece on the cursor. Every judgement the sequence will meet is asked
+        // first, all or nothing: the source is emptied (click 1) and refilled
+        // with the worn piece (click 3), and the armour slot swaps (click 2).
+        if (!IPSlotOperations.allowsPlayerSlot(player, source, RESTOCK_PUT)
+                || !IPSlotOperations.allowsMenuSlot(player, menuArmorSlot, RESTOCK_TAKE)
+                || !IPSlotOperations.allowsMenuSlot(player, menuArmorSlot, RESTOCK_PUT)) {
+            InventoryPlusClient.LOGGER.debug("[durability-restock] armor[{}] swap refused", slot);
+            return;
+        }
         // Clicks 1 and 3 name the source, which the search gave as a container
         // index; click 2 names the armour slot, already a menu index.
         int sourceMenu = PlayerMenuSlots.menuIndexOf(player.inventoryMenu, player, source);
         if (sourceMenu < 0) return;
         int containerId = player.inventoryMenu.containerId;
-        gameMode.handleContainerInput(containerId, sourceMenu,    0, ContainerInput.PICKUP, player);
-        gameMode.handleContainerInput(containerId, menuArmorSlot, 0, ContainerInput.PICKUP, player);
-        gameMode.handleContainerInput(containerId, sourceMenu,    0, ContainerInput.PICKUP, player);
+        SlotOperations.as(RESTOCK_TAKE, RESTOCK_PUT, () -> {
+            gameMode.handleContainerInput(containerId, sourceMenu,    0, ContainerInput.PICKUP, player);
+            gameMode.handleContainerInput(containerId, menuArmorSlot, 0, ContainerInput.PICKUP, player);
+            gameMode.handleContainerInput(containerId, sourceMenu,    0, ContainerInput.PICKUP, player);
+        });
         InventoryPlusClient.LOGGER.debug(
                 "[durability-restock] armor[{}] ← main[{}] ({})",
                 slot, source, now.getItem());
@@ -579,21 +601,26 @@ public final class AutoRestockTicker {
             // cycle. Same dynamic switch Auto Tool Switch performs. No undo handle
             // is kept: a restock is a permanent refill, not a temporary switch.
             player.getInventory().setSelectedSlot(cyclablePos);
-            HotbarCyclableRegistry.bringToHotbar(source);
+            HotbarCyclableRegistry.bringToHotbar(source, RESTOCK_TAKE, RESTOCK_PUT);
             InventoryPlusClient.LOGGER.debug(
                     "[{}] selected {} → cyclable pos {} (src {} cycled down) ({})",
                     logTag, activeSlot, cyclablePos, source, itemForLog.getItem());
             return;
         }
-        // Tier 3: main inv source — standard SWAP into the active slot. Tier 1
-        // took every hotbar source, so only 9-35 reach here, where container and
-        // menu indices happen to agree; converted anyway so this stays correct
-        // if that ever stops being true.
+        // Tier 3: main inv source — standard SWAP into the active slot, judged as
+        // a restock. The source was already screened for RESTOCK_TAKE by the
+        // search; the slot being refilled is asked here.
+        if (!IPSlotOperations.allowsPlayerSlot(player, activeSlot, RESTOCK_PUT)) {
+            InventoryPlusClient.LOGGER.debug("[{}] hotbar[{}] refuses restock", logTag, activeSlot);
+            return;
+        }
+        // Tier 1 took every hotbar source, so only 9-35 reach here, where
+        // container and menu indices happen to agree; converted anyway so this
+        // stays correct if that ever stops being true.
         int sourceMenu = PlayerMenuSlots.menuIndexOf(player.inventoryMenu, player, source);
         if (sourceMenu < 0) return;
-        gameMode.handleContainerInput(
-                player.inventoryMenu.containerId,
-                sourceMenu, activeSlot, ContainerInput.SWAP, player);
+        SlotOperations.as(RESTOCK_TAKE, RESTOCK_PUT, () -> gameMode.handleContainerInput(
+                player.inventoryMenu.containerId, sourceMenu, activeSlot, ContainerInput.SWAP, player));
         InventoryPlusClient.LOGGER.debug(
                 "[{}] hotbar[{}] ← src[{}] (item swap) ({})",
                 logTag, activeSlot, source, itemForLog.getItem());
@@ -601,7 +628,9 @@ public final class AutoRestockTicker {
 
     /**
      * Swaps {@code source} into the offhand as a restock. All three offhand
-     * paths (item, break, durability) come through here.
+     * paths (item, break, durability) come through here. The offhand is the
+     * slot being refilled, so it is asked first; the source was screened by
+     * the search.
      *
      * <p>{@code source} is a container index, as the search returns it; the
      * SWAP names a menu slot. Until 1.6.0 all three paths passed the container
@@ -611,11 +640,26 @@ public final class AutoRestockTicker {
      */
     private static void swapIntoOffhand(MultiPlayerGameMode gameMode, LocalPlayer player, int source,
                                         String logTag, ItemStack itemForLog) {
+        if (!IPSlotOperations.allowsMenuSlot(player, InventoryMenu.SHIELD_SLOT, RESTOCK_PUT)) {
+            InventoryPlusClient.LOGGER.debug("[{}] offhand refuses restock", logTag);
+            return;
+        }
         int sourceMenu = PlayerMenuSlots.menuIndexOf(player.inventoryMenu, player, source);
         if (sourceMenu < 0) return;
-        gameMode.handleContainerInput(
-                player.inventoryMenu.containerId, sourceMenu, SWAP_OFFHAND_KEY, ContainerInput.SWAP, player);
+        SlotOperations.as(RESTOCK_TAKE, RESTOCK_PUT, () -> gameMode.handleContainerInput(
+                player.inventoryMenu.containerId, sourceMenu, SWAP_OFFHAND_KEY, ContainerInput.SWAP, player));
         InventoryPlusClient.LOGGER.debug("[{}] offhand ← src[{}] ({})", logTag, source, itemForLog.getItem());
+    }
+
+    /** Inventory-menu index of an armour equipment slot, or -1 for anything else. */
+    private static int menuArmorSlot(EquipmentSlot slot) {
+        return switch (slot) {
+            case HEAD -> MENU_ARMOR_HEAD;
+            case CHEST -> MENU_ARMOR_CHEST;
+            case LEGS -> MENU_ARMOR_LEGS;
+            case FEET -> MENU_ARMOR_FEET;
+            default -> -1;
+        };
     }
 
     /**

@@ -1,5 +1,9 @@
 package com.trevorschoeny.inventoryplus.autotoolswitch;
 
+import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
+
+import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.AUTO_TOOL_SWITCH;
+
 import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
 import com.trevorschoeny.inventoryplus.api.HotbarCyclable.ExtraSlot;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
@@ -229,6 +233,12 @@ public final class ToolFinder {
             // cycle IS the access path, so we want to consider the
             // slot.
             if (LockedSlots.isLocked(i) && !isCyclable(i)) continue;
+            // Tier 3 moves the tool with a swap, so Auto Tool Switch has to be
+            // allowed on the slot it takes from. A hotbar slot (tier 1) only
+            // changes the selection, and a cyclable one (tier 2) is judged by
+            // its cycler, so neither is asked here.
+            if (i > 8 && !isCyclable(i)
+                    && !IPSlotOperations.allowsPlayerSlot(inv.player, i, AUTO_TOOL_SWITCH)) continue;
             ItemStack stack = inv.getItem(i);
             if (stack.isEmpty()) continue;
             // Locked items get no such exemption. The slot exemption above

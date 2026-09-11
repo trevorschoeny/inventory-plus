@@ -10,5 +10,22 @@
   "key.inventoryplus.cycle_backward":     "Column Cycle Backward",
   "key.inventoryplus.hotbar_cycle_forward":  "Hotbar Cycle Forward",
   "key.inventoryplus.hotbar_cycle_backward": "Hotbar Cycle Backward",
-  "key.inventoryplus.auto_switch_return": "Auto-Switch: Return to Previous Tool"
+  "key.inventoryplus.auto_switch_return": "Auto-Switch: Return to Previous Tool",
+
+  "slot_operation.inventoryplus.sort": "Sort",
+  "slot_operation.inventoryplus.sort.description": "Sorting may move items in and out of this slot.",
+  "slot_operation.inventoryplus.move_matching_out": "Move Matching out",
+  "slot_operation.inventoryplus.move_matching_out.description": "Move Matching may take items out of this slot.",
+  "slot_operation.inventoryplus.move_matching_in": "Move Matching in",
+  "slot_operation.inventoryplus.move_matching_in.description": "Move Matching may put items into this slot.",
+  "slot_operation.inventoryplus.restock_take": "Restock takes from",
+  "slot_operation.inventoryplus.restock_take.description": "Restock may pull a refill out of this slot.",
+  "slot_operation.inventoryplus.restock_put": "Restock fills",
+  "slot_operation.inventoryplus.restock_put.description": "Restock may refill this slot when its item runs out or breaks.",
+  "slot_operation.inventoryplus.auto_tool_switch": "Auto Tool Switch",
+  "slot_operation.inventoryplus.auto_tool_switch.description": "Auto Tool Switch may swap a tool into or out of this slot.",
+  "slot_operation.inventoryplus.column_cycle": "Column Cycler",
+  "slot_operation.inventoryplus.column_cycle.description": "Column Cycler may rotate items through this slot.",
+  "slot_operation.inventoryplus.hotbar_cycle": "Hotbar Cycler",
+  "slot_operation.inventoryplus.hotbar_cycle.description": "Hotbar Cycler may rotate items through this slot."
 }

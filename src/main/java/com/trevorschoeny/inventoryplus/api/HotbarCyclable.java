@@ -1,5 +1,8 @@
 package com.trevorschoeny.inventoryplus.api;
 
+import com.trevlar.menukit.window.BehaviorKey;
+import com.trevlar.menukit.window.TriBool;
+
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
@@ -172,5 +175,39 @@ public interface HotbarCyclable {
      */
     default boolean quickMoveOut(int slot) {
         return false;
+    }
+
+    // ── Moves that serve another operation ──────────────────────────────
+    //
+    // Restock and Auto Tool Switch reach a cycler's slot through
+    // bringToHotbar and quickMoveOut, but what the player sees is a restock
+    // or a tool switch, not a rotation. These overloads carry that operation
+    // (plans/slot-operations.md), as a MenuKit take/put pair: take for the
+    // slots the move empties, put for the slots it fills. A cycler that
+    // performs the move with clicks sends them under
+    // SlotOperations.as(take, put, ...); one that moves items server-side
+    // names the operation to its server and asks SlotOperations.allows there.
+    //
+    // Additive by design: the defaults fall back to the plain methods, so an
+    // implementer that does not override them keeps compiling and its moves
+    // are judged as its own rotation, exactly as before.
+
+    /**
+     * {@link #bringToHotbar(int)}, performed as {@code take}/{@code put}
+     * rather than as this cycler's own rotation. A rotation both empties and
+     * fills every slot in its ring, so each ring slot must allow both.
+     * Default: the plain method.
+     */
+    default CyclerOperation bringToHotbar(int slot, BehaviorKey<TriBool> take, BehaviorKey<TriBool> put) {
+        return bringToHotbar(slot);
+    }
+
+    /**
+     * {@link #quickMoveOut(int)}, performed as {@code take} on the slot it
+     * empties and {@code put} on wherever the item lands. Default: the plain
+     * method.
+     */
+    default boolean quickMoveOut(int slot, BehaviorKey<TriBool> take, BehaviorKey<TriBool> put) {
+        return quickMoveOut(slot);
     }
 }

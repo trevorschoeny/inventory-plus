@@ -4,6 +4,10 @@ import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 
+import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.SORT;
+
+import com.trevlar.menukit.window.SlotOperations;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.world.entity.player.Player;
@@ -89,6 +93,8 @@ public final class Sorter {
         for (Slot s : region) {
             if (LockedSlots.isLockedSlot(s)) continue;
             if (LockedItems.isLocked(s.getItem())) continue;
+            // A slot that refuses sorting sits it out exactly like a locked one.
+            if (!SlotOperations.allows(menu, s, player, SORT)) continue;
             unlocked.add(s);
         }
         if (unlocked.size() < 2) return;
@@ -98,7 +104,8 @@ public final class Sorter {
         if (target.isEmpty()) return;
 
         // Apply by issuing PICKUP click sequences.
-        applyTarget(menu, gameMode, player, unlocked, target);
+        // Every click the sort sends is judged as sorting, not as a plain click.
+        SlotOperations.as(SORT, () -> applyTarget(menu, gameMode, player, unlocked, target));
 
         InventoryPlusClient.LOGGER.debug(
                 "[sort] sorted {} unlocked slots with {}", unlocked.size(), type);

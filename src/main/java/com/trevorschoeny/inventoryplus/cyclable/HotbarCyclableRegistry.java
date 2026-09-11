@@ -5,6 +5,9 @@ import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
 import com.trevorschoeny.inventoryplus.api.HotbarCyclable.ExtraSlot;
 import net.minecraft.world.entity.player.Player;
 
+import com.trevlar.menukit.window.BehaviorKey;
+import com.trevlar.menukit.window.TriBool;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -127,6 +130,27 @@ public final class HotbarCyclableRegistry {
     public static boolean quickMoveOut(int slot) {
         for (HotbarCyclable c : CYCLERS) {
             if (c.quickMoveOut(slot)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * {@link #bringToHotbar(int)} for a move that serves {@code take}/{@code put}
+     * (a restock, a tool switch) rather than the cycler's own rotation.
+     */
+    public static CyclerOperation bringToHotbar(int slot, BehaviorKey<TriBool> take, BehaviorKey<TriBool> put) {
+        for (HotbarCyclable c : CYCLERS) {
+            if (c.hotbarPositionOf(slot) != -1) {
+                return c.bringToHotbar(slot, take, put);
+            }
+        }
+        return CyclerOperation.NO_OP;
+    }
+
+    /** {@link #quickMoveOut(int)} for a move that serves {@code take}/{@code put}. */
+    public static boolean quickMoveOut(int slot, BehaviorKey<TriBool> take, BehaviorKey<TriBool> put) {
+        for (HotbarCyclable c : CYCLERS) {
+            if (c.quickMoveOut(slot, take, put)) return true;
         }
         return false;
     }

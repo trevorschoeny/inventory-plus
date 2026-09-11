@@ -1,5 +1,8 @@
 package com.trevorschoeny.inventoryplus.api;
 
+import com.trevlar.menukit.window.BehaviorKey;
+import com.trevlar.menukit.window.TriBool;
+
 import com.trevorschoeny.inventoryplus.autorestock.AutoRestockSearch;
 import com.trevorschoeny.inventoryplus.autorestock.AutoRestockSuppression;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
@@ -47,9 +50,11 @@ import java.util.List;
  * itself, and promising them would freeze internals that have no business
  * being frozen.
  *
- * <p>Signatures here name only vanilla types and API types. A caller never has
- * to name an Inventory Plus internal to use this, which is what keeps the
- * boundary honest rather than nominal.
+ * <p>Signatures here name only vanilla types, API types, and MenuKit's public
+ * types, which a companion already depends on. A caller never has to name an
+ * Inventory Plus internal to use this, which is what keeps the boundary honest
+ * rather than nominal. The slot operation keys Inventory Plus performs are in
+ * {@link InventoryPlusOperations}.
  *
  * <p>Client-side. Inventory Plus is a client-only mod; every method here is
  * safe to call from the render thread and meaningless off it.
@@ -84,6 +89,17 @@ public final class InventoryPlusApi {
      */
     public static boolean quickMoveOut(int slot) {
         return HotbarCyclableRegistry.quickMoveOut(slot);
+    }
+
+    /**
+     * {@link #quickMoveOut(int)} for a move that serves {@code take} on the slot
+     * it empties and {@code put} where the item lands, so the move is judged as
+     * that operation rather than as the cycler's own. A restock passes
+     * {@link InventoryPlusOperations#RESTOCK_TAKE} and
+     * {@link InventoryPlusOperations#RESTOCK_PUT}.
+     */
+    public static boolean quickMoveOut(int slot, BehaviorKey<TriBool> take, BehaviorKey<TriBool> put) {
+        return HotbarCyclableRegistry.quickMoveOut(slot, take, put);
     }
 
     /** Registers a source of cycle views for the shared cycler HUD. */

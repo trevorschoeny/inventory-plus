@@ -9,6 +9,8 @@ import com.google.gson.JsonSyntaxException;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerRotator;
+
+import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.HOTBAR_CYCLE;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockedslots.WorldIdentity;
 
@@ -238,7 +240,7 @@ public final class HotbarCycler {
             List<Integer> slots = new ArrayList<>(rows.size() + 1);
             for (int row : rows) slots.add(firstSlotOf(row) + column);
             slots.add(column);
-            any |= ColumnCyclerRotator.rotateSlots(slots, direction, "hotbar-cycler");
+            any |= ColumnCyclerRotator.rotateSlots(slots, direction, "hotbar-cycler", HOTBAR_CYCLE, HOTBAR_CYCLE);
         }
         if (any) {
             for (RotationListener listener : ROTATION_LISTENERS) {

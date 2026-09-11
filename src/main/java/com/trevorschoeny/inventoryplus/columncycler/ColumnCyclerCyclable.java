@@ -3,6 +3,11 @@ package com.trevorschoeny.inventoryplus.columncycler;
 import com.trevorschoeny.inventoryplus.api.CyclerOperation;
 import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
 
+import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.COLUMN_CYCLE;
+
+import com.trevlar.menukit.window.BehaviorKey;
+import com.trevlar.menukit.window.TriBool;
+
 
 /**
  * Adapts Column Cycler's "rotate column" mechanic to the
@@ -62,6 +67,16 @@ public final class ColumnCyclerCyclable implements HotbarCyclable {
 
     @Override
     public CyclerOperation bringToHotbar(int slot) {
+        return bringToHotbar(slot, COLUMN_CYCLE, COLUMN_CYCLE);
+    }
+
+    /**
+     * Brings the slot down as {@code take}/{@code put}: a restock or tool switch
+     * rotating the column is judged as that, not as the player cycling. The undo
+     * reverses under the same operation.
+     */
+    @Override
+    public CyclerOperation bringToHotbar(int slot, BehaviorKey<TriBool> take, BehaviorKey<TriBool> put) {
         // Re-validate claim — caller may have used a stale lookup, or
         // the slot's cycle state may have changed between query and
         // bring-to-hotbar.
@@ -83,7 +98,7 @@ public final class ColumnCyclerCyclable implements HotbarCyclable {
         }
         // Forward: run the planned rotations.
         for (int i = 0; i < plan.steps(); i++) {
-            ColumnCyclerRotator.rotate(column, plan.direction());
+            ColumnCyclerRotator.rotate(column, plan.direction(), take, put);
         }
         // Capture the reversal parameters in the undo closure. The undo
         // path is symmetric: same step count, opposite direction. The
@@ -101,7 +116,7 @@ public final class ColumnCyclerCyclable implements HotbarCyclable {
                         : ColumnCyclerRotator.Direction.FORWARD;
         return () -> {
             for (int i = 0; i < undoSteps; i++) {
-                ColumnCyclerRotator.rotate(column, undoDirection);
+                ColumnCyclerRotator.rotate(column, undoDirection, take, put);
             }
         };
     }
