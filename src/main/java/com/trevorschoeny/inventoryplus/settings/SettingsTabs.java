@@ -12,6 +12,7 @@ import com.trevlar.menukit.core.PanelElement;
 import com.trevlar.menukit.core.TextLabel;
 import com.trevlar.menukit.inject.SlotGroups;
 import com.trevlar.menukit.window.BehaviorKey;
+import com.trevlar.menukit.window.BehaviorKeys;
 import com.trevlar.menukit.window.SlotOperations;
 
 import net.minecraft.client.Minecraft;
@@ -89,18 +90,33 @@ final class SettingsTabs {
         return b.build();
     }
 
-    // ── Moves ───────────────────────────────────────────────────────────
+    // ── Moving Items ────────────────────────────────────────────────────
 
-    static List<PanelElement> moves() {
+    /**
+     * One collapsible section per vanilla operation: the slot groups it may
+     * use, a revert to vanilla's default, and for shift-click in, the order it
+     * fills them in. Defaults are vanilla's own behaviour; the tab can only
+     * narrow it (Trev, 2026-09-26), so a box vanilla never allows will show
+     * greyed once MenuKit publishes vanilla's per-category rules.
+     */
+    static List<PanelElement> movingItems() {
+        List<Component> groups = slotGroups();
+        String summary = groups.size() + " of " + groups.size() + " slot groups";
         SettingsBody b = new SettingsBody()
-                .line("Choose where vanilla's inventory moves may go. A cleared box means the move never touches that group.");
+                .line("Choose which slot groups each of vanilla's item moves may use. A cleared box means the move never touches those groups.");
         for (BehaviorKey<?> op : SlotOperations.all()) {
             String ns = op.id().getNamespace();
             // Inventory Plus's and Inventory Max's own operations live in their feature tabs.
             if (ns.equals("inventoryplus") || ns.equals("inventorymax")) continue;
-            b.heading(SlotOperations.name(op).getString())
-                    .line(0, SlotOperations.description(op))
-                    .reach(null, slotGroups());
+            // Shift-click in is drawn open: it is the one section with every part.
+            boolean open = op == BehaviorKeys.SHIFT_CLICK_IN;
+            b.section(SlotOperations.name(op).getString(), summary, open);
+            if (!open) continue;
+            b.line(12, SlotOperations.description(op)).reach(null, groups);
+            b.row(y -> List.of(
+                    new Button(12, y, 110, 16, Component.literal("Revert to default"), btn -> {}, () -> true),
+                    new Button(126, y, 70, 16, Component.literal("Priority…"),
+                            btn -> PriorityMenu.open(Minecraft.getInstance().gui.screen()))), 20);
         }
         return b.build();
     }

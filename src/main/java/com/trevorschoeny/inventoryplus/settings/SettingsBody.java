@@ -78,6 +78,26 @@ final class SettingsBody {
         return this;
     }
 
+    /**
+     * A collapsible section's header row: an arrow, the title, and a grey
+     * summary of what is inside. The rows that follow, when {@code open},
+     * are the section's contents.
+     *
+     * <p>ponytail: drawn, not working. MenuKit has no disclosure element yet
+     * (asked for 2026-09-26), and a body's rows sit at fixed heights, so the
+     * scaffold shows one section open and the rest closed. Swap in MenuKit's
+     * element when it lands.
+     */
+    SettingsBody section(String title, String summary, boolean open) {
+        if (y > 0) y += 4;
+        String text = (open ? "▼ " : "▶ ") + title;
+        out.add(new TextLabel(0, y, Component.literal(text), greyed ? GREYED_COLOR : HEADING_COLOR, false));
+        int x = Minecraft.getInstance().font.width(text) + 8;
+        out.add(new TextLabel(x, y, Component.literal(summary), GREYED_COLOR, false));
+        y += TEXT_ROW + 2;
+        return this;
+    }
+
     /** A line of explanatory text. */
     SettingsBody line(String text) {
         return line(0, Component.literal(text));
