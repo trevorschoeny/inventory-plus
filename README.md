@@ -26,7 +26,7 @@ Pockets, extra equipment slots, and container locks live in [Inventory Max](http
 
 ## Requirements
 
-- MenuKit 2.0.0 or newer
+- MenuKit 5.0.0 or newer, below 6.0.0
 - Fabric API
 
 Client only.
