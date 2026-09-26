@@ -2,26 +2,6 @@ Unreleased, for 1.7.0. Every move Inventory Plus makes is now an operation MenuK
 
 Fixes a crash when breaking a block. In any world where you had never locked a container slot, the first block you broke closed the game. It came in with container locks in 1.5.0.
 
-Now built on MenuKit 5.0.0, and needs it: MenuKit 5.0.0 or newer, below 6.0.0. Companion mods now reach Inventory Plus through one public package, inventoryplus.api, instead of its internals; Inventory Max 1.0.2 and older used the old names and will not load next to this version, so update Inventory Max to 1.0.3. Also fixes restock taking from the wrong slot when the spare was on your hotbar. Refilling your offhand, or replacing armour that broke or wore down, clicked a crafting or armour slot instead of the spare, so the offhand stayed empty or a piece of armour you were wearing moved. Restock now always moves the spare it found.
+Fixes restock taking from the wrong slot when the spare was on your hotbar. Refilling your offhand, or replacing armour that broke or wore down, clicked a crafting or armour slot instead of the spare, so the offhand stayed empty or a piece of armour you were wearing moved. Restock now always moves the spare it found.
 
-Fixes container and pocket locks in single player. In 1.5.0 a locked slot inside a chest, barrel or pocket still accepted a shift-click: the lock was checked as your game drew the screen but not as your world actually moved the item, so it looked blocked for an instant and then took the item anyway. On a server it worked correctly. Locks now hold in both places. Also refuses to load next to Inventory Max 1.0.1 or older, which crashes with Inventory Plus 1.4.0 and newer; update Inventory Max to 1.0.2.
-
-The Sort and Move Matching buttons now carry a mode. Right-click a button to change its mode and shift and right-click to go back. Middle-click pins the mode to the open container and turns the button pink; middle-click again releases it. Left-click still does the action, and buttons now flash when pressed.
-
-Sort has four orders: Category, Quantity, ID, and Rarity. Category is vanilla's creative-tab order, blocks with blocks and tools with tools, and it is now the default for everyone, including existing installs. Any per-container sort orders you had saved are cleared by this update. Every container follows the one global order until you pin it.
-
-Move Matching has four modes: All, But-one (leaves one item in each stack), But-one-stack (leaves one full stack of each type), and No-overflow (a type moves only if all of it fits). IN and OUT no longer share a mode. Each keeps its own, and each pins to a container on its own, so you can have a chest you always empty completely and always fill but one stack.
-
-Locked Items is new. The lock button has three stops now: Lock Slot, which is what it always did, plus Lock Item and Lock Exact Item. Lock Item protects a type, so locking one diamond pickaxe protects every diamond pickaxe. Lock Exact Item protects one particular item, enchantments and custom name included, and keeps protecting it as it wears down. Sorting, move matching and the cyclers all leave a locked item where it is, wherever that happens to be. The list is saved per world or server.
-
-The three kinds are independent. An item can be slot locked, item locked and exact locked in any combination, and L only ever adds or removes the kind the button is showing.
-
-Auto Tool Switch and Auto-Restock use locked items anyway, by default. The tool you went to the trouble of locking is usually the one you want in your hand. If you would rather they left it alone, each has its own Use Locked Items setting: one under Auto Tool Switch, and one under each of Armor, Tool and Item Restock. A locked slot is always respected whatever these are set to.
-
-Auto-Restock no longer mistakes you for the game. Moving a stack out of your hotbar while your inventory or a chest is open used to look like the item running out, and a spare would jump in to replace it. Restock now holds off while any container screen is open.
-
-Locked Slots now reaches placed containers. Press L on a slot in a chest, barrel, shulker box, hopper or dispenser and it locks the way your inventory slots do: sorting and move matching leave it alone, and shift-clicking will not move items into it or out of it. The lock is yours, stored on your side and remembered per world, so it works on any server whether or not the server runs anything. A double chest is one chest to a lock, whichever half you open. Breaking a container forgets its locks. With Inventory Max installed, these per-player locks take the place of its shared ones.
-
-Lock edit mode tints slots pink, and it now reaches armor and offhand slots and Inventory Max's pockets and equipment slots, which lock like any other. Seeing the padlock on those Inventory Max slots needs MenuKit 4.0.0 or newer; on older MenuKit the lock still holds, it just draws underneath the slot.
-
-Requires MenuKit 3.1.0 or newer.
+Built on MenuKit 5.0.0. Requires MenuKit 5.0.0 or newer, below 6.0.0. Companion mods now reach Inventory Plus through one public package instead of its internals. Inventory Max 1.0.2 and older used the old names and will not load next to this version, so update Inventory Max to 1.0.3.
