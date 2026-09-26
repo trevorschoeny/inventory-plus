@@ -4,6 +4,11 @@ import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 
+import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.MOVE_MATCHING_IN;
+import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.MOVE_MATCHING_OUT;
+
+import com.trevlar.menukit.window.SlotOperations;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
@@ -96,7 +101,7 @@ public final class MoveMatchingExecutor {
             InventoryPlusClient.LOGGER.debug("[move-matching {} {}] match-set empty", direction, mode);
             return;
         }
-        List<Slot> sources = filterToMatching(sourceCandidates, matchSet);
+        List<Slot> sources = filterToMatching(sourceCandidates, matchSet, menu, player);
         if (sources.isEmpty()) {
             InventoryPlusClient.LOGGER.debug("[move-matching {} {}] nothing matching on the source side", direction, mode);
             return;
@@ -106,9 +111,15 @@ public final class MoveMatchingExecutor {
         Map<Item, List<Slot>> byType = new LinkedHashMap<>();
         for (Slot s : sources) byType.computeIfAbsent(s.getItem().getItem(), k -> new ArrayList<>()).add(s);
 
+        // The "in" key is about the slot being filled, whichever way the player
+        // pointed Move Matching, so destinations are screened for it once here.
+        List<Slot> allowedDestinations = new ArrayList<>(destinationSlots.size());
+        for (Slot d : destinationSlots) {
+            if (SlotOperations.allows(menu, d, player, MOVE_MATCHING_IN)) allowedDestinations.add(d);
+        }
         int stacksMoved = 0;
         for (Map.Entry<Item, List<Slot>> entry : byType.entrySet()) {
-            stacksMoved += moveType(gameMode, player, menu, entry.getKey(), entry.getValue(), destinationSlots, mode);
+            stacksMoved += moveType(gameMode, player, menu, entry.getKey(), entry.getValue(), allowedDestinations, mode);
         }
         InventoryPlusClient.LOGGER.debug("[move-matching {} {}] moved from {} stack(s)", direction, mode, stacksMoved);
     }
@@ -179,26 +190,39 @@ public final class MoveMatchingExecutor {
         int initialCount = source.getItem().getCount();
         if (leaveInSource >= initialCount) return 0;
 
-        clickPickup(gameMode, player, menu, source.index);
-        for (int i = 0; i < leaveInSource; i++) clickPlaceOne(gameMode, player, menu, source.index);
+        // Lifting the stack and putting the kept items back both belong to
+        // TAKING from the source, so both go under the out key on each side. If
+        // the put-back were judged by the source's own "in" rule, a lock that
+        // refused Move Matching in could strand the kept items on the cursor.
+        SlotOperations.as(MOVE_MATCHING_OUT, MOVE_MATCHING_OUT, () -> {
+            clickPickup(gameMode, player, menu, source.index);
+            for (int i = 0; i < leaveInSource; i++) clickPlaceOne(gameMode, player, menu, source.index);
+        });
 
         Item cursorItem = menu.getCarried().getItem();
 
-        for (Slot dest : destinationSlots) {
-            if (menu.getCarried().isEmpty()) break;
-            if (LockedSlots.isLockedSlot(dest)) continue;
-            ItemStack destStack = dest.getItem();
-            if (destStack.isEmpty() || !destStack.is(cursorItem)) continue;
-            if (destStack.getCount() >= destStack.getMaxStackSize()) continue;
-            clickPickup(gameMode, player, menu, dest.index);
+        // Filling the destinations: the in key is judged on them.
+        SlotOperations.as(MOVE_MATCHING_OUT, MOVE_MATCHING_IN, () -> {
+            for (Slot dest : destinationSlots) {
+                if (menu.getCarried().isEmpty()) break;
+                if (LockedSlots.isLockedSlot(dest)) continue;
+                ItemStack destStack = dest.getItem();
+                if (destStack.isEmpty() || !destStack.is(cursorItem)) continue;
+                if (destStack.getCount() >= destStack.getMaxStackSize()) continue;
+                clickPickup(gameMode, player, menu, dest.index);
+            }
+            for (Slot dest : destinationSlots) {
+                if (menu.getCarried().isEmpty()) break;
+                if (LockedSlots.isLockedSlot(dest)) continue;
+                if (!dest.getItem().isEmpty()) continue;
+                clickPickup(gameMode, player, menu, dest.index);
+            }
+        });
+        // What did not fit goes home: part of taking, as above.
+        if (!menu.getCarried().isEmpty()) {
+            SlotOperations.as(MOVE_MATCHING_OUT, MOVE_MATCHING_OUT,
+                    () -> clickPickup(gameMode, player, menu, source.index));
         }
-        for (Slot dest : destinationSlots) {
-            if (menu.getCarried().isEmpty()) break;
-            if (LockedSlots.isLockedSlot(dest)) continue;
-            if (!dest.getItem().isEmpty()) continue;
-            clickPickup(gameMode, player, menu, dest.index);
-        }
-        if (!menu.getCarried().isEmpty()) clickPickup(gameMode, player, menu, source.index);
 
         return Math.max(0, initialCount - source.getItem().getCount());
     }
@@ -236,10 +260,14 @@ public final class MoveMatchingExecutor {
      * out here, so it is never the thing being carried, and merging into a
      * locked stack could only happen while carrying its own type.
      */
-    private static List<Slot> filterToMatching(List<Slot> candidates, Set<Item> matchSet) {
+    private static List<Slot> filterToMatching(List<Slot> candidates, Set<Item> matchSet,
+                                               AbstractContainerMenu menu, LocalPlayer player) {
         List<Slot> filtered = new ArrayList<>();
         for (Slot slot : candidates) {
             if (LockedSlots.isLockedSlot(slot)) continue;
+            // The out key is about the slot being emptied, whichever way the
+            // player pointed Move Matching.
+            if (!SlotOperations.allows(menu, slot, player, MOVE_MATCHING_OUT)) continue;
             ItemStack stack = slot.getItem();
             if (stack.isEmpty() || !matchSet.contains(stack.getItem())) continue;
             if (LockedItems.isLocked(stack)) continue;

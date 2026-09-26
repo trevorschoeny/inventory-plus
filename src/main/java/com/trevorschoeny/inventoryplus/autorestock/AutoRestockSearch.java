@@ -5,6 +5,9 @@ import com.trevorschoeny.inventoryplus.api.HotbarCyclable.ExtraSlot;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItemUser;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
+import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
+
+import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.RESTOCK_TAKE;
 
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.tags.ItemTags;
@@ -496,7 +499,11 @@ public final class AutoRestockSearch {
      * (Trev 2026-09-06).
      */
     private static boolean isProtectedSource(Inventory inv, int slot, LockedItemUser user) {
-        return LockedSlots.isLocked(slot) || LockedItems.blocks(user, inv.getItem(slot));
+        return LockedSlots.isLocked(slot) || LockedItems.blocks(user, inv.getItem(slot))
+                // A slot restock may not take from is never picked as a source.
+                // Pocket sources are asked by their cycler instead, which has
+                // the real slot (HotbarCyclable's operation-carrying overloads).
+                || !IPSlotOperations.allowsPlayerSlot(inv.player, slot, RESTOCK_TAKE);
     }
 
     /**

@@ -8,6 +8,7 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
+import com.trevorschoeny.inventoryplus.api.WorldStore;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockedslots.WorldIdentity;
@@ -98,7 +99,13 @@ public final class ColumnCycler {
                 .resolve("column-cycler.json");
     }
 
-    private static final Map<String, Set<Integer>> PER_WORLD = new HashMap<>();
+    /**
+     * Direct cycle slots (container slots 9-35) per world. A {@link WorldStore}:
+     * immutable, ascending, saved only when a write changes it. Before 1.6.0
+     * this was a hand-rolled map whose write accessor created an empty entry
+     * for the world on every call, and whose values callers mutated in place.
+     */
+    private static final WorldStore<Set<Integer>> CYCLE_SLOTS = WorldStore.sortedSet(ColumnCycler::save);
 
     /**
      * Per-inv-open memory of "what was this slot's lock state BEFORE
@@ -134,6 +141,7 @@ public final class ColumnCycler {
                     ? root.getAsJsonObject("perWorld")
                     : new JsonObject();
             int total = 0;
+            int worlds = 0;
             for (var worldEntry : perWorld.entrySet()) {
                 String worldId = worldEntry.getKey();
                 JsonObject worldObj = worldEntry.getValue().getAsJsonObject();
@@ -143,13 +151,14 @@ public final class ColumnCycler {
                     for (var v : arr) cycleSlots.add(v.getAsInt());
                 }
                 if (!cycleSlots.isEmpty()) {
-                    PER_WORLD.put(worldId, cycleSlots);
+                    CYCLE_SLOTS.load(worldId, cycleSlots);
+                    worlds++;
                     total += cycleSlots.size();
                 }
             }
             InventoryPlusClient.LOGGER.info(
                     "[column-cycler] loaded {} cycle slot(s) across {} world(s) from {}",
-                    total, PER_WORLD.size(), path);
+                    total, worlds, path);
         } catch (IOException | JsonSyntaxException | IllegalStateException e) {
             InventoryPlusClient.LOGGER.error(
                     "[column-cycler] failed to parse {} — starting with empty prefs",
@@ -157,21 +166,8 @@ public final class ColumnCycler {
         }
     }
 
-    private static Set<Integer> currentWorld() {
-        String worldId = WorldIdentity.current(Minecraft.getInstance());
-        if (worldId == null) return null;
-        return PER_WORLD.computeIfAbsent(worldId, k -> new HashSet<>());
-    }
-
-    private static Set<Integer> currentWorldReadOnly() {
-        String worldId = WorldIdentity.current(Minecraft.getInstance());
-        if (worldId == null) return null;
-        return PER_WORLD.get(worldId);
-    }
-
     public static Set<Integer> getCycleSlots() {
-        Set<Integer> cycleSlots = currentWorldReadOnly();
-        return cycleSlots == null ? Collections.emptySet() : Collections.unmodifiableSet(cycleSlots);
+        return CYCLE_SLOTS.get();
     }
 
     /**
@@ -189,8 +185,7 @@ public final class ColumnCycler {
     public static boolean isCycleSlot(int containerSlotIndex) {
         if (!IPConfig.columnCyclerEnabled()) return false;
         if (containerSlotIndex < 0 || containerSlotIndex > MAX_CYCLEABLE_CONTAINER_SLOT) return false;
-        Set<Integer> cycleSlots = currentWorldReadOnly();
-        if (cycleSlots == null) return false;
+        Set<Integer> cycleSlots = CYCLE_SLOTS.get();
         if (containerSlotIndex >= MIN_DIRECT_CYCLE_SLOT) {
             return cycleSlots.contains(containerSlotIndex);
         }
@@ -238,18 +233,7 @@ public final class ColumnCycler {
     }
 
     public static void toggleByContainerSlot(int containerSlotIndex) {
-        Set<Integer> cycleSlots = currentWorld();
-        if (cycleSlots == null) {
-            InventoryPlusClient.LOGGER.debug(
-                    "[column-cycler] toggle with no world id — not persisting");
-            return;
-        }
-        if (cycleSlots.contains(containerSlotIndex)) {
-            removeCycleInternal(cycleSlots, containerSlotIndex);
-        } else {
-            addCycleInternal(cycleSlots, containerSlotIndex);
-        }
-        save();
+        setCycle(containerSlotIndex, !CYCLE_SLOTS.get().contains(containerSlotIndex));
     }
 
     /**
@@ -258,25 +242,23 @@ public final class ColumnCycler {
      * flipping slots already at that state.
      */
     public static void setCycle(int containerSlotIndex, boolean cycle) {
-        Set<Integer> cycleSlots = currentWorld();
-        if (cycleSlots == null) return;
-        boolean currently = cycleSlots.contains(containerSlotIndex);
-        if (currently == cycle) return;
+        if (CYCLE_SLOTS.get().contains(containerSlotIndex) == cycle) return;
         if (cycle) {
-            addCycleInternal(cycleSlots, containerSlotIndex);
+            addCycleInternal(containerSlotIndex);
         } else {
-            removeCycleInternal(cycleSlots, containerSlotIndex);
+            removeCycleInternal(containerSlotIndex);
         }
-        save();
     }
 
-    private static void addCycleInternal(Set<Integer> cycleSlots, int slot) {
+    private static void addCycleInternal(int slot) {
         // Callers guarantee slot is in 9-35 (isCycleable). Compute the
         // column's current activeness BEFORE the add so we know if the
         // column is becoming active (transition false → true).
         int hotbarSlot = slot % 9; // 0-8
         boolean colWasActive = isCycleSlot(hotbarSlot);
-        cycleSlots.add(slot);
+        // Write the store FIRST: the lock side effects below read cycle state
+        // back through isCycleSlot, and must see the slot as added.
+        CYCLE_SLOTS.modify(slots -> WorldStore.withElement(slots, slot, true));
         if (IPConfig.cycleSlotsLocked()) {
             // Record the slot's pre-cycle lock state once per session,
             // BEFORE we change it. Used on remove to restore the
@@ -293,8 +275,10 @@ public final class ColumnCycler {
         }
     }
 
-    private static void removeCycleInternal(Set<Integer> cycleSlots, int slot) {
-        cycleSlots.remove(slot);
+    private static void removeCycleInternal(int slot) {
+        // Write the store FIRST: the "did the column go inactive?" check below
+        // reads isCycleSlot and must see the slot as already removed.
+        CYCLE_SLOTS.modify(slots -> WorldStore.withElement(slots, slot, false));
         if (IPConfig.cycleSlotsLocked()) {
             // Restore the slot's pre-cycle lock state if we have it
             // (recorded this session); else unlock. Removing the entry
@@ -334,9 +318,7 @@ public final class ColumnCycler {
      */
     public static void enforceCycleLockingInvariant() {
         if (!IPConfig.columnCyclerEnabled()) return;
-        Set<Integer> cycleSlots = currentWorldReadOnly();
-        if (cycleSlots == null) return;
-        for (int slot : cycleSlots) {
+        for (int slot : CYCLE_SLOTS.get()) {
             if (!LockedSlots.isLocked(slot)) {
                 LockedSlots.setLocked(slot, true);
             }
@@ -356,15 +338,13 @@ public final class ColumnCycler {
             JsonObject root = new JsonObject();
             root.addProperty("version", CURRENT_VERSION);
             JsonObject perWorld = new JsonObject();
-            for (var entry : PER_WORLD.entrySet()) {
-                Set<Integer> cycleSlots = entry.getValue();
-                if (cycleSlots.isEmpty()) continue;
+            CYCLE_SLOTS.forEachWorld((worldId, cycleSlots) -> {
                 JsonObject worldObj = new JsonObject();
                 JsonArray cycleArr = new JsonArray();
                 for (Integer i : cycleSlots) cycleArr.add(i);
                 worldObj.add("cycleSlots", cycleArr);
-                perWorld.add(entry.getKey(), worldObj);
-            }
+                perWorld.add(worldId, worldObj);
+            });
             root.add("perWorld", perWorld);
             Files.writeString(path, GSON.toJson(root));
         } catch (IOException e) {

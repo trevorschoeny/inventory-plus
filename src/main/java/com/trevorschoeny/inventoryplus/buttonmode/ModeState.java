@@ -7,6 +7,7 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
+import com.trevorschoeny.inventoryplus.api.WorldStore;
 import com.trevorschoeny.inventoryplus.lockedslots.WorldIdentity;
 import com.trevorschoeny.inventoryplus.sort.ContainerIdentity;
 
@@ -73,7 +74,13 @@ public final class ModeState<E extends Enum<E> & ModeStop> {
     private final boolean pinnable;
     private E global;
     /** worldId -> identity key -> pinned value. */
-    private final Map<String, Map<String, E>> pins = new HashMap<>();
+    /**
+     * Pinned stops per world: container identity key -> stop. A
+     * {@link WorldStore}, saved whenever a pin changes. Pins on session-only
+     * identities are held here too and filtered out when saving, exactly as
+     * before; saving on their change just rewrites the same file contents.
+     */
+    private final WorldStore<Map<String, E>> pins = WorldStore.sortedMap(this::save);
     private boolean loaded;
 
     private ModeState(String feature, Class<E> type, E fallback, boolean pinnable) {
@@ -125,26 +132,16 @@ public final class ModeState<E extends Enum<E> & ModeStop> {
         return WorldIdentity.current(Minecraft.getInstance());
     }
 
-    private @Nullable Map<String, E> worldPins(boolean create) {
-        String w = worldId();
-        if (w == null) return null;
-        return create ? pins.computeIfAbsent(w, k -> new HashMap<>()) : pins.get(w);
-    }
-
     public boolean isPinned(@Nullable ContainerIdentity id) {
         if (!pinnable || id == null) return false;
-        Map<String, E> m = worldPins(false);
-        return m != null && m.containsKey(id.key());
+        return pins.get().containsKey(id.key());
     }
 
     /** The mode in force for this container: its pin if it has one, else the global. */
     public E effective(@Nullable ContainerIdentity id) {
         if (pinnable && id != null) {
-            Map<String, E> m = worldPins(false);
-            if (m != null) {
-                E pinned = m.get(id.key());
-                if (pinned != null) return pinned;
-            }
+            E pinned = pins.get().get(id.key());
+            if (pinned != null) return pinned;
         }
         return global;
     }
@@ -159,8 +156,7 @@ public final class ModeState<E extends Enum<E> & ModeStop> {
         int n = stops.length;
         E next = stops[((current.ordinal() + step) % n + n) % n];
         if (isPinned(id)) {
-            worldPins(true).put(id.key(), next);
-            if (id.isPersistent()) save();
+            pins.modify(m -> WorldStore.withEntry(m, id.key(), next));
         } else {
             setGlobal(next);
         }
@@ -174,15 +170,15 @@ public final class ModeState<E extends Enum<E> & ModeStop> {
      */
     public void togglePin(@Nullable ContainerIdentity id) {
         if (!pinnable || id == null) return;
-        Map<String, E> m = worldPins(true);
-        if (m.containsKey(id.key())) {
-            m.remove(id.key());
-            InventoryPlusClient.LOGGER.debug("[{}] unpinned {}", feature, id.key());
+        String key = id.key();
+        Map<String, E> previous = pins.modify(m -> m.containsKey(key)
+                ? WorldStore.withoutKey(m, key)
+                : WorldStore.withEntry(m, key, global));
+        if (previous.containsKey(key)) {
+            InventoryPlusClient.LOGGER.debug("[{}] unpinned {}", feature, key);
         } else {
-            m.put(id.key(), global);
-            InventoryPlusClient.LOGGER.debug("[{}] pinned {} at {}", feature, id.key(), global);
+            InventoryPlusClient.LOGGER.debug("[{}] pinned {} at {}", feature, key, global);
         }
-        if (id.isPersistent()) save();
     }
 
     // ── Persistence ─────────────────────────────────────────────────────
@@ -218,7 +214,7 @@ public final class ModeState<E extends Enum<E> & ModeStop> {
                     for (var pin : world.getValue().getAsJsonObject().entrySet()) {
                         m.put(pin.getKey(), parse(pin.getValue().getAsString(), global));
                     }
-                    if (!m.isEmpty()) { pins.put(world.getKey(), m); count += m.size(); }
+                    if (!m.isEmpty()) { pins.load(world.getKey(), m); count += m.size(); }
                 }
             }
             InventoryPlusClient.LOGGER.info("[{}] loaded: global {}, {} pin(s)", feature, global, count);
@@ -244,15 +240,14 @@ public final class ModeState<E extends Enum<E> & ModeStop> {
             root.addProperty("version", CURRENT_VERSION);
             root.addProperty("global", global.name());
             JsonObject allPins = new JsonObject();
-            for (var world : pins.entrySet()) {
+            pins.forEachWorld((worldId, worldPins) -> {
                 JsonObject w = new JsonObject();
-                for (var pin : world.getValue().entrySet()) {
+                worldPins.forEach((key, stop) -> {
                     // Session-only identities are remembered while the game runs, not written.
-                    if (pin.getKey().startsWith("session:")) continue;
-                    w.addProperty(pin.getKey(), pin.getValue().name());
-                }
-                if (w.size() > 0) allPins.add(world.getKey(), w);
-            }
+                    if (!key.startsWith("session:")) w.addProperty(key, stop.name());
+                });
+                if (w.size() > 0) allPins.add(worldId, w);
+            });
             root.add("pins", allPins);
             Files.writeString(path, GSON.toJson(root));
         } catch (IOException e) {

@@ -1,5 +1,9 @@
 package com.trevorschoeny.inventoryplus.autotoolswitch;
 
+import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
+
+import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.AUTO_TOOL_SWITCH;
+
 import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
 import com.trevorschoeny.inventoryplus.api.HotbarCyclable.ExtraSlot;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
@@ -155,9 +159,17 @@ public final class ToolFinder {
         Match t1 = scanRange(inv, 0, 8, activeSlot, isMatch, scorer, slot -> true);
         if (t1 != null) return t1;
         // Tier 2: cyclable inv slots (9-35) ∪ extra cyclable slots (pockets).
-        Match t2inv = scanRange(inv, 9, 35, activeSlot, isMatch, scorer, ToolFinder::isCyclable);
+        // Both halves ask the owning cycler first. Tier 2 changes the selected
+        // slot and then asks the cycler to bring the tool down; a slot whose
+        // bring would be refused must never be chosen, or the hand moves and
+        // nothing arrives. Skipped slots leave the search free to find the
+        // next candidate, here or in tier 3.
+        Match t2inv = scanRange(inv, 9, 35, activeSlot, isMatch, scorer,
+                slot -> isCyclable(slot)
+                        && HotbarCyclableRegistry.allowsBringToHotbar(slot, AUTO_TOOL_SWITCH, AUTO_TOOL_SWITCH));
         Match t2extra = scanExtras(
-                HotbarCyclableRegistry.extraSearchSlots(inv.player), activeSlot, isMatch, scorer);
+                HotbarCyclableRegistry.extraSlotsToBring(inv.player, AUTO_TOOL_SWITCH, AUTO_TOOL_SWITCH),
+                activeSlot, isMatch, scorer);
         Match t2 = pickBetter(t2inv, t2extra, activeSlot);
         if (t2 != null) return t2;
         // Tier 3: remaining inv slots (not cyclable).
@@ -229,6 +241,13 @@ public final class ToolFinder {
             // cycle IS the access path, so we want to consider the
             // slot.
             if (LockedSlots.isLocked(i) && !isCyclable(i)) continue;
+            // Tier 3 moves the tool with a swap, so Auto Tool Switch has to be
+            // allowed on the slot it takes from. A hotbar slot (tier 1) only
+            // changes the selection, and a cyclable one (tier 2) is judged by
+            // its cycler through the tier filter findBestByTier passes, so
+            // neither is asked here.
+            if (i > 8 && !isCyclable(i)
+                    && !IPSlotOperations.allowsPlayerSlot(inv.player, i, AUTO_TOOL_SWITCH)) continue;
             ItemStack stack = inv.getItem(i);
             if (stack.isEmpty()) continue;
             // Locked items get no such exemption. The slot exemption above

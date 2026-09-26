@@ -8,7 +8,10 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
+import com.trevorschoeny.inventoryplus.api.WorldStore;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerRotator;
+
+import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.HOTBAR_CYCLE;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockedslots.WorldIdentity;
 
@@ -88,8 +91,12 @@ public final class HotbarCycler {
     /** Slots per row, and the number of columns a rotation spans. */
     public static final int COLUMNS = 9;
 
-    /** {@code Map<worldId, Set<rowIndex>>}. */
-    private static final Map<String, Set<Integer>> PER_WORLD = new HashMap<>();
+    /**
+     * Toggled row indices (0-2) per world. A {@link WorldStore}: immutable,
+     * ascending, saved only when a write changes it, and an emptied world is
+     * dropped rather than kept as an empty entry.
+     */
+    private static final WorldStore<Set<Integer>> ROWS = WorldStore.sortedSet(HotbarCycler::save);
     private static boolean loaded = false;
 
     private static Path filePath() {
@@ -118,10 +125,9 @@ public final class HotbarCycler {
 
     /** Toggled rows for the current world, ascending. Never null. */
     public static Set<Integer> toggledRows() {
-        String worldId = WorldIdentity.current(Minecraft.getInstance());
-        if (worldId == null) return Collections.emptySet();
-        Set<Integer> rows = PER_WORLD.get(worldId);
-        return rows == null ? Collections.emptySet() : Collections.unmodifiableSet(rows);
+        // Genuinely ascending now. The javadoc always promised it, but rows
+        // were held in a LinkedHashSet, which is insertion order.
+        return ROWS.get();
     }
 
     /** True if {@code row} (0-2) is in the cycle. */
@@ -192,13 +198,8 @@ public final class HotbarCycler {
     /** Set {@code row}'s membership and persist. No-op if already there. */
     public static void setRow(int row, boolean on) {
         if (row < 0 || row >= ROW_COUNT) return;
-        String worldId = WorldIdentity.current(Minecraft.getInstance());
-        if (worldId == null) return;
-        Set<Integer> rows = PER_WORLD.computeIfAbsent(worldId, k -> new LinkedHashSet<>());
-        boolean changed = on ? rows.add(row) : rows.remove(row);
-        if (!changed) return;
-        if (rows.isEmpty()) PER_WORLD.remove(worldId);
-        save();
+        Set<Integer> previous = ROWS.modify(rows -> WorldStore.withElement(rows, row, on));
+        if (previous.contains(row) == on) return;   // already there; the store saved nothing
         InventoryPlusClient.LOGGER.debug("[hotbar-cycler] row {} {}", row, on ? "on" : "off");
     }
 
@@ -238,7 +239,7 @@ public final class HotbarCycler {
             List<Integer> slots = new ArrayList<>(rows.size() + 1);
             for (int row : rows) slots.add(firstSlotOf(row) + column);
             slots.add(column);
-            any |= ColumnCyclerRotator.rotateSlots(slots, direction, "hotbar-cycler");
+            any |= ColumnCyclerRotator.rotateSlots(slots, direction, "hotbar-cycler", HOTBAR_CYCLE, HOTBAR_CYCLE);
         }
         if (any) {
             for (RotationListener listener : ROTATION_LISTENERS) {
@@ -290,6 +291,7 @@ public final class HotbarCycler {
                     ? root.getAsJsonObject("perWorld")
                     : new JsonObject();
             int total = 0;
+            int worlds = 0;
             for (var entry : perWorld.entrySet()) {
                 JsonObject world = entry.getValue().getAsJsonObject();
                 if (!world.has("rows")) continue;
@@ -300,13 +302,14 @@ public final class HotbarCycler {
                     if (row >= 0 && row < ROW_COUNT) rows.add(row);
                 }
                 if (!rows.isEmpty()) {
-                    PER_WORLD.put(entry.getKey(), rows);
+                    ROWS.load(entry.getKey(), rows);
+                    worlds++;
                     total += rows.size();
                 }
             }
             InventoryPlusClient.LOGGER.info(
                     "[hotbar-cycler] loaded {} row(s) across {} world(s) from {}",
-                    total, PER_WORLD.size(), path);
+                    total, worlds, path);
         } catch (IOException | JsonSyntaxException | IllegalStateException
                  | NumberFormatException | UnsupportedOperationException e) {
             InventoryPlusClient.LOGGER.error(
@@ -321,14 +324,13 @@ public final class HotbarCycler {
             JsonObject root = new JsonObject();
             root.addProperty("version", CURRENT_VERSION);
             JsonObject perWorld = new JsonObject();
-            for (var entry : PER_WORLD.entrySet()) {
-                if (entry.getValue().isEmpty()) continue;
+            ROWS.forEachWorld((worldId, rows) -> {
                 JsonArray arr = new JsonArray();
-                entry.getValue().stream().sorted().forEach(arr::add);
+                rows.forEach(arr::add);   // already ascending
                 JsonObject world = new JsonObject();
                 world.add("rows", arr);
-                perWorld.add(entry.getKey(), world);
-            }
+                perWorld.add(worldId, world);
+            });
             root.add("perWorld", perWorld);
             Files.writeString(path, GSON.toJson(root));
         } catch (IOException e) {

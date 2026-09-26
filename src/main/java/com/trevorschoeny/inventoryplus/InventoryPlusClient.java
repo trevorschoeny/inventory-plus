@@ -1,5 +1,7 @@
 package com.trevorschoeny.inventoryplus;
 
+import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
+
 import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
 import com.trevorschoeny.inventoryplus.autorestock.AutoRestockTicker;
 import com.trevorschoeny.inventoryplus.autotoolswitch.AutoToolSwitch;
@@ -76,6 +78,12 @@ public class InventoryPlusClient implements ClientModInitializer {
         // change via IPConfig setters. Must load before any feature reads
         // a toggle. See IPConfig + IPConfigScreen javadoc.
         IPConfig.load();
+
+        // Slot operations: Inventory Plus's eight, defined with their roles so
+        // MenuKit lists them (SlotOperations.all) and a lock can refuse any one
+        // (plans/slot-operations.md). Every feature asks SlotOperations.allows
+        // before it picks a slot and sends its clicks under SlotOperations.as.
+        IPSlotOperations.define();
 
         // Keybinds — vanilla KeyMapping registration so L / I / O / S
         // show up in the Controls menu and are user-rebindable. The

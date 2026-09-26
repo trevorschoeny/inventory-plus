@@ -5,12 +5,19 @@ import com.trevorschoeny.inventoryplus.api.PlayerMenuSlots;
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 
+import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.COLUMN_CYCLE;
+
+import com.trevlar.menukit.window.BehaviorKey;
+import com.trevlar.menukit.window.SlotOperations;
+import com.trevlar.menukit.window.TriBool;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.Slot;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -123,12 +130,22 @@ public final class ColumnCyclerRotator {
      * holding an item, or if any slot lookup fails.
      */
     public static void rotate(int column, Direction direction) {
+        rotate(column, direction, COLUMN_CYCLE, COLUMN_CYCLE);
+    }
+
+    /**
+     * {@link #rotate(int, Direction)} performed as {@code take}/{@code put}: the
+     * Column Cycler's own key when the player cycles, a restock's or Auto Tool
+     * Switch's when one of them brings an item down through the column.
+     */
+    public static void rotate(int column, Direction direction,
+                              BehaviorKey<TriBool> take, BehaviorKey<TriBool> put) {
         if (column < 0 || column > 8) return;
 
         // Build the cycle slot list: visually top → bottom, hotbar last.
         // Shared with planBringSlotToHotbar so both call sites agree on
         // index ordering and membership filtering.
-        if (!rotateSlots(buildCycleList(column), direction, "column-cycler")) return;
+        if (!rotateSlots(buildCycleList(column), direction, "column-cycler", take, put)) return;
 
         // Notify listeners — fired only after a successful rotation
         // (all early-return paths above skip this). Used by the HUD
@@ -165,7 +182,7 @@ public final class ColumnCyclerRotator {
      *         than 2 slots, cursor occupied, slot not in the open menu)
      */
     public static boolean rotateSlots(List<Integer> containerSlots, Direction direction,
-                                      String feature) {
+                                      String feature, BehaviorKey<TriBool> take, BehaviorKey<TriBool> put) {
         if (containerSlots.size() < 2) return false;
 
         Minecraft mc = Minecraft.getInstance();
@@ -189,6 +206,9 @@ public final class ColumnCyclerRotator {
         // click sequence, so both cyclers inherit it — Hotbar Cycler rotates
         // its nine columns through this same engine.
         containerSlots = withoutLockedItems(containerSlots, player.getInventory(), feature);
+        // A slot that refuses the operation sits the rotation out the same way a
+        // locked item does: it keeps its item and the ring turns around it.
+        containerSlots = withoutRefused(containerSlots, menu, player, take, put, feature);
         int n = containerSlots.size();
         if (n < 2) return false;
 
@@ -226,9 +246,14 @@ public final class ColumnCyclerRotator {
         // client predicts cursor state between clicks so the chain
         // behaves correctly without per-click round-trips.
         int containerId = menu.containerId;
-        for (int slotIdx : clickSeq) {
-            gameMode.handleContainerInput(containerId, slotIdx, 0, ContainerInput.PICKUP, player);
-        }
+        // Sent as the operation the rotation serves, so MenuKit judges these
+        // PICKUPs as a cycle (or the restock / tool switch riding it), not as
+        // plain clicks a lock on clicking would refuse.
+        SlotOperations.as(take, put, () -> {
+            for (int slotIdx : clickSeq) {
+                gameMode.handleContainerInput(containerId, slotIdx, 0, ContainerInput.PICKUP, player);
+            }
+        });
         return true;
     }
 
@@ -250,6 +275,59 @@ public final class ColumnCyclerRotator {
                     feature, kept.size(), containerSlots.size());
         }
         return kept;
+    }
+
+    /**
+     * The ring minus any slot that refuses {@code take} or {@code put}. Every
+     * ring slot is both emptied and filled by a rotation, so it must allow both.
+     * A slot not on the open menu is kept; the lookup after this fails on it and
+     * the rotation no-ops, as it always has.
+     */
+    private static List<Integer> withoutRefused(List<Integer> containerSlots, AbstractContainerMenu menu,
+                                                LocalPlayer player, BehaviorKey<TriBool> take,
+                                                BehaviorKey<TriBool> put, String feature) {
+        List<Integer> kept = new ArrayList<>(containerSlots.size());
+        for (Integer containerSlot : containerSlots) {
+            int menuIdx = PlayerMenuSlots.menuIndexOf(menu, player, containerSlot);
+            if (menuIdx >= 0) {
+                Slot slot = menu.getSlot(menuIdx);
+                if (!SlotOperations.allows(menu, slot, player, take)) continue;
+                if (!put.equals(take) && !SlotOperations.allows(menu, slot, player, put)) continue;
+            }
+            kept.add(containerSlot);
+        }
+        if (kept.size() != containerSlots.size()) {
+            InventoryPlusClient.LOGGER.debug(
+                    "[{}] rotating {} of {} slots, the rest refuse {}",
+                    feature, kept.size(), containerSlots.size(), take.id());
+        }
+        return kept;
+    }
+
+    /**
+     * Whether bringing {@code slot} down would deliver it: every slot in its
+     * column's ring, the hotbar slot included, allows both {@code take} and
+     * {@code put}, and is on the open menu.
+     *
+     * <p>That is the rule {@link #withoutRefused} applies, asked of the whole
+     * ring at once. A rotation does not refuse outright; it drops refused
+     * slots and rotates what is left, and the bring plan was counted on the
+     * full ring, so a single refused slot means the wrong item, or nothing,
+     * reaches the hand. Asking this before choosing is what keeps Auto Tool
+     * Switch from moving the selection for a bring that cannot land.
+     */
+    public static boolean bringAllowed(int slot, BehaviorKey<TriBool> take, BehaviorKey<TriBool> put) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null || player.containerMenu == null) return false;
+        AbstractContainerMenu menu = player.containerMenu;
+        for (int containerSlot : buildCycleList(slot % 9)) {
+            int menuIdx = PlayerMenuSlots.menuIndexOf(menu, player, containerSlot);
+            if (menuIdx < 0) return false;
+            Slot ringSlot = menu.getSlot(menuIdx);
+            if (!SlotOperations.allows(menu, ringSlot, player, take)) return false;
+            if (!put.equals(take) && !SlotOperations.allows(menu, ringSlot, player, put)) return false;
+        }
+        return true;
     }
 
     /**
