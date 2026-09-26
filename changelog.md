@@ -1,7 +1,3 @@
-Unreleased, for 1.7.0. Every move Inventory Plus makes is now an operation MenuKit can list, name and ask about: Sort, Move Matching out and in, Restock takes from and fills, Auto Tool Switch, Column Cycler and Hotbar Cycler. Each feature asks before it touches a slot, and the clicks it sends are judged as the feature rather than as the plain clicks and shift-clicks they look like. Nothing behaves differently yet; this is what Lock Groups will read. Needs MenuKit 5.1.0 or newer. Restock and Auto Tool Switch also ask a pocket or a cycling column before choosing it, so once something can refuse them they pass over it and find the next source, instead of choosing it and then doing nothing.
+Nothing changes in how Inventory Plus plays in this version. The work is underneath. Each thing Inventory Plus does on its own now has a name that MenuKit and other mods can look up: Sort, Move Matching out and in, Restock, Auto Tool Switch, Column Cycler and Hotbar Cycler. Each one also asks MenuKit whether a slot allows it before moving an item into or out of that slot.
 
-Fixes a crash when breaking a block. In any world where you had never locked a container slot, the first block you broke closed the game. It came in with container locks in 1.5.0.
-
-Fixes restock taking from the wrong slot when the spare was on your hotbar. Refilling your offhand, or replacing armour that broke or wore down, clicked a crafting or armour slot instead of the spare, so the offhand stayed empty or a piece of armour you were wearing moved. Restock now always moves the spare it found.
-
-Built on MenuKit 5.0.0. Requires MenuKit 5.0.0 or newer, below 6.0.0. Companion mods now reach Inventory Plus through one public package instead of its internals. Inventory Max 1.0.2 and older used the old names and will not load next to this version, so update Inventory Max to 1.0.3.
+Requires MenuKit 5.1.0 or newer, below 6.0.0.
