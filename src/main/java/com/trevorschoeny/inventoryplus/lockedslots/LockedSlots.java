@@ -508,9 +508,12 @@ public final class LockedSlots {
         }
         if (size < 0) return;
         final int cap = size;   // effectively final for the lambda
-        Map<String, Set<Integer>> world = containerMap(false);
+        // Read through the read view, mutate only the real map. containerMap(false)
+        // is Map.of() in a world with no container locks; this was only safe
+        // because the null check below returned first. Make that explicit.
+        if (!containerMap(false).containsKey(key)) return;
+        Map<String, Set<Integer>> world = containerMap(true);
         Set<Integer> set = world.get(key);
-        if (set == null) return;
         int before = set.size();
         set.removeIf(i -> i >= cap);
         if (set.isEmpty()) world.remove(key);
@@ -522,7 +525,13 @@ public final class LockedSlots {
 
     /** Forget every lock on the container at {@code pos}. Called when the local player breaks it. */
     public static void pruneContainerAt(String key) {
-        Map<String, Set<Integer>> world = containerMap(false);
+        // Runs on every block the local player breaks. containerMap(false) is an
+        // immutable Map.of() in any world with no container locks, so removing
+        // from it crashed the game on the first block broken there (1.5.0 to
+        // 1.6.0). Nothing stored for this container is nothing to prune; only
+        // then touch the real map.
+        if (!containerMap(false).containsKey(key)) return;
+        Map<String, Set<Integer>> world = containerMap(true);
         if (world.remove(key) != null) {
             InventoryPlusClient.LOGGER.info("[locked-slots] container broken, dropped its locks: {}", key);
             if (key.equals(cachedContainerKey)) cachedContainerKey = null;
