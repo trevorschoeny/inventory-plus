@@ -522,7 +522,13 @@ public final class LockedSlots {
     /** Forget every lock on the container at {@code pos}. Called when the local player breaks it. */
     public static void pruneContainerAt(String key) {
         Map<String, Set<Integer>> world = containerMap(false);
-        if (world.remove(key) != null) {
+        // world is containerMap's read-only Map.of() singleton whenever this world has never
+        // had a lock placed in it; Map.of() throws on any mutator, including remove(), which
+        // is exactly what crashed every fresh-world first block break in 1.5.0 and 1.5.1.
+        // containsKey is a read, safe on Map.of(), so it can gate the remove() without ever
+        // calling a mutator on an immutable map.
+        if (world.containsKey(key)) {
+            world.remove(key);
             InventoryPlusClient.LOGGER.info("[locked-slots] container broken, dropped its locks: {}", key);
             if (key.equals(cachedContainerKey)) cachedContainerKey = null;
             save();
