@@ -34,6 +34,7 @@ import com.trevorschoeny.inventoryplus.sort.ContainerOpenTracker;
 import com.trevorschoeny.inventoryplus.sort.SortKeybind;
 import com.trevorschoeny.inventoryplus.sort.SortState;
 import com.trevorschoeny.inventoryplus.toolbar.PowerUsersToolbar;
+import com.trevorschoeny.inventoryplus.settings.SettingsKeybind;
 import com.trevorschoeny.inventoryplus.toolbar.Toolbar;
 
 import net.fabricmc.api.ClientModInitializer;
@@ -164,6 +165,10 @@ public class InventoryPlusClient implements ClientModInitializer {
         // feature buttons). Per-button .showWhen gates per-feature
         // visibility within the same panel.
         Toolbar.register();
+
+        // Settings menu: the dot button lives in the toolbar above; the Open
+        // settings key (unbound by default) is registered here.
+        SettingsKeybind.register();
 
         // Column Cycler (Power Users) — opt-in feature gated by
         // columnCyclerEnabled. Slot membership state is per-world

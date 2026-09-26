@@ -2,10 +2,12 @@ package com.trevorschoeny.inventoryplus.config;
 
 import com.terraformersmc.modmenu.api.ConfigScreenFactory;
 import com.terraformersmc.modmenu.api.ModMenuApi;
+import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 
 /**
- * ModMenu entrypoint — surfaces IP's config screen as the "config" button
- * next to IP's row on the mods list.
+ * ModMenu entrypoint — surfaces IP's settings menu as the "config" button
+ * next to IP's row on the mods list. The old YACL screen stays reachable
+ * from the menu's General tab until the menu is wired.
  *
  * <p>ModMenu is a compileOnly + modLocalRuntime dependency
  * (see {@code build.gradle}). If ModMenu isn't installed at runtime,
@@ -17,6 +19,6 @@ public final class IPConfigModMenu implements ModMenuApi {
 
     @Override
     public ConfigScreenFactory<?> getModConfigScreenFactory() {
-        return IPConfigScreen::create;
+        return SettingsMenu::create;
     }
 }

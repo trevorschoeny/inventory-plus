@@ -2,8 +2,10 @@ package com.trevorschoeny.inventoryplus.toolbar;
 
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsButtons;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingButtons;
+import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 import com.trevorschoeny.inventoryplus.sort.SortButton;
 
+import com.trevlar.menukit.core.Button;
 import com.trevlar.menukit.core.Panel;
 import com.trevlar.menukit.core.PanelElement;
 import com.trevlar.menukit.core.PanelPosition;
@@ -16,6 +18,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 
 import java.util.List;
 
@@ -140,6 +144,10 @@ public final class Toolbar {
 
     private static List<PanelElement> buildInventoryChildren() {
         int x = 0;
+        // Settings (leftmost, so adding it moved none of the buttons players
+        // already reach for; the toolbar is right-aligned).
+        PanelElement settings = settingsButton(x, 0);
+        x += SETTINGS_SIZE + BUTTON_GAP;
         // Lock-edit toggle (leftmost, always visible — inventory-tied).
         PanelElement lockEdit = LockedSlotsButtons.toolbarToggle(x, 0);
         x += LockedSlotsButtons.SIZE + BUTTON_GAP;
@@ -151,7 +159,19 @@ public final class Toolbar {
         x += MoveMatchingButtons.SIZE + BUTTON_GAP;
         // Move Matching IN (rightmost when MM is visible).
         PanelElement mmIn = MoveMatchingButtons.toolbarInButton(x, 0);
-        return List.of(lockEdit, sort, mmOut, mmIn);
+        return List.of(settings, lockEdit, sort, mmOut, mmIn);
+    }
+
+    private static final int SETTINGS_SIZE = 9;
+
+    private static final Identifier SETTINGS_TEXTURE =
+            Identifier.fromNamespaceAndPath("inventoryplus", "settings_button");
+
+    /** Opens the settings menu over the current screen, which it returns to on close. */
+    private static Button settingsButton(int x, int y) {
+        return Button.sprite(x, y, SETTINGS_SIZE, SETTINGS_SIZE, SETTINGS_TEXTURE,
+                        b -> SettingsMenu.open(Minecraft.getInstance().gui.screen()))
+                .tooltip(Component.literal("Settings"));
     }
 
     private static List<PanelElement> buildExternalChildren() {

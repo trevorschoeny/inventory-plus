@@ -123,6 +123,17 @@ public final class IPKeybinds {
             GLFW.GLFW_KEY_LEFT_SHIFT,
             CATEGORY);
 
+    /**
+     * Opens the settings menu. Unbound until a default is chosen. Works in the
+     * world (polled on the client tick) and on container screens (matched in
+     * {@code afterKeyPress}, like the other screen keys).
+     */
+    public static final KeyMapping OPEN_SETTINGS = new KeyMapping(
+            "key.inventoryplus.open_settings",
+            InputConstants.Type.KEYSYM,
+            InputConstants.UNKNOWN.getValue(),
+            CATEGORY);
+
     /** Register all keybinds with Fabric. Call once from client init. */
     public static void register() {
         KeyMappingHelper.registerKeyMapping(LOCK_SLOT);
@@ -135,5 +146,6 @@ public final class IPKeybinds {
         KeyMappingHelper.registerKeyMapping(HOTBAR_CYCLE_FORWARD);
         KeyMappingHelper.registerKeyMapping(HOTBAR_CYCLE_BACKWARD);
         KeyMappingHelper.registerKeyMapping(AUTO_SWITCH_RETURN);
+        KeyMappingHelper.registerKeyMapping(OPEN_SETTINGS);
     }
 }
