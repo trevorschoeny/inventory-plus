@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.lockedslots;
 
 import com.trevorschoeny.inventoryplus.api.SlotLockProvider;
+import com.trevorschoeny.inventoryplus.api.WorldStore;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -76,7 +77,7 @@ public final class LockedSlots {
 
     /**
      * Ender chest slot count — container-slot 0-26. Ender locks live in their
-     * own per-world namespace ({@link #PER_WORLD_ENDER}) so ender slot N does
+     * own per-world namespace ({@link #ENDER}) so ender slot N does
      * not collide with player container-slot N (both are 0-based).
      */
     public static final int ENDER_SLOT_COUNT = 27;
@@ -87,17 +88,28 @@ public final class LockedSlots {
                 .resolve("locked-slots.json");
     }
 
-    /** Player-owned slot locks (inv / hotbar / armor / offhand), keyed by world. */
-    private static final Map<String, Set<Integer>> PER_WORLD = new HashMap<>();
+    // ── The four lock namespaces ──────────────────────────────────────────
+    //
+    // Each is a WorldStore: one immutable value per world, read without ever
+    // creating anything, written only through modify/set, and saved (via
+    // save() below) only when a write actually changes something. Before
+    // 1.6.0 these were four hand-rolled Map<worldId, ...> fields with three
+    // different ideas of what "nothing stored yet" meant, and one of them
+    // handed an immutable Map.of() to a caller that then removed from it:
+    // the first block broken in a world with no container locks crashed the
+    // game. See WorldStore for the contract that makes that unrepresentable.
+
+    /** Player-owned slot locks (inv / hotbar / armor / offhand): locked container-slot indices. */
+    private static final WorldStore<Set<Integer>> PLAYER = WorldStore.sortedSet(LockedSlots::save);
 
     /**
-     * Ender chest slot locks, keyed by world. Separate from {@link #PER_WORLD}
+     * Ender chest slot locks, keyed by world. Separate from {@link #PLAYER}
      * because ender slot indices (0-26) overlap player container-slot indices.
      * Ender is single-viewer (your own ender, no other player can open it), so
      * it stays client-side per-player just like player slots (§0005 — anything
      * client-doable stays in IP; also works on a vanilla server without IPP).
      */
-    private static final Map<String, Set<Integer>> PER_WORLD_ENDER = new HashMap<>();
+    private static final WorldStore<Set<Integer>> ENDER = WorldStore.sortedSet(LockedSlots::save);
     /**
      * worldId -> created-slot keys ({@link CreatedSlotKey}). MenuKit: Containers
      * slots (pockets, equipment) locked by the player. Own namespace, like ender,
@@ -105,7 +117,7 @@ public final class LockedSlots {
      * Trev 2026-09-07: created slots are treated exactly like vanilla slots for
      * every lock feature.
      */
-    private static final Map<String, Set<String>> PER_WORLD_CREATED = new HashMap<>();
+    private static final WorldStore<Set<String>> CREATED = WorldStore.sortedSet(LockedSlots::save);
     /**
      * worldId -> container identity ({@code block:<dim>:<x>,<y>,<z>}, see
      * {@link ContainerIdentity}) -> locked slot indices. Placed-container locks,
@@ -114,7 +126,22 @@ public final class LockedSlots {
      * downstream provider, so IM's shared channel no longer answers for placed
      * containers while IP is present.
      */
-    private static final Map<String, Map<String, Set<Integer>>> PER_WORLD_CONTAINERS = new HashMap<>();
+    private static final WorldStore<Map<String, Set<Integer>>> CONTAINERS =
+            WorldStore.of(Collections.emptySortedMap(), LockedSlots::freezeContainers, LockedSlots::save);
+
+    /**
+     * The immutable form of one world's container locks: container keys in
+     * order, each with its locked slot indices in order. A container whose
+     * last lock was removed is dropped here, so "no locks on this chest" is
+     * never stored as an empty set, the same rule the store applies to worlds.
+     */
+    private static Map<String, Set<Integer>> freezeContainers(Map<String, Set<Integer>> byKey) {
+        java.util.TreeMap<String, Set<Integer>> out = new java.util.TreeMap<>();
+        byKey.forEach((key, slots) -> {
+            if (!slots.isEmpty()) out.put(key, Collections.unmodifiableSortedSet(new java.util.TreeSet<>(slots)));
+        });
+        return Collections.unmodifiableSortedMap(out);
+    }
 
     // Per-open-screen cache of the container key. isLockedSlot runs per slot per
     // frame; resolving the identity re-reads the tracker and a block state, so
@@ -197,13 +224,15 @@ public final class LockedSlots {
                     ? root.getAsJsonObject("perWorld")
                     : new JsonObject();
             int total = 0;
+            Set<String> worlds = new HashSet<>();
             for (var worldEntry : perWorld.entrySet()) {
                 String worldId = worldEntry.getKey();
                 JsonArray arr = worldEntry.getValue().getAsJsonArray();
                 Set<Integer> set = new HashSet<>();
                 for (var slot : arr) set.add(slot.getAsInt());
                 if (!set.isEmpty()) {
-                    PER_WORLD.put(worldId, set);
+                    PLAYER.load(worldId, set);
+                    worlds.add(worldId);
                     total += set.size();
                 }
             }
@@ -220,7 +249,8 @@ public final class LockedSlots {
                 Set<Integer> set = new HashSet<>();
                 for (var slot : arr) set.add(slot.getAsInt());
                 if (!set.isEmpty()) {
-                    PER_WORLD_ENDER.put(worldId, set);
+                    ENDER.load(worldId, set);
+                    worlds.add(worldId);
                     enderTotal += set.size();
                 }
             }
@@ -234,7 +264,8 @@ public final class LockedSlots {
                 Set<String> set = new HashSet<>();
                 for (var key : worldEntry.getValue().getAsJsonArray()) set.add(key.getAsString());
                 if (!set.isEmpty()) {
-                    PER_WORLD_CREATED.put(worldEntry.getKey(), set);
+                    CREATED.load(worldEntry.getKey(), set);
+                    worlds.add(worldEntry.getKey());
                     createdTotal += set.size();
                 }
             }
@@ -249,11 +280,14 @@ public final class LockedSlots {
                     for (var i : c.getValue().getAsJsonArray()) set.add(i.getAsInt());
                     if (!set.isEmpty()) { byKey.put(c.getKey(), set); containerTotal += set.size(); }
                 }
-                if (!byKey.isEmpty()) PER_WORLD_CONTAINERS.put(worldEntry.getKey(), byKey);
+                if (!byKey.isEmpty()) {
+                    CONTAINERS.load(worldEntry.getKey(), byKey);
+                    worlds.add(worldEntry.getKey());
+                }
             }
             InventoryPlusClient.LOGGER.info(
                     "[locked-slots] loaded {} player + {} ender + {} created + {} container entries across {} world(s) from {}",
-                    total, enderTotal, createdTotal, containerTotal, PER_WORLD.size(), path);
+                    total, enderTotal, createdTotal, containerTotal, worlds.size(), path);
         } catch (IOException | JsonSyntaxException | IllegalStateException e) {
             InventoryPlusClient.LOGGER.error(
                     "[locked-slots] failed to parse {} — starting with empty prefs",
@@ -261,11 +295,14 @@ public final class LockedSlots {
         }
     }
 
+    /**
+     * The current world's locked player slots. Immutable in every case: before
+     * 1.6.0 this returned the live set when locks existed and an immutable
+     * empty set when they did not, so a caller that mutated it would have
+     * crashed only in a world with no player locks.
+     */
     public static Set<Integer> getLockedSlots() {
-        String worldId = WorldIdentity.current(Minecraft.getInstance());
-        if (worldId == null) return Collections.emptySet();
-        Set<Integer> set = PER_WORLD.get(worldId);
-        return set != null ? set : Collections.emptySet();
+        return PLAYER.get();
     }
 
     public static boolean isLocked(int containerSlotIndex) {
@@ -455,22 +492,15 @@ public final class LockedSlots {
         return CreatedSlotKey.of(slot) != null;
     }
 
-    private static Set<String> createdSet(boolean create) {
-        String w = WorldIdentity.current(Minecraft.getInstance());
-        if (w == null) return create ? new HashSet<>() : Set.of();
-        return create ? PER_WORLD_CREATED.computeIfAbsent(w, k -> new HashSet<>()) : PER_WORLD_CREATED.getOrDefault(w, Set.of());
-    }
-
     public static boolean isCreatedLocked(Slot slot) {
         String key = CreatedSlotKey.of(slot);
-        return key != null && createdSet(false).contains(key);
+        return key != null && CREATED.get().contains(key);
     }
 
     public static void setCreatedLocked(Slot slot, boolean locked) {
         String key = CreatedSlotKey.of(slot);
         if (key == null) return;
-        boolean changed = locked ? createdSet(true).add(key) : createdSet(true).remove(key);
-        if (changed) save();
+        CREATED.modify(set -> WorldStore.withElement(set, key, locked));
     }
 
     public static void toggleCreated(Slot slot) {
@@ -508,32 +538,28 @@ public final class LockedSlots {
         }
         if (size < 0) return;
         final int cap = size;   // effectively final for the lambda
-        Map<String, Set<Integer>> world = containerMap(false);
-        Set<Integer> set = world.get(key);
-        if (set == null) return;
-        int before = set.size();
-        set.removeIf(i -> i >= cap);
-        if (set.isEmpty()) world.remove(key);
-        if (set.size() != before) {
-            InventoryPlusClient.LOGGER.info("[locked-slots] pruned {} container lock(s) at {} (capacity {})", before - set.size(), key, size);
-            save();
-        }
+        Set<Integer> locked = CONTAINERS.get().get(key);
+        if (locked == null) return;   // nothing locked in this container, nothing to prune
+        Set<Integer> kept = new HashSet<>();
+        for (int i : locked) if (i < cap) kept.add(i);
+        if (kept.size() == locked.size()) return;
+        // freezeContainers drops the key entirely if nothing was kept.
+        CONTAINERS.modify(byKey -> WorldStore.withEntry(byKey, key, kept));
+        InventoryPlusClient.LOGGER.info("[locked-slots] pruned {} container lock(s) at {} (capacity {})",
+                locked.size() - kept.size(), key, cap);
     }
 
     /** Forget every lock on the container at {@code pos}. Called when the local player breaks it. */
     public static void pruneContainerAt(String key) {
-        Map<String, Set<Integer>> world = containerMap(false);
-        if (world.remove(key) != null) {
+        // Called on every block the local player breaks. In 1.5.0 to 1.6.0 this
+        // removed from a read-only view that was Map.of() in any world with no
+        // container locks, and crashed. Writing through the store cannot: the
+        // modifier builds a new value, and an unchanged value is not saved.
+        Map<String, Set<Integer>> previous = CONTAINERS.modify(byKey -> WorldStore.withoutKey(byKey, key));
+        if (previous.containsKey(key)) {
             InventoryPlusClient.LOGGER.info("[locked-slots] container broken, dropped its locks: {}", key);
             if (key.equals(cachedContainerKey)) cachedContainerKey = null;
-            save();
         }
-    }
-
-    private static Map<String, Set<Integer>> containerMap(boolean create) {
-        String w = WorldIdentity.current(Minecraft.getInstance());
-        if (w == null) return create ? new HashMap<>() : Map.of();
-        return create ? PER_WORLD_CONTAINERS.computeIfAbsent(w, k -> new HashMap<>()) : PER_WORLD_CONTAINERS.getOrDefault(w, Map.of());
     }
 
     /**
@@ -566,18 +592,16 @@ public final class LockedSlots {
     public static boolean isContainerLocked(Slot slot) {
         String key = containerKeyFor(slot);
         if (key == null) return false;
-        Set<Integer> set = containerMap(false).get(key);
+        Set<Integer> set = CONTAINERS.get().get(key);
         return set != null && set.contains(slot.getContainerSlot());
     }
 
     public static void setContainerLocked(Slot slot, boolean locked) {
         String key = currentContainerKey();
         if (key == null) return;
-        Map<String, Set<Integer>> world = containerMap(true);
-        Set<Integer> set = world.computeIfAbsent(key, k -> new HashSet<>());
-        boolean changed = locked ? set.add(slot.getContainerSlot()) : set.remove(slot.getContainerSlot());
-        if (set.isEmpty()) world.remove(key);
-        if (changed) save();
+        int index = slot.getContainerSlot();
+        CONTAINERS.modify(byKey -> WorldStore.withEntry(byKey, key,
+                WorldStore.withElement(byKey.getOrDefault(key, Set.of()), index, locked)));
     }
 
     public static void toggleContainer(Slot slot) {
@@ -613,37 +637,17 @@ public final class LockedSlots {
 
     /** True if the given ender slot index is locked in the current world. */
     public static boolean isEnderLocked(int enderSlotIndex) {
-        String worldId = WorldIdentity.current(Minecraft.getInstance());
-        if (worldId == null) return false;
-        Set<Integer> set = PER_WORLD_ENDER.get(worldId);
-        return set != null && set.contains(enderSlotIndex);
+        return ENDER.get().contains(enderSlotIndex);
     }
 
     /** Flips the lock on an ender slot in the current world and persists. */
     public static void toggleEnder(int enderSlotIndex) {
-        String worldId = WorldIdentity.current(Minecraft.getInstance());
-        if (worldId == null) {
-            InventoryPlusClient.LOGGER.debug(
-                    "[locked-slots] ender toggle with no world id — not persisting");
-            return;
-        }
-        Set<Integer> set = PER_WORLD_ENDER.computeIfAbsent(worldId, k -> new HashSet<>());
-        // remove() returns false if it wasn't present → then add it.
-        if (!set.remove(enderSlotIndex)) set.add(enderSlotIndex);
-        save();
+        ENDER.modify(set -> WorldStore.withElement(set, enderSlotIndex, !set.contains(enderSlotIndex)));
     }
 
     /** Coerces an ender slot to the given lock state (used by the drag controller). */
     public static void setEnderLocked(int enderSlotIndex, boolean locked) {
-        String worldId = WorldIdentity.current(Minecraft.getInstance());
-        if (worldId == null) {
-            InventoryPlusClient.LOGGER.debug(
-                    "[locked-slots] ender setLocked with no world id — not persisting");
-            return;
-        }
-        Set<Integer> set = PER_WORLD_ENDER.computeIfAbsent(worldId, k -> new HashSet<>());
-        boolean changed = locked ? set.add(enderSlotIndex) : set.remove(enderSlotIndex);
-        if (changed) save();
+        ENDER.modify(set -> WorldStore.withElement(set, enderSlotIndex, locked));
     }
 
     public static void toggle(Slot slot) {
@@ -652,20 +656,7 @@ public final class LockedSlots {
     }
 
     public static void toggleByContainerSlot(int containerSlotIndex) {
-        String worldId = WorldIdentity.current(Minecraft.getInstance());
-        if (worldId == null) {
-            InventoryPlusClient.LOGGER.debug(
-                    "[locked-slots] toggle with no world id — not persisting");
-            return;
-        }
-        Set<Integer> set = PER_WORLD.computeIfAbsent(worldId, k -> new HashSet<>());
-        boolean wasLocked = set.contains(containerSlotIndex);
-        if (wasLocked) {
-            set.remove(containerSlotIndex);
-        } else {
-            set.add(containerSlotIndex);
-        }
-        save();
+        PLAYER.modify(set -> WorldStore.withElement(set, containerSlotIndex, !set.contains(containerSlotIndex)));
     }
 
     /**
@@ -675,15 +666,7 @@ public final class LockedSlots {
      * No-op if the slot is already at the target state.
      */
     public static void setLocked(int containerSlotIndex, boolean locked) {
-        String worldId = WorldIdentity.current(Minecraft.getInstance());
-        if (worldId == null) {
-            InventoryPlusClient.LOGGER.debug(
-                    "[locked-slots] setLocked with no world id — not persisting");
-            return;
-        }
-        Set<Integer> set = PER_WORLD.computeIfAbsent(worldId, k -> new HashSet<>());
-        boolean changed = locked ? set.add(containerSlotIndex) : set.remove(containerSlotIndex);
-        if (changed) save();
+        PLAYER.modify(set -> WorldStore.withElement(set, containerSlotIndex, locked));
     }
 
     private static void save() {
@@ -693,36 +676,36 @@ public final class LockedSlots {
             JsonObject root = new JsonObject();
             root.addProperty("version", CURRENT_VERSION);
             JsonObject perWorld = new JsonObject();
-            for (var entry : PER_WORLD.entrySet()) {
+            PLAYER.forEachWorld((world, set) -> {
                 JsonArray arr = new JsonArray();
-                for (Integer i : entry.getValue()) arr.add(i);
-                perWorld.add(entry.getKey(), arr);
-            }
+                for (Integer i : set) arr.add(i);
+                perWorld.add(world, arr);
+            });
             root.add("perWorld", perWorld);
             JsonObject enderPerWorld = new JsonObject();
-            for (var entry : PER_WORLD_ENDER.entrySet()) {
+            ENDER.forEachWorld((world, set) -> {
                 JsonArray arr = new JsonArray();
-                for (Integer i : entry.getValue()) arr.add(i);
-                enderPerWorld.add(entry.getKey(), arr);
-            }
+                for (Integer i : set) arr.add(i);
+                enderPerWorld.add(world, arr);
+            });
             root.add("enderPerWorld", enderPerWorld);
             JsonObject createdPerWorld = new JsonObject();
-            for (var entry : PER_WORLD_CREATED.entrySet()) {
+            CREATED.forEachWorld((world, set) -> {
                 JsonArray arr = new JsonArray();
-                for (String key : entry.getValue()) arr.add(key);
-                createdPerWorld.add(entry.getKey(), arr);
-            }
+                for (String key : set) arr.add(key);
+                createdPerWorld.add(world, arr);
+            });
             root.add("createdPerWorld", createdPerWorld);
             JsonObject containersPerWorld = new JsonObject();
-            for (var world : PER_WORLD_CONTAINERS.entrySet()) {
+            CONTAINERS.forEachWorld((world, containers) -> {
                 JsonObject byKey = new JsonObject();
-                for (var c : world.getValue().entrySet()) {
+                containers.forEach((key, slots) -> {
                     JsonArray arr = new JsonArray();
-                    for (Integer i : c.getValue()) arr.add(i);
-                    byKey.add(c.getKey(), arr);
-                }
-                containersPerWorld.add(world.getKey(), byKey);
-            }
+                    for (Integer i : slots) arr.add(i);
+                    byKey.add(key, arr);
+                });
+                containersPerWorld.add(world, byKey);
+            });
             root.add("containersPerWorld", containersPerWorld);
             Files.writeString(path, GSON.toJson(root));
         } catch (IOException e) {
