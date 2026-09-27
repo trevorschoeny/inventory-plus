@@ -81,7 +81,7 @@ public final class SettingsMenu extends MKScreen {
                 .align(Tabs.Align.LEFT)
                 .selected(() -> selectedTab, id -> selectedTab = id)
                 .tab(tab(GENERAL, "General").body(() -> SettingsTabs.general(max)))
-                .tab(tab("moving_items", "Moving Items").body(SettingsTabs::movingItems))
+                .tab(tab("moving_items", "Moving Items").body(() -> SettingsTabs.movingItems(max)))
                 .tab(tab("sort", "Sort").body(SettingsTabs::sort))
                 .tab(tab("move_matching", "Move Matching").body(SettingsTabs::moveMatching))
                 .tab(tab("restock", "Restock").body(SettingsTabs::restock))

@@ -113,7 +113,7 @@ final class SettingsTabs {
      * narrow it (Trev, 2026-09-26), so a box vanilla never allows will show
      * greyed once MenuKit publishes vanilla's per-category rules.
      */
-    static List<PanelElement> movingItems() {
+    static List<PanelElement> movingItems(boolean maxInstalled) {
         List<Component> groups = slotGroups();
         SettingsBody b = new SettingsBody()
                 .line("Choose which slot groups each of vanilla's item moves may use. A cleared box means the move never touches those groups.");
@@ -127,11 +127,12 @@ final class SettingsTabs {
         b.buttons("+ New group")
                 .checkbox("Show the lock button", true);
 
-        // Client-side container locks are always on; the server copy is a
-        // MenuKit Containers feature still to be built.
-        b.heading("Container locks")
-                .line("Locks on chest and other container slots are always kept on your computer.")
-                .checkbox("Also keep them on the server (needs MenuKit Containers there)", false);
+        // Container locks are Inventory Max's. Kept on the client always; the
+        // server copy is an option still to be built.
+        b.heading("Container locks");
+        if (!maxInstalled) b.line("Install Inventory Max to lock slots in chests and other containers.");
+        b.line("Locks on chest and other container slots are always kept on your computer.")
+                .checkbox("Also keep them on the server (needs Inventory Max there)", false);
 
         b.heading("Moves");
         for (BehaviorKey<?> op : SlotOperations.all()) {
@@ -142,7 +143,7 @@ final class SettingsTabs {
             boolean open = op == BehaviorKeys.SHIFT_CLICK_IN;
             b.section(SlotOperations.name(op).getString(), summary(op, groups), open);
             if (!open) continue;
-            b.line(12, SlotOperations.description(op)).reach(null, places(op.id().toString(), groups));
+            b.line(12, SlotOperations.description(op)).reach(null, places(op.id().toString()));
             b.row(y -> List.of(
                     new Button(12, y, 110, 16, Component.literal("Revert to default"), btn -> {}, () -> true),
                     new Button(126, y, 70, 16, Component.literal("Priority…"),
@@ -168,7 +169,7 @@ final class SettingsTabs {
     static List<PanelElement> sort() {
         SettingsBody b = new SettingsBody();
         onOff(b, "Use Sort", true);
-        b.heading("Reach").reach(null, places("inventoryplus:sort", slotGroups()));
+        b.heading("Reach").reach(null, places("inventoryplus:sort"));
         b.heading("Button").checkbox("Show the Sort buttons", true);
         b.heading("Keys").key(IPKeybinds.SORT);
         b.heading("Options").line("Sort has nothing else to set yet.");
@@ -179,8 +180,8 @@ final class SettingsTabs {
         SettingsBody b = new SettingsBody();
         onOff(b, "Use Move Matching", true);
         b.heading("Reach")
-                .reach("Out", places("inventoryplus:move_matching_out", slotGroups()))
-                .reach("In", places("inventoryplus:move_matching_in", slotGroups()));
+                .reach("Out", places("inventoryplus:move_matching_out"))
+                .reach("In", places("inventoryplus:move_matching_in"));
         b.heading("Button").checkbox("Show the Move Matching buttons", true);
         b.heading("Keys")
                 .key(IPKeybinds.MOVE_MATCHING_OUT)
@@ -192,12 +193,11 @@ final class SettingsTabs {
     static List<PanelElement> restock() {
         SettingsBody b = new SettingsBody();
         onOff(b, "Use Restock", true);
-        List<Component> takesFrom = new ArrayList<>(slotGroups());
-        takesFrom.addAll(List.of(Component.literal("Shulker boxes"), Component.literal("Bundles"),
-                Component.literal("Ender chest")));
+        List<Component> containers = List.of(Component.literal("Shulker boxes"), Component.literal("Bundles"),
+                Component.literal("Ender chest"));
         b.heading("Reach")
-                .reach("Takes from", places("inventoryplus:restock_take", takesFrom))
-                .reach("Fills", places("inventoryplus:restock_put", slotGroups()));
+                .reach("Takes from", places("inventoryplus:restock_take", containers))
+                .reach("Fills", places("inventoryplus:restock_put"));
         b.heading("Keys").line("Restock has no keys.");
         b.heading("Options")
                 .checkbox("Armor restock", true)
@@ -215,7 +215,7 @@ final class SettingsTabs {
     static List<PanelElement> autoToolSwitch() {
         SettingsBody b = new SettingsBody();
         onOff(b, "Use Auto Tool Switch", false);
-        b.heading("Reach").reach(null, places("inventoryplus:auto_tool_switch", slotGroups()));
+        b.heading("Reach").reach(null, places("inventoryplus:auto_tool_switch"));
         b.heading("Keys").key(IPKeybinds.AUTO_SWITCH_RETURN);
         b.heading("Options")
                 .checkbox("Use locked items", true)
@@ -232,7 +232,7 @@ final class SettingsTabs {
     static List<PanelElement> columnCycler() {
         SettingsBody b = new SettingsBody();
         onOff(b, "Use Column Cycler", false);
-        b.heading("Reach").reach(null, places("inventoryplus:column_cycle", List.of()));
+        b.heading("Reach").reach(null, lockPlaces("inventoryplus:column_cycle"));
         b.heading("Button").checkbox("Show the Column Cycler button", true);
         b.heading("Keys")
                 .key(IPKeybinds.CYCLE_SLOT)
@@ -248,7 +248,7 @@ final class SettingsTabs {
     static List<PanelElement> hotbarCycler() {
         SettingsBody b = new SettingsBody();
         onOff(b, "Use Hotbar Cycler", false);
-        b.heading("Reach").reach(null, places("inventoryplus:hotbar_cycle", List.of()));
+        b.heading("Reach").reach(null, lockPlaces("inventoryplus:hotbar_cycle"));
         b.heading("Button").checkbox("Show the row buttons", true);
         b.heading("Keys")
                 .key(IPKeybinds.HOTBAR_CYCLE_FORWARD)
@@ -301,15 +301,35 @@ final class SettingsTabs {
     }
 
     /**
-     * One operation's reach list: the slot groups, all on (vanilla's default,
-     * until MenuKit publishes vanilla's rules), then the lock groups that
-     * apply, each on unless it stops the operation. A slot is reached only if
-     * every group it is in is checked, so a lock group's cleared box is the
-     * lock.
+     * One operation's reach list, in the order Trev set (2026-09-27): vanilla's
+     * slot groups, then the lock groups, then groups other mods added
+     * (Inventory Max's included), then any {@code extras} the feature reaches
+     * beyond slot groups. Slot groups start on (vanilla's default, until
+     * MenuKit publishes vanilla's rules); a lock group starts on unless it
+     * stops the operation. A slot is reached only if every group it is in is
+     * checked, so a lock group's cleared box is the lock.
      */
-    private static List<SettingsBody.Place> places(String operation, List<Component> slotGroups) {
+    private static List<SettingsBody.Place> places(String operation, List<Component> extras) {
+        List<SlotGroups.Entry> listing = SlotGroups.listing();
         List<SettingsBody.Place> out = new ArrayList<>();
-        for (Component name : slotGroups) out.add(new SettingsBody.Place(name, true));
+        for (SlotGroups.Entry e : listing) {
+            if (e.source() == null) out.add(new SettingsBody.Place(e.name(), true));
+        }
+        out.addAll(lockPlaces(operation));
+        for (SlotGroups.Entry e : listing) {
+            if (e.source() != null) out.add(new SettingsBody.Place(groupLabel(e), true));
+        }
+        for (Component extra : extras) out.add(new SettingsBody.Place(extra, true));
+        return out;
+    }
+
+    private static List<SettingsBody.Place> places(String operation) {
+        return places(operation, List.of());
+    }
+
+    /** The lock groups that apply to {@code operation}, each on unless it stops it. */
+    private static List<SettingsBody.Place> lockPlaces(String operation) {
+        List<SettingsBody.Place> out = new ArrayList<>();
         boolean putOnly = role(operation) == SlotOperations.Role.PUT;
         for (LockGroup g : lockGroups()) {
             if (g.takeOnly() && putOnly) continue;
