@@ -86,7 +86,7 @@ final class SettingsTabs {
      */
     private record LockGroup(String name, String kind, Set<String> stops, @Nullable KeyMapping key) {}
 
-    private static List<LockGroup> lockGroups() {
+    private static List<LockGroup> lockGroupList() {
         return List.of(
                 new LockGroup("Slot lock", "Slot", SLOT_LOCK_STOPS, IPKeybinds.LOCK_SLOT),
                 // A group's own key needs Keybindery's runtime bindings (agreed,
@@ -98,7 +98,7 @@ final class SettingsTabs {
 
     static List<PanelElement> general(boolean maxInstalled) {
         SettingsBody b = new SettingsBody()
-                .line("This menu is a first look. Nothing in it saves yet.");
+                .line("Greyed settings aren't built yet.");
         b.heading("Presets")
                 .line("Keep your settings in a file, or share them by pasting.")
                 .buttons("Save to file", "Load from file")
@@ -122,26 +122,20 @@ final class SettingsTabs {
         return b.build();
     }
 
-    // ── Moving Items ────────────────────────────────────────────────────
+    // ── Lock groups ─────────────────────────────────────────────────────
 
     /**
-     * One collapsible section per vanilla operation: the slot groups it may
-     * use, a revert to vanilla's default, and for shift-click in, the order it
-     * fills them in. Defaults are vanilla's own behaviour; the tab can only
-     * narrow it (Trev, 2026-09-26), so a box vanilla never allows will show
-     * greyed once MenuKit publishes vanilla's per-category rules.
+     * The lock groups themselves: one collapsible section per group, adding a
+     * new one, the lock button toggle, the global cycler-lock switch, and
+     * Container locks. Split out of Moving Items (Designer/Trev, 2026-09-27)
+     * once that tab held five kinds of thing; what a group *stops* stays in
+     * each operation's reach below, in Moving Items — this tab only manages
+     * the groups.
      */
-    static List<PanelElement> movingItems(boolean maxInstalled) {
-        List<Component> groups = slotGroups();
+    static List<PanelElement> lockGroups(boolean maxInstalled) {
         SettingsBody b = new SettingsBody()
-                .line("Choose which slot groups each of vanilla's item moves may use. A cleared box means the move never touches those groups.");
-
-        // Lock groups are groups the player fills: listed here, then offered
-        // in every move's list beside MenuKit's groups (Trev, 2026-09-27). They
-        // are not in MenuKit's slot group registry; Inventory Plus owns them.
-        b.heading("Lock groups")
                 .line("Groups you fill yourself: press a group's key on a slot to add it or take it out.");
-        for (LockGroup g : lockGroups()) lockGroupSection(b, g);
+        for (LockGroup g : lockGroupList()) lockGroupSection(b, g);
         // A new group picks its kind up front; the defaults cover Slot and
         // Exact item, and Item (every item of a type) is only ever custom
         // (lock-groups.md).
@@ -159,6 +153,24 @@ final class SettingsTabs {
         if (!maxInstalled) b.line("Install Inventory Max to lock slots in chests and other containers.");
         b.line("Locks on chest and other container slots are always kept on your computer.")
                 .checkbox("Also keep them on the server (needs Inventory Max there)", false);
+        return b.build();
+    }
+
+    // ── Moving Items ────────────────────────────────────────────────────
+
+    /**
+     * One collapsible section per vanilla operation: the slot groups and lock
+     * groups it may use, a revert to vanilla's default, and for shift-click
+     * in, the order it fills them in. Defaults are vanilla's own behaviour;
+     * the tab can only narrow it (Trev, 2026-09-26), so a box vanilla never
+     * allows will show greyed once MenuKit publishes vanilla's per-category
+     * rules. Lock groups themselves live in their own tab; clearing one's box
+     * here is how it stops a move.
+     */
+    static List<PanelElement> movingItems() {
+        List<Component> groups = slotGroups();
+        SettingsBody b = new SettingsBody()
+                .line("Choose which slot groups and lock groups each of vanilla's item moves may use. A cleared box means the move never touches that group.");
 
         b.heading("Moves");
         for (BehaviorKey<?> op : SlotOperations.all()) {
@@ -419,7 +431,7 @@ final class SettingsTabs {
     /** The lock groups that apply to {@code operation}, each on unless it stops it. */
     private static List<SettingsBody.Place> lockPlaces(String operation) {
         List<SettingsBody.Place> out = new ArrayList<>();
-        for (LockGroup g : lockGroups()) {
+        for (LockGroup g : lockGroupList()) {
             out.add(new SettingsBody.Place(Component.literal(g.name() + " (lock group)"),
                     !g.stops().contains(operation)));
         }
@@ -430,7 +442,7 @@ final class SettingsTabs {
     private static String summary(BehaviorKey<?> op, List<Component> slotGroups) {
         String reach = slotGroups.size() + " of " + slotGroups.size() + " slot groups";
         List<String> stoppedBy = new ArrayList<>();
-        for (LockGroup g : lockGroups()) {
+        for (LockGroup g : lockGroupList()) {
             if (g.stops().contains(op.id().toString())) stoppedBy.add(g.name());
         }
         return stoppedBy.isEmpty() ? reach : reach + " · stopped by " + String.join(", ", stoppedBy);
