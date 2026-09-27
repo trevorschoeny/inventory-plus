@@ -195,15 +195,8 @@ public final class IPConfigScreen {
                         "Cycle slots are automatically and always locked while they're in the cycle. "
                         + "When this is off, cycle and lock are fully independent and can be "
                         + "toggled separately.")))
-                .binding(true, IPConfig::cycleSlotsLocked, v -> {
-                    boolean wasOn = IPConfig.cycleSlotsLocked();
-                    IPConfig.setCycleSlotsLocked(v);
-                    if (v && !wasOn) {
-                        // OFF → ON: retroactively lock cycle slots that got
-                        // unlocked while the config was off.
-                        ColumnCycler.enforceCycleLockingInvariant();
-                    }
-                })
+                // OFF → ON re-locks cycle slots unlocked while it was off.
+                .binding(true, IPConfig::cycleSlotsLocked, ColumnCycler::setCycleSlotsLocked)
                 .controller(BooleanControllerBuilder::create)
                 .build();
         Option<Boolean> scrollToCycle = booleanOption(

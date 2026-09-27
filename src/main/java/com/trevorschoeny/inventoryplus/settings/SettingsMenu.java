@@ -30,7 +30,8 @@ import java.util.List;
  * <p>Opened from the dot button on the inventory toolbar, the Open settings
  * key, and Mod Menu. Closing returns to the screen it was opened from.
  *
- * <p>Scaffold stage: the tab bodies are placeholders ({@link SettingsTabs}).
+ * <p>Half wired: controls with a real setting behind them work; the rest are
+ * greyed placeholders ({@link SettingsBody}).
  */
 public final class SettingsMenu extends MKScreen {
 

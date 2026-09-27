@@ -21,8 +21,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.IntConsumer;
 import java.util.function.IntFunction;
+import java.util.function.IntSupplier;
+import java.util.function.Supplier;
 
 /**
  * Lays out one settings tab's body top to bottom: section headings, lines of
@@ -30,11 +34,10 @@ import java.util.function.IntFunction;
  * elements positioned from the body's top-left, so this class only keeps a
  * running {@code y} and hands out rows.
  *
- * <p><b>Scaffold stage.</b> Every control here is disabled and wired to
- * nothing: it shows a setting's shape and its current default, and neither
- * reads nor writes config. The exceptions already work:
- * {@link #button(String, Runnable)} (the old settings screen) and keys, which
- * are Keybindery's and save themselves.
+ * <p><b>Half wired.</b> A control with a real setting behind it reads that
+ * setting every frame and saves on change ({@link Bool}, choices, sliders,
+ * and keys, which are Keybindery's). A control whose setting does not exist
+ * yet is a {@link Bool#placeholder}: it shows its planned default, greyed.
  *
  * <p>A {@code greyed} body is an Inventory Max stand-in: headings and text are
  * drawn in the disabled grey as well, so the whole tab reads as unavailable.
@@ -127,17 +130,39 @@ final class SettingsBody {
     // ── Placeholder controls (all disabled) ─────────────────────────────
 
     /**
-     * A feature's top row: its on/off switch, the toggle for its screen
-     * button (when it has one), and its keys, flowing left to right and
-     * wrapping when the body is narrow.
-     *
-     * <p>Each key is Keybindery's {@link ChordButton}, labelled with the
-     * key's name.
+     * A boolean setting as a control sees it: where it reads, where it
+     * writes, and when it is greyed. The control reads {@code get} every
+     * frame, so a setting changed elsewhere (another tab, the old screen, a
+     * setter that turns a sibling off) shows at once.
      */
-    SettingsBody topRow(String useLabel, boolean on, String showButtonLabel, KeyMapping... keys) {
+    record Bool(BooleanSupplier get, Consumer<Boolean> set, BooleanSupplier unavailable) {
+
+        /** A real setting, always available. */
+        static Bool of(BooleanSupplier get, Consumer<Boolean> set) {
+            return new Bool(get, set, () -> false);
+        }
+
+        /** The same setting, greyed while {@code available} is false (its parent is off). */
+        Bool onlyWhen(BooleanSupplier available) {
+            return new Bool(get, set, () -> !available.getAsBoolean());
+        }
+
+        /** A control with no setting behind it yet: shows {@code value}, always greyed. */
+        static Bool placeholder(boolean value) {
+            return new Bool(() -> value, v -> {}, DISABLED);
+        }
+    }
+
+    /**
+     * A feature's top row: its on/off switch, the toggle for its screen
+     * button, and its keys, flowing left to right and wrapping when the body
+     * is narrow. Each key is Keybindery's {@link ChordButton}, labelled with
+     * the key's name.
+     */
+    SettingsBody topRow(String useLabel, Bool use, String showButtonLabel, Bool showButton, KeyMapping... keys) {
         List<PanelElement> keyButtons = new ArrayList<>();
         for (KeyMapping key : keys) keyButtons.add(keyButton(key));
-        return topRow(useLabel, on, showButtonLabel, keyButtons);
+        return topRow(useLabel, use, showButtonLabel, showButton, keyButtons);
     }
 
     /**
@@ -149,31 +174,39 @@ final class SettingsBody {
         for (Component key : keys) {
             keyButtons.add(new Button(0, 0, Minecraft.getInstance().font.width(key) + 12, 16, key, b -> {}, DISABLED));
         }
-        return topRow(useLabel, on, showButtonLabel, keyButtons);
+        return topRow(useLabel, Bool.placeholder(on), showButtonLabel, Bool.placeholder(true), keyButtons);
     }
 
-    private SettingsBody topRow(String useLabel, boolean on, String showButtonLabel, List<PanelElement> keys) {
+    private SettingsBody topRow(String useLabel, Bool use, String showButtonLabel, Bool showButton,
+                                List<PanelElement> keys) {
         List<PanelElement> row = new ArrayList<>();
-        row.add(new Toggle(0, 0, 40, 14, on, v -> {}, DISABLED).label(Component.literal(useLabel)));
+        row.add(Toggle.linked(0, 0, 40, 14, use.get(), use.set(), use.unavailable())
+                .label(Component.literal(useLabel)));
         // Every feature has a button in the inventory (Trev, 2026-09-27).
-        row.add(new Checkbox(0, 0, true, Component.literal(showButtonLabel), v -> {}, DISABLED));
+        row.add(Checkbox.linked(0, 0, showButton.get(), Component.literal(showButtonLabel),
+                showButton.set(), showButton.unavailable()));
         row.addAll(keys);
         out.add(Flow.of(row).gap(10, 4).at(0, y));
         y += CONTROL_ROW;
         return this;
     }
 
-    SettingsBody checkbox(String label, boolean on) {
-        return checkbox(0, label, on);
+    SettingsBody checkbox(String label, Bool setting) {
+        return checkbox(0, label, setting);
     }
 
     /** A sub-setting, indented under the setting it belongs to. */
-    SettingsBody subCheckbox(String label, boolean on) {
-        return checkbox(INDENT, label, on);
+    SettingsBody subCheckbox(String label, Bool setting) {
+        return checkbox(INDENT, label, setting);
     }
 
-    private SettingsBody checkbox(int x, String label, boolean on) {
-        out.add(new Checkbox(x, y, on, Component.literal(label), v -> {}, DISABLED));
+    /** A checkbox with no setting behind it yet, shown at {@code on} and greyed. */
+    SettingsBody checkbox(String label, boolean on) {
+        return checkbox(0, label, Bool.placeholder(on));
+    }
+
+    private SettingsBody checkbox(int x, String label, Bool setting) {
+        out.add(Checkbox.linked(x, y, setting.get(), Component.literal(label), setting.set(), setting.unavailable()));
         y += TEXT_ROW + 2;
         return this;
     }
@@ -223,14 +256,13 @@ final class SettingsBody {
         return section(title, summary, false);
     }
 
-    /** A row of disabled buttons. */
+    /** A row of disabled buttons, wrapping when the body is narrow. */
     SettingsBody buttons(String... labels) {
-        int x = 0;
+        List<PanelElement> row = new ArrayList<>();
         for (String label : labels) {
-            int w = width(label);
-            out.add(new Button(x, y, w, 16, Component.literal(label), b -> {}, DISABLED));
-            x += w + 4;
+            row.add(new Button(0, 0, width(label), 16, Component.literal(label), b -> {}, DISABLED));
         }
+        out.add(Flow.of(row).gap(4, 4).at(0, y));
         y += CONTROL_ROW;
         return this;
     }
@@ -242,8 +274,13 @@ final class SettingsBody {
         return this;
     }
 
-    /** A setting with a few named values, shown on its current one. */
-    <T> SettingsBody choice(String label, List<T> values, Function<T, String> name, T current) {
+    /**
+     * A setting with a few named values, bound to its config: the dropdown
+     * reads {@code get} every frame and hands a pick to {@code set}, which
+     * saves. {@code unavailable} greys it while a parent setting is off.
+     */
+    <T> SettingsBody choice(String label, List<T> values, Function<T, String> name,
+                            Supplier<T> get, Consumer<T> set, BooleanSupplier unavailable) {
         int labelW = Minecraft.getInstance().font.width(label);
         out.add(new TextLabel(INDENT, y + 4, Component.literal(label), greyed ? GREYED_COLOR : TEXT_COLOR, false));
         out.add(Dropdown.<T>builder()
@@ -251,21 +288,32 @@ final class SettingsBody {
                 .triggerSize(110, 16)
                 .items(values)
                 .label(v -> Component.literal(name.apply(v)))
-                .selection(() -> current, v -> {})
-                .disabledWhen(DISABLED)
+                .selection(get, set)
+                .disabledWhen(unavailable)
                 .build());
         y += CONTROL_ROW;
         return this;
     }
 
-    /** A whole-number setting on a slider, shown at its current value. */
-    SettingsBody slider(String label, int min, int max, int value) {
+    /** A dropdown shown at a fixed value and disabled (an Inventory Max stand-in). */
+    <T> SettingsBody choice(String label, List<T> values, Function<T, String> name, T current) {
+        return choice(label, values, name, () -> current, v -> {}, DISABLED);
+    }
+
+    /**
+     * A whole-number setting on a slider, bound to its config the same way.
+     *
+     * <p>ponytail: every drag step calls {@code set}, and so saves the config
+     * file; fine for a small JSON file. Save on release if it ever shows.
+     */
+    SettingsBody slider(String label, int min, int max, IntSupplier get, IntConsumer set, BooleanSupplier unavailable) {
         out.add(Slider.builder()
                 .at(0, y)
                 .size(180, 16)
-                .value(() -> (value - min) / (double) (max - min), v -> {})
-                .label(v -> Component.literal(label + ": " + value))
-                .disabledWhen(DISABLED)
+                .value(() -> (get.getAsInt() - min) / (double) (max - min),
+                        v -> set.accept(min + (int) Math.round(v * (max - min))))
+                .label(v -> Component.literal(label + ": " + get.getAsInt()))
+                .disabledWhen(unavailable)
                 .build());
         y += CONTROL_ROW;
         return this;

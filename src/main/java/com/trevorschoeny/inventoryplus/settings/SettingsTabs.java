@@ -2,8 +2,12 @@ package com.trevorschoeny.inventoryplus.settings;
 
 import com.trevorschoeny.inventoryplus.autotoolswitch.AutoSwitchReturnMode;
 import com.trevorschoeny.inventoryplus.autotoolswitch.WeaponPreference;
+import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
+import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
+import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPConfigScreen;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
+import com.trevorschoeny.inventoryplus.settings.SettingsBody.Bool;
 
 import com.trevlar.menukit.core.Button;
 import com.trevlar.menukit.core.Divider;
@@ -31,9 +35,9 @@ import java.util.Set;
  * The body of every settings tab, as placeholders (plan: Leadership drive,
  * {@code mods/inventory-plus/plans/settings-menu.md}).
  *
- * <p>Nothing here reads or writes config. Each control shows its setting's
- * default, so the screen reads true for a fresh install, and every control is
- * disabled. The feature tabs share one section order: on/off, reach (slot
+ * <p>Controls with a real setting behind them read and write it live;
+ * the rest are greyed placeholders showing their planned default (see
+ * {@link SettingsBody}). The feature tabs share one section order: on/off, reach (slot
  * groups, then lock groups), button, keys, then the feature's own options.
  *
  * <p>The three Inventory Max bodies are Inventory Plus's own copy, drawn from
@@ -138,8 +142,16 @@ final class SettingsTabs {
                 .line("Groups you fill yourself: press a group's key on a slot to add it or take it out.");
         // Slot lock is drawn open, as shift-click in is below (SettingsBody.section).
         for (LockGroup g : lockGroups()) lockGroupSection(b, g, g.name().equals("Slot lock"));
-        b.buttons("+ New group")
-                .checkbox("Show the lock button", true);
+        // A new group picks its kind up front; the defaults cover Slot and
+        // Exact item, and Item (every item of a type) is only ever custom
+        // (lock-groups.md).
+        b.buttons("+ New slot group", "+ New item group", "+ New exact item group")
+                .checkbox("Show the lock button", Bool.of(IPConfig::lockedSlotsShowButton, IPConfig::setLockedSlotsShowButton))
+                // One switch for every cycler (columns, hotbar rows, pockets):
+                // cycleSlotsLocked is global, so it lives with the locks, not in
+                // one cycler's tab.
+                .checkbox("Lock the slots the cyclers use",
+                        Bool.of(IPConfig::cycleSlotsLocked, ColumnCycler::setCycleSlotsLocked));
 
         // Container locks are Inventory Max's. Kept on the client always; the
         // server copy is an option still to be built.
@@ -196,7 +208,9 @@ final class SettingsTabs {
 
     static List<PanelElement> sort() {
         SettingsBody b = new SettingsBody()
-                .topRow("Use Sort", true, "Show the Sort button", IPKeybinds.SORT);
+                .topRow("Use Sort", Bool.placeholder(true),
+                        "Show the Sort button", Bool.of(IPConfig::sortShowButton, IPConfig::setSortShowButton),
+                        IPKeybinds.SORT);
         b.heading("Options").line("Sort has nothing else to set yet.");
         b.reachSection("Reach", places("inventoryplus:sort", IN_INVENTORY));
         return b.build();
@@ -204,7 +218,8 @@ final class SettingsTabs {
 
     static List<PanelElement> moveMatching() {
         SettingsBody b = new SettingsBody()
-                .topRow("Use Move Matching", true, "Show the Move Matching buttons",
+                .topRow("Use Move Matching", Bool.placeholder(true), "Show the Move Matching buttons",
+                        Bool.of(IPConfig::moveMatchingShowButtons, IPConfig::setMoveMatchingShowButtons),
                         IPKeybinds.MOVE_MATCHING_OUT, IPKeybinds.MOVE_MATCHING_IN);
         // Where Move Matching puts items first: the places it may put into,
         // in-inventory containers included.
@@ -223,35 +238,69 @@ final class SettingsTabs {
 
     static List<PanelElement> restock() {
         SettingsBody b = new SettingsBody()
-                .topRow("Use Restock", true, "Show the Restock button");
+                .topRow("Use Restock", Bool.placeholder(true), "Show the Restock button", Bool.placeholder(true));
+        // Restock has no master switch: each kind is its own, and its sub-options
+        // grey while it is off, as in the old settings screen.
+        Bool armor = Bool.of(IPConfig::autoRestockArmor, IPConfig::setAutoRestockArmor);
+        Bool tool = Bool.of(IPConfig::autoRestockTool, IPConfig::setAutoRestockTool);
+        Bool item = Bool.of(IPConfig::autoRestockItem, IPConfig::setAutoRestockItem);
+        Bool shulker = Bool.of(IPConfig::autoRestockShulker, IPConfig::setAutoRestockShulker);
         b.heading("Options")
-                .checkbox("Armor restock", true)
-                .subCheckbox("Swap before it breaks", false)
-                .subCheckbox("Use locked items", true)
-                .checkbox("Tool restock", true)
-                .subCheckbox("Swap before it breaks", false)
-                .subCheckbox("Use locked items", true)
-                .checkbox("Item restock", true)
-                .subCheckbox("Use locked items", true)
-                .slider("Swap before breaking at durability", 2, 50, 10);
-        b.reachSection("Reach: takes from", places("inventoryplus:restock_take", IN_INVENTORY))
+                .checkbox("Armor restock", armor)
+                .subCheckbox("Swap before it breaks", Bool.of(IPConfig::autoRestockArmorBeforeBreak,
+                        IPConfig::setAutoRestockArmorBeforeBreak).onlyWhen(armor.get()))
+                .subCheckbox("Use locked items", Bool.of(IPConfig::autoRestockArmorUsesLockedItems,
+                        IPConfig::setAutoRestockArmorUsesLockedItems).onlyWhen(armor.get()))
+                .checkbox("Tool restock", tool)
+                .subCheckbox("Swap before it breaks", Bool.of(IPConfig::autoRestockToolBeforeBreak,
+                        IPConfig::setAutoRestockToolBeforeBreak).onlyWhen(tool.get()))
+                .subCheckbox("Use locked items", Bool.of(IPConfig::autoRestockToolUsesLockedItems,
+                        IPConfig::setAutoRestockToolUsesLockedItems).onlyWhen(tool.get()))
+                .checkbox("Item restock", item)
+                .subCheckbox("Use locked items", Bool.of(IPConfig::autoRestockItemUsesLockedItems,
+                        IPConfig::setAutoRestockItemUsesLockedItems).onlyWhen(item.get()))
+                // autoRestockShulker also shows in the reach below as its
+                // shulker box entry; that entry takes over when reach opens.
+                .checkbox("Pull from Shulker Boxes (in inventory)", shulker)
+                .subCheckbox("Pull ammo when shooting", Bool.of(IPConfig::autoRestockShulkerAmmo,
+                        IPConfig::setAutoRestockShulkerAmmo).onlyWhen(shulker.get()))
+                .slider("Swap before breaking at durability", 2, 50,
+                        IPConfig::autoRestockBeforeBreakThreshold, IPConfig::setAutoRestockBeforeBreakThreshold,
+                        () -> !((IPConfig.autoRestockArmor() && IPConfig.autoRestockArmorBeforeBreak())
+                                || (IPConfig.autoRestockTool() && IPConfig.autoRestockToolBeforeBreak())));
+        List<SettingsBody.Place> takesFromExtras = List.of(
+                new SettingsBody.Place(IN_INVENTORY.get(0), IPConfig.autoRestockShulker()),
+                new SettingsBody.Place(IN_INVENTORY.get(1), true),
+                new SettingsBody.Place(IN_INVENTORY.get(2), true));
+        b.reachSection("Reach: takes from", placesWith("inventoryplus:restock_take", takesFromExtras))
                 .reachSection("Reach: fills", places("inventoryplus:restock_put", IN_INVENTORY));
         return b.build();
     }
 
     static List<PanelElement> autoToolSwitch() {
         SettingsBody b = new SettingsBody()
-                .topRow("Use Auto Tool Switch", false, "Show the Auto Tool Switch button",
+                .topRow("Use Auto Tool Switch", Bool.of(IPConfig::autoToolSwitchEnabled, IPConfig::setAutoToolSwitchEnabled),
+                        "Show the Auto Tool Switch button", Bool.placeholder(true),
                         IPKeybinds.AUTO_SWITCH_RETURN);
         b.heading("Options")
-                .checkbox("Use locked items", true)
+                .checkbox("Use locked items", Bool.of(IPConfig::autoToolSwitchUsesLockedItems,
+                        IPConfig::setAutoToolSwitchUsesLockedItems).onlyWhen(IPConfig::autoToolSwitchEnabled))
                 .choice("Return to the previous tool", Arrays.asList(AutoSwitchReturnMode.values()),
-                        AutoSwitchReturnMode::displayName, AutoSwitchReturnMode.OFF)
-                .slider("Return window, seconds", 1, 10, 3)
-                .checkbox("Switch weapons too", false)
-                .subCheckbox("All mobs, not just hostile ones", false)
+                        AutoSwitchReturnMode::displayName,
+                        IPConfig::autoToolSwitchReturnMode, IPConfig::setAutoToolSwitchReturnMode,
+                        () -> !IPConfig.autoToolSwitchEnabled())
+                .slider("Return window, seconds", 1, 10,
+                        IPConfig::autoToolSwitchReturnCooldownSeconds, IPConfig::setAutoToolSwitchReturnCooldownSeconds,
+                        () -> !(IPConfig.autoToolSwitchEnabled() && IPConfig.autoToolSwitchReturnMode().isWindowed()))
+                .checkbox("Switch weapons too", Bool.of(IPConfig::autoToolSwitchWeapons,
+                        IPConfig::setAutoToolSwitchWeapons).onlyWhen(IPConfig::autoToolSwitchEnabled))
+                .subCheckbox("All mobs, not just hostile ones", Bool.of(IPConfig::autoToolSwitchAllMobs,
+                        IPConfig::setAutoToolSwitchAllMobs)
+                        .onlyWhen(() -> IPConfig.autoToolSwitchEnabled() && IPConfig.autoToolSwitchWeapons()))
                 .choice("Preferred weapon", Arrays.asList(WeaponPreference.values()),
-                        SettingsTabs::titleCase, WeaponPreference.SWORD);
+                        SettingsTabs::titleCase,
+                        IPConfig::autoToolSwitchWeaponPreference, IPConfig::setAutoToolSwitchWeaponPreference,
+                        () -> !(IPConfig.autoToolSwitchEnabled() && IPConfig.autoToolSwitchWeapons()));
         b.reachSection("Reach", places("inventoryplus:auto_tool_switch", IN_INVENTORY));
         return b.build();
     }
@@ -260,23 +309,34 @@ final class SettingsTabs {
 
     static List<PanelElement> columnCycler() {
         SettingsBody b = new SettingsBody()
-                .topRow("Use Column Cycler", false, "Show the Column Cycler button",
+                .topRow("Use Column Cycler", Bool.of(IPConfig::columnCyclerEnabled, IPConfig::setColumnCyclerEnabled),
+                        "Show the Column Cycler button",
+                        Bool.of(IPConfig::columnCyclerShowButton, IPConfig::setColumnCyclerShowButton),
                         IPKeybinds.CYCLE_SLOT, IPKeybinds.CYCLE_FORWARD, IPKeybinds.CYCLE_BACKWARD);
         b.heading("Options")
-                .checkbox("Show the cycle beside the hotbar", true)
-                .checkbox("Lock cycle slots", true)
-                .checkbox("Scroll to cycle", false);
+                .choice("Beside the hotbar", Arrays.asList(HudMode.values()), SettingsTabs::hudName,
+                        IPConfig::columnCyclerHudMode, IPConfig::setColumnCyclerHudMode,
+                        () -> !IPConfig.columnCyclerEnabled())
+                // Turning this on turns Hotbar Cycler's off (one wheel); the
+                // setter enforces it and both checkboxes read live.
+                .checkbox("Scroll to cycle", Bool.of(IPConfig::columnCyclerScrollToCycle,
+                        IPConfig::setColumnCyclerScrollToCycle).onlyWhen(IPConfig::columnCyclerEnabled));
         b.reachSection("Reach", lockPlaces("inventoryplus:column_cycle"));
         return b.build();
     }
 
     static List<PanelElement> hotbarCycler() {
         SettingsBody b = new SettingsBody()
-                .topRow("Use Hotbar Cycler", false, "Show the row buttons",
+                .topRow("Use Hotbar Cycler", Bool.of(IPConfig::hotbarCyclerEnabled, IPConfig::setHotbarCyclerEnabled),
+                        "Show the row buttons",
+                        Bool.of(IPConfig::hotbarCyclerShowButtons, IPConfig::setHotbarCyclerShowButtons),
                         IPKeybinds.HOTBAR_CYCLE_FORWARD, IPKeybinds.HOTBAR_CYCLE_BACKWARD);
         b.heading("Options")
-                .checkbox("Lock cycled rows", true)
-                .checkbox("Scroll to cycle", false);
+                // Rows lock only while "Lock the slots the cyclers use" is on too.
+                .checkbox("Lock cycled rows", Bool.of(IPConfig::lockCycledRows, IPConfig::setLockCycledRows)
+                        .onlyWhen(() -> IPConfig.hotbarCyclerEnabled() && IPConfig.cycleSlotsLocked()))
+                .checkbox("Scroll to cycle", Bool.of(IPConfig::hotbarCyclerScrollToCycle,
+                        IPConfig::setHotbarCyclerScrollToCycle).onlyWhen(IPConfig::hotbarCyclerEnabled));
         b.reachSection("Reach", lockPlaces("inventoryplus:hotbar_cycle"));
         return b.build();
     }
@@ -293,7 +353,7 @@ final class SettingsTabs {
                         Component.literal("Pocket Cycle Forward: Right Arrow"),
                         Component.literal("Pocket Cycle Backward: Left Arrow"));
         b.heading("Options")
-                .checkbox("Show the cycle beside the hotbar", true)
+                .choice("Beside the hotbar", List.of("Mini hotbar"), v -> v, "Mini hotbar")
                 .checkbox("Restock and Auto Tool Switch may take from pockets", true);
         b.reachSection("Reach", places("inventorymax:pocket_cycle", IN_INVENTORY));
         return b.build();
@@ -327,6 +387,11 @@ final class SettingsTabs {
      * checked, so a lock group's cleared box is the lock.
      */
     private static List<SettingsBody.Place> places(String operation, List<Component> extras) {
+        return placesWith(operation, extras.stream().map(c -> new SettingsBody.Place(c, true)).toList());
+    }
+
+    /** As {@link #places(String, List)}, with each extra's own starting state. */
+    private static List<SettingsBody.Place> placesWith(String operation, List<SettingsBody.Place> extras) {
         List<SlotGroups.Entry> listing = SlotGroups.listing();
         List<SettingsBody.Place> out = new ArrayList<>();
         for (SlotGroups.Entry e : listing) {
@@ -336,7 +401,7 @@ final class SettingsTabs {
         for (SlotGroups.Entry e : listing) {
             if (e.source() != null) out.add(new SettingsBody.Place(groupLabel(e), true));
         }
-        for (Component extra : extras) out.add(new SettingsBody.Place(extra, true));
+        out.addAll(extras);
         return out;
     }
 
@@ -381,8 +446,13 @@ final class SettingsTabs {
         return source == null ? e.name() : e.name().copy().append(" (").append(source).append(")");
     }
 
+    /** A HUD mode's name: NONE reads "Off", the rest in sentence case. */
+    private static String hudName(Enum<?> e) {
+        return e.name().equals("NONE") ? "Off" : titleCase(e);
+    }
+
     private static String titleCase(Enum<?> e) {
-        String s = e.name().toLowerCase(Locale.ROOT);
+        String s = e.name().toLowerCase(Locale.ROOT).replace('_', ' ');
         return Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 }

@@ -306,6 +306,17 @@ public final class ColumnCycler {
     }
 
     /**
+     * Changes "lock cycle slots". Turning it on re-locks the cycle slots that
+     * were unlocked while it was off. Every settings screen changes the
+     * setting through here, so the rule lives in one place.
+     */
+    public static void setCycleSlotsLocked(boolean on) {
+        boolean wasOn = IPConfig.cycleSlotsLocked();
+        IPConfig.setCycleSlotsLocked(on);
+        if (on && !wasOn) enforceCycleLockingInvariant();
+    }
+
+    /**
      * Called when {@code cycleSlotsLocked} flips OFF → ON. Locks every
      * direct cycle slot (inv) plus every derived hotbar slot whose column
      * is active. Other worlds will be enforced the next time the player
