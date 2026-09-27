@@ -61,6 +61,16 @@ final class SettingsTabs {
             "inventoryplus:sort", "inventoryplus:move_matching_out", "inventoryplus:move_matching_in",
             "inventoryplus:column_cycle", "inventoryplus:hotbar_cycle");
 
+    /**
+     * Containers the player carries, which every feature's reach offers after
+     * the slot and lock groups (Trev, 2026-09-27). Not slot groups: they are
+     * items in the inventory whose contents a feature may reach.
+     */
+    private static final List<Component> IN_INVENTORY = List.of(
+            Component.literal("Shulker Boxes (in inventory)"),
+            Component.literal("Bundles (in inventory)"),
+            Component.literal("Ender Chest (in inventory)"));
+
     /** Grey, the colour both default groups start with. */
     private static final int GROUP_GREY = 0xFF8B8B8B;
 
@@ -180,37 +190,30 @@ final class SettingsTabs {
 
     // ── Feature tabs ────────────────────────────────────────────────────
 
+    // Every feature tab: one wrapping row of on/off, the button toggle and
+    // the keys; then the options; then the reach, closed (Trev, 2026-09-27).
+
     static List<PanelElement> sort() {
         SettingsBody b = new SettingsBody()
                 .topRow("Use Sort", true, "Show the Sort button", IPKeybinds.SORT);
-        b.heading("Reach").reach(null, places("inventoryplus:sort"));
         b.heading("Options").line("Sort has nothing else to set yet.");
+        b.reachSection("Reach", places("inventoryplus:sort", IN_INVENTORY));
         return b.build();
     }
 
     static List<PanelElement> moveMatching() {
-        SettingsBody b = new SettingsBody();
-        onOff(b, "Use Move Matching", true);
-        b.heading("Reach")
-                .reach("Out", places("inventoryplus:move_matching_out"))
-                .reach("In", places("inventoryplus:move_matching_in"));
-        b.heading("Button").checkbox("Show the Move Matching buttons", true);
-        b.heading("Keys")
-                .key(IPKeybinds.MOVE_MATCHING_OUT)
-                .key(IPKeybinds.MOVE_MATCHING_IN);
+        SettingsBody b = new SettingsBody()
+                .topRow("Use Move Matching", true, "Show the Move Matching buttons",
+                        IPKeybinds.MOVE_MATCHING_OUT, IPKeybinds.MOVE_MATCHING_IN);
         b.heading("Options").line("Move Matching has nothing else to set yet.");
+        b.reachSection("Reach: out", places("inventoryplus:move_matching_out", IN_INVENTORY))
+                .reachSection("Reach: in", places("inventoryplus:move_matching_in", IN_INVENTORY));
         return b.build();
     }
 
     static List<PanelElement> restock() {
-        SettingsBody b = new SettingsBody();
-        onOff(b, "Use Restock", true);
-        List<Component> containers = List.of(Component.literal("Shulker boxes"), Component.literal("Bundles"),
-                Component.literal("Ender chest"));
-        b.heading("Reach")
-                .reach("Takes from", places("inventoryplus:restock_take", containers))
-                .reach("Fills", places("inventoryplus:restock_put"));
-        b.heading("Keys").line("Restock has no keys.");
+        SettingsBody b = new SettingsBody()
+                .topRow("Use Restock", true, "Show the Restock button");
         b.heading("Options")
                 .checkbox("Armor restock", true)
                 .subCheckbox("Swap before it breaks", false)
@@ -221,14 +224,15 @@ final class SettingsTabs {
                 .checkbox("Item restock", true)
                 .subCheckbox("Use locked items", true)
                 .slider("Swap before breaking at durability", 2, 50, 10);
+        b.reachSection("Reach: takes from", places("inventoryplus:restock_take", IN_INVENTORY))
+                .reachSection("Reach: fills", places("inventoryplus:restock_put", IN_INVENTORY));
         return b.build();
     }
 
     static List<PanelElement> autoToolSwitch() {
-        SettingsBody b = new SettingsBody();
-        onOff(b, "Use Auto Tool Switch", false);
-        b.heading("Reach").reach(null, places("inventoryplus:auto_tool_switch"));
-        b.heading("Keys").key(IPKeybinds.AUTO_SWITCH_RETURN);
+        SettingsBody b = new SettingsBody()
+                .topRow("Use Auto Tool Switch", false, "Show the Auto Tool Switch button",
+                        IPKeybinds.AUTO_SWITCH_RETURN);
         b.heading("Options")
                 .checkbox("Use locked items", true)
                 .choice("Return to the previous tool", Arrays.asList(AutoSwitchReturnMode.values()),
@@ -238,36 +242,32 @@ final class SettingsTabs {
                 .subCheckbox("All mobs, not just hostile ones", false)
                 .choice("Preferred weapon", Arrays.asList(WeaponPreference.values()),
                         SettingsTabs::titleCase, WeaponPreference.SWORD);
+        b.reachSection("Reach", places("inventoryplus:auto_tool_switch", IN_INVENTORY));
         return b.build();
     }
 
+    // The cyclers pick their slots in game, so their reach is the lock groups alone.
+
     static List<PanelElement> columnCycler() {
-        SettingsBody b = new SettingsBody();
-        onOff(b, "Use Column Cycler", false);
-        b.heading("Reach").reach(null, lockPlaces("inventoryplus:column_cycle"));
-        b.heading("Button").checkbox("Show the Column Cycler button", true);
-        b.heading("Keys")
-                .key(IPKeybinds.CYCLE_SLOT)
-                .key(IPKeybinds.CYCLE_FORWARD)
-                .key(IPKeybinds.CYCLE_BACKWARD);
+        SettingsBody b = new SettingsBody()
+                .topRow("Use Column Cycler", false, "Show the Column Cycler button",
+                        IPKeybinds.CYCLE_SLOT, IPKeybinds.CYCLE_FORWARD, IPKeybinds.CYCLE_BACKWARD);
         b.heading("Options")
                 .checkbox("Show the cycle beside the hotbar", true)
                 .checkbox("Lock cycle slots", true)
                 .checkbox("Scroll to cycle", false);
+        b.reachSection("Reach", lockPlaces("inventoryplus:column_cycle"));
         return b.build();
     }
 
     static List<PanelElement> hotbarCycler() {
-        SettingsBody b = new SettingsBody();
-        onOff(b, "Use Hotbar Cycler", false);
-        b.heading("Reach").reach(null, lockPlaces("inventoryplus:hotbar_cycle"));
-        b.heading("Button").checkbox("Show the row buttons", true);
-        b.heading("Keys")
-                .key(IPKeybinds.HOTBAR_CYCLE_FORWARD)
-                .key(IPKeybinds.HOTBAR_CYCLE_BACKWARD);
+        SettingsBody b = new SettingsBody()
+                .topRow("Use Hotbar Cycler", false, "Show the row buttons",
+                        IPKeybinds.HOTBAR_CYCLE_FORWARD, IPKeybinds.HOTBAR_CYCLE_BACKWARD);
         b.heading("Options")
                 .checkbox("Lock cycled rows", true)
                 .checkbox("Scroll to cycle", false);
+        b.reachSection("Reach", lockPlaces("inventoryplus:hotbar_cycle"));
         return b.build();
     }
 
@@ -278,39 +278,34 @@ final class SettingsTabs {
     }
 
     static List<PanelElement> pocketsStandIn() {
-        SettingsBody b = standIn();
-        onOff(b, "Use Pockets", true);
-        b.heading("Reach").reach(null, places("inventorymax:pocket_cycle"));
-        b.heading("Keys")
-                .key(Component.literal("Pocket Cycle Forward"), Component.literal("Right Arrow"))
-                .key(Component.literal("Pocket Cycle Backward"), Component.literal("Left Arrow"));
+        SettingsBody b = standIn()
+                .standInTopRow("Use Pockets", true, "Show the Pockets button",
+                        Component.literal("Pocket Cycle Forward: Right Arrow"),
+                        Component.literal("Pocket Cycle Backward: Left Arrow"));
         b.heading("Options")
                 .checkbox("Show the cycle beside the hotbar", true)
                 .checkbox("Restock and Auto Tool Switch may take from pockets", true);
+        b.reachSection("Reach", places("inventorymax:pocket_cycle", IN_INVENTORY));
         return b.build();
     }
 
     static List<PanelElement> equipmentSlotsStandIn() {
-        SettingsBody b = standIn();
-        onOff(b, "Use Equipment Slots", true);
+        SettingsBody b = standIn()
+                .standInTopRow("Use Equipment Slots", true, "Show the Equipment Slots button");
         b.heading("Options")
                 .checkbox("Show elytra and totem icons beside the hotbar", true);
         return b.build();
     }
 
     static List<PanelElement> mendAnywhereStandIn() {
-        SettingsBody b = standIn();
-        onOff(b, "Use Mend Anywhere", true);
+        SettingsBody b = standIn()
+                .standInTopRow("Use Mend Anywhere", true, "Show the Mend Anywhere button");
         b.heading("Options")
                 .line("Mending items repair from XP anywhere in your inventory, not only in your hands and armor.");
         return b.build();
     }
 
     // ── Shared sections ─────────────────────────────────────────────────
-
-    private static void onOff(SettingsBody b, String label, boolean on) {
-        b.heading("On/off").onOff(label, on);
-    }
 
     /**
      * One operation's reach list, in the order Trev set (2026-09-27): vanilla's

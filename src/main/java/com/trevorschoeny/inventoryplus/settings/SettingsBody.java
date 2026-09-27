@@ -126,13 +126,6 @@ final class SettingsBody {
 
     // ── Placeholder controls (all disabled) ─────────────────────────────
 
-    /** A feature's on/off switch, shown at its default. */
-    SettingsBody onOff(String label, boolean on) {
-        out.add(new Toggle(0, y, 40, 14, on, v -> {}, DISABLED).label(Component.literal(label)));
-        y += CONTROL_ROW - 2;
-        return this;
-    }
-
     /**
      * A feature's top row: its on/off switch, the toggle for its screen
      * button (when it has one), and its keys, flowing left to right and
@@ -141,13 +134,30 @@ final class SettingsBody {
      * <p>Each key is Keybindery's {@link ChordButton}, labelled with the
      * key's name.
      */
-    SettingsBody topRow(String useLabel, boolean on, @Nullable String showButtonLabel, KeyMapping... keys) {
+    SettingsBody topRow(String useLabel, boolean on, String showButtonLabel, KeyMapping... keys) {
+        List<PanelElement> keyButtons = new ArrayList<>();
+        for (KeyMapping key : keys) keyButtons.add(keyButton(key));
+        return topRow(useLabel, on, showButtonLabel, keyButtons);
+    }
+
+    /**
+     * A top row whose keys this mod cannot bind (an Inventory Max stand-in):
+     * each key is written out on a disabled button, "Name: key".
+     */
+    SettingsBody standInTopRow(String useLabel, boolean on, String showButtonLabel, Component... keys) {
+        List<PanelElement> keyButtons = new ArrayList<>();
+        for (Component key : keys) {
+            keyButtons.add(new Button(0, 0, Minecraft.getInstance().font.width(key) + 12, 16, key, b -> {}, DISABLED));
+        }
+        return topRow(useLabel, on, showButtonLabel, keyButtons);
+    }
+
+    private SettingsBody topRow(String useLabel, boolean on, String showButtonLabel, List<PanelElement> keys) {
         List<PanelElement> row = new ArrayList<>();
         row.add(new Toggle(0, 0, 40, 14, on, v -> {}, DISABLED).label(Component.literal(useLabel)));
-        if (showButtonLabel != null) {
-            row.add(new Checkbox(0, 0, true, Component.literal(showButtonLabel), v -> {}, DISABLED));
-        }
-        for (KeyMapping key : keys) row.add(keyButton(key));
+        // Every feature has a button in the inventory (Trev, 2026-09-27).
+        row.add(new Checkbox(0, 0, true, Component.literal(showButtonLabel), v -> {}, DISABLED));
+        row.addAll(keys);
         out.add(Flow.of(row).gap(10, 4).at(0, y));
         y += CONTROL_ROW;
         return this;
@@ -168,17 +178,13 @@ final class SettingsBody {
         return this;
     }
 
+    /** One checkbox in a reach list: what it names, and whether it starts checked. */
+    record Place(Component name, boolean on) {}
+
     /**
      * A reach list: one checkbox per place, flowing left to right and wrapping
      * to the body width. Titled when a feature has more than one list.
      */
-    SettingsBody reach(@Nullable String title, List<Component> places) {
-        return reach(title, places.stream().map(name -> new Place(name, true)).toList());
-    }
-
-    /** One checkbox in a reach list: what it names, and whether it starts checked. */
-    record Place(Component name, boolean on) {}
-
     SettingsBody reach(@Nullable String title, Collection<Place> places) {
         if (title != null) line(0, Component.literal(title));
         List<PanelElement> boxes = new ArrayList<>();
@@ -203,6 +209,18 @@ final class SettingsBody {
         }
         y += CONTROL_ROW;
         return this;
+    }
+
+    /**
+     * A feature's reach, as a closed section at the bottom of its tab (Trev,
+     * 2026-09-27): the title and how many of its places are on. Opened, it
+     * would show the checkboxes; see {@link #section} for why the scaffold
+     * draws it closed.
+     */
+    SettingsBody reachSection(String title, List<Place> places) {
+        long on = places.stream().filter(Place::on).count();
+        String summary = on == places.size() ? "all " + on + " on" : on + " of " + places.size() + " on";
+        return section(title, summary, false);
     }
 
     /** A row of disabled buttons. */
