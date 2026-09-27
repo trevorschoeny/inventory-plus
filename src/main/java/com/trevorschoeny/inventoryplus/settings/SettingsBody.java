@@ -219,8 +219,9 @@ final class SettingsBody {
         }
     }
 
-    // Every setting is its text on one line and its control on the next,
-    // below it, never beside it (Trev, 2026-09-27). A sub-setting indents both.
+    // A setting is its text on one line and its control below it (Trev,
+    // 2026-09-27), except a checkbox, which is small enough to sit inline
+    // with its text to the right. A sub-setting indents.
 
     /** A setting's text, on its own line, greying while the feature is off. */
     private void label(int x, Component text) {
@@ -243,8 +244,7 @@ final class SettingsBody {
     }
 
     private SettingsBody checkbox(int x, String label, Bool setting) {
-        label(x, Component.literal(label));
-        out.add(Checkbox.linked(x, y, setting.get(), Component.empty(), setting.set(),
+        out.add(Checkbox.linked(x, y, setting.get(), Component.literal(label), setting.set(),
                 gated(setting.unavailable())));
         y += TEXT_ROW + 4;
         return this;
