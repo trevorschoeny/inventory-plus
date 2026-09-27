@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.columncycler;
 
+import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 
 import com.trevlar.menukit.core.Toggle;
@@ -65,7 +66,10 @@ public final class ColumnCyclerButtons {
                         // 2.0.0: the widget computes the new state off the linked
                         // supplier and hands it to us; set() applies it (incl. the
                         // edit-mode mutual exclusion) — no self-flip here.
-                        ColumnCyclerEditMode::set,
+                        on -> {
+                            if (SettingsMenu.ctrlClickOpens(SettingsMenu.COLUMN_CYCLER)) return;
+                            ColumnCyclerEditMode.set(on);
+                        },
                         TEXTURE)
                 .tooltip(() -> Component.literal(
                         ColumnCyclerEditMode.isOn()

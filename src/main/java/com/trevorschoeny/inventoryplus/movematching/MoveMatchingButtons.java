@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.movematching;
 
+import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 import com.trevorschoeny.inventoryplus.buttonmode.ModeGestures;
 import com.trevorschoeny.inventoryplus.buttonmode.ModeState;
 import com.trevorschoeny.inventoryplus.buttonmode.PressFeedback;
@@ -55,6 +56,7 @@ public final class MoveMatchingButtons {
         var gestures = ModeGestures.handler(state, MoveMatchingModes::currentIdentity, feedback);
         return Button.sprite(x, y, SIZE, SIZE, texture,
                         btn -> {
+                            if (SettingsMenu.ctrlClickOpens(SettingsMenu.MOVE_MATCHING)) return;
                             feedback.press();
                             triggerMoveMatching(direction);
                         })

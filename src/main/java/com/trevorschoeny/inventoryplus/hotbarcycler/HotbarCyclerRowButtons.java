@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.hotbarcycler;
 
+import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockedslots.LockEditMode;
 
@@ -80,7 +81,10 @@ public final class HotbarCyclerRowButtons {
         final int r = row;
         PanelElement button = Toggle.spriteLinked(0, 0, BUTTON_SIZE, BUTTON_SIZE,
                         () -> HotbarCycler.isRowToggled(r),
-                        on -> HotbarCycler.setRow(r, on),
+                        on -> {
+                            if (SettingsMenu.ctrlClickOpens(SettingsMenu.HOTBAR_CYCLER)) return;
+                            HotbarCycler.setRow(r, on);
+                        },
                         TEXTURE)
                 .tooltip(() -> Component.literal(
                         HotbarCycler.isRowToggled(r)

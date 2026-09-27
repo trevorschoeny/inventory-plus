@@ -148,39 +148,30 @@ final class SettingsBody {
     }
 
     /**
-     * A feature's top row: its on/off switch, the toggle for its screen
-     * button, and its keys, flowing left to right and wrapping when the body
-     * is narrow. Each key is Keybindery's {@link ChordButton}, labelled with
-     * the key's name.
+     * The frame every tab opens with (Trev, 2026-09-27): Back to game at the
+     * top left, which does what Escape does; Reset beside it, greyed until
+     * reset is built; the tab's title; and its description, which wraps.
+     *
+     * <p>ponytail: the plan puts Reset at the top right. MenuKit has no way
+     * to right-align an element in a body yet, so it sits beside Back until
+     * it does.
      */
-    SettingsBody topRow(String useLabel, Bool use, String showButtonLabel, Bool showButton, KeyMapping... keys) {
-        List<PanelElement> keyButtons = new ArrayList<>();
-        for (KeyMapping key : keys) keyButtons.add(keyButton(key));
-        return topRow(useLabel, use, showButtonLabel, showButton, keyButtons);
+    SettingsBody frame(String title, String description) {
+        out.add(new Button(0, y, width("Back to game"), 16, Component.literal("Back to game"),
+                b -> Minecraft.getInstance().gui.screen().onClose()));
+        out.add(new Button(width("Back to game") + 4, y, width("Reset"), 16, Component.literal("Reset"),
+                b -> {}, DISABLED));
+        y += CONTROL_ROW + 2;
+        out.add(new TextLabel(0, y, Component.literal(title), greyed ? GREYED_COLOR : HEADING_COLOR, false));
+        y += TEXT_ROW + 2;
+        return line(description);
     }
 
-    /**
-     * A top row whose keys this mod cannot bind (an Inventory Max stand-in):
-     * each key is written out on a disabled button, "Name: key".
-     */
-    SettingsBody standInTopRow(String useLabel, boolean on, String showButtonLabel, Component... keys) {
-        List<PanelElement> keyButtons = new ArrayList<>();
-        for (Component key : keys) {
-            keyButtons.add(new Button(0, 0, Minecraft.getInstance().font.width(key) + 12, 16, key, b -> {}, DISABLED));
-        }
-        return topRow(useLabel, Bool.placeholder(on), showButtonLabel, Bool.placeholder(true), keyButtons);
-    }
-
-    private SettingsBody topRow(String useLabel, Bool use, String showButtonLabel, Bool showButton,
-                                List<PanelElement> keys) {
-        List<PanelElement> row = new ArrayList<>();
-        row.add(Toggle.linked(0, 0, 40, 14, use.get(), use.set(), use.unavailable())
-                .label(Component.literal(useLabel)));
-        // Every feature has a button in the inventory (Trev, 2026-09-27).
-        row.add(Checkbox.linked(0, 0, showButton.get(), Component.literal(showButtonLabel),
-                showButton.set(), showButton.unavailable()));
-        row.addAll(keys);
-        out.add(Flow.of(row).gap(10, 4).at(0, y));
+    /** A feature's on/off switch, on its own line under the description. */
+    SettingsBody onOff(String label, Bool setting) {
+        if (y > 0) y += 4;
+        out.add(Toggle.linked(0, y, 40, 14, setting.get(), setting.set(), setting.unavailable())
+                .label(Component.literal(label)));
         y += CONTROL_ROW;
         return this;
     }
@@ -236,17 +227,6 @@ final class SettingsBody {
         }
         y += CONTROL_ROW;
         return this;
-    }
-
-    /**
-     * A feature's reach, as a section at the bottom of its tab (Trev,
-     * 2026-09-27): closed, it says how many of its places are on; open, it
-     * shows their checkboxes.
-     */
-    SettingsBody reachSection(String title, List<Place> places) {
-        long on = places.stream().filter(Place::on).count();
-        String summary = on == places.size() ? "all " + on + " on" : on + " of " + places.size() + " on";
-        return section(title, () -> Component.literal(summary), null, c -> c.reach(null, places));
     }
 
     /** A row of disabled buttons, wrapping when the body is narrow. */

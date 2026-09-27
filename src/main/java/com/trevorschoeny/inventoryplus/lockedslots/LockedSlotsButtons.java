@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.lockedslots;
 
+import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 import com.trevorschoeny.inventoryplus.buttonmode.ModeGestures;
 import com.trevorschoeny.inventoryplus.buttonmode.PressFeedback;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
@@ -84,7 +85,10 @@ public final class LockedSlotsButtons {
                         // 2.0.0: the widget computes the new state off the linked
                         // supplier and hands it to us; set() applies it (incl. the
                         // edit-mode mutual exclusion) — no self-flip here.
-                        LockEditMode::set,
+                        on -> {
+                            if (SettingsMenu.ctrlClickOpens(SettingsMenu.LOCK_GROUPS)) return;
+                            LockEditMode.set(on);
+                        },
                         TEXTURE)
                 .tooltip(ModeGestures.tooltip(
                         () -> LockEditMode.isOn() ? "Finish Editing" : "Edit Locked Slots",

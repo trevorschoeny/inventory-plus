@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.settings;
 
+import com.trevlar.menukit.core.Click;
 import com.trevlar.menukit.core.Panel;
 import com.trevlar.menukit.core.PanelPosition;
 import com.trevlar.menukit.core.PanelStyle;
@@ -28,7 +29,8 @@ import java.util.List;
  * replaces when it is installed.
  *
  * <p>Opened from the dot button on the inventory toolbar, the Open settings
- * key, and Mod Menu. Closing returns to the screen it was opened from.
+ * key, Mod Menu, and Ctrl+click on any feature's inventory button. Closing
+ * returns to the screen it was opened from.
  *
  * <p>Half wired: controls with a real setting behind them work; the rest are
  * greyed placeholders ({@link SettingsBody}).
@@ -38,8 +40,21 @@ public final class SettingsMenu extends MKScreen {
     /** The menu's name, for other mods' {@code Tabs.addTo}. */
     public static final Identifier MENU = Identifier.fromNamespaceAndPath("inventoryplus", "settings");
 
+    // Tab ids. The inventory buttons open their feature's tab on Ctrl+click
+    // (Cmd on a Mac), so the ids they need are public. Inventory Max's tabs are
+    // "inventorymax:pockets", "inventorymax:equipment_slots" and
+    // "inventorymax:mend_anywhere".
+
     /** The tab the menu opens on the first time. */
-    static final String GENERAL = "general";
+    public static final String GENERAL = "general";
+    public static final String REACH = "reach";
+    public static final String LOCK_GROUPS = "lock_groups";
+    public static final String SORT = "sort";
+    public static final String MOVE_MATCHING = "move_matching";
+    public static final String RESTOCK = "restock";
+    public static final String AUTO_TOOL_SWITCH = "auto_tool_switch";
+    public static final String COLUMN_CYCLER = "column_cycler";
+    public static final String HOTBAR_CYCLER = "hotbar_cycler";
 
     /**
      * The open tab, kept across reopens for the rest of the session. MenuKit's
@@ -58,6 +73,24 @@ public final class SettingsMenu extends MKScreen {
     /** Opens the menu over {@code parent}, which it returns to on close. */
     public static void open(@Nullable Screen parent) {
         Minecraft.getInstance().gui.setScreen(create(parent));
+    }
+
+    /** Opens the menu on {@code tabId}, over the screen that is open now. */
+    public static void openOn(String tabId) {
+        selectedTab = tabId;
+        open(Minecraft.getInstance().gui.screen());
+    }
+
+    /**
+     * For an inventory button's click handler: on Ctrl+click (Cmd on a Mac,
+     * where a real Ctrl+click arrives as a right-click) opens the menu on
+     * {@code tabId} and answers true, and the button does nothing else.
+     * Otherwise answers false and the click is the button's.
+     */
+    public static boolean ctrlClickOpens(String tabId) {
+        if (!Click.of(Click.LEFT).ctrl()) return false;
+        openOn(tabId);
+        return true;
     }
 
     /** The menu as a screen, for Mod Menu's factory. */
@@ -82,14 +115,14 @@ public final class SettingsMenu extends MKScreen {
                 .align(Tabs.Align.LEFT)
                 .selected(() -> selectedTab, id -> selectedTab = id)
                 .tab(tab(GENERAL, "General").body(() -> SettingsTabs.general(max)))
-                .tab(tab("moving_items", "Moving Items").body(SettingsTabs::movingItems))
-                .tab(tab("lock_groups", "Lock groups").body(() -> SettingsTabs.lockGroups(max)))
-                .tab(tab("sort", "Sort").body(SettingsTabs::sort))
-                .tab(tab("move_matching", "Move Matching").body(SettingsTabs::moveMatching))
-                .tab(tab("restock", "Restock").body(SettingsTabs::restock))
-                .tab(tab("auto_tool_switch", "Auto Tool Switch").body(SettingsTabs::autoToolSwitch))
-                .tab(tab("column_cycler", "Column Cycler").body(SettingsTabs::columnCycler))
-                .tab(tab("hotbar_cycler", "Hotbar Cycler").body(SettingsTabs::hotbarCycler))
+                .tab(tab(REACH, "Reach").body(SettingsTabs::reach))
+                .tab(tab(LOCK_GROUPS, "Lock groups").body(() -> SettingsTabs.lockGroups(max)))
+                .tab(tab(SORT, "Sort").body(SettingsTabs::sort))
+                .tab(tab(MOVE_MATCHING, "Move Matching").body(SettingsTabs::moveMatching))
+                .tab(tab(RESTOCK, "Restock").body(SettingsTabs::restock))
+                .tab(tab(AUTO_TOOL_SWITCH, "Auto Tool Switch").body(SettingsTabs::autoToolSwitch))
+                .tab(tab(COLUMN_CYCLER, "Column Cycler").body(SettingsTabs::columnCycler))
+                .tab(tab(HOTBAR_CYCLER, "Hotbar Cycler").body(SettingsTabs::hotbarCycler))
                 // Inventory Max's places. Its real tabs, added under these ids,
                 // take them over; without it these show dimmed, greyed bodies.
                 .tab(tab("inventorymax:pockets", "Pockets").standIn()

@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.sort;
 
+import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.buttonmode.ModeGestures;
 import com.trevorschoeny.inventoryplus.buttonmode.PressFeedback;
@@ -60,6 +61,7 @@ public final class SortButton {
         var gestures = ModeGestures.handler(SortState.MODE, identity, feedback);
         return Button.sprite(x, y, SIZE, SIZE, TEXTURE,
                         btn -> {
+                            if (SettingsMenu.ctrlClickOpens(SettingsMenu.SORT)) return;
                             feedback.press();
                             triggerSort(target);
                         })

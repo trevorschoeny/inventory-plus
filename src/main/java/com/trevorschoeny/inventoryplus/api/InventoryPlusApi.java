@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.api;
 
+import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 import com.trevlar.menukit.window.BehaviorKey;
 import com.trevlar.menukit.window.TriBool;
 
@@ -191,6 +192,15 @@ public final class InventoryPlusApi {
      */
     public static @Nullable Block openContainerBlock() {
         return ContainerOpenTracker.openContainerBlock();
+    }
+
+    /**
+     * Opens Inventory Plus's settings menu on the tab {@code tabId}, over the
+     * screen that is open now. For a companion's inventory button to open its
+     * own tab on Ctrl+click, as Inventory Plus's buttons do.
+     */
+    public static void openSettings(String tabId) {
+        SettingsMenu.openOn(tabId);
     }
 
     /**
