@@ -9,7 +9,6 @@ import com.trevlar.menukit.core.PanelElement;
 import com.trevlar.menukit.core.Section;
 import com.trevlar.menukit.core.Slider;
 import com.trevlar.menukit.core.TextLabel;
-import com.trevlar.menukit.core.Toggle;
 import com.trevorschoeny.keybindery.chord.ChordButton;
 
 import net.minecraft.client.KeyMapping;
@@ -65,6 +64,15 @@ final class SettingsBody {
     private final boolean greyed;
     private int y = 0;
 
+    /**
+     * Whether the tab's feature is on. Set by the frame's on/off checkbox;
+     * every control made after it greys and disables while this reads false
+     * (Trev, 2026-09-27: when a feature is off, every setting in its tab is).
+     * Captured per control when it is made, so the frame above the line is
+     * never gated.
+     */
+    private BooleanSupplier featureOn = () -> true;
+
     SettingsBody(boolean greyed) {
         this.greyed = greyed;
     }
@@ -75,10 +83,64 @@ final class SettingsBody {
 
     // ── Text ────────────────────────────────────────────────────────────
 
+    /**
+     * The top of every tab (Trev, 2026-09-27): the title, the description, a
+     * Reset to Defaults button (greyed until reset is built), then a line;
+     * the tab's settings follow below it. For a tab with no feature to turn
+     * off (General, Reach).
+     */
+    SettingsBody frame(String title, String description) {
+        header(title, description);
+        return rule();
+    }
+
+    /**
+     * The same, with the feature's on/off checkbox between Reset and the
+     * line. Everything below the line greys while it is off.
+     */
+    SettingsBody frame(String title, String description, String useLabel, Bool use) {
+        header(title, description);
+        out.add(Checkbox.linked(0, y, use.get(), Component.literal(useLabel), use.set(), use.unavailable()));
+        y += TEXT_ROW + 4;
+        featureOn = use.get();
+        return rule();
+    }
+
+    private void header(String title, String description) {
+        out.add(new TextLabel(0, y, Component.literal(title), greyed ? GREYED_COLOR : HEADING_COLOR, false));
+        y += TEXT_ROW + 2;
+        line(description);
+        y += 4;
+        out.add(new Button(0, y, width("Reset to Defaults"), 16, Component.literal("Reset to Defaults"),
+                b -> {}, DISABLED));
+        y += CONTROL_ROW + 2;
+    }
+
+    /** The line between a tab's frame and its settings, as wide as the body. */
+    private SettingsBody rule() {
+        // ponytail: a long divider; MenuKit caps it to the body's width.
+        out.add(Divider.horizontal(0, y, 4000, 0xFF8B8B8B, 1));
+        y += 6;
+        return this;
+    }
+
+    /** {@code unavailable}, and also while the tab's feature is off. */
+    private BooleanSupplier gated(BooleanSupplier unavailable) {
+        BooleanSupplier on = featureOn;
+        return () -> !on.getAsBoolean() || unavailable.getAsBoolean();
+    }
+
+    /** Settings text in {@code color}, turning grey while the tab's feature is off. */
+    private TextLabel settingText(int x, int y, Component text, int color) {
+        BooleanSupplier on = featureOn;
+        return new TextLabel(x, y, () -> on.getAsBoolean() ? text : text.copy().withColor(GREYED_COLOR),
+                color, false);
+    }
+
     /** A section heading, with a gap above it unless it opens the body. */
     SettingsBody heading(String text) {
         if (y > 0) y += SECTION_GAP;
-        out.add(new TextLabel(0, y, Component.literal(text), greyed ? GREYED_COLOR : HEADING_COLOR, false));
+        out.add(settingText(0, y, Component.literal(text), greyed ? GREYED_COLOR : HEADING_COLOR));
         y += TEXT_ROW;
         out.add(Divider.horizontal(0, y - 2, 160, greyed ? GREYED_COLOR : 0xFF8B8B8B, 1));
         y += 2;
@@ -98,6 +160,7 @@ final class SettingsBody {
                          Consumer<SettingsBody> content) {
         if (y > 0) y += 4;
         SettingsBody inner = new SettingsBody(greyed);
+        inner.featureOn = featureOn;
         content.accept(inner);
         Section.Builder section = Section.builder(Component.literal(title))
                 .at(0, y)
@@ -116,7 +179,7 @@ final class SettingsBody {
     }
 
     SettingsBody line(int indent, Component text) {
-        out.add(new TextLabel(indent, y, text, greyed ? GREYED_COLOR : TEXT_COLOR, false));
+        out.add(settingText(indent, y, text, greyed ? GREYED_COLOR : TEXT_COLOR));
         y += TEXT_ROW;
         return this;
     }
@@ -147,35 +210,6 @@ final class SettingsBody {
         }
     }
 
-    /**
-     * The frame every tab opens with (Trev, 2026-09-27): Back to game at the
-     * top left, which does what Escape does; Reset beside it, greyed until
-     * reset is built; the tab's title; and its description, which wraps.
-     *
-     * <p>ponytail: the plan puts Reset at the top right. MenuKit has no way
-     * to right-align an element in a body yet, so it sits beside Back until
-     * it does.
-     */
-    SettingsBody frame(String title, String description) {
-        out.add(new Button(0, y, width("Back to game"), 16, Component.literal("Back to game"),
-                b -> Minecraft.getInstance().gui.screen().onClose()));
-        out.add(new Button(width("Back to game") + 4, y, width("Reset"), 16, Component.literal("Reset"),
-                b -> {}, DISABLED));
-        y += CONTROL_ROW + 2;
-        out.add(new TextLabel(0, y, Component.literal(title), greyed ? GREYED_COLOR : HEADING_COLOR, false));
-        y += TEXT_ROW + 2;
-        return line(description);
-    }
-
-    /** A feature's on/off switch, on its own line under the description. */
-    SettingsBody onOff(String label, Bool setting) {
-        if (y > 0) y += 4;
-        out.add(Toggle.linked(0, y, 40, 14, setting.get(), setting.set(), setting.unavailable())
-                .label(Component.literal(label)));
-        y += CONTROL_ROW;
-        return this;
-    }
-
     SettingsBody checkbox(String label, Bool setting) {
         return checkbox(0, label, setting);
     }
@@ -191,7 +225,8 @@ final class SettingsBody {
     }
 
     private SettingsBody checkbox(int x, String label, Bool setting) {
-        out.add(Checkbox.linked(x, y, setting.get(), Component.literal(label), setting.set(), setting.unavailable()));
+        out.add(Checkbox.linked(x, y, setting.get(), Component.literal(label), setting.set(),
+                gated(setting.unavailable())));
         y += TEXT_ROW + 2;
         return this;
     }
@@ -218,7 +253,7 @@ final class SettingsBody {
      * width, not at fixed columns, so a narrow body does not crush it.
      */
     SettingsBody valueRow(Component text, String... buttons) {
-        out.add(new TextLabel(INDENT, y + 4, text, greyed ? GREYED_COLOR : TEXT_COLOR, false));
+        out.add(settingText(INDENT, y + 4, text, greyed ? GREYED_COLOR : TEXT_COLOR));
         int x = INDENT + Minecraft.getInstance().font.width(text) + 6;
         for (String label : buttons) {
             int w = width(label);
@@ -255,14 +290,14 @@ final class SettingsBody {
     <T> SettingsBody choice(String label, List<T> values, Function<T, String> name,
                             Supplier<T> get, Consumer<T> set, BooleanSupplier unavailable) {
         int labelW = Minecraft.getInstance().font.width(label);
-        out.add(new TextLabel(INDENT, y + 4, Component.literal(label), greyed ? GREYED_COLOR : TEXT_COLOR, false));
+        out.add(settingText(INDENT, y + 4, Component.literal(label), greyed ? GREYED_COLOR : TEXT_COLOR));
         out.add(Dropdown.<T>builder()
                 .at(INDENT + labelW + 6, y)
                 .triggerSize(110, 16)
                 .items(values)
                 .label(v -> Component.literal(name.apply(v)))
                 .selection(get, set)
-                .disabledWhen(unavailable)
+                .disabledWhen(gated(unavailable))
                 .build());
         y += CONTROL_ROW;
         return this;
@@ -286,7 +321,7 @@ final class SettingsBody {
                 .value(() -> (get.getAsInt() - min) / (double) (max - min),
                         v -> set.accept(min + (int) Math.round(v * (max - min))))
                 .label(v -> Component.literal(label + ": " + get.getAsInt()))
-                .disabledWhen(unavailable)
+                .disabledWhen(gated(unavailable))
                 .build());
         y += CONTROL_ROW;
         return this;
@@ -294,17 +329,14 @@ final class SettingsBody {
 
     /** A keybind: its name, the key it is on now, and a change button for later. */
     SettingsBody key(KeyMapping key) {
-        out.add(keyButton(key).at(0, y));
-        y += CONTROL_ROW;
-        return this;
+        return key(key, Component.translatable(key.getName()));
     }
 
-    /**
-     * A working key: Keybindery's button, labelled with the key's name. It
-     * binds, shows conflicts and resets on its own, and saves at once.
-     */
-    static ChordButton keyButton(KeyMapping key) {
-        return new ChordButton(key).label(Component.translatable(key.getName()));
+    /** A key under a label of its own ("Key" in a lock group's section). */
+    SettingsBody key(KeyMapping key, Component label) {
+        out.add(new ChordButton(key).label(label).disabledWhen(gated(() -> false)).at(0, y));
+        y += CONTROL_ROW;
+        return this;
     }
 
     /** A keybind this mod cannot read, written out (an Inventory Max stand-in). */

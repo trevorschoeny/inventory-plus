@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.settings;
 
 import com.trevlar.menukit.core.Click;
+import com.trevlar.menukit.core.Button;
 import com.trevlar.menukit.core.Panel;
 import com.trevlar.menukit.core.PanelPosition;
 import com.trevlar.menukit.core.PanelStyle;
@@ -64,6 +65,9 @@ public final class SettingsMenu extends MKScreen {
 
     private SettingsMenu(@Nullable Screen parent) {
         super(title(), List.of(main()));
+        // No bar across the top (Trev, 2026-09-27): Back to game heads the tab
+        // column instead, and the body starts at the top.
+        hideTitle();
         // Escape goes back to wherever the menu was opened from: the inventory,
         // Mod Menu, or the game. A container stays open underneath, because
         // swapping screens does not close it; returning reuses the same screen.
@@ -114,6 +118,9 @@ public final class SettingsMenu extends MKScreen {
                 .mode(Tabs.Mode.SIDEBAR)
                 .align(Tabs.Align.LEFT)
                 .selected(() -> selectedTab, id -> selectedTab = id)
+                // Back to game tops the left column, above the tabs; it does what Escape does.
+                .sidebarHeader(new Button(0, 0, Minecraft.getInstance().font.width("Back to game") + 12, 16,
+                        Component.literal("Back to game"), b -> Minecraft.getInstance().gui.screen().onClose()))
                 .tab(tab(GENERAL, "General").body(() -> SettingsTabs.general(max)))
                 .tab(tab(REACH, "Reach").body(SettingsTabs::reach))
                 .tab(tab(LOCK_GROUPS, "Lock groups").body(() -> SettingsTabs.lockGroups(max)))
