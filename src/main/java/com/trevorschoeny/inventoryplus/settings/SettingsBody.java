@@ -9,8 +9,10 @@ import com.trevlar.menukit.core.PanelElement;
 import com.trevlar.menukit.core.Section;
 import com.trevlar.menukit.core.Slider;
 import com.trevlar.menukit.core.TextLabel;
+import com.trevlar.menukit.core.Toggle;
 import com.trevorschoeny.keybindery.chord.ChordButton;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -84,35 +86,40 @@ final class SettingsBody {
     // ── Text ────────────────────────────────────────────────────────────
 
     /**
-     * The top of every tab (Trev, 2026-09-27): the title, the description, a
-     * Reset to Defaults button (greyed until reset is built), then a line;
-     * the tab's settings follow below it. For a tab with no feature to turn
-     * off (General, Reach).
+     * The top of every tab (Trev, 2026-09-27): the title, bold at twice size;
+     * the description, bold; a row with Reset to Defaults (greyed until reset
+     * is built); then a line, with the tab's settings below it. For a tab
+     * with no feature to turn off (General, Reach).
      */
     SettingsBody frame(String title, String description) {
-        header(title, description);
+        header(title, description, null);
         return rule();
     }
 
     /**
-     * The same, with the feature's on/off checkbox between Reset and the
-     * line. Everything below the line greys while it is off.
+     * The same, with the feature's on/off toggle left of Reset to Defaults
+     * in that row. Everything below the line greys while it is off.
      */
     SettingsBody frame(String title, String description, String useLabel, Bool use) {
-        header(title, description);
-        out.add(Checkbox.linked(0, y, use.get(), Component.literal(useLabel), use.set(), use.unavailable()));
-        y += TEXT_ROW + 4;
+        header(title, description, Toggle.linked(0, 0, 40, 14, use.get(), use.set(), use.unavailable())
+                .label(Component.literal(useLabel)));
         featureOn = use.get();
         return rule();
     }
 
-    private void header(String title, String description) {
-        out.add(new TextLabel(0, y, Component.literal(title), greyed ? GREYED_COLOR : HEADING_COLOR, false));
-        y += TEXT_ROW + 2;
-        line(description);
-        y += 4;
-        out.add(new Button(0, y, width("Reset to Defaults"), 16, Component.literal("Reset to Defaults"),
+    private void header(String title, String description, @Nullable PanelElement onOff) {
+        int titleColor = greyed ? GREYED_COLOR : HEADING_COLOR;
+        out.add(new TextLabel(0, y, Component.literal(title).withStyle(ChatFormatting.BOLD), titleColor, false)
+                .scale(2f));
+        y += 2 * TEXT_ROW;
+        out.add(new TextLabel(0, y, Component.literal(description).withStyle(ChatFormatting.BOLD),
+                greyed ? GREYED_COLOR : TEXT_COLOR, false));
+        y += TEXT_ROW + 4;
+        List<PanelElement> row = new ArrayList<>();
+        if (onOff != null) row.add(onOff);
+        row.add(new Button(0, 0, width("Reset to Defaults"), 16, Component.literal("Reset to Defaults"),
                 b -> {}, DISABLED));
+        out.add(Flow.of(row).gap(10, 4).at(0, y));
         y += CONTROL_ROW + 2;
     }
 
