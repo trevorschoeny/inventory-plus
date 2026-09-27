@@ -173,11 +173,9 @@ final class SettingsTabs {
     // ── Feature tabs ────────────────────────────────────────────────────
 
     static List<PanelElement> sort() {
-        SettingsBody b = new SettingsBody();
-        onOff(b, "Use Sort", true);
+        SettingsBody b = new SettingsBody()
+                .topRow("Use Sort", true, "Show the Sort button", IPKeybinds.SORT);
         b.heading("Reach").reach(null, places("inventoryplus:sort"));
-        b.heading("Button").checkbox("Show the Sort buttons", true);
-        b.heading("Keys").key(IPKeybinds.SORT);
         b.heading("Options").line("Sort has nothing else to set yet.");
         return b.build();
     }

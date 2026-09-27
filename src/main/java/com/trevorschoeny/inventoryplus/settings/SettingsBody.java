@@ -131,6 +131,29 @@ final class SettingsBody {
         return this;
     }
 
+    /**
+     * A feature's top row: its on/off switch, the toggle for its screen
+     * button (when it has one), and its keys, flowing left to right and
+     * wrapping when the body is narrow.
+     *
+     * <p>ponytail: each key is a disabled button reading "Name: key" until
+     * Keybindery's MenuKit key element lands; swap it in here.
+     */
+    SettingsBody topRow(String useLabel, boolean on, @Nullable String showButtonLabel, KeyMapping... keys) {
+        List<PanelElement> row = new ArrayList<>();
+        row.add(new Toggle(0, 0, 40, 14, on, v -> {}, DISABLED).label(Component.literal(useLabel)));
+        if (showButtonLabel != null) {
+            row.add(new Checkbox(0, 0, true, Component.literal(showButtonLabel), v -> {}, DISABLED));
+        }
+        for (KeyMapping key : keys) {
+            Component text = Component.translatable(key.getName()).append(": ").append(key.getTranslatedKeyMessage());
+            row.add(new Button(0, 0, Minecraft.getInstance().font.width(text) + 12, 16, text, b -> {}, DISABLED));
+        }
+        out.add(Flow.of(row).gap(10, 4).at(0, y));
+        y += CONTROL_ROW;
+        return this;
+    }
+
     SettingsBody checkbox(String label, boolean on) {
         return checkbox(0, label, on);
     }
