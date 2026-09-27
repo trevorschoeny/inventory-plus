@@ -19,8 +19,8 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * The Inventory Plus and Inventory Max settings menu: one full-screen tab
- * strip, a tab per feature (plan: Leadership drive,
+ * The Inventory Plus and Inventory Max settings menu: full screen, a sidebar
+ * of tabs down the left, a tab per feature (plan: Leadership drive,
  * {@code mods/inventory-plus/plans/settings-menu.md}).
  *
  * <p>The menu is named {@link #MENU}, so other mods add tabs to it with
@@ -80,8 +80,8 @@ public final class SettingsMenu extends MKScreen {
         Consumer<String> openTab = id -> selectedTab = id;
         Tabs tabs = Tabs.builder()
                 .menu(MENU)
-                .mode(Tabs.Mode.WRAP)
-                .align(Tabs.Align.CENTER)
+                .mode(Tabs.Mode.SIDEBAR)
+                .align(Tabs.Align.LEFT)
                 .selected(() -> selectedTab, id -> selectedTab = id)
                 .tab(tab(GENERAL, "General").body(() -> SettingsTabs.general(max)))
                 .tab(tab("moving_items", "Moving Items").body(SettingsTabs::movingItems))
