@@ -17,6 +17,7 @@ import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
@@ -138,9 +139,16 @@ final class SettingsBody {
      * to the body width. Titled when a feature has more than one list.
      */
     SettingsBody reach(@Nullable String title, List<Component> places) {
+        return reach(title, places.stream().map(name -> new Place(name, true)).toList());
+    }
+
+    /** One checkbox in a reach list: what it names, and whether it starts checked. */
+    record Place(Component name, boolean on) {}
+
+    SettingsBody reach(@Nullable String title, Collection<Place> places) {
         if (title != null) line(0, Component.literal(title));
         List<PanelElement> boxes = new ArrayList<>();
-        for (Component place : places) boxes.add(new Checkbox(0, 0, true, place, v -> {}, DISABLED));
+        for (Place place : places) boxes.add(new Checkbox(0, 0, place.on(), place.name(), v -> {}, DISABLED));
         out.add(Flow.of(boxes).gap(10, 4).at(INDENT, y));
         y += TEXT_ROW + 2;
         return this;

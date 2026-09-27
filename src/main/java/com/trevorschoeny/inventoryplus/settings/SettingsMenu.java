@@ -16,7 +16,6 @@ import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
-import java.util.function.Consumer;
 
 /**
  * The Inventory Plus and Inventory Max settings menu: full screen, a sidebar
@@ -40,7 +39,6 @@ public final class SettingsMenu extends MKScreen {
 
     /** The tab the menu opens on the first time. */
     static final String GENERAL = "general";
-    static final String LOCKS = "locks";
 
     /**
      * The open tab, kept across reopens for the rest of the session. MenuKit's
@@ -77,7 +75,6 @@ public final class SettingsMenu extends MKScreen {
 
     private static Panel main() {
         boolean max = maxInstalled();
-        Consumer<String> openTab = id -> selectedTab = id;
         Tabs tabs = Tabs.builder()
                 .menu(MENU)
                 .mode(Tabs.Mode.SIDEBAR)
@@ -85,13 +82,12 @@ public final class SettingsMenu extends MKScreen {
                 .selected(() -> selectedTab, id -> selectedTab = id)
                 .tab(tab(GENERAL, "General").body(() -> SettingsTabs.general(max)))
                 .tab(tab("moving_items", "Moving Items").body(SettingsTabs::movingItems))
-                .tab(tab(LOCKS, "Locks").body(() -> SettingsTabs.locks(max)))
-                .tab(tab("sort", "Sort").body(() -> SettingsTabs.sort(openTab)))
-                .tab(tab("move_matching", "Move Matching").body(() -> SettingsTabs.moveMatching(openTab)))
-                .tab(tab("restock", "Restock").body(() -> SettingsTabs.restock(openTab)))
-                .tab(tab("auto_tool_switch", "Auto Tool Switch").body(() -> SettingsTabs.autoToolSwitch(openTab)))
-                .tab(tab("column_cycler", "Column Cycler").body(() -> SettingsTabs.columnCycler(openTab)))
-                .tab(tab("hotbar_cycler", "Hotbar Cycler").body(() -> SettingsTabs.hotbarCycler(openTab)))
+                .tab(tab("sort", "Sort").body(SettingsTabs::sort))
+                .tab(tab("move_matching", "Move Matching").body(SettingsTabs::moveMatching))
+                .tab(tab("restock", "Restock").body(SettingsTabs::restock))
+                .tab(tab("auto_tool_switch", "Auto Tool Switch").body(SettingsTabs::autoToolSwitch))
+                .tab(tab("column_cycler", "Column Cycler").body(SettingsTabs::columnCycler))
+                .tab(tab("hotbar_cycler", "Hotbar Cycler").body(SettingsTabs::hotbarCycler))
                 // Inventory Max's places. Its real tabs, added under these ids,
                 // take them over; without it these show dimmed, greyed bodies.
                 .tab(tab("inventorymax:pockets", "Pockets").standIn()
