@@ -101,7 +101,7 @@ final class SettingsBody {
      * it is off.
      */
     SettingsBody frame(String title, String description, Bool use) {
-        header(title, description, Toggle.linked(0, 0, 40, 14, use.get(), use.set(), use.unavailable())
+        header(title, description, Toggle.linked(0, 0, 40, 16, use.get(), use.set(), use.unavailable())
                 .label(() -> Component.literal(use.get().getAsBoolean() ? "On" : "Off")));
         featureOn = use.get();
         return rule();
