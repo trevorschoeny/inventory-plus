@@ -13,9 +13,13 @@ import com.trevlar.menukit.inject.SlotGroups;
 import com.trevlar.menukit.window.BehaviorKey;
 import com.trevlar.menukit.window.BehaviorKeys;
 import com.trevlar.menukit.window.SlotOperations;
+import com.trevorschoeny.keybindery.chord.ChordButton;
 
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -65,14 +69,14 @@ final class SettingsTabs {
      * it stops, and its key. Every group, item kinds included, is listed on
      * every operation (Trev, 2026-09-27).
      */
-    private record LockGroup(String name, String kind, Set<String> stops, Component key) {}
+    private record LockGroup(String name, String kind, Set<String> stops, @Nullable KeyMapping key) {}
 
     private static List<LockGroup> lockGroups() {
         return List.of(
-                new LockGroup("Slot lock", "Slot", SLOT_LOCK_STOPS,
-                        IPKeybinds.LOCK_SLOT.getTranslatedKeyMessage()),
-                new LockGroup("Exact item", "Exact item", EXACT_ITEM_STOPS,
-                        Component.literal("Not bound")));
+                new LockGroup("Slot lock", "Slot", SLOT_LOCK_STOPS, IPKeybinds.LOCK_SLOT),
+                // A group's own key needs Keybindery's runtime bindings (agreed,
+                // not built), so the Exact item group has none yet.
+                new LockGroup("Exact item", "Exact item", EXACT_ITEM_STOPS, null));
     }
 
     // ── General ─────────────────────────────────────────────────────────
@@ -159,14 +163,18 @@ final class SettingsTabs {
      * section is how a group is edited.
      */
     private static void lockGroupSection(SettingsBody b, LockGroup g, boolean open) {
-        String key = g.key().getString();
-        String keyText = key.equals("Not bound") ? "key not bound" : "key " + key;
+        String keyText = g.key() == null ? "no key yet" : "key " + g.key().getTranslatedKeyMessage().getString();
         String summary = g.name().equals(g.kind()) ? keyText : g.kind() + " · " + keyText;
         b.section(g.name(), summary, open, GROUP_GREY);
         if (!open) return;
-        b.line(12, Component.literal("Kind: " + g.kind()))
-                .valueRow(Component.literal("Key: ").append(g.key()), "Change")
-                .valueRow(Component.literal("Colour: grey"), "Change")
+        b.line(12, Component.literal("Kind: " + g.kind()));
+        if (g.key() != null) {
+            KeyMapping key = g.key();
+            b.row(y -> List.of(new ChordButton(key).label(Component.literal("Key")).at(12, y)), 20);
+        } else {
+            b.line(12, Component.literal("Key: none yet"));
+        }
+        b.valueRow(Component.literal("Colour: grey"), "Change")
                 .valueRow(Component.literal("Name: " + g.name()), "Rename", "Delete");
     }
 

@@ -9,6 +9,7 @@ import com.trevlar.menukit.core.PanelElement;
 import com.trevlar.menukit.core.Slider;
 import com.trevlar.menukit.core.TextLabel;
 import com.trevlar.menukit.core.Toggle;
+import com.trevorschoeny.keybindery.chord.ChordButton;
 
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -31,8 +32,9 @@ import java.util.function.IntFunction;
  *
  * <p><b>Scaffold stage.</b> Every control here is disabled and wired to
  * nothing: it shows a setting's shape and its current default, and neither
- * reads nor writes config. The one exception is {@link #button(String, Runnable)},
- * for the few buttons that already do something (the old settings screen).
+ * reads nor writes config. The exceptions already work:
+ * {@link #button(String, Runnable)} (the old settings screen) and keys, which
+ * are Keybindery's and save themselves.
  *
  * <p>A {@code greyed} body is an Inventory Max stand-in: headings and text are
  * drawn in the disabled grey as well, so the whole tab reads as unavailable.
@@ -136,8 +138,8 @@ final class SettingsBody {
      * button (when it has one), and its keys, flowing left to right and
      * wrapping when the body is narrow.
      *
-     * <p>ponytail: each key is a disabled button reading "Name: key" until
-     * Keybindery's MenuKit key element lands; swap it in here.
+     * <p>Each key is Keybindery's {@link ChordButton}, labelled with the
+     * key's name.
      */
     SettingsBody topRow(String useLabel, boolean on, @Nullable String showButtonLabel, KeyMapping... keys) {
         List<PanelElement> row = new ArrayList<>();
@@ -145,10 +147,7 @@ final class SettingsBody {
         if (showButtonLabel != null) {
             row.add(new Checkbox(0, 0, true, Component.literal(showButtonLabel), v -> {}, DISABLED));
         }
-        for (KeyMapping key : keys) {
-            Component text = Component.translatable(key.getName()).append(": ").append(key.getTranslatedKeyMessage());
-            row.add(new Button(0, 0, Minecraft.getInstance().font.width(text) + 12, 16, text, b -> {}, DISABLED));
-        }
+        for (KeyMapping key : keys) row.add(keyButton(key));
         out.add(Flow.of(row).gap(10, 4).at(0, y));
         y += CONTROL_ROW;
         return this;
@@ -256,7 +255,17 @@ final class SettingsBody {
 
     /** A keybind: its name, the key it is on now, and a change button for later. */
     SettingsBody key(KeyMapping key) {
-        return key(Component.translatable(key.getName()), key.getTranslatedKeyMessage());
+        out.add(keyButton(key).at(0, y));
+        y += CONTROL_ROW;
+        return this;
+    }
+
+    /**
+     * A working key: Keybindery's button, labelled with the key's name. It
+     * binds, shows conflicts and resets on its own, and saves at once.
+     */
+    static ChordButton keyButton(KeyMapping key) {
+        return new ChordButton(key).label(Component.translatable(key.getName()));
     }
 
     /** A keybind this mod cannot read, written out (an Inventory Max stand-in). */
