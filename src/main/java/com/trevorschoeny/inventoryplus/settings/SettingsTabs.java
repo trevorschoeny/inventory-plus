@@ -161,7 +161,8 @@ final class SettingsTabs {
             b.row(y -> List.of(
                     new Button(12, y, 110, 16, Component.literal("Revert to default"), btn -> {}, () -> true),
                     new Button(126, y, 70, 16, Component.literal("Priority…"),
-                            btn -> PriorityMenu.open(Minecraft.getInstance().gui.screen()))), 20);
+                            btn -> PriorityMenu.open(Minecraft.getInstance().gui.screen(),
+                                    "Shift-click in priority", slotGroups()))), 20);
         }
         return b.build();
     }
@@ -205,7 +206,16 @@ final class SettingsTabs {
         SettingsBody b = new SettingsBody()
                 .topRow("Use Move Matching", true, "Show the Move Matching buttons",
                         IPKeybinds.MOVE_MATCHING_OUT, IPKeybinds.MOVE_MATCHING_IN);
-        b.heading("Options").line("Move Matching has nothing else to set yet.");
+        // Where Move Matching puts items first: the places it may put into,
+        // in-inventory containers included.
+        List<Component> fillPlaces = new ArrayList<>(slotGroups());
+        fillPlaces.addAll(IN_INVENTORY);
+        b.heading("Options").row(y -> List.of(
+                new TextLabel(0, y + 4, Component.literal("Fill order"), b.textColor(), false),
+                new Button(Minecraft.getInstance().font.width("Fill order") + 8, y, 70, 16,
+                        Component.literal("Priority…"),
+                        btn -> PriorityMenu.open(Minecraft.getInstance().gui.screen(),
+                                "Move Matching priority", fillPlaces))), 20);
         b.reachSection("Reach: out", places("inventoryplus:move_matching_out", IN_INVENTORY))
                 .reachSection("Reach: in", places("inventoryplus:move_matching_in", IN_INVENTORY));
         return b.build();
