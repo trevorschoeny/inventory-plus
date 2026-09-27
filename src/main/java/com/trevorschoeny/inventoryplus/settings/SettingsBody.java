@@ -12,7 +12,6 @@ import com.trevlar.menukit.core.TextLabel;
 import com.trevlar.menukit.core.Toggle;
 import com.trevorschoeny.keybindery.chord.ChordButton;
 
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -86,7 +85,7 @@ final class SettingsBody {
     // ── Text ────────────────────────────────────────────────────────────
 
     /**
-     * The top of every tab (Trev, 2026-09-27): the title, bold at twice size;
+     * The top of every tab (Trev, 2026-09-27): the title at twice size;
      * the description; a row with Reset to Defaults (greyed until reset
      * is built); then a line, with the tab's settings below it. For a tab
      * with no feature to turn off (General, Reach).
@@ -110,8 +109,7 @@ final class SettingsBody {
 
     private void header(String title, String description, @Nullable PanelElement onOff) {
         int titleColor = greyed ? GREYED_COLOR : HEADING_COLOR;
-        out.add(new TextLabel(0, y, Component.literal(title).withStyle(ChatFormatting.BOLD), titleColor, false)
-                .scale(2f));
+        out.add(new TextLabel(0, y, Component.literal(title), titleColor, false).scale(2f));
         y += 2 * TEXT_ROW;
         out.add(new TextLabel(0, y, Component.literal(description), greyed ? GREYED_COLOR : TEXT_COLOR, false));
         y += TEXT_ROW + 4;
@@ -144,7 +142,11 @@ final class SettingsBody {
                 color, false);
     }
 
-    /** A section heading, with a gap above it unless it opens the body. */
+    /**
+     * A category: its title and a short line under it, with a gap above
+     * (Trev, 2026-09-27). Every setting in a tab sits in one; settings that
+     * would each be a category of one go together under "Misc.".
+     */
     SettingsBody heading(String text) {
         if (y > 0) y += SECTION_GAP;
         out.add(settingText(0, y, Component.literal(text), greyed ? GREYED_COLOR : HEADING_COLOR));
@@ -217,6 +219,15 @@ final class SettingsBody {
         }
     }
 
+    // Every setting is its text on one line and its control on the next,
+    // below it, never beside it (Trev, 2026-09-27). A sub-setting indents both.
+
+    /** A setting's text, on its own line, greying while the feature is off. */
+    private void label(int x, Component text) {
+        out.add(settingText(x, y, text, greyed ? GREYED_COLOR : TEXT_COLOR));
+        y += TEXT_ROW;
+    }
+
     SettingsBody checkbox(String label, Bool setting) {
         return checkbox(0, label, setting);
     }
@@ -232,9 +243,10 @@ final class SettingsBody {
     }
 
     private SettingsBody checkbox(int x, String label, Bool setting) {
-        out.add(Checkbox.linked(x, y, setting.get(), Component.literal(label), setting.set(),
+        label(x, Component.literal(label));
+        out.add(Checkbox.linked(x, y, setting.get(), Component.empty(), setting.set(),
                 gated(setting.unavailable())));
-        y += TEXT_ROW + 2;
+        y += TEXT_ROW + 4;
         return this;
     }
 
@@ -254,21 +266,10 @@ final class SettingsBody {
         return this;
     }
 
-    /**
-     * Indented text followed straight away by disabled buttons, for a value
-     * with actions ("Key: L [Change]"). Laid left to right from the text's own
-     * width, not at fixed columns, so a narrow body does not crush it.
-     */
-    SettingsBody valueRow(Component text, String... buttons) {
-        out.add(settingText(INDENT, y + 4, text, greyed ? GREYED_COLOR : TEXT_COLOR));
-        int x = INDENT + Minecraft.getInstance().font.width(text) + 6;
-        for (String label : buttons) {
-            int w = width(label);
-            out.add(new Button(x, y, w, 16, Component.literal(label), b -> {}, DISABLED));
-            x += w + 4;
-        }
-        y += CONTROL_ROW;
-        return this;
+    /** A setting whose control is a row of buttons, greyed until they are built. */
+    SettingsBody actions(String label, String... buttons) {
+        label(0, Component.literal(label));
+        return buttons(buttons);
     }
 
     /** A row of disabled buttons, wrapping when the body is narrow. */
@@ -296,10 +297,9 @@ final class SettingsBody {
      */
     <T> SettingsBody choice(String label, List<T> values, Function<T, String> name,
                             Supplier<T> get, Consumer<T> set, BooleanSupplier unavailable) {
-        int labelW = Minecraft.getInstance().font.width(label);
-        out.add(settingText(INDENT, y + 4, Component.literal(label), greyed ? GREYED_COLOR : TEXT_COLOR));
+        label(0, Component.literal(label));
         out.add(Dropdown.<T>builder()
-                .at(INDENT + labelW + 6, y)
+                .at(0, y)
                 .triggerSize(110, 16)
                 .items(values)
                 .label(v -> Component.literal(name.apply(v)))
@@ -322,36 +322,36 @@ final class SettingsBody {
      * file; fine for a small JSON file. Save on release if it ever shows.
      */
     SettingsBody slider(String label, int min, int max, IntSupplier get, IntConsumer set, BooleanSupplier unavailable) {
+        label(0, Component.literal(label));
         out.add(Slider.builder()
                 .at(0, y)
                 .size(180, 16)
                 .value(() -> (get.getAsInt() - min) / (double) (max - min),
                         v -> set.accept(min + (int) Math.round(v * (max - min))))
-                .label(v -> Component.literal(label + ": " + get.getAsInt()))
+                .label(v -> Component.literal(String.valueOf(get.getAsInt())))
                 .disabledWhen(gated(unavailable))
                 .build());
         y += CONTROL_ROW;
         return this;
     }
 
-    /** A keybind: its name, the key it is on now, and a change button for later. */
+    /** A key: its name, then Keybindery's button, which binds, resets and saves on its own. */
     SettingsBody key(KeyMapping key) {
         return key(key, Component.translatable(key.getName()));
     }
 
-    /** A key under a label of its own ("Key" in a lock group's section). */
+    /** A key under text of its own ("Key" in a lock group's section). */
     SettingsBody key(KeyMapping key, Component label) {
-        out.add(new ChordButton(key).label(label).disabledWhen(gated(() -> false)).at(0, y));
+        label(0, label);
+        out.add(new ChordButton(key).disabledWhen(gated(() -> false)).at(0, y));
         y += CONTROL_ROW;
         return this;
     }
 
     /** A keybind this mod cannot read, written out (an Inventory Max stand-in). */
     SettingsBody key(Component name, Component current) {
-        Component text = name.copy().append(": ").append(current);
-        out.add(new TextLabel(0, y + 4, text, greyed ? GREYED_COLOR : TEXT_COLOR, false));
-        int x = Math.max(150, Minecraft.getInstance().font.width(text) + 8);
-        out.add(new Button(x, y, 50, 16, Component.literal("Change"), b -> {}, DISABLED));
+        label(0, name);
+        out.add(new Button(0, y, Minecraft.getInstance().font.width(current) + 12, 16, current, b -> {}, DISABLED));
         y += CONTROL_ROW;
         return this;
     }

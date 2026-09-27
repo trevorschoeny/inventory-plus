@@ -146,28 +146,24 @@ final class SettingsTabs {
 
     static List<PanelElement> general(boolean maxInstalled) {
         SettingsBody b = new SettingsBody()
-                .frame("General", "Settings for the whole menu. Greyed settings aren't built yet.")
-                .buttons("Reset everything");
-        b.heading("Presets")
-                .line("Keep your settings in a file, or share them by pasting.")
-                .buttons("Save to file", "Load from file")
-                .buttons("Copy to clipboard", "Paste from clipboard");
+                .frame("General", "Settings for the whole menu. Greyed settings aren't built yet.");
+        b.heading("Misc.").key(IPKeybinds.OPEN_SETTINGS);
         // The advert for Inventory Max's tabs; with Inventory Max installed the
         // stand-ins are gone, so there is nothing for this to hide.
-        if (!maxInstalled) {
-            b.heading("Inventory Max")
-                    .checkbox("Show Inventory Max tabs", true);
-        }
-        b.heading("Keys")
-                .key(IPKeybinds.OPEN_SETTINGS);
+        if (!maxInstalled) b.checkbox("Show Inventory Max tabs", true);
         // ponytail: the one live control, so the settings that work stay reachable
         // until this menu is wired; it goes when the menu does the saving.
-        b.heading("Old settings screen")
-                .line("The settings that work today, until this menu takes over.")
+        b.line("The settings that work today, until this menu takes over:")
                 .button("Open the old settings screen", () -> {
                     Minecraft mc = Minecraft.getInstance();
                     mc.gui.setScreen(IPConfigScreen.create(mc.gui.screen()));
                 });
+        b.heading("Presets")
+                .actions("Save or load a file", "Save to file", "Load from file")
+                .actions("Share by pasting", "Copy to clipboard", "Paste from clipboard");
+        // Its own category, not Misc.: it resets every tab.
+        b.heading("Reset")
+                .actions("Every tab back to its defaults", "Reset everything");
         return b.build();
     }
 
@@ -251,14 +247,15 @@ final class SettingsTabs {
 
         b.section(SlotOperations.name(op).getString(), () -> Component.literal(summary), null, c -> {
             c.line(0, SlotOperations.description(op));
+            // The move's own settings sit above its checkboxes (Trev, 2026-09-27).
+            // Shift-click in's fill order waits on MenuKit (reach.md); greyed.
+            if (op == BehaviorKeys.SHIFT_CLICK_IN) c.buttons("Revert to default", "Priority…");
+            else c.buttons("Revert to default");
             block(c, "Slot groups", slotGroups);
             block(c, "Lock groups", lockGroups);
             block(c, "Places", places);
             block(c, "Inventory Plus and Inventory Max", ourGroups);
             block(c, "Other mods", otherGroups);
-            // Shift-click in's fill order waits on MenuKit (reach.md); greyed.
-            if (op == BehaviorKeys.SHIFT_CLICK_IN) c.buttons("Revert to default", "Priority…");
-            else c.buttons("Revert to default");
         });
     }
 
@@ -281,24 +278,25 @@ final class SettingsTabs {
                         + "on a slot to add it to the group or take it out. What each group stops is set in Reach.",
                         // Pauses every lock without deleting any (settings-menu.md); not built.
                         Bool.placeholder(true));
-        for (LockGroup g : lockGroupList()) lockGroupSection(b, g);
-        // A new group picks its kind up front; the defaults cover Slot and
-        // Exact item, and Item (every item of a type) is only ever custom
-        // (lock-groups.md).
-        b.buttons("+ New slot group", "+ New item group", "+ New exact item group")
+        b.heading("Misc.")
                 .checkbox("Show the lock button", Bool.of(IPConfig::lockedSlotsShowButton, IPConfig::setLockedSlotsShowButton))
                 // One switch for every cycler (columns, hotbar rows, pockets):
                 // cycleSlotsLocked is global, so it lives with the locks, not in
                 // one cycler's tab.
                 .checkbox("Lock the slots the cyclers use",
                         Bool.of(IPConfig::cycleSlotsLocked, ColumnCycler::setCycleSlotsLocked));
-
         // Container locks are Inventory Max's. Kept on the client always; the
         // server copy is an option still to be built.
-        b.heading("Container locks");
         if (!maxInstalled) b.line("Install Inventory Max to lock slots in chests and other containers.");
-        b.line("Locks on chest and other container slots are always kept on your computer.")
-                .checkbox("Also keep them on the server (needs Inventory Max there)", false);
+        b.checkbox("Also keep container locks on the server (needs Inventory Max there). "
+                + "They are always kept on your computer.", false);
+        // The groups go last (Trev, 2026-09-27).
+        b.heading("Groups");
+        for (LockGroup g : lockGroupList()) lockGroupSection(b, g);
+        // A new group picks its kind up front; the defaults cover Slot and
+        // Exact item, and Item (every item of a type) is only ever custom
+        // (lock-groups.md).
+        b.actions("New group", "+ Slot", "+ Item", "+ Exact item");
         return b.build();
     }
 
@@ -323,8 +321,9 @@ final class SettingsTabs {
             } else {
                 c.line(0, Component.literal("Key: none yet"));
             }
-            c.valueRow(Component.literal("Colour: grey"), "Change")
-                    .valueRow(Component.literal("Name: " + g.name()), "Rename", "Delete");
+            c.actions("Colour: grey", "Change")
+                    .actions("Name: " + g.name(), "Rename")
+                    .buttons("Delete");
         });
     }
 
@@ -338,6 +337,7 @@ final class SettingsTabs {
                 .frame("Sort", "Sorts your inventory or the open container with one click. "
                         + "Right-click the Sort button to change how it sorts.",
                         Bool.placeholder(true))
+                .heading("Controls")
                 .checkbox("Show the Sort button", Bool.of(IPConfig::sortShowButton, IPConfig::setSortShowButton))
                 .key(IPKeybinds.SORT)
                 .build();
@@ -348,12 +348,14 @@ final class SettingsTabs {
                 .frame("Move Matching", "Moves items between your inventory and the open container, "
                         + "but only items the other side already has. One button moves them in, the other out.",
                         Bool.placeholder(true))
+                // Where Move Matching puts items first waits on MenuKit (reach.md); greyed.
+                .heading("Misc.")
+                .actions("Fill order", "Priority…")
+                .heading("Controls")
                 .checkbox("Show the Move Matching buttons",
                         Bool.of(IPConfig::moveMatchingShowButtons, IPConfig::setMoveMatchingShowButtons))
                 .key(IPKeybinds.MOVE_MATCHING_OUT)
                 .key(IPKeybinds.MOVE_MATCHING_IN)
-                // Where Move Matching puts items first waits on MenuKit (reach.md); greyed.
-                .valueRow(Component.literal("Fill order"), "Priority…")
                 .build();
     }
 
@@ -368,28 +370,34 @@ final class SettingsTabs {
                 .frame("Restock", "Refills your hand, hotbar and armor from your inventory when "
                         + "something runs out or breaks. It can also swap armor and tools just before they break.",
                         Bool.placeholder(true))
+                .heading("Misc.")
                 .checkbox("Show the Restock button", Bool.placeholder(true))
-                .checkbox("Armor restock", armor)
-                .subCheckbox("Swap before it breaks", Bool.of(IPConfig::autoRestockArmorBeforeBreak,
-                        IPConfig::setAutoRestockArmorBeforeBreak).onlyWhen(armor.get()))
-                .subCheckbox("Use locked items", Bool.of(IPConfig::autoRestockArmorUsesLockedItems,
-                        IPConfig::setAutoRestockArmorUsesLockedItems).onlyWhen(armor.get()))
-                .checkbox("Tool restock", tool)
-                .subCheckbox("Swap before it breaks", Bool.of(IPConfig::autoRestockToolBeforeBreak,
-                        IPConfig::setAutoRestockToolBeforeBreak).onlyWhen(tool.get()))
-                .subCheckbox("Use locked items", Bool.of(IPConfig::autoRestockToolUsesLockedItems,
-                        IPConfig::setAutoRestockToolUsesLockedItems).onlyWhen(tool.get()))
-                .checkbox("Item restock", item)
-                .subCheckbox("Use locked items", Bool.of(IPConfig::autoRestockItemUsesLockedItems,
-                        IPConfig::setAutoRestockItemUsesLockedItems).onlyWhen(item.get()))
-                // Also Restock's Shulker Boxes place in Reach; the two read one setting.
-                .checkbox("Pull from Shulker Boxes (in inventory)", shulker)
-                .subCheckbox("Pull ammo when shooting", Bool.of(IPConfig::autoRestockShulkerAmmo,
-                        IPConfig::setAutoRestockShulkerAmmo).onlyWhen(shulker.get()))
+                // Shared by armor's and tools' "Swap before it breaks".
                 .slider("Swap before breaking at durability", 2, 50,
                         IPConfig::autoRestockBeforeBreakThreshold, IPConfig::setAutoRestockBeforeBreakThreshold,
                         () -> !((IPConfig.autoRestockArmor() && IPConfig.autoRestockArmorBeforeBreak())
                                 || (IPConfig.autoRestockTool() && IPConfig.autoRestockToolBeforeBreak())))
+                .heading("Armor")
+                .checkbox("Restock armor", armor)
+                .subCheckbox("Swap before it breaks", Bool.of(IPConfig::autoRestockArmorBeforeBreak,
+                        IPConfig::setAutoRestockArmorBeforeBreak).onlyWhen(armor.get()))
+                .subCheckbox("Use locked items", Bool.of(IPConfig::autoRestockArmorUsesLockedItems,
+                        IPConfig::setAutoRestockArmorUsesLockedItems).onlyWhen(armor.get()))
+                .heading("Tools")
+                .checkbox("Restock tools", tool)
+                .subCheckbox("Swap before it breaks", Bool.of(IPConfig::autoRestockToolBeforeBreak,
+                        IPConfig::setAutoRestockToolBeforeBreak).onlyWhen(tool.get()))
+                .subCheckbox("Use locked items", Bool.of(IPConfig::autoRestockToolUsesLockedItems,
+                        IPConfig::setAutoRestockToolUsesLockedItems).onlyWhen(tool.get()))
+                .heading("Items")
+                .checkbox("Restock items", item)
+                .subCheckbox("Use locked items", Bool.of(IPConfig::autoRestockItemUsesLockedItems,
+                        IPConfig::setAutoRestockItemUsesLockedItems).onlyWhen(item.get()))
+                // Also Restock's Shulker Boxes place in Reach; the two read one setting.
+                .heading("Shulker Boxes")
+                .checkbox("Pull from Shulker Boxes in your inventory", shulker)
+                .subCheckbox("Pull ammo when shooting", Bool.of(IPConfig::autoRestockShulkerAmmo,
+                        IPConfig::setAutoRestockShulkerAmmo).onlyWhen(shulker.get()))
                 .build();
     }
 
@@ -398,10 +406,11 @@ final class SettingsTabs {
                 .frame("Auto Tool Switch", "Switches to the right tool for the block you're mining, "
                         + "and to a weapon when you attack. It can switch back to what you were holding afterwards.",
                         Bool.of(IPConfig::autoToolSwitchEnabled, IPConfig::setAutoToolSwitchEnabled))
+                .heading("Misc.")
                 .checkbox("Show the Auto Tool Switch button", Bool.placeholder(true))
-                .key(IPKeybinds.AUTO_SWITCH_RETURN)
                 .checkbox("Use locked items", Bool.of(IPConfig::autoToolSwitchUsesLockedItems,
                         IPConfig::setAutoToolSwitchUsesLockedItems))
+                .heading("Switching back")
                 .choice("Return to the previous tool", Arrays.asList(AutoSwitchReturnMode.values()),
                         AutoSwitchReturnMode::displayName,
                         IPConfig::autoToolSwitchReturnMode, IPConfig::setAutoToolSwitchReturnMode,
@@ -409,11 +418,13 @@ final class SettingsTabs {
                 .slider("Return window, seconds", 1, 10,
                         IPConfig::autoToolSwitchReturnCooldownSeconds, IPConfig::setAutoToolSwitchReturnCooldownSeconds,
                         () -> !IPConfig.autoToolSwitchReturnMode().isWindowed())
+                // The return key only matters to the return modes, so it sits with them.
+                .key(IPKeybinds.AUTO_SWITCH_RETURN)
+                .heading("Weapons")
                 .checkbox("Switch weapons too", Bool.of(IPConfig::autoToolSwitchWeapons,
                         IPConfig::setAutoToolSwitchWeapons))
                 .subCheckbox("All mobs, not just hostile ones", Bool.of(IPConfig::autoToolSwitchAllMobs,
-                        IPConfig::setAutoToolSwitchAllMobs)
-                        .onlyWhen(IPConfig::autoToolSwitchWeapons))
+                        IPConfig::setAutoToolSwitchAllMobs).onlyWhen(IPConfig::autoToolSwitchWeapons))
                 .choice("Preferred weapon", Arrays.asList(WeaponPreference.values()),
                         SettingsTabs::titleCase,
                         IPConfig::autoToolSwitchWeaponPreference, IPConfig::setAutoToolSwitchWeaponPreference,
@@ -426,14 +437,16 @@ final class SettingsTabs {
                 .frame("Column Cycler", "Rotates the items in an inventory column through a hotbar slot. "
                         + "Press the cycle key on a slot to add its column, then cycle it with the forward and backward keys.",
                         Bool.of(IPConfig::columnCyclerEnabled, IPConfig::setColumnCyclerEnabled))
+                .heading("Misc.")
+                .choice("Beside the hotbar", Arrays.asList(HudMode.values()), SettingsTabs::hudName,
+                        IPConfig::columnCyclerHudMode, IPConfig::setColumnCyclerHudMode, () -> false)
+                .heading("Controls")
                 .checkbox("Show the Column Cycler button",
                         Bool.of(IPConfig::columnCyclerShowButton, IPConfig::setColumnCyclerShowButton))
                 .key(IPKeybinds.CYCLE_SLOT)
+                .heading("Cycling")
                 .key(IPKeybinds.CYCLE_FORWARD)
                 .key(IPKeybinds.CYCLE_BACKWARD)
-                .choice("Beside the hotbar", Arrays.asList(HudMode.values()), SettingsTabs::hudName,
-                        IPConfig::columnCyclerHudMode, IPConfig::setColumnCyclerHudMode,
-                        () -> false)
                 // Turning this on turns Hotbar Cycler's off (one wheel); the
                 // setter enforces it and both checkboxes read live.
                 .checkbox("Scroll to cycle", Bool.of(IPConfig::columnCyclerScrollToCycle,
@@ -446,13 +459,15 @@ final class SettingsTabs {
                 .frame("Hotbar Cycler", "Rotates whole inventory rows through your hotbar. "
                         + "Add rows with the buttons beside them, then cycle with the forward and backward keys.",
                         Bool.of(IPConfig::hotbarCyclerEnabled, IPConfig::setHotbarCyclerEnabled))
+                .heading("Misc.")
                 .checkbox("Show the row buttons",
                         Bool.of(IPConfig::hotbarCyclerShowButtons, IPConfig::setHotbarCyclerShowButtons))
-                .key(IPKeybinds.HOTBAR_CYCLE_FORWARD)
-                .key(IPKeybinds.HOTBAR_CYCLE_BACKWARD)
                 // Rows lock only while "Lock the slots the cyclers use" is on too.
                 .checkbox("Lock cycled rows", Bool.of(IPConfig::lockCycledRows, IPConfig::setLockCycledRows)
                         .onlyWhen(IPConfig::cycleSlotsLocked))
+                .heading("Cycling")
+                .key(IPKeybinds.HOTBAR_CYCLE_FORWARD)
+                .key(IPKeybinds.HOTBAR_CYCLE_BACKWARD)
                 .checkbox("Scroll to cycle", Bool.of(IPConfig::hotbarCyclerScrollToCycle,
                         IPConfig::setHotbarCyclerScrollToCycle))
                 .build();
@@ -468,16 +483,19 @@ final class SettingsTabs {
     static List<PanelElement> pocketsStandIn() {
         return standIn("Pockets", "Adds up to three extra slots behind each hotbar slot, "
                         + "and keys to cycle through them.")
+                .heading("Misc.")
                 .checkbox("Show the Pockets button", true)
+                .checkbox("Restock and Auto Tool Switch may take from pockets", true)
+                .choice("Beside the hotbar", List.of("Mini hotbar"), v -> v, "Mini hotbar")
+                .heading("Cycling")
                 .key(Component.literal("Pocket Cycle Forward"), Component.literal("Right Arrow"))
                 .key(Component.literal("Pocket Cycle Backward"), Component.literal("Left Arrow"))
-                .choice("Beside the hotbar", List.of("Mini hotbar"), v -> v, "Mini hotbar")
-                .checkbox("Restock and Auto Tool Switch may take from pockets", true)
                 .build();
     }
 
     static List<PanelElement> equipmentSlotsStandIn() {
         return standIn("Equipment Slots", "Adds an elytra slot and a totem slot to your inventory.")
+                .heading("Misc.")
                 .checkbox("Show the Equipment Slots button", true)
                 .checkbox("Show elytra and totem icons beside the hotbar", true)
                 .build();
@@ -486,6 +504,7 @@ final class SettingsTabs {
     static List<PanelElement> mendAnywhereStandIn() {
         return standIn("Mend Anywhere", "Mending items repair from XP anywhere in your inventory, "
                         + "not only in your hands and armor.")
+                .heading("Misc.")
                 .checkbox("Show the Mend Anywhere button", true)
                 .build();
     }
