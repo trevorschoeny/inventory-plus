@@ -53,7 +53,7 @@ final class PriorityMenu extends MKScreen {
         for (SlotGroups.Entry e : SlotGroups.listing()) {
             out.add(new Button(0, y, 16, 16, Component.literal("↑"), b -> {}, DISABLED));
             out.add(new Button(18, y, 16, 16, Component.literal("↓"), b -> {}, DISABLED));
-            out.add(new TextLabel(40, y + 4, Component.literal(n++ + ". ").append(e.name()), 0xFF555555, false));
+            out.add(new TextLabel(40, y + 4, Component.literal(n++ + ". ").append(SettingsTabs.groupLabel(e)), 0xFF555555, false));
             y += ROW;
         }
 

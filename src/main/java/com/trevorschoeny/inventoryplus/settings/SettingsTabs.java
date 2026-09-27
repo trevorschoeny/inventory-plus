@@ -318,8 +318,18 @@ final class SettingsTabs {
     /** Every slot group a player can name, from MenuKit's listing. */
     private static List<Component> slotGroups() {
         List<Component> names = new ArrayList<>();
-        for (SlotGroups.Entry e : SlotGroups.listing()) names.add(e.name());
+        for (SlotGroups.Entry e : SlotGroups.listing()) names.add(groupLabel(e));
         return names;
+    }
+
+    /**
+     * A listing row as the menu shows it: its name, and for a group a mod
+     * added, that mod in parentheses ("Pockets (Inventory Max)"), so a player
+     * can tell vanilla's groups from the rest.
+     */
+    static Component groupLabel(SlotGroups.Entry e) {
+        Component source = e.source();
+        return source == null ? e.name() : e.name().copy().append(" (").append(source).append(")");
     }
 
     private static String titleCase(Enum<?> e) {
