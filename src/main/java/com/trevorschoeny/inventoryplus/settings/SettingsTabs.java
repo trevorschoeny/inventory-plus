@@ -62,17 +62,16 @@ final class SettingsTabs {
 
     /**
      * A lock group as the scaffold shows it: its name and kind, the operations
-     * it stops, and its key. {@code takeOnly}: an item lock protects an item
-     * already in a slot, so it has nothing to say about operations that only
-     * put items in (SlotOperations.Role.PUT) and is not listed on them.
+     * it stops, and its key. Every group, item kinds included, is listed on
+     * every operation (Trev, 2026-09-27).
      */
-    private record LockGroup(String name, String kind, Set<String> stops, boolean takeOnly, Component key) {}
+    private record LockGroup(String name, String kind, Set<String> stops, Component key) {}
 
     private static List<LockGroup> lockGroups() {
         return List.of(
-                new LockGroup("Slot lock", "Slot", SLOT_LOCK_STOPS, false,
+                new LockGroup("Slot lock", "Slot", SLOT_LOCK_STOPS,
                         IPKeybinds.LOCK_SLOT.getTranslatedKeyMessage()),
-                new LockGroup("Exact item", "Exact item", EXACT_ITEM_STOPS, true,
+                new LockGroup("Exact item", "Exact item", EXACT_ITEM_STOPS,
                         Component.literal("Not bound")));
     }
 
@@ -118,11 +117,11 @@ final class SettingsTabs {
         SettingsBody b = new SettingsBody()
                 .line("Choose which slot groups each of vanilla's item moves may use. A cleared box means the move never touches those groups.");
 
-        // Lock groups are slot groups the player fills: listed here, then offered
+        // Lock groups are groups the player fills: listed here, then offered
         // in every move's list beside MenuKit's groups (Trev, 2026-09-27). They
         // are not in MenuKit's slot group registry; Inventory Plus owns them.
         b.heading("Lock groups")
-                .line("Slot groups you fill yourself: press a group's key on a slot to add it or take it out.");
+                .line("Groups you fill yourself: press a group's key on a slot to add it or take it out.");
         // Slot lock is drawn open, as shift-click in is below (SettingsBody.section).
         for (LockGroup g : lockGroups()) lockGroupSection(b, g, g.name().equals("Slot lock"));
         b.buttons("+ New group")
@@ -337,9 +336,7 @@ final class SettingsTabs {
     /** The lock groups that apply to {@code operation}, each on unless it stops it. */
     private static List<SettingsBody.Place> lockPlaces(String operation) {
         List<SettingsBody.Place> out = new ArrayList<>();
-        boolean putOnly = role(operation) == SlotOperations.Role.PUT;
         for (LockGroup g : lockGroups()) {
-            if (g.takeOnly() && putOnly) continue;
             out.add(new SettingsBody.Place(Component.literal(g.name() + " (lock group)"),
                     !g.stops().contains(operation)));
         }
@@ -350,20 +347,10 @@ final class SettingsTabs {
     private static String summary(BehaviorKey<?> op, List<Component> slotGroups) {
         String reach = slotGroups.size() + " of " + slotGroups.size() + " slot groups";
         List<String> stoppedBy = new ArrayList<>();
-        boolean putOnly = SlotOperations.role(op) == SlotOperations.Role.PUT;
         for (LockGroup g : lockGroups()) {
-            if (g.takeOnly() && putOnly) continue;
             if (g.stops().contains(op.id().toString())) stoppedBy.add(g.name());
         }
         return stoppedBy.isEmpty() ? reach : reach + " · stopped by " + String.join(", ", stoppedBy);
-    }
-
-    /** An operation's role by id; BOTH for an id nobody defined, as SlotOperations does. */
-    private static SlotOperations.Role role(String operation) {
-        for (BehaviorKey<?> op : SlotOperations.all()) {
-            if (op.id().toString().equals(operation)) return SlotOperations.role(op);
-        }
-        return SlotOperations.Role.BOTH;
     }
 
     /** Every slot group a player can name, from MenuKit's listing. */
