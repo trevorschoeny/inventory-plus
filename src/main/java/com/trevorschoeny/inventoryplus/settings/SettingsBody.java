@@ -87,7 +87,7 @@ final class SettingsBody {
 
     /**
      * The top of every tab (Trev, 2026-09-27): the title, bold at twice size;
-     * the description, bold; a row with Reset to Defaults (greyed until reset
+     * the description; a row with Reset to Defaults (greyed until reset
      * is built); then a line, with the tab's settings below it. For a tab
      * with no feature to turn off (General, Reach).
      */
@@ -97,12 +97,13 @@ final class SettingsBody {
     }
 
     /**
-     * The same, with the feature's on/off toggle left of Reset to Defaults
-     * in that row. Everything below the line greys while it is off.
+     * The same, with the feature's on/off toggle, reading "On" or "Off", left
+     * of Reset to Defaults in that row. Everything below the line greys while
+     * it is off.
      */
-    SettingsBody frame(String title, String description, String useLabel, Bool use) {
+    SettingsBody frame(String title, String description, Bool use) {
         header(title, description, Toggle.linked(0, 0, 40, 14, use.get(), use.set(), use.unavailable())
-                .label(Component.literal(useLabel)));
+                .label(() -> Component.literal(use.get().getAsBoolean() ? "On" : "Off")));
         featureOn = use.get();
         return rule();
     }
@@ -112,8 +113,7 @@ final class SettingsBody {
         out.add(new TextLabel(0, y, Component.literal(title).withStyle(ChatFormatting.BOLD), titleColor, false)
                 .scale(2f));
         y += 2 * TEXT_ROW;
-        out.add(new TextLabel(0, y, Component.literal(description).withStyle(ChatFormatting.BOLD),
-                greyed ? GREYED_COLOR : TEXT_COLOR, false));
+        out.add(new TextLabel(0, y, Component.literal(description), greyed ? GREYED_COLOR : TEXT_COLOR, false));
         y += TEXT_ROW + 4;
         List<PanelElement> row = new ArrayList<>();
         if (onOff != null) row.add(onOff);

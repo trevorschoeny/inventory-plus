@@ -280,7 +280,7 @@ final class SettingsTabs {
                 .frame("Lock groups", "Lock slots and items so moves leave them alone. Press a group's key "
                         + "on a slot to add it to the group or take it out. What each group stops is set in Reach.",
                         // Pauses every lock without deleting any (settings-menu.md); not built.
-                        "Use locks", Bool.placeholder(true));
+                        Bool.placeholder(true));
         for (LockGroup g : lockGroupList()) lockGroupSection(b, g);
         // A new group picks its kind up front; the defaults cover Slot and
         // Exact item, and Item (every item of a type) is only ever custom
@@ -337,7 +337,7 @@ final class SettingsTabs {
         return new SettingsBody()
                 .frame("Sort", "Sorts your inventory or the open container with one click. "
                         + "Right-click the Sort button to change how it sorts.",
-                        "Use Sort", Bool.placeholder(true))
+                        Bool.placeholder(true))
                 .checkbox("Show the Sort button", Bool.of(IPConfig::sortShowButton, IPConfig::setSortShowButton))
                 .key(IPKeybinds.SORT)
                 .build();
@@ -347,7 +347,7 @@ final class SettingsTabs {
         return new SettingsBody()
                 .frame("Move Matching", "Moves items between your inventory and the open container, "
                         + "but only items the other side already has. One button moves them in, the other out.",
-                        "Use Move Matching", Bool.placeholder(true))
+                        Bool.placeholder(true))
                 .checkbox("Show the Move Matching buttons",
                         Bool.of(IPConfig::moveMatchingShowButtons, IPConfig::setMoveMatchingShowButtons))
                 .key(IPKeybinds.MOVE_MATCHING_OUT)
@@ -367,7 +367,7 @@ final class SettingsTabs {
         return new SettingsBody()
                 .frame("Restock", "Refills your hand, hotbar and armor from your inventory when "
                         + "something runs out or breaks. It can also swap armor and tools just before they break.",
-                        "Use Restock", Bool.placeholder(true))
+                        Bool.placeholder(true))
                 .checkbox("Show the Restock button", Bool.placeholder(true))
                 .checkbox("Armor restock", armor)
                 .subCheckbox("Swap before it breaks", Bool.of(IPConfig::autoRestockArmorBeforeBreak,
@@ -397,7 +397,7 @@ final class SettingsTabs {
         return new SettingsBody()
                 .frame("Auto Tool Switch", "Switches to the right tool for the block you're mining, "
                         + "and to a weapon when you attack. It can switch back to what you were holding afterwards.",
-                        "Use Auto Tool Switch", Bool.of(IPConfig::autoToolSwitchEnabled, IPConfig::setAutoToolSwitchEnabled))
+                        Bool.of(IPConfig::autoToolSwitchEnabled, IPConfig::setAutoToolSwitchEnabled))
                 .checkbox("Show the Auto Tool Switch button", Bool.placeholder(true))
                 .key(IPKeybinds.AUTO_SWITCH_RETURN)
                 .checkbox("Use locked items", Bool.of(IPConfig::autoToolSwitchUsesLockedItems,
@@ -425,7 +425,7 @@ final class SettingsTabs {
         return new SettingsBody()
                 .frame("Column Cycler", "Rotates the items in an inventory column through a hotbar slot. "
                         + "Press the cycle key on a slot to add its column, then cycle it with the forward and backward keys.",
-                        "Use Column Cycler", Bool.of(IPConfig::columnCyclerEnabled, IPConfig::setColumnCyclerEnabled))
+                        Bool.of(IPConfig::columnCyclerEnabled, IPConfig::setColumnCyclerEnabled))
                 .checkbox("Show the Column Cycler button",
                         Bool.of(IPConfig::columnCyclerShowButton, IPConfig::setColumnCyclerShowButton))
                 .key(IPKeybinds.CYCLE_SLOT)
@@ -445,7 +445,7 @@ final class SettingsTabs {
         return new SettingsBody()
                 .frame("Hotbar Cycler", "Rotates whole inventory rows through your hotbar. "
                         + "Add rows with the buttons beside them, then cycle with the forward and backward keys.",
-                        "Use Hotbar Cycler", Bool.of(IPConfig::hotbarCyclerEnabled, IPConfig::setHotbarCyclerEnabled))
+                        Bool.of(IPConfig::hotbarCyclerEnabled, IPConfig::setHotbarCyclerEnabled))
                 .checkbox("Show the row buttons",
                         Bool.of(IPConfig::hotbarCyclerShowButtons, IPConfig::setHotbarCyclerShowButtons))
                 .key(IPKeybinds.HOTBAR_CYCLE_FORWARD)
@@ -460,14 +460,14 @@ final class SettingsTabs {
 
     // ── Inventory Max stand-ins (greyed; Inventory Max replaces them) ─────
 
-    private static SettingsBody standIn(String title, String description, String use) {
+    private static SettingsBody standIn(String title, String description) {
         return new SettingsBody(true)
-                .frame(title, description + " Install Inventory Max to use it.", use, Bool.placeholder(true));
+                .frame(title, description + " Install Inventory Max to use it.", Bool.placeholder(true));
     }
 
     static List<PanelElement> pocketsStandIn() {
         return standIn("Pockets", "Adds up to three extra slots behind each hotbar slot, "
-                        + "and keys to cycle through them.", "Use Pockets")
+                        + "and keys to cycle through them.")
                 .checkbox("Show the Pockets button", true)
                 .key(Component.literal("Pocket Cycle Forward"), Component.literal("Right Arrow"))
                 .key(Component.literal("Pocket Cycle Backward"), Component.literal("Left Arrow"))
@@ -477,8 +477,7 @@ final class SettingsTabs {
     }
 
     static List<PanelElement> equipmentSlotsStandIn() {
-        return standIn("Equipment Slots", "Adds an elytra slot and a totem slot to your inventory.",
-                        "Use Equipment Slots")
+        return standIn("Equipment Slots", "Adds an elytra slot and a totem slot to your inventory.")
                 .checkbox("Show the Equipment Slots button", true)
                 .checkbox("Show elytra and totem icons beside the hotbar", true)
                 .build();
@@ -486,7 +485,7 @@ final class SettingsTabs {
 
     static List<PanelElement> mendAnywhereStandIn() {
         return standIn("Mend Anywhere", "Mending items repair from XP anywhere in your inventory, "
-                        + "not only in your hands and armor.", "Use Mend Anywhere")
+                        + "not only in your hands and armor.")
                 .checkbox("Show the Mend Anywhere button", true)
                 .build();
     }
