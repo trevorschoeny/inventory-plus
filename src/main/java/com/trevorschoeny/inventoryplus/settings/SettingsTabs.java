@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /**
  * The body of every settings tab, as placeholders (plan: Leadership drive,
@@ -140,8 +141,7 @@ final class SettingsTabs {
         // are not in MenuKit's slot group registry; Inventory Plus owns them.
         b.heading("Lock groups")
                 .line("Groups you fill yourself: press a group's key on a slot to add it or take it out.");
-        // Slot lock is drawn open, as shift-click in is below (SettingsBody.section).
-        for (LockGroup g : lockGroups()) lockGroupSection(b, g, g.name().equals("Slot lock"));
+        for (LockGroup g : lockGroups()) lockGroupSection(b, g);
         // A new group picks its kind up front; the defaults cover Slot and
         // Exact item, and Item (every item of a type) is only ever custom
         // (lock-groups.md).
@@ -165,16 +165,19 @@ final class SettingsTabs {
             String ns = op.id().getNamespace();
             // Inventory Plus's and Inventory Max's own operations live in their feature tabs.
             if (ns.equals("inventoryplus") || ns.equals("inventorymax")) continue;
-            // Shift-click in is drawn open: it is the one section with every part.
-            boolean open = op == BehaviorKeys.SHIFT_CLICK_IN;
-            b.section(SlotOperations.name(op).getString(), summary(op, groups), open);
-            if (!open) continue;
-            b.line(12, SlotOperations.description(op)).reach(null, places(op.id().toString()));
-            b.row(y -> List.of(
-                    new Button(12, y, 110, 16, Component.literal("Revert to default"), btn -> {}, () -> true),
-                    new Button(126, y, 70, 16, Component.literal("Priority…"),
+            String summary = summary(op, groups);
+            b.section(SlotOperations.name(op).getString(), () -> Component.literal(summary), null, c -> {
+                c.line(0, SlotOperations.description(op)).reach(null, places(op.id().toString()));
+                // Shift-click in alone has a fill order to set.
+                if (op == BehaviorKeys.SHIFT_CLICK_IN) {
+                    c.buttons("Revert to default").row(y -> List.of(new Button(0, y, 70, 16,
+                            Component.literal("Priority…"),
                             btn -> PriorityMenu.open(Minecraft.getInstance().gui.screen(),
                                     "Shift-click in priority", slotGroups()))), 20);
+                } else {
+                    c.buttons("Revert to default");
+                }
+            });
         }
         return b.build();
     }
@@ -185,20 +188,24 @@ final class SettingsTabs {
      * and its key). Open: a line per thing to change about it; opening the
      * section is how a group is edited.
      */
-    private static void lockGroupSection(SettingsBody b, LockGroup g, boolean open) {
-        String keyText = g.key() == null ? "no key yet" : "key " + g.key().getTranslatedKeyMessage().getString();
-        String summary = g.name().equals(g.kind()) ? keyText : g.kind() + " · " + keyText;
-        b.section(g.name(), summary, open, GROUP_GREY);
-        if (!open) return;
-        b.line(12, Component.literal("Kind: " + g.kind()));
-        if (g.key() != null) {
-            KeyMapping key = g.key();
-            b.row(y -> List.of(new ChordButton(key).label(Component.literal("Key")).at(12, y)), 20);
-        } else {
-            b.line(12, Component.literal("Key: none yet"));
-        }
-        b.valueRow(Component.literal("Colour: grey"), "Change")
-                .valueRow(Component.literal("Name: " + g.name()), "Rename", "Delete");
+    private static void lockGroupSection(SettingsBody b, LockGroup g) {
+        // Read every frame, so a key rebound in the section shows in its header.
+        Supplier<Component> summary = () -> {
+            String keyText = g.key() == null ? "no key yet"
+                    : "key " + g.key().getTranslatedKeyMessage().getString();
+            return Component.literal(g.name().equals(g.kind()) ? keyText : g.kind() + " · " + keyText);
+        };
+        b.section(g.name(), summary, GROUP_GREY, c -> {
+            c.line(0, Component.literal("Kind: " + g.kind()));
+            if (g.key() != null) {
+                KeyMapping key = g.key();
+                c.row(y -> List.of(new ChordButton(key).label(Component.literal("Key")).at(0, y)), 20);
+            } else {
+                c.line(0, Component.literal("Key: none yet"));
+            }
+            c.valueRow(Component.literal("Colour: grey"), "Change")
+                    .valueRow(Component.literal("Name: " + g.name()), "Rename", "Delete");
+        });
     }
 
     // ── Feature tabs ────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ import com.trevlar.menukit.core.Divider;
 import com.trevlar.menukit.core.Dropdown;
 import com.trevlar.menukit.core.Flow;
 import com.trevlar.menukit.core.PanelElement;
+import com.trevlar.menukit.core.Section;
 import com.trevlar.menukit.core.Slider;
 import com.trevlar.menukit.core.TextLabel;
 import com.trevlar.menukit.core.Toggle;
@@ -85,34 +86,27 @@ final class SettingsBody {
     }
 
     /**
-     * A collapsible section's header row: an arrow, the title, and a grey
-     * summary of what is inside. The rows that follow, when {@code open},
-     * are the section's contents.
+     * A collapsible section: MenuKit's {@link Section}, closed to start. Its
+     * header is an arrow, an optional colour swatch, the title and a grey
+     * {@code summary} read every frame; a click opens it. {@code content}
+     * fills a fresh body laid out from the section's own top-left.
      *
-     * <p>ponytail: drawn, not working. MenuKit has no disclosure element yet
-     * (asked for 2026-09-26), and a body's rows sit at fixed heights, so the
-     * scaffold shows one section open and the rest closed. Swap in MenuKit's
-     * element when it lands.
+     * <p>Rows after it are placed as if it were closed. Opening it reports
+     * its content height to the panel's reflow, which pushes them down.
      */
-    SettingsBody section(String title, String summary, boolean open) {
-        return section(title, summary, open, null);
-    }
-
-    /** A section whose header carries a colour swatch after the arrow (a lock group's colour). */
-    SettingsBody section(String title, String summary, boolean open, @Nullable Integer swatch) {
+    SettingsBody section(String title, Supplier<Component> summary, @Nullable Integer swatch,
+                         Consumer<SettingsBody> content) {
         if (y > 0) y += 4;
-        String arrow = open ? "▼ " : "▶ ";
-        int x = 0;
-        out.add(new TextLabel(x, y, Component.literal(arrow), greyed ? GREYED_COLOR : HEADING_COLOR, false));
-        x += Minecraft.getInstance().font.width(arrow);
-        if (swatch != null) {
-            out.add(Divider.horizontal(x, y, 8, swatch, 8));
-            x += 12;
-        }
-        out.add(new TextLabel(x, y, Component.literal(title), greyed ? GREYED_COLOR : HEADING_COLOR, false));
-        x += Minecraft.getInstance().font.width(title) + 8;
-        out.add(new TextLabel(x, y, Component.literal(summary), GREYED_COLOR, false));
-        y += TEXT_ROW + 2;
+        SettingsBody inner = new SettingsBody(greyed);
+        content.accept(inner);
+        Section.Builder section = Section.builder(Component.literal(title))
+                .at(0, y)
+                .summary(summary)
+                .content(inner.build());
+        if (swatch != null) section.swatch(swatch);
+        if (greyed) section.colors(GREYED_COLOR, GREYED_COLOR);
+        out.add(section.build());
+        y += Section.HEADER_HEIGHT + 2;
         return this;
     }
 
@@ -245,15 +239,14 @@ final class SettingsBody {
     }
 
     /**
-     * A feature's reach, as a closed section at the bottom of its tab (Trev,
-     * 2026-09-27): the title and how many of its places are on. Opened, it
-     * would show the checkboxes; see {@link #section} for why the scaffold
-     * draws it closed.
+     * A feature's reach, as a section at the bottom of its tab (Trev,
+     * 2026-09-27): closed, it says how many of its places are on; open, it
+     * shows their checkboxes.
      */
     SettingsBody reachSection(String title, List<Place> places) {
         long on = places.stream().filter(Place::on).count();
         String summary = on == places.size() ? "all " + on + " on" : on + " of " + places.size() + " on";
-        return section(title, summary, false);
+        return section(title, () -> Component.literal(summary), null, c -> c.reach(null, places));
     }
 
     /** A row of disabled buttons, wrapping when the body is narrow. */
