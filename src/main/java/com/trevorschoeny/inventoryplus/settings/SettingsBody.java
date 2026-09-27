@@ -90,10 +90,22 @@ final class SettingsBody {
      * element when it lands.
      */
     SettingsBody section(String title, String summary, boolean open) {
+        return section(title, summary, open, null);
+    }
+
+    /** A section whose header carries a colour swatch after the arrow (a lock group's colour). */
+    SettingsBody section(String title, String summary, boolean open, @Nullable Integer swatch) {
         if (y > 0) y += 4;
-        String text = (open ? "▼ " : "▶ ") + title;
-        out.add(new TextLabel(0, y, Component.literal(text), greyed ? GREYED_COLOR : HEADING_COLOR, false));
-        int x = Minecraft.getInstance().font.width(text) + 8;
+        String arrow = open ? "▼ " : "▶ ";
+        int x = 0;
+        out.add(new TextLabel(x, y, Component.literal(arrow), greyed ? GREYED_COLOR : HEADING_COLOR, false));
+        x += Minecraft.getInstance().font.width(arrow);
+        if (swatch != null) {
+            out.add(Divider.horizontal(x, y, 8, swatch, 8));
+            x += 12;
+        }
+        out.add(new TextLabel(x, y, Component.literal(title), greyed ? GREYED_COLOR : HEADING_COLOR, false));
+        x += Minecraft.getInstance().font.width(title) + 8;
         out.add(new TextLabel(x, y, Component.literal(summary), GREYED_COLOR, false));
         y += TEXT_ROW + 2;
         return this;
@@ -151,6 +163,23 @@ final class SettingsBody {
         for (Place place : places) boxes.add(new Checkbox(0, 0, place.on(), place.name(), v -> {}, DISABLED));
         out.add(Flow.of(boxes).gap(10, 4).at(INDENT, y));
         y += TEXT_ROW + 2;
+        return this;
+    }
+
+    /**
+     * Indented text followed straight away by disabled buttons, for a value
+     * with actions ("Key: L [Change]"). Laid left to right from the text's own
+     * width, not at fixed columns, so a narrow body does not crush it.
+     */
+    SettingsBody valueRow(Component text, String... buttons) {
+        out.add(new TextLabel(INDENT, y + 4, text, greyed ? GREYED_COLOR : TEXT_COLOR, false));
+        int x = INDENT + Minecraft.getInstance().font.width(text) + 6;
+        for (String label : buttons) {
+            int w = width(label);
+            out.add(new Button(x, y, w, 16, Component.literal(label), b -> {}, DISABLED));
+            x += w + 4;
+        }
+        y += CONTROL_ROW;
         return this;
     }
 

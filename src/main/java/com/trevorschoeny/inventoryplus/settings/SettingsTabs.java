@@ -123,7 +123,8 @@ final class SettingsTabs {
         // are not in MenuKit's slot group registry; Inventory Plus owns them.
         b.heading("Lock groups")
                 .line("Slot groups you fill yourself: press a group's key on a slot to add it or take it out.");
-        for (LockGroup g : lockGroups()) lockGroupRow(b, g);
+        // Slot lock is drawn open, as shift-click in is below (SettingsBody.section).
+        for (LockGroup g : lockGroups()) lockGroupSection(b, g, g.name().equals("Slot lock"));
         b.buttons("+ New group")
                 .checkbox("Show the lock button", true);
 
@@ -152,16 +153,22 @@ final class SettingsTabs {
         return b.build();
     }
 
-    /** One lock group's row: its colour, name and kind, its key, and an edit button. */
-    private static void lockGroupRow(SettingsBody b, LockGroup g) {
-        Component key = Component.literal("Key: ").append(g.key());
-        b.row(y -> List.of(
-                Divider.horizontal(0, y + 3, 10, GROUP_GREY, 10),
-                new TextLabel(16, y + 4, Component.literal(g.name()), TextLabel.COLOR_DARK, false),
-                new TextLabel(90, y + 4, Component.literal("Kind: " + g.kind()), b.textColor(), false),
-                new TextLabel(176, y + 4, key, b.textColor(), false),
-                new Button(250, y, 50, 16, Component.literal("Change"), btn -> {}, () -> true),
-                new Button(304, y, 40, 16, Component.literal("Edit"), btn -> {}, () -> true)), 20);
+    /**
+     * One lock group as a collapsible section. Closed: its colour, its name,
+     * and a grey summary (its kind, when the name does not already say it,
+     * and its key). Open: a line per thing to change about it; opening the
+     * section is how a group is edited.
+     */
+    private static void lockGroupSection(SettingsBody b, LockGroup g, boolean open) {
+        String key = g.key().getString();
+        String keyText = key.equals("Not bound") ? "key not bound" : "key " + key;
+        String summary = g.name().equals(g.kind()) ? keyText : g.kind() + " · " + keyText;
+        b.section(g.name(), summary, open, GROUP_GREY);
+        if (!open) return;
+        b.line(12, Component.literal("Kind: " + g.kind()))
+                .valueRow(Component.literal("Key: ").append(g.key()), "Change")
+                .valueRow(Component.literal("Colour: grey"), "Change")
+                .valueRow(Component.literal("Name: " + g.name()), "Rename", "Delete");
     }
 
     // ── Feature tabs ────────────────────────────────────────────────────
@@ -268,7 +275,7 @@ final class SettingsTabs {
     static List<PanelElement> pocketsStandIn() {
         SettingsBody b = standIn();
         onOff(b, "Use Pockets", true);
-        b.heading("Reach").reach(null, slotGroups());
+        b.heading("Reach").reach(null, places("inventorymax:pocket_cycle"));
         b.heading("Keys")
                 .key(Component.literal("Pocket Cycle Forward"), Component.literal("Right Arrow"))
                 .key(Component.literal("Pocket Cycle Backward"), Component.literal("Left Arrow"));
