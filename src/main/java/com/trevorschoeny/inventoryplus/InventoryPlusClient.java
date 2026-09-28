@@ -22,6 +22,7 @@ import com.trevorschoeny.inventoryplus.cyclable.CycleHud;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
+import com.trevorschoeny.inventoryplus.lockgroups.LockTooltips;
 import com.trevorschoeny.inventoryplus.lockgroups.Locks;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsButtons;
@@ -136,6 +137,7 @@ public class InventoryPlusClient implements ClientModInitializer {
         // level's registries on first use inside a world.
         LockedItems.load();
         Locks.registerVeto();
+        LockTooltips.register();
         ClientTickEvents.END_CLIENT_TICK.register(LockedSlotKeybind::tick);
 
         // IP toolbar — one right-aligned MK panel above the player 3×9

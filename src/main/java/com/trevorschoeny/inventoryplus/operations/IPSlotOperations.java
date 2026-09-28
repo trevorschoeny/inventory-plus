@@ -1,9 +1,21 @@
 package com.trevorschoeny.inventoryplus.operations;
 
+import static com.trevlar.menukit.core.SlotGroupCategory.CHEST_STORAGE;
+import static com.trevlar.menukit.core.SlotGroupCategory.DISPENSER_STORAGE;
+import static com.trevlar.menukit.core.SlotGroupCategory.HOPPER_STORAGE;
+import static com.trevlar.menukit.core.SlotGroupCategory.MOUNT_STORAGE;
+import static com.trevlar.menukit.core.SlotGroupCategory.PLAYER_ARMOR;
+import static com.trevlar.menukit.core.SlotGroupCategory.PLAYER_HOTBAR;
+import static com.trevlar.menukit.core.SlotGroupCategory.PLAYER_INVENTORY;
+import static com.trevlar.menukit.core.SlotGroupCategory.PLAYER_OFFHAND;
+import static com.trevlar.menukit.core.SlotGroupCategory.SHULKER_STORAGE;
+
 import com.trevorschoeny.inventoryplus.api.PlayerMenuSlots;
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.*;
 
+import com.trevlar.menukit.inject.SlotGroupSet;
 import com.trevlar.menukit.window.BehaviorKey;
+import com.trevlar.menukit.window.SlotOperations.AppliesTo;
 import com.trevlar.menukit.window.SlotOperations;
 import com.trevlar.menukit.window.SlotOperations.Role;
 import com.trevlar.menukit.window.TriBool;
@@ -32,14 +44,27 @@ public final class IPSlotOperations {
      * init: Inventory Plus is a client-only mod. Idempotent.
      */
     public static void define() {
-        SlotOperations.define(SORT, Role.BOTH);
-        SlotOperations.define(MOVE_MATCHING_OUT, Role.TAKE);
-        SlotOperations.define(MOVE_MATCHING_IN, Role.PUT);
-        SlotOperations.define(RESTOCK_TAKE, Role.TAKE);
-        SlotOperations.define(RESTOCK_PUT, Role.PUT);
-        SlotOperations.define(AUTO_TOOL_SWITCH, Role.BOTH);
-        SlotOperations.define(COLUMN_CYCLE, Role.BOTH);
-        SlotOperations.define(HOTBAR_CYCLE, Role.BOTH);
+        // Which vanilla groups each can act on (MenuKit's AppliesTo), so the
+        // Reach tab offers only boxes that mean something (Trev, 2026-09-27:
+        // "only what applies is offered"). Groups a mod adds apply too unless
+        // excepted; one that declared a vanilla category follows that category.
+        AppliesTo storage = AppliesTo.vanilla(PLAYER_INVENTORY, CHEST_STORAGE, SHULKER_STORAGE,
+                DISPENSER_STORAGE, HOPPER_STORAGE, MOUNT_STORAGE);
+        AppliesTo storageAndHotbar = AppliesTo.vanilla(PLAYER_INVENTORY, PLAYER_HOTBAR, CHEST_STORAGE,
+                SHULKER_STORAGE, DISPENSER_STORAGE, HOPPER_STORAGE, MOUNT_STORAGE);
+        AppliesTo carried = AppliesTo.vanilla(PLAYER_INVENTORY, PLAYER_HOTBAR);
+        // The cyclers move only through their own inventory and hotbar slots,
+        // never a pocket (the Pocket Cycler owns those).
+        AppliesTo cycled = carried.except(new SlotGroupSet("inventorymax", "pockets"));
+        // Sort works on the main inventory and on containers, never the hotbar.
+        SlotOperations.define(SORT, Role.BOTH, storage);
+        SlotOperations.define(MOVE_MATCHING_OUT, Role.TAKE, storageAndHotbar);
+        SlotOperations.define(MOVE_MATCHING_IN, Role.PUT, storageAndHotbar);
+        SlotOperations.define(RESTOCK_TAKE, Role.TAKE, carried);
+        SlotOperations.define(RESTOCK_PUT, Role.PUT, AppliesTo.vanilla(PLAYER_HOTBAR, PLAYER_ARMOR, PLAYER_OFFHAND));
+        SlotOperations.define(AUTO_TOOL_SWITCH, Role.BOTH, carried);
+        SlotOperations.define(COLUMN_CYCLE, Role.BOTH, cycled);
+        SlotOperations.define(HOTBAR_CYCLE, Role.BOTH, cycled);
     }
 
     /**

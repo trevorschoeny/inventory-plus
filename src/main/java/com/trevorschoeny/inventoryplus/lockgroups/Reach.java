@@ -96,11 +96,14 @@ public final class Reach {
             "menukit:world_pickup", "menukit:drop", "menukit:drop_stack", "menukit:drag_fill",
             "menukit:hotbar_swap", "menukit:offhand_swap", "inventoryplus:restock_take");
 
-    /** What Exact item stops by default (Trev, 2026-09-11). Item groups copy it. */
+    /**
+     * What Exact item stops by default (Trev, 2026-09-11). Item groups copy it.
+     * Pocket Cycler rotation joins the other two cyclers (Designer, 2026-09-27).
+     */
     public static final Set<String> EXACT_ITEM_DENIES = Set.of(
             "menukit:drop", "menukit:drop_stack", "menukit:shift_click_out", "menukit:collect",
             "inventoryplus:sort", "inventoryplus:move_matching_out", "inventoryplus:move_matching_in",
-            "inventoryplus:column_cycle", "inventoryplus:hotbar_cycle");
+            "inventoryplus:column_cycle", "inventoryplus:hotbar_cycle", "inventorymax:pocket_cycle");
 
     /** The default group of {@code kind}: what a new group copies and an orphaned lock falls back to. */
     public static String defaultOf(LockKind kind) {
@@ -232,6 +235,11 @@ public final class Reach {
         return state.seen().contains(operation);
     }
 
+    /** The 16 dye colours, in the order a new group takes the next unused one. */
+    public static final List<String> COLOURS = List.of(
+            "gray", "red", "orange", "yellow", "lime", "green", "cyan", "light_blue",
+            "blue", "purple", "magenta", "pink", "brown", "black", "white", "light_gray");
+
     // ── Writes ──────────────────────────────────────────────────────────
 
     /** Selects the next group ({@code step} 1) or the previous one ({@code -1}), wrapping. */
@@ -284,6 +292,114 @@ public final class Reach {
         Map<String, Set<String>> denied = new TreeMap<>(s.denied());
         denied.put(operation, entry);
         replace(State.of(denied, s.groups(), s.seen(), s.active()));
+    }
+
+    /**
+     * Sets whether {@code operation} may use every key in {@code keys} (slot
+     * groups or places; a set shown as one box writes each member). Writes the
+     * operation's entry from its current effective set if it had none.
+     */
+    public static void setDenied(String operation, java.util.Collection<String> keys, boolean deny) {
+        State s = state;
+        Set<String> entry = new HashSet<>(effectiveDenied(operation));
+        boolean changed = deny ? entry.addAll(keys) : entry.removeAll(keys);
+        if (!changed) return;
+        Map<String, Set<String>> denied = new TreeMap<>(s.denied());
+        denied.put(operation, entry);
+        replace(State.of(denied, s.groups(), s.seen(), s.active()));
+    }
+
+    /** Revert to default: {@code operation}'s entry goes, so it uses the defaults again. */
+    public static void revert(String operation) {
+        State s = state;
+        if (!s.denied().containsKey(operation)) return;
+        Map<String, Set<String>> denied = new TreeMap<>(s.denied());
+        denied.remove(operation);
+        replace(State.of(denied, s.groups(), s.seen(), s.active()));
+    }
+
+    /** The Reach tab's Reset: every operation back to its default. Groups untouched. */
+    public static void revertAll() {
+        State s = state;
+        if (s.denied().isEmpty()) return;
+        replace(State.of(Map.of(), s.groups(), s.seen(), s.active()));
+    }
+
+    /** Marks {@code operations} as shown, so their reach stops marking them new. */
+    public static void markSeen(java.util.Collection<String> operations) {
+        State s = state;
+        if (s.seen().containsAll(operations)) return;
+        Set<String> seen = new HashSet<>(s.seen());
+        seen.addAll(operations);
+        replace(State.of(s.denied(), s.groups(), seen, s.active()));
+    }
+
+    /** Renames group {@code id}. A blank name is ignored. */
+    public static void rename(String id, String name) {
+        String trimmed = name.strip();
+        LockGroup g = group(id);
+        if (g == null || trimmed.isEmpty() || trimmed.equals(g.name())) return;
+        withGroup(new LockGroup(g.id(), g.kind(), trimmed, g.colour(), g.key()));
+    }
+
+    /** Recolours group {@code id} to dye colour {@code colour}. */
+    public static void recolour(String id, String colour) {
+        LockGroup g = group(id);
+        if (g == null || !COLOURS.contains(colour) || colour.equals(g.colour())) return;
+        withGroup(new LockGroup(g.id(), g.kind(), g.name(), colour, g.key()));
+    }
+
+    private static void withGroup(LockGroup changed) {
+        State s = state;
+        List<LockGroup> groups = new ArrayList<>();
+        for (LockGroup g : s.groups()) groups.add(g.id().equals(changed.id()) ? changed : g);
+        replace(State.of(s.denied(), groups, s.seen(), s.active()));
+    }
+
+    /** The first dye colour no group uses yet, or gray when all 16 are taken. */
+    public static String nextColour() {
+        Set<String> used = new HashSet<>();
+        for (LockGroup g : groups()) used.add(g.colour());
+        for (String c : COLOURS) if (!used.contains(c)) return c;
+        return "gray";
+    }
+
+    /**
+     * Deletes custom group {@code id} and scrubs its key from every entry, so
+     * a later group can never inherit its choices. The defaults cannot be
+     * deleted. The caller moves or removes its locks first (lock-groups.md,
+     * "Deleting a group").
+     */
+    public static void deleteGroup(String id) {
+        State s = state;
+        LockGroup g = s.byId().get(id);
+        if (g == null || g.isDefault()) return;
+        List<LockGroup> groups = new ArrayList<>(s.groups());
+        groups.removeIf(x -> x.id().equals(id));
+        replace(State.of(scrubbed(s.denied(), Set.of(lockKey(id))), groups, s.seen(),
+                s.active().equals(id) ? SLOT_LOCK : s.active()));
+    }
+
+    /**
+     * The Lock groups tab's Reset: the two defaults as a fresh install has
+     * them (name, colour, key), every custom group gone and its key scrubbed
+     * from every entry. What the defaults stop is the Reach tab's, untouched.
+     */
+    public static void resetGroups() {
+        State s = state;
+        Set<String> customKeys = new HashSet<>();
+        for (LockGroup g : s.groups()) if (!g.isDefault()) customKeys.add(g.reachKey());
+        replace(State.of(scrubbed(s.denied(), customKeys), defaultGroups(), s.seen(), SLOT_LOCK));
+    }
+
+    private static Map<String, Set<String>> scrubbed(Map<String, Set<String>> denied, Set<String> keys) {
+        Map<String, Set<String>> out = new TreeMap<>();
+        denied.forEach((op, entry) -> {
+            Set<String> kept = new HashSet<>(entry);
+            kept.removeAll(keys);
+            out.put(op, kept);
+        });
+        return out;
     }
 
     /**

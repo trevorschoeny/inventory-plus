@@ -690,6 +690,53 @@ public final class LockedSlots {
         return ENDER.get().containsKey(enderSlotIndex);
     }
 
+    // ── Every world at once (a group's delete, the Lock groups Reset) ─────
+
+    /**
+     * Counts the stored slot locks of group {@code groupId} (every group when
+     * {@code null}) in every world, adding the worlds that hold any to
+     * {@code worlds}. For the confirms that state what a change removes.
+     */
+    public static int count(@Nullable String groupId, Set<String> worlds) {
+        int[] n = {0};
+        java.util.function.BiConsumer<String, Map<?, String>> tally = (world, locks) -> {
+            int before = n[0];
+            for (String g : locks.values()) if (groupId == null || groupId.equals(g)) n[0]++;
+            if (n[0] > before) worlds.add(world);
+        };
+        PLAYER.forEachWorld(tally::accept);
+        ENDER.forEachWorld(tally::accept);
+        CREATED.forEachWorld(tally::accept);
+        CONTAINERS.forEachWorld((world, byKey) -> byKey.values().forEach(locks -> tally.accept(world, locks)));
+        return n[0];
+    }
+
+    /**
+     * Moves every stored lock of group {@code from} to group {@code to} in
+     * every world, or removes them when {@code to} is {@code null}; every
+     * lock when {@code from} is {@code null} too.
+     */
+    public static void reassign(@Nullable String from, @Nullable String to) {
+        PLAYER.replaceAll((world, locks) -> reassigned(locks, from, to));
+        ENDER.replaceAll((world, locks) -> reassigned(locks, from, to));
+        CREATED.replaceAll((world, locks) -> reassigned(locks, from, to));
+        CONTAINERS.replaceAll((world, byKey) -> {
+            Map<String, Map<Integer, String>> out = new HashMap<>();
+            byKey.forEach((key, locks) -> out.put(key, reassigned(locks, from, to)));
+            return out;
+        });
+    }
+
+    private static <K> Map<K, String> reassigned(Map<K, String> locks, @Nullable String from, @Nullable String to) {
+        Map<K, String> out = new HashMap<>();
+        locks.forEach((target, group) -> {
+            boolean match = from == null || from.equals(group);
+            if (!match) out.put(target, group);
+            else if (to != null) out.put(target, to);
+        });
+        return out;
+    }
+
     private static void save() {
         Path path = filePath();
         try {

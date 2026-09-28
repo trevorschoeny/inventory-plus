@@ -8,6 +8,7 @@ import com.trevlar.menukit.core.Flow;
 import com.trevlar.menukit.core.PanelElement;
 import com.trevlar.menukit.core.Section;
 import com.trevlar.menukit.core.Slider;
+import com.trevlar.menukit.core.TextField;
 import com.trevlar.menukit.core.TextLabel;
 import com.trevlar.menukit.core.Toggle;
 import com.trevorschoeny.keybindery.chord.ChordButton;
@@ -86,12 +87,17 @@ final class SettingsBody {
 
     /**
      * The top of every tab (Trev, 2026-09-27): the title at twice size;
-     * the description; a row with Reset to Defaults (greyed until reset
-     * is built); then a line, with the tab's settings below it. For a tab
-     * with no feature to turn off (General, Reach).
+     * the description; a row with Reset to Defaults; then a line, with the
+     * tab's settings below it. For a tab with no feature to turn off (General,
+     * Reach). {@code onReset} runs on the button, normally a confirm
+     * ({@link SettingsMenu#confirm}); {@code null} leaves it greyed.
+     *
+     * <p>ponytail: Reset sits beside the switch, not at the top right. Row's
+     * addSpacer pins it right only given the row's pixel width, and a Tabs
+     * body factory is not handed its width; asked of MenuKit, 2026-09-27.
      */
-    SettingsBody frame(String title, String description) {
-        header(title, description, null);
+    SettingsBody frame(String title, String description, @Nullable Runnable onReset) {
+        header(title, description, null, onReset);
         return rule();
     }
 
@@ -100,14 +106,14 @@ final class SettingsBody {
      * of Reset to Defaults in that row. Everything below the line greys while
      * it is off.
      */
-    SettingsBody frame(String title, String description, Bool use) {
+    SettingsBody frame(String title, String description, Bool use, @Nullable Runnable onReset) {
         header(title, description, Toggle.linked(0, 0, 40, 16, use.get(), use.set(), use.unavailable())
-                .label(() -> Component.literal(use.get().getAsBoolean() ? "On" : "Off")));
+                .label(() -> Component.literal(use.get().getAsBoolean() ? "On" : "Off")), onReset);
         featureOn = use.get();
         return rule();
     }
 
-    private void header(String title, String description, @Nullable PanelElement onOff) {
+    private void header(String title, String description, @Nullable PanelElement onOff, @Nullable Runnable onReset) {
         int titleColor = greyed ? GREYED_COLOR : HEADING_COLOR;
         out.add(new TextLabel(0, y, Component.literal(title), titleColor, false).scale(2f));
         y += 2 * TEXT_ROW;
@@ -116,7 +122,7 @@ final class SettingsBody {
         List<PanelElement> row = new ArrayList<>();
         if (onOff != null) row.add(onOff);
         row.add(new Button(0, 0, width("Reset to Defaults"), 16, Component.literal("Reset to Defaults"),
-                b -> {}, DISABLED));
+                b -> { if (onReset != null) onReset.run(); }, onReset == null ? DISABLED : () -> false));
         out.add(Flow.of(row).gap(10, 4).at(0, y));
         y += CONTROL_ROW + 2;
     }
@@ -250,8 +256,18 @@ final class SettingsBody {
         return this;
     }
 
-    /** One checkbox in a reach list: what it names, and whether it starts checked. */
-    record Place(Component name, boolean on) {}
+    /**
+     * One checkbox in a reach list, bound to the record: checked while the
+     * operation may use this group ({@code on}), and {@code set} writes it.
+     * {@code unavailable} greys a box the player cannot change yet.
+     */
+    record Place(Component name, BooleanSupplier on, Consumer<Boolean> set, BooleanSupplier unavailable) {
+
+        /** A box with nothing behind it yet, shown at {@code on} and greyed. */
+        static Place fixed(Component name, boolean on) {
+            return new Place(name, () -> on, v -> {}, DISABLED);
+        }
+    }
 
     /**
      * A reach list: one checkbox per place, flowing left to right and wrapping
@@ -260,7 +276,9 @@ final class SettingsBody {
     SettingsBody reach(@Nullable String title, Collection<Place> places) {
         if (title != null) line(0, Component.literal(title));
         List<PanelElement> boxes = new ArrayList<>();
-        for (Place place : places) boxes.add(new Checkbox(0, 0, place.on(), place.name(), v -> {}, DISABLED));
+        for (Place place : places) {
+            boxes.add(Checkbox.linked(0, 0, place.on(), place.name(), place.set(), gated(place.unavailable())));
+        }
         out.add(Flow.of(boxes).gap(10, 4).at(INDENT, y));
         y += TEXT_ROW + 2;
         return this;
@@ -279,6 +297,36 @@ final class SettingsBody {
             row.add(new Button(0, 0, width(label), 16, Component.literal(label), b -> {}, DISABLED));
         }
         out.add(Flow.of(row).gap(4, 4).at(0, y));
+        y += CONTROL_ROW;
+        return this;
+    }
+
+    /** A button that works, with its action. */
+    record Action(String label, Runnable run) {}
+
+    /** A row of working buttons, wrapping when the body is narrow. */
+    SettingsBody actions(Action... actions) {
+        List<PanelElement> row = new ArrayList<>();
+        for (Action a : actions) {
+            row.add(new Button(0, 0, width(a.label()), 16, Component.literal(a.label()), b -> a.run().run(),
+                    gated(() -> false)));
+        }
+        out.add(Flow.of(row).gap(4, 4).at(0, y));
+        y += CONTROL_ROW;
+        return this;
+    }
+
+    /**
+     * A setting that is a line of text: its label above, then a field holding
+     * {@code value} and a button that hands the field's text to {@code apply}.
+     */
+    SettingsBody textSetting(String label, String value, String button, Consumer<String> apply) {
+        label(0, Component.literal(label));
+        TextField field = TextField.builder().at(0, y).size(120, 16).build();
+        field.setValue(value);
+        out.add(field);
+        out.add(new Button(124, y, width(button), 16, Component.literal(button),
+                b -> apply.accept(field.getValue()), gated(() -> false)));
         y += CONTROL_ROW;
         return this;
     }

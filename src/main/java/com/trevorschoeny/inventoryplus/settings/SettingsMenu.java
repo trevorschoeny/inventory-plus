@@ -3,6 +3,8 @@ package com.trevorschoeny.inventoryplus.settings;
 import com.trevlar.menukit.core.Click;
 import com.trevlar.menukit.core.Button;
 import com.trevlar.menukit.core.Panel;
+import com.trevlar.menukit.core.TextLabel;
+import com.trevlar.menukit.core.PanelElement;
 import com.trevlar.menukit.core.PanelPosition;
 import com.trevlar.menukit.core.PanelStyle;
 import com.trevlar.menukit.core.Tabs;
@@ -63,8 +65,12 @@ public final class SettingsMenu extends MKScreen {
      */
     private static String selectedTab = GENERAL;
 
+    /** The screen the menu returns to on close, kept so a rebuild returns there too. */
+    private final @Nullable Screen parent;
+
     private SettingsMenu(@Nullable Screen parent) {
-        super(title(), List.of(main()));
+        super(title(), List.of(main(), confirmPanel()));
+        this.parent = parent;
         // No bar across the top (Trev, 2026-09-27): Back to game heads the tab
         // column instead, and the body starts at the top.
         hideTitle();
@@ -95,6 +101,77 @@ public final class SettingsMenu extends MKScreen {
         if (!Click.of(Click.LEFT).ctrl()) return false;
         openOn(tabId);
         return true;
+    }
+
+    /**
+     * Builds the menu again on the same tab, over the same parent. The tab
+     * bodies are built once per menu, so adding, renaming, recolouring or
+     * deleting a lock group (anything that changes which rows exist or what a
+     * section's header says) rebuilds. Deferred to the next tick, so a button
+     * never swaps the screen out from under its own click.
+     */
+    static void rebuild() {
+        Minecraft mc = Minecraft.getInstance();
+        mc.execute(() -> {
+            if (mc.gui.screen() instanceof SettingsMenu menu) mc.gui.setScreen(new SettingsMenu(menu.parent));
+        });
+    }
+
+    // ── Resets other mods add (Inventory Max) ───────────────────────────
+
+    private static final List<Runnable> EXTERNAL_RESETS = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /**
+     * A reset General's Reset everything also runs: a mod that adds tabs
+     * resets its own settings through this. Inventory Plus cannot import it.
+     */
+    public static void registerReset(Runnable reset) {
+        EXTERNAL_RESETS.add(reset);
+    }
+
+    static void runExternalResets() {
+        for (Runnable r : EXTERNAL_RESETS) r.run();
+    }
+
+    // ── Confirms ────────────────────────────────────────────────────────
+    //
+    // One modal panel for every confirm the menu asks (the resets, deleting a
+    // group). Its text reads the pending confirm every frame, so a count it
+    // states is the count when it opened. MenuKit's ConfirmDialog fixes its
+    // text when built, and a count has to be taken when the button is pressed.
+
+    private record Confirm(String title, String body, Runnable action) {}
+
+    private static @Nullable Confirm pending;
+
+    /**
+     * Asks before {@code action}: a title, one line of what it will do, then
+     * Cancel and Confirm. Escape cancels.
+     */
+    public static void confirm(String title, String body, Runnable action) {
+        pending = new Confirm(title, body, action);
+    }
+
+    private static Panel confirmPanel() {
+        List<PanelElement> elements = List.of(
+                new TextLabel(0, 0, () -> Component.literal(pending == null ? "" : pending.title()),
+                        TextLabel.COLOR_DARK, false),
+                new TextLabel(0, 14, () -> Component.literal(pending == null ? "" : pending.body()),
+                        0xFF555555, false),
+                new Button(0, 32, 70, 16, Component.literal("Cancel"), b -> pending = null),
+                new Button(74, 32, 70, 16, Component.literal("Confirm"), b -> {
+                    Confirm c = pending;
+                    pending = null;
+                    if (c != null) c.action().run();
+                }));
+        return Panel.builder("inventoryplus:settings_confirm")
+                .elements(elements)
+                .style(PanelStyle.RAISED)
+                .position(PanelPosition.BODY)
+                .build()
+                .modal()
+                .onEscape(() -> pending = null)
+                .showWhen(() -> pending != null);
     }
 
     /** The menu as a screen, for Mod Menu's factory. */

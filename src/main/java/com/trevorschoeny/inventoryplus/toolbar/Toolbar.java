@@ -144,8 +144,14 @@ public final class Toolbar {
 
     private static List<PanelElement> buildInventoryChildren() {
         int x = 0;
-        // Settings (leftmost, so adding it moved none of the buttons players
-        // already reach for; the toolbar is right-aligned).
+        // Restock and Auto Tool Switch, the features that had no button
+        // (2026-09-27). Leftmost, so adding them moved none of the buttons
+        // players already reach for; the toolbar is right-aligned.
+        PanelElement restock = FeatureToggleButtons.restock(x, 0);
+        x += FeatureToggleButtons.SIZE + BUTTON_GAP;
+        PanelElement autoToolSwitch = FeatureToggleButtons.autoToolSwitch(x, 0);
+        x += FeatureToggleButtons.SIZE + BUTTON_GAP;
+        // Settings (leftmost before those, for the same reason).
         PanelElement settings = settingsButton(x, 0);
         x += SETTINGS_SIZE + BUTTON_GAP;
         // Lock-edit toggle (leftmost, always visible — inventory-tied).
@@ -159,7 +165,7 @@ public final class Toolbar {
         x += MoveMatchingButtons.SIZE + BUTTON_GAP;
         // Move Matching IN (rightmost when MM is visible).
         PanelElement mmIn = MoveMatchingButtons.toolbarInButton(x, 0);
-        return List.of(settings, lockEdit, sort, mmOut, mmIn);
+        return List.of(restock, autoToolSwitch, settings, lockEdit, sort, mmOut, mmIn);
     }
 
     private static final int SETTINGS_SIZE = 9;

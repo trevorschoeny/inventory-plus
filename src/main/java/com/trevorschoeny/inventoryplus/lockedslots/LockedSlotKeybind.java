@@ -67,6 +67,8 @@ public final class LockedSlotKeybind {
             ScreenKeyboardEvents.afterKeyPress(screen).register(
                     (innerScreen, event) -> {
                         if (!IPKeybinds.LOCK_SLOT.matches(event)) return;
+                        // Paused locks are paused for L too: nothing applied that cannot be seen.
+                        if (!IPConfig.lockGroupsEnabled()) return;
                         // GLFW auto-repeat fires afterKeyPress every repeat
                         // tick while L is held; ignore once an L-drag is
                         // active so we don't re-toggle the same slot on

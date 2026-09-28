@@ -3,6 +3,7 @@ package com.trevorschoeny.inventoryplus.lockgroups;
 import com.trevlar.menukit.window.SlotOperations;
 import com.trevlar.menukit.window.SlotRef;
 
+import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockeditems.LockKind;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
@@ -57,6 +58,9 @@ public final class Locks {
             if (!isLocalPlayer(ref.player())) return false;
             String op = operation.id().toString();
             if (group != null && Reach.denies(op, group.asString())) return true;
+            // The Lock groups switch pauses every lock without deleting any;
+            // the slot groups' own reach still holds.
+            if (!IPConfig.lockGroupsEnabled()) return false;
             for (String lock : on(ref)) {
                 if (Reach.lockDenies(lock, op)) return true;
             }

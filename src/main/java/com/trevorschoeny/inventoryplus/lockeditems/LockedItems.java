@@ -317,6 +317,37 @@ public final class LockedItems {
         return changed;
     }
 
+    // ── Every world at once (a group's delete, the Lock groups Reset) ─────
+
+    /** As {@code LockedSlots.count}: item and exact locks of {@code groupId}, or all. */
+    public static int count(@Nullable String groupId, Set<String> worlds) {
+        int[] n = {0};
+        STORE.forEachWorld((world, locks) -> {
+            int before = n[0];
+            for (String g : locks.byId().values()) if (groupId == null || groupId.equals(g)) n[0]++;
+            for (ExactLock e : locks.exact()) if (groupId == null || groupId.equals(e.group())) n[0]++;
+            if (n[0] > before) worlds.add(world);
+        });
+        return n[0];
+    }
+
+    /** As {@code LockedSlots.reassign}: moves group {@code from}'s locks to {@code to}, or removes them. */
+    public static void reassign(@Nullable String from, @Nullable String to) {
+        STORE.replaceAll((world, locks) -> {
+            Map<String, String> byId = new HashMap<>();
+            locks.byId().forEach((id, g) -> {
+                if (from != null && !from.equals(g)) byId.put(id, g);
+                else if (to != null) byId.put(id, to);
+            });
+            List<ExactLock> exact = new ArrayList<>();
+            for (ExactLock e : locks.exact()) {
+                if (from != null && !from.equals(e.group())) exact.add(e);
+                else if (to != null) exact.add(new ExactLock(to, e.stack()));
+            }
+            return new ItemLocks(byId, exact);
+        });
+    }
+
     // ── Saving ──────────────────────────────────────────────────────────
 
     private static void save() {

@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.movematching;
 
+import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -46,6 +47,7 @@ public final class MoveMatchingKeybind {
                     (innerScreen, event) -> {
                         Direction direction = directionForEvent(event);
                         if (direction == null) return;
+                        if (!IPConfig.moveMatchingEnabled()) return;
                         if (!(innerScreen instanceof AbstractContainerScreen<?> acs)) return;
 
                         List<SlotGroup> groups = SlotGroupDetector.detect(acs);

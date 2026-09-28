@@ -208,4 +208,23 @@ public final class InventoryPlusApi {
     public static @Nullable String worldId() {
         return WorldIdentity.current(Minecraft.getInstance());
     }
+
+    // ── The settings menu (companions add tabs with MenuKit's Tabs.addTo) ─
+
+    /**
+     * Asks before {@code action} in Inventory Plus's settings menu: a title, a
+     * line of what it will do, then Cancel and Confirm. For a companion tab's
+     * Reset to Defaults, so every reset in the menu asks the same way.
+     */
+    public static void confirmInSettings(String title, String body, Runnable action) {
+        com.trevorschoeny.inventoryplus.settings.SettingsMenu.confirm(title, body, action);
+    }
+
+    /**
+     * A reset the settings menu's Reset everything also runs: a companion
+     * resets its own settings and keys through this. Call once at client init.
+     */
+    public static void registerSettingsReset(Runnable reset) {
+        com.trevorschoeny.inventoryplus.settings.SettingsMenu.registerReset(reset);
+    }
 }

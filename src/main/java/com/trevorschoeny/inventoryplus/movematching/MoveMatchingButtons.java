@@ -66,7 +66,7 @@ public final class MoveMatchingButtons {
     }
 
     private static boolean shouldShow() {
-        return IPConfig.moveMatchingShowButtons() && isMoveMatchingScreenNow();
+        return IPConfig.moveMatchingEnabled() && IPConfig.moveMatchingShowButtons() && isMoveMatchingScreenNow();
     }
 
     private static boolean isMoveMatchingScreenNow() {
@@ -75,6 +75,7 @@ public final class MoveMatchingButtons {
     }
 
     private static void triggerMoveMatching(Direction direction) {
+        if (!IPConfig.moveMatchingEnabled()) return;
         Minecraft mc = Minecraft.getInstance();
         Screen screen = mc.gui.screen();
         if (!(screen instanceof AbstractContainerScreen<?>)) return;

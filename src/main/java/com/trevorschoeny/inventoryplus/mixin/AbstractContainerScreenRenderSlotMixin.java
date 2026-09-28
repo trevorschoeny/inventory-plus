@@ -3,17 +3,24 @@ package com.trevorschoeny.inventoryplus.mixin;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerEditMode;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
+import com.trevorschoeny.inventoryplus.lockeditems.LockKind;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
+import com.trevorschoeny.inventoryplus.lockgroups.LockColours;
+import com.trevorschoeny.inventoryplus.lockgroups.LockGroup;
+import com.trevorschoeny.inventoryplus.lockgroups.Reach;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -102,7 +109,9 @@ public abstract class AbstractContainerScreenRenderSlotMixin {
             graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, tint);
         }
 
-        boolean locked = LockedSlots.isLockedSlot(slot);
+        // The Lock groups switch pauses every lock: nothing blocked, nothing drawn.
+        boolean locksOn = IPConfig.lockGroupsEnabled();
+        boolean locked = locksOn && LockedSlots.isLockedSlot(slot);
         boolean cycle = ColumnCycler.isCycleSlot(slot);
         // When the lock-cycle pairing is ON, a cycle slot's lock is
         // implied by the cycle — suppress the lock icon to avoid
@@ -111,9 +120,13 @@ public abstract class AbstractContainerScreenRenderSlotMixin {
         boolean suppressLockIcon = cycle && IPConfig.cycleSlotsLocked();
 
         // 2. Lock icon — top-right of slot, 1 px inset from the right edge.
+        // In the colour of the slot's lock group (lock-groups.md, "What the
+        // player sees"); a derived or shared lock is Slot lock.
         if (locked && !suppressLockIcon) {
             int iconX = slot.x + 16 - INVENTORYPLUS$LOCK_ICON_W - 1;
             int iconY = slot.y + 1;
+            String stored = LockedSlots.storedGroup(slot);
+            LockGroup group = Reach.resolve(stored == null ? Reach.SLOT_LOCK : stored, LockKind.SLOT);
             graphics.blit(
                     RenderPipelines.GUI_TEXTURED,
                     INVENTORYPLUS$LOCK_ICON,
@@ -121,7 +134,10 @@ public abstract class AbstractContainerScreenRenderSlotMixin {
                     /*u=*/ 0f, /*v=*/ 0f,
                     INVENTORYPLUS$LOCK_ICON_W, INVENTORYPLUS$LOCK_ICON_H,
                     INVENTORYPLUS$LOCK_ICON_W, INVENTORYPLUS$LOCK_ICON_H,
-                    INVENTORYPLUS$INDICATOR_TINT);
+                    LockColours.argb(group));
+            // Hovering exactly over the padlock names its group: the padlock's
+            // pixels and no more, so it never competes with the item tooltip.
+            inventoryplus$padlockTooltip(graphics, iconX, iconY, group);
         }
 
         // 3. Cycle icon — sits left of the lock icon when BOTH are shown
@@ -147,11 +163,16 @@ public abstract class AbstractContainerScreenRenderSlotMixin {
         // 4. Locked-item mark — top-left, the corner the other two leave free.
         // Every matching stack carries it, not just the first one found, since
         // every one of them is protected (locked-items.md).
+        // In its group's colour; an exact lock draws over an item one, as the
+        // more specific rule (lock-groups.md).
         ItemStack stack = slot.getItem();
-        if (!stack.isEmpty() && LockedItems.isLocked(stack)) {
-            Identifier mark = LockedItems.isExactLocked(stack)
+        String exact = locksOn && !stack.isEmpty() ? LockedItems.exactGroup(stack) : null;
+        String byId = locksOn && !stack.isEmpty() ? LockedItems.itemGroup(stack) : null;
+        if (exact != null || byId != null) {
+            Identifier mark = exact != null
                     ? INVENTORYPLUS$ITEM_LOCK_EXACT
                     : INVENTORYPLUS$ITEM_LOCK_ID;
+            LockGroup group = exact != null ? Reach.resolve(exact, LockKind.EXACT) : Reach.resolve(byId, LockKind.ITEM);
             graphics.blit(
                     RenderPipelines.GUI_TEXTURED,
                     mark,
@@ -159,7 +180,24 @@ public abstract class AbstractContainerScreenRenderSlotMixin {
                     /*u=*/ 0f, /*v=*/ 0f,
                     INVENTORYPLUS$ITEM_MARK_SIZE, INVENTORYPLUS$ITEM_MARK_SIZE,
                     INVENTORYPLUS$ITEM_MARK_SIZE, INVENTORYPLUS$ITEM_MARK_SIZE,
-                    INVENTORYPLUS$INDICATOR_TINT);
+                    LockColours.argb(group));
         }
+    }
+
+    /**
+     * Sets a tooltip naming the padlock's group when the cursor is on the
+     * padlock's own pixels. The slot is drawn in screen-frame coordinates, so
+     * the padlock's screen position adds the frame's top-left.
+     */
+    @Unique
+    private void inventoryplus$padlockTooltip(GuiGraphicsExtractor graphics, int iconX, int iconY, LockGroup group) {
+        Minecraft mc = Minecraft.getInstance();
+        AbstractContainerScreenAccessor frame = (AbstractContainerScreenAccessor) this;
+        double mx = mc.mouseHandler.xpos() * mc.getWindow().getGuiScaledWidth() / (double) mc.getWindow().getScreenWidth();
+        double my = mc.mouseHandler.ypos() * mc.getWindow().getGuiScaledHeight() / (double) mc.getWindow().getScreenHeight();
+        int x = frame.inventoryPlus$getLeftPos() + iconX;
+        int y = frame.inventoryPlus$getTopPos() + iconY;
+        if (mx < x || mx >= x + INVENTORYPLUS$LOCK_ICON_W || my < y || my >= y + INVENTORYPLUS$LOCK_ICON_H) return;
+        graphics.setTooltipForNextFrame(mc.font, Component.literal("Locked: " + group.name()), (int) mx, (int) my);
     }
 }

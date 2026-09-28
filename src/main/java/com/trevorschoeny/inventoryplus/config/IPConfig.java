@@ -149,6 +149,25 @@ public final class IPConfig {
     // value (per column-cycler.md). Persisted as the enum name.
     private static HudMode columnCyclerHudMode = HudMode.MINI_HOTBAR;
 
+    // ─── Master switches and buttons (settings menu, Reach build stage 3) ──
+    // Every feature tab has an on/off and a button toggle (Trev, 2026-09-27).
+    // Sort, Move Matching and Restock had no master switch; Restock and Auto
+    // Tool Switch had no button. lockGroupsEnabled pauses every lock without
+    // deleting any: nothing blocked, nothing drawn (settings-menu.md).
+    private static boolean sortEnabled = true;
+    private static boolean moveMatchingEnabled = true;
+    private static boolean restockEnabled = true;
+    private static boolean restockShowButton = true;
+    private static boolean autoToolSwitchShowButton = true;
+    private static boolean lockGroupsEnabled = true;
+
+    /**
+     * Every setting at its default, taken before the file is read. A tab's
+     * Reset to Defaults applies the part of this it owns ({@link #reset}).
+     * Declared after every field, so each is at its default here.
+     */
+    private static final JsonObject DEFAULTS = settingsJson();
+
     private static boolean loaded = false;
 
     private static Path filePath() {
@@ -172,52 +191,83 @@ public final class IPConfig {
         try {
             String json = Files.readString(path);
             JsonObject root = JsonParser.parseString(json).getAsJsonObject();
-            autoRestockArmor             = readBool(root, "autoRestockArmor",             autoRestockArmor);
-            autoRestockArmorBeforeBreak  = readBool(root, "autoRestockArmorBeforeBreak",  autoRestockArmorBeforeBreak);
-            autoRestockTool              = readBool(root, "autoRestockTool",              autoRestockTool);
-            autoRestockToolBeforeBreak   = readBool(root, "autoRestockToolBeforeBreak",   autoRestockToolBeforeBreak);
-            autoRestockItem              = readBool(root, "autoRestockItem",              autoRestockItem);
-            autoRestockShulker           = readBool(root, "autoRestockShulker",           autoRestockShulker);
-            autoRestockShulkerAmmo       = readBool(root, "autoRestockShulkerAmmo",       autoRestockShulkerAmmo);
+            apply(root);
             legacyUsesLockedItems = new LegacyUsesLockedItems(
                     readBool(root, "autoRestockArmorUsesLockedItems", true),
                     readBool(root, "autoRestockToolUsesLockedItems", true),
                     readBool(root, "autoRestockItemUsesLockedItems", true),
                     readBool(root, "autoToolSwitchUsesLockedItems", true));
-            autoRestockBeforeBreakThreshold = readInt(root, "autoRestockBeforeBreakThreshold",
-                    autoRestockBeforeBreakThreshold);
-            autoToolSwitchEnabled  = readBool(root, "autoToolSwitchEnabled",  autoToolSwitchEnabled);
-            // Migrate the old boolean (true → AUTOMATIC, false → OFF), then let a
-            // present mode key override it.
-            if (root.has("autoToolSwitchReturn")) {
-                autoToolSwitchReturnMode = readBool(root, "autoToolSwitchReturn", false)
-                        ? AutoSwitchReturnMode.AUTOMATIC : AutoSwitchReturnMode.OFF;
-            }
-            autoToolSwitchReturnMode = AutoSwitchReturnMode.fromName(
-                    readString(root, "autoToolSwitchReturnMode", null), autoToolSwitchReturnMode);
-            autoToolSwitchReturnCooldownSeconds = readInt(root, "autoToolSwitchReturnCooldownSeconds",
-                    autoToolSwitchReturnCooldownSeconds);
-            autoToolSwitchWeapons  = readBool(root, "autoToolSwitchWeapons",  autoToolSwitchWeapons);
-            autoToolSwitchAllMobs  = readBool(root, "autoToolSwitchAllMobs",  autoToolSwitchAllMobs);
-            autoToolSwitchWeaponPreference = WeaponPreference.fromName(readString(root, "autoToolSwitchWeaponPreference", null), autoToolSwitchWeaponPreference);
-            sortShowButton         = readBool(root, "sortShowButton",         sortShowButton);
-            moveMatchingShowButtons= readBool(root, "moveMatchingShowButtons",moveMatchingShowButtons);
-            lockedSlotsShowButton  = readBool(root, "lockedSlotsShowButton",  lockedSlotsShowButton);
-            columnCyclerEnabled       = readBool(root, "columnCyclerEnabled",       columnCyclerEnabled);
-            columnCyclerShowButton    = readBool(root, "columnCyclerShowButton",    columnCyclerShowButton);
-            cycleSlotsLocked          = readBool(root, "cycleSlotsLocked",          cycleSlotsLocked);
-            columnCyclerScrollToCycle = readBool(root, "columnCyclerScrollToCycle", columnCyclerScrollToCycle);
-            hotbarCyclerEnabled       = readBool(root, "hotbarCyclerEnabled",       hotbarCyclerEnabled);
-            hotbarCyclerShowButtons   = readBool(root, "hotbarCyclerShowButtons",   hotbarCyclerShowButtons);
-            lockCycledRows            = readBool(root, "lockCycledRows",            lockCycledRows);
-            hotbarCyclerScrollToCycle = readBool(root, "hotbarCyclerScrollToCycle", hotbarCyclerScrollToCycle);
-            columnCyclerHudMode       = HudMode.fromName(readString(root, "columnCyclerHudMode", null), columnCyclerHudMode);
             Reach.read(root.has("reach") && root.get("reach").isJsonObject() ? root.getAsJsonObject("reach") : null);
             InventoryPlusClient.LOGGER.info("[config] loaded from {}", path);
         } catch (IOException | JsonSyntaxException | IllegalStateException e) {
             InventoryPlusClient.LOGGER.error(
                     "[config] failed to read {} — using defaults", path, e);
         }
+    }
+
+    /** Reads every setting {@code root} has; the rest keep their values. */
+    private static void apply(JsonObject root) {
+        autoRestockArmor             = readBool(root, "autoRestockArmor",             autoRestockArmor);
+        autoRestockArmorBeforeBreak  = readBool(root, "autoRestockArmorBeforeBreak",  autoRestockArmorBeforeBreak);
+        autoRestockTool              = readBool(root, "autoRestockTool",              autoRestockTool);
+        autoRestockToolBeforeBreak   = readBool(root, "autoRestockToolBeforeBreak",   autoRestockToolBeforeBreak);
+        autoRestockItem              = readBool(root, "autoRestockItem",              autoRestockItem);
+        autoRestockShulker           = readBool(root, "autoRestockShulker",           autoRestockShulker);
+        autoRestockShulkerAmmo       = readBool(root, "autoRestockShulkerAmmo",       autoRestockShulkerAmmo);
+        autoRestockBeforeBreakThreshold = readInt(root, "autoRestockBeforeBreakThreshold",
+                autoRestockBeforeBreakThreshold);
+        autoToolSwitchEnabled  = readBool(root, "autoToolSwitchEnabled",  autoToolSwitchEnabled);
+        // Migrate the old boolean (true → AUTOMATIC, false → OFF), then let a
+        // present mode key override it.
+        if (root.has("autoToolSwitchReturn")) {
+            autoToolSwitchReturnMode = readBool(root, "autoToolSwitchReturn", false)
+                    ? AutoSwitchReturnMode.AUTOMATIC : AutoSwitchReturnMode.OFF;
+        }
+        autoToolSwitchReturnMode = AutoSwitchReturnMode.fromName(
+                readString(root, "autoToolSwitchReturnMode", null), autoToolSwitchReturnMode);
+        autoToolSwitchReturnCooldownSeconds = readInt(root, "autoToolSwitchReturnCooldownSeconds",
+                autoToolSwitchReturnCooldownSeconds);
+        autoToolSwitchWeapons  = readBool(root, "autoToolSwitchWeapons",  autoToolSwitchWeapons);
+        autoToolSwitchAllMobs  = readBool(root, "autoToolSwitchAllMobs",  autoToolSwitchAllMobs);
+        autoToolSwitchWeaponPreference = WeaponPreference.fromName(readString(root, "autoToolSwitchWeaponPreference", null), autoToolSwitchWeaponPreference);
+        sortShowButton         = readBool(root, "sortShowButton",         sortShowButton);
+        moveMatchingShowButtons= readBool(root, "moveMatchingShowButtons",moveMatchingShowButtons);
+        lockedSlotsShowButton  = readBool(root, "lockedSlotsShowButton",  lockedSlotsShowButton);
+        columnCyclerEnabled       = readBool(root, "columnCyclerEnabled",       columnCyclerEnabled);
+        columnCyclerShowButton    = readBool(root, "columnCyclerShowButton",    columnCyclerShowButton);
+        cycleSlotsLocked          = readBool(root, "cycleSlotsLocked",          cycleSlotsLocked);
+        columnCyclerScrollToCycle = readBool(root, "columnCyclerScrollToCycle", columnCyclerScrollToCycle);
+        hotbarCyclerEnabled       = readBool(root, "hotbarCyclerEnabled",       hotbarCyclerEnabled);
+        hotbarCyclerShowButtons   = readBool(root, "hotbarCyclerShowButtons",   hotbarCyclerShowButtons);
+        lockCycledRows            = readBool(root, "lockCycledRows",            lockCycledRows);
+        hotbarCyclerScrollToCycle = readBool(root, "hotbarCyclerScrollToCycle", hotbarCyclerScrollToCycle);
+        columnCyclerHudMode       = HudMode.fromName(readString(root, "columnCyclerHudMode", null), columnCyclerHudMode);
+        sortEnabled               = readBool(root, "sortEnabled",               sortEnabled);
+        moveMatchingEnabled       = readBool(root, "moveMatchingEnabled",       moveMatchingEnabled);
+        restockEnabled            = readBool(root, "restockEnabled",            restockEnabled);
+        restockShowButton         = readBool(root, "restockShowButton",         restockShowButton);
+        autoToolSwitchShowButton  = readBool(root, "autoToolSwitchShowButton",  autoToolSwitchShowButton);
+        lockGroupsEnabled         = readBool(root, "lockGroupsEnabled",         lockGroupsEnabled);
+    }
+
+    /**
+     * Puts the settings named in {@code keys} back to their defaults and
+     * saves: a tab's Reset to Defaults. Keys are the file's own names.
+     */
+    public static void reset(String... keys) {
+        JsonObject part = new JsonObject();
+        for (String key : keys) {
+            if (!DEFAULTS.has(key)) throw new IllegalArgumentException("[config] no setting " + key);
+            part.add(key, DEFAULTS.get(key));
+        }
+        apply(part);
+        save();
+    }
+
+    /** Every setting back to its default, and saves: General's Reset everything. */
+    public static void resetAll() {
+        apply(DEFAULTS);
+        save();
     }
 
     private static boolean readBool(JsonObject root, String key, boolean fallback) {
@@ -243,38 +293,51 @@ public final class IPConfig {
                 : fallback;
     }
 
+    /** Every setting as the file writes it (without the version or the reach record). */
+    private static JsonObject settingsJson() {
+        JsonObject root = new JsonObject();
+        root.addProperty("autoRestockArmor",            autoRestockArmor);
+        root.addProperty("autoRestockArmorBeforeBreak", autoRestockArmorBeforeBreak);
+        root.addProperty("autoRestockTool",             autoRestockTool);
+        root.addProperty("autoRestockToolBeforeBreak",  autoRestockToolBeforeBreak);
+        root.addProperty("autoRestockItem",             autoRestockItem);
+        root.addProperty("autoRestockShulker",          autoRestockShulker);
+        root.addProperty("autoRestockShulkerAmmo",      autoRestockShulkerAmmo);
+        root.addProperty("autoRestockBeforeBreakThreshold", autoRestockBeforeBreakThreshold);
+        root.addProperty("autoToolSwitchEnabled",   autoToolSwitchEnabled);
+        root.addProperty("autoToolSwitchReturnMode", autoToolSwitchReturnMode.name());
+        root.addProperty("autoToolSwitchReturnCooldownSeconds", autoToolSwitchReturnCooldownSeconds);
+        root.addProperty("autoToolSwitchWeapons",   autoToolSwitchWeapons);
+        root.addProperty("autoToolSwitchAllMobs",   autoToolSwitchAllMobs);
+        root.addProperty("autoToolSwitchWeaponPreference", autoToolSwitchWeaponPreference.name());
+        root.addProperty("sortShowButton",          sortShowButton);
+        root.addProperty("moveMatchingShowButtons", moveMatchingShowButtons);
+        root.addProperty("lockedSlotsShowButton",   lockedSlotsShowButton);
+        root.addProperty("columnCyclerEnabled",       columnCyclerEnabled);
+        root.addProperty("columnCyclerShowButton",    columnCyclerShowButton);
+        root.addProperty("cycleSlotsLocked",          cycleSlotsLocked);
+        root.addProperty("columnCyclerScrollToCycle", columnCyclerScrollToCycle);
+        root.addProperty("hotbarCyclerEnabled",       hotbarCyclerEnabled);
+        root.addProperty("hotbarCyclerShowButtons",   hotbarCyclerShowButtons);
+        root.addProperty("lockCycledRows",            lockCycledRows);
+        root.addProperty("hotbarCyclerScrollToCycle", hotbarCyclerScrollToCycle);
+        root.addProperty("columnCyclerHudMode",       columnCyclerHudMode.name());
+        root.addProperty("sortEnabled",               sortEnabled);
+        root.addProperty("moveMatchingEnabled",       moveMatchingEnabled);
+        root.addProperty("restockEnabled",            restockEnabled);
+        root.addProperty("restockShowButton",         restockShowButton);
+        root.addProperty("autoToolSwitchShowButton",  autoToolSwitchShowButton);
+        root.addProperty("lockGroupsEnabled",         lockGroupsEnabled);
+        return root;
+    }
+
     private static void save() {
         Path path = filePath();
         try {
             Files.createDirectories(path.getParent());
             JsonObject root = new JsonObject();
             root.addProperty("version", CURRENT_VERSION);
-            root.addProperty("autoRestockArmor",            autoRestockArmor);
-            root.addProperty("autoRestockArmorBeforeBreak", autoRestockArmorBeforeBreak);
-            root.addProperty("autoRestockTool",             autoRestockTool);
-            root.addProperty("autoRestockToolBeforeBreak",  autoRestockToolBeforeBreak);
-            root.addProperty("autoRestockItem",             autoRestockItem);
-            root.addProperty("autoRestockShulker",          autoRestockShulker);
-            root.addProperty("autoRestockShulkerAmmo",      autoRestockShulkerAmmo);
-            root.addProperty("autoRestockBeforeBreakThreshold", autoRestockBeforeBreakThreshold);
-            root.addProperty("autoToolSwitchEnabled",   autoToolSwitchEnabled);
-            root.addProperty("autoToolSwitchReturnMode", autoToolSwitchReturnMode.name());
-            root.addProperty("autoToolSwitchReturnCooldownSeconds", autoToolSwitchReturnCooldownSeconds);
-            root.addProperty("autoToolSwitchWeapons",   autoToolSwitchWeapons);
-            root.addProperty("autoToolSwitchAllMobs",   autoToolSwitchAllMobs);
-            root.addProperty("autoToolSwitchWeaponPreference", autoToolSwitchWeaponPreference.name());
-            root.addProperty("sortShowButton",          sortShowButton);
-            root.addProperty("moveMatchingShowButtons", moveMatchingShowButtons);
-            root.addProperty("lockedSlotsShowButton",   lockedSlotsShowButton);
-            root.addProperty("columnCyclerEnabled",       columnCyclerEnabled);
-            root.addProperty("columnCyclerShowButton",    columnCyclerShowButton);
-            root.addProperty("cycleSlotsLocked",          cycleSlotsLocked);
-            root.addProperty("columnCyclerScrollToCycle", columnCyclerScrollToCycle);
-            root.addProperty("hotbarCyclerEnabled",       hotbarCyclerEnabled);
-            root.addProperty("hotbarCyclerShowButtons",   hotbarCyclerShowButtons);
-            root.addProperty("lockCycledRows",            lockCycledRows);
-            root.addProperty("hotbarCyclerScrollToCycle", hotbarCyclerScrollToCycle);
-            root.addProperty("columnCyclerHudMode",       columnCyclerHudMode.name());
+            settingsJson().entrySet().forEach(e -> root.add(e.getKey(), e.getValue()));
             root.add("reach", Reach.write());
             Files.writeString(path, GSON.toJson(root));
         } catch (IOException e) {
@@ -294,6 +357,19 @@ public final class IPConfig {
     private static LegacyUsesLockedItems legacyUsesLockedItems = new LegacyUsesLockedItems(true, true, true, true);
 
     public static LegacyUsesLockedItems legacyUsesLockedItems() { return legacyUsesLockedItems; }
+
+    public static boolean sortEnabled()              { return sortEnabled; }
+    public static boolean moveMatchingEnabled()      { return moveMatchingEnabled; }
+    public static boolean restockEnabled()           { return restockEnabled; }
+    public static boolean restockShowButton()        { return restockShowButton; }
+    public static boolean autoToolSwitchShowButton() { return autoToolSwitchShowButton; }
+    public static boolean lockGroupsEnabled()        { return lockGroupsEnabled; }
+    public static void setSortEnabled(boolean v)              { sortEnabled = v; save(); }
+    public static void setMoveMatchingEnabled(boolean v)      { moveMatchingEnabled = v; save(); }
+    public static void setRestockEnabled(boolean v)           { restockEnabled = v; save(); }
+    public static void setRestockShowButton(boolean v)        { restockShowButton = v; save(); }
+    public static void setAutoToolSwitchShowButton(boolean v) { autoToolSwitchShowButton = v; save(); }
+    public static void setLockGroupsEnabled(boolean v)        { lockGroupsEnabled = v; save(); }
 
     // ─── Getters ─────────────────────────────────────────────────────
     public static boolean autoRestockArmor()            { return autoRestockArmor; }

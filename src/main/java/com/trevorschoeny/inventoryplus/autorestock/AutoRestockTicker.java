@@ -170,6 +170,12 @@ public final class AutoRestockTicker {
             initialized = true;
             return;
         }
+        // Restock's master switch. Keep the snapshot current while it is off,
+        // so turning it back on never mistakes an old change for depletion.
+        if (!IPConfig.restockEnabled()) {
+            snapshot(player);
+            return;
+        }
 
         // ─── Is this the player's own hand, or consumption? ─────────────────
         // Two different questions used to share one gate. "containerMenu ==

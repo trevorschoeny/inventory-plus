@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.sort;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
+import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.movematching.ScreenLayout;
 
@@ -69,6 +70,7 @@ public final class SortKeybind {
             if (!(screen instanceof AbstractContainerScreen<?> acs)) return;
             ScreenKeyboardEvents.afterKeyPress(screen).register((innerScreen, event) -> {
                 if (!IPKeybinds.SORT.matches(event)) return;
+                if (!IPConfig.sortEnabled()) return;
                 if (!(innerScreen instanceof AbstractContainerScreen<?> currentAcs)) return;
                 handleSortKey(currentAcs);
             });

@@ -65,7 +65,7 @@ public final class SortButton {
                 .tooltip(ModeGestures.tooltip("Sort", SortState.MODE, identity))
                 .onSecondaryClick(gestures::accept)
                 .tint(ModeGestures.tint(SortState.MODE, identity, feedback))
-                .showWhen(IPConfig::sortShowButton);
+                .showWhen(() -> IPConfig.sortEnabled() && IPConfig.sortShowButton());
     }
 
     /** The identity of the container this toolbar's button acts on, or null if none is open. */
@@ -82,6 +82,7 @@ public final class SortButton {
     }
 
     private static void triggerSort(Target target) {
+        if (!IPConfig.sortEnabled()) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.gameMode == null) return;
         AbstractContainerMenu menu = openMenu();

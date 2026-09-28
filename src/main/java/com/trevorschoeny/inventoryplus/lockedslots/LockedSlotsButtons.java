@@ -3,6 +3,7 @@ package com.trevorschoeny.inventoryplus.lockedslots;
 import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 import com.trevorschoeny.inventoryplus.buttonmode.PressFeedback;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
+import com.trevorschoeny.inventoryplus.lockgroups.LockColours;
 import com.trevorschoeny.inventoryplus.lockgroups.Reach;
 
 import com.trevlar.menukit.core.Click;
@@ -55,13 +56,18 @@ public final class LockedSlotsButtons {
                             Reach.cycleActive(Click.of(Click.LEFT).shift() ? -1 : 1);
                         },
                         TEXTURE)
-                .tooltip(() -> Component.literal("Lock group: " + Reach.active().name())
+                .tooltip(() -> Component.literal("Lock group: " + Reach.active().name()
+                                + (IPConfig.lockGroupsEnabled() ? "" : " (locks paused)"))
                         .append(Component.literal("\nClick: next group. Shift-click: previous.\nRight-click: edit groups.")
                                 .withStyle(ChatFormatting.GRAY)))
                 .onSecondaryClick(click -> {
                     if (click.isRight()) SettingsMenu.openOn(SettingsMenu.LOCK_GROUPS);
                 })
-                .tint(feedback::tint)
+                // The active group's colour, faint; the press flash over it.
+                .tint(() -> {
+                    int flash = feedback.tint();
+                    return flash != 0 ? flash : LockColours.argb(Reach.active().colour(), 0x70);
+                })
                 .showWhen(IPConfig::lockedSlotsShowButton);
     }
 }

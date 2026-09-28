@@ -19,6 +19,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
@@ -218,6 +219,28 @@ public final class WorldStore<V> {
     /** Visits every world that has a value, for the owner's {@code save}. */
     public void forEachWorld(BiConsumer<String, V> action) {
         byWorld.forEach(action);
+    }
+
+    /**
+     * Replaces every world's value with {@code fn}'s answer, for a change that
+     * has to reach all worlds at once (deleting a lock group moves its locks
+     * everywhere; the Lock groups tab's Reset removes every lock). An empty or
+     * {@code null} answer drops the world. Notifies once, if anything changed.
+     */
+    public void replaceAll(BiFunction<String, V, @Nullable V> fn) {
+        boolean changed = false;
+        for (Map.Entry<String, V> e : new java.util.ArrayList<>(byWorld.entrySet())) {
+            V answer = fn.apply(e.getKey(), e.getValue());
+            V next = answer == null ? empty : Objects.requireNonNull(freeze.apply(answer), "freeze returned null");
+            if (empty.equals(next)) {
+                byWorld.remove(e.getKey());
+                changed = true;
+            } else if (!next.equals(e.getValue())) {
+                byWorld.put(e.getKey(), next);
+                changed = true;
+            }
+        }
+        if (changed) onChange.run();
     }
 
     /**
