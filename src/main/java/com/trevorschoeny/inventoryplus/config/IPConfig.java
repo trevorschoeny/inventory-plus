@@ -66,7 +66,7 @@ public final class IPConfig {
     private IPConfig() {}
 
     private static final int CURRENT_VERSION = 1;
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().serializeNulls().create();   // reach groups write "key": null
 
     // ─── Auto-Restock ────────────────────────────────────────────────
     // Offhand restock is unconditionally on per Trev 2026-05-18 — the
