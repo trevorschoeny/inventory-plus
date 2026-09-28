@@ -1,7 +1,5 @@
 package com.trevorschoeny.inventoryplus.lockgroups;
 
-import com.trevlar.menukit.inject.SlotGroupId;
-import com.trevlar.menukit.inject.SlotGroups;
 import com.trevlar.menukit.window.SlotOperations;
 import com.trevlar.menukit.window.SlotRef;
 
@@ -45,9 +43,9 @@ import java.util.List;
  * With no acting player (a hopper), or another player (a LAN guest of this
  * host), it has no opinion, since this record is this player's alone.
  *
- * <p>The slot's group comes from {@link SlotGroups#of} for now. MenuKit 5.2.0
- * adds a three-argument {@code denies} that hands it to the veto, so it is
- * resolved once per {@code allows}; switch to it when it lands.
+ * <p>The slot's group comes from MenuKit itself: {@code allows} resolves it
+ * once per question and hands it to every registered {@link
+ * SlotOperations.GroupVeto}, so no veto re-derives it.
  */
 public final class Locks {
 
@@ -55,10 +53,9 @@ public final class Locks {
 
     /** Registers the veto. Once, at client init. */
     public static void registerVeto() {
-        SlotOperations.veto((ref, operation) -> {
+        SlotOperations.veto((ref, group, operation) -> {
             if (!isLocalPlayer(ref.player())) return false;
             String op = operation.id().toString();
-            SlotGroupId group = SlotGroups.of(ref);
             if (group != null && Reach.denies(op, group.asString())) return true;
             for (String lock : on(ref)) {
                 if (Reach.lockDenies(lock, op)) return true;
