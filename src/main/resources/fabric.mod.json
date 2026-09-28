@@ -8,11 +8,14 @@
     "trevorschoeny"
   ],
   "license": "MIT",
-  "environment": "client",
+  "environment": "*",
   "mixins": [
     "inventoryplus.mixins.json"
   ],
   "entrypoints": {
+    "main": [
+      "com.trevorschoeny.inventoryplus.InventoryPlus"
+    ],
     "client": [
       "com.trevorschoeny.inventoryplus.InventoryPlusClient"
     ],

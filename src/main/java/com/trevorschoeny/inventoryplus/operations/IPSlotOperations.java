@@ -40,8 +40,8 @@ public final class IPSlotOperations {
 
     /**
      * Defines the eight operations with their roles, so MenuKit lists them and a
-     * settings screen can show only the ones that could move an item. Client
-     * init: Inventory Plus is a client-only mod. Idempotent.
+     * settings screen can show only the ones that could move an item. From the
+     * common initializer, so a server knows them too. Idempotent.
      */
     public static void define() {
         // Which vanilla groups each can act on (MenuKit's AppliesTo), so the

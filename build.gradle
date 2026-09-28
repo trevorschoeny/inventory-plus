@@ -47,8 +47,9 @@ repositories {
 }
 
 // MenuKit 6.0.0 splits into main and client source sets (§0062). A project
-// dependency sees only main, so its client half is added below by output,
-// which needs MenuKit evaluated first. A published jar holds both halves.
+// dependency sees only main, so its client half is added by output (in the
+// client dependencies after loom {}), which needs MenuKit evaluated first. A
+// published jar holds both halves.
 evaluationDependsOn(':menukit')
 
 dependencies {
@@ -58,13 +59,6 @@ dependencies {
     implementation "net.fabricmc:fabric-loader:${property('loader_version')}"
     implementation "net.fabricmc.fabric-api:fabric-api:${property('fabric_version')}"
 
-    // ModMenu — surfaces IP's config screen from the mods list. Optional
-    // at runtime; declared as a soft dep in fabric.mod.json. compileOnly
-    // here means we compile against ModMenu's API; the runtime-only line
-    // brings it into the dev launch. (⚠️ beta — only 26.2 build available.)
-    compileOnly "com.terraformersmc:modmenu:20.0.1"
-    localRuntime "com.terraformersmc:modmenu:20.0.1"
-
     // YACL — config-screen framework. Bundled into IP's jar via Loom's
     // `include` (Jar-in-Jar), so players install IP and YACL comes along
     // for free. `implementation` covers compile + dev runtime; the
@@ -72,25 +66,24 @@ dependencies {
     implementation "maven.modrinth:yacl:3.9.6+26.2-fabric"
     include        "maven.modrinth:yacl:3.9.6+26.2-fabric"
 
-    // §0042 / §0005 + 18b brief: depend on MK 1.0.0 (the widgets artifact)
-    // and ONLY MK. Adding :menukit-containers here would put MKC types on
-    // the classpath and violate the partition test — IP is client-only by
-    // construction, including by classpath shape.
-    //
-    // The workspace-level project dep gives us the locally-built MK
-    // artifact (same content as the Modrinth-published one). (26.x: the
-    // remap layer is gone, so the `namedElements` variant no longer
-    // exists — a plain project dep is THE artifact now.)
+    // §0042 / §0005: depend on MenuKit and ONLY MenuKit. Adding
+    // :menukit-containers here would put its types on the classpath and break
+    // the partition test. (26.x: a plain project dep is the artifact now.)
     implementation project(':menukit')
-    implementation rootProject.project(':menukit').sourceSets.client.output
-
-    // Keybindery — required (Trev, 2026-09-27): the settings menu binds keys
-    // with its MenuKit ChordButton, the same chord capture and conflict view
-    // as Keybindery's own screens.
-    implementation project(':keybindery')
 }
 
 loom {
+    // §0062: Inventory Plus is universal. src/main holds what a server may
+    // load (the operation keys and the api types that name no client class);
+    // src/client holds every feature, mixin, screen and keybind. The compiler
+    // refuses a main class that reaches a client one.
+    splitEnvironmentSourceSets()
+    mods {
+        inventoryplus {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.client
+        }
+    }
     runs {
         client { ideConfigGenerated = false }
         server { ideConfigGenerated = false }
@@ -103,6 +96,23 @@ loom {
             ideConfigGenerated = false
         }
     }
+}
+
+// Client-only dependencies, after loom {} so its client configurations exist.
+dependencies {
+    // MenuKit's client half (UI, screens), which the project dep above leaves out.
+    clientImplementation rootProject.project(':menukit').sourceSets.client.output
+
+    // Keybindery — required (Trev, 2026-09-27): the settings menu binds keys
+    // with its MenuKit ChordButton, the same chord capture and conflict view
+    // as Keybindery's own screens. Client-only, like Keybindery itself.
+    clientImplementation project(':keybindery')
+
+    // ModMenu — surfaces the settings menu from the mods list. Optional at
+    // runtime; compileOnly means we compile against its API, localRuntime
+    // brings it into the dev launch. (⚠️ beta — only 26.2 build available.)
+    clientCompileOnly "com.terraformersmc:modmenu:20.0.1"
+    localRuntime "com.terraformersmc:modmenu:20.0.1"
 }
 
 jar {
