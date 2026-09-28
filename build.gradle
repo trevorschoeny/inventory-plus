@@ -51,6 +51,8 @@ repositories {
 // client dependencies after loom {}), which needs MenuKit evaluated first. A
 // published jar holds both halves.
 evaluationDependsOn(':menukit')
+// Keybindery is split the same way (universal, §0062); its client half comes by output too.
+evaluationDependsOn(':keybindery')
 
 dependencies {
     // 26.x: the game is unobfuscated — no mappings line, and mod deps use the
@@ -106,7 +108,12 @@ dependencies {
     // Keybindery — required (Trev, 2026-09-27): the settings menu binds keys
     // with its MenuKit ChordButton, the same chord capture and conflict view
     // as Keybindery's own screens. Client-only, like Keybindery itself.
+    // Keybindery is universal now (§0062): the project dep's default variant
+    // is its empty common entrypoint, but keybindery-api still comes along
+    // transitively (Keybindery declares it `api`); the real client code
+    // (ChordButton) comes separately by output, same as MenuKit's above.
     clientImplementation project(':keybindery')
+    clientImplementation rootProject.project(':keybindery').sourceSets.client.output
 
     // ModMenu — surfaces the settings menu from the mods list. Optional at
     // runtime; compileOnly means we compile against its API, localRuntime
