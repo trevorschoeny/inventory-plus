@@ -600,7 +600,7 @@ final class SettingsTabs {
     private static String namespaceOf(SlotGroups.Entry e) {
         if (e.set() != null) return e.set().namespace();
         return switch (e.groups().get(0)) {
-            case SlotGroupId.Vanilla v -> v.category().namespace();
+            case SlotGroupId.Category v -> v.category().namespace();
             case SlotGroupId.Created c -> {
                 int colon = c.panelId().indexOf(':');
                 yield colon > 0 ? c.panelId().substring(0, colon) : "";

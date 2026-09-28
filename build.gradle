@@ -46,6 +46,11 @@ repositories {
     maven { url 'https://api.modrinth.com/maven' }
 }
 
+// MenuKit 6.0.0 splits into main and client source sets (§0062). A project
+// dependency sees only main, so its client half is added below by output,
+// which needs MenuKit evaluated first. A published jar holds both halves.
+evaluationDependsOn(':menukit')
+
 dependencies {
     // 26.x: the game is unobfuscated — no mappings line, and mod deps use the
     // standard java configurations (modImplementation → implementation etc.).
@@ -77,6 +82,7 @@ dependencies {
     // remap layer is gone, so the `namedElements` variant no longer
     // exists — a plain project dep is THE artifact now.)
     implementation project(':menukit')
+    implementation rootProject.project(':menukit').sourceSets.client.output
 
     // Keybindery — required (Trev, 2026-09-27): the settings menu binds keys
     // with its MenuKit ChordButton, the same chord capture and conflict view

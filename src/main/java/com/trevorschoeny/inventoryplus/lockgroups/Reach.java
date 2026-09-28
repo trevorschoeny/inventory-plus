@@ -7,6 +7,8 @@ import com.google.gson.JsonObject;
 
 import com.trevorschoeny.inventoryplus.lockeditems.LockKind;
 
+import com.trevlar.menukit.inject.SlotGroupId;
+
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -422,6 +424,21 @@ public final class Reach {
     private static final int VERSION = 1;
 
     /** Replaces the record with {@code json}'s; {@code null} means a fresh install. Does not save. */
+    /**
+     * A saved key as this MenuKit writes it. MenuKit 6.0.0 renamed a category
+     * group's text from {@code vanilla|ns|path} to {@code category|ns|path};
+     * {@code SlotGroupId.parse} reads both, so an old key is rewritten through
+     * it and a choice saved before 6.0.0 still denies. Every other key is kept.
+     */
+    static String key(String saved) {
+        if (!saved.startsWith("vanilla|")) return saved;
+        try {
+            return SlotGroupId.parse(saved).asString();
+        } catch (IllegalArgumentException e) {
+            return saved;
+        }
+    }
+
     public static void read(@Nullable JsonObject json) {
         if (json == null) {
             state = State.of(Map.of(), defaultGroups(), Set.of(), SLOT_LOCK);
@@ -431,7 +448,7 @@ public final class Reach {
         if (json.has("denied") && json.get("denied").isJsonObject()) {
             for (var e : json.getAsJsonObject("denied").entrySet()) {
                 Set<String> keys = new HashSet<>();
-                if (e.getValue().isJsonArray()) for (JsonElement k : e.getValue().getAsJsonArray()) keys.add(k.getAsString());
+                if (e.getValue().isJsonArray()) for (JsonElement k : e.getValue().getAsJsonArray()) keys.add(key(k.getAsString()));
                 denied.put(e.getKey(), keys);
             }
         }

@@ -267,11 +267,12 @@ public final class LockedSlots {
             // Ender locks live under a separate "enderPerWorld" section so their
             // 0-based slot indices don't collide with player slot indices.
             int enderTotal = loadIndexed(root, "enderPerWorld", ENDER, worlds, v1);
-            // Created-slot locks (MenuKit: Containers) as opaque CreatedSlotKey strings.
+            // Created-slot locks (MenuKit: Containers) keyed by address text;
+            // a key saved before MenuKit 6.0.0 is converted as it is read.
             int createdTotal = 0;
             for (var worldEntry : section(root, "createdPerWorld").entrySet()) {
                 Map<String, String> map = new HashMap<>();
-                readLocks(worldEntry.getValue(), map, k -> k, v1);
+                readLocks(worldEntry.getValue(), map, CreatedSlotKey::migrate, v1);
                 if (!map.isEmpty()) {
                     CREATED.load(worldEntry.getKey(), map);
                     worlds.add(worldEntry.getKey());
