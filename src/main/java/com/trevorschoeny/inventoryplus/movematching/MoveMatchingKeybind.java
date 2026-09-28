@@ -47,8 +47,6 @@ public final class MoveMatchingKeybind {
                         Direction direction = directionForEvent(event);
                         if (direction == null) return;
                         if (!(innerScreen instanceof AbstractContainerScreen<?> acs)) return;
-                        // Edit mode disables MM I/O keybinds per Trev 2026-05-16.
-                        if (com.trevorschoeny.inventoryplus.lockedslots.LockEditMode.isOn()) return;
 
                         List<SlotGroup> groups = SlotGroupDetector.detect(acs);
                         SlotGroup playerMainInv =

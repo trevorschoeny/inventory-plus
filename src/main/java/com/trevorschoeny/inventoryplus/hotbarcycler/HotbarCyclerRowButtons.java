@@ -2,7 +2,6 @@ package com.trevorschoeny.inventoryplus.hotbarcycler;
 
 import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
-import com.trevorschoeny.inventoryplus.lockedslots.LockEditMode;
 
 import com.trevlar.menukit.core.Panel;
 import com.trevlar.menukit.core.PanelElement;
@@ -189,11 +188,8 @@ public final class HotbarCyclerRowButtons {
     }
 
     private static boolean buttonsVisible() {
-        // Hidden while lock edit mode is on, matching the other IP buttons:
-        // the player is configuring locks, not rearranging the cycle.
         return IPConfig.hotbarCyclerEnabled()
-                && IPConfig.hotbarCyclerShowButtons()
-                && !LockEditMode.isOn();
+                && IPConfig.hotbarCyclerShowButtons();
     }
 
     private static @Nullable SlotScreenRect slotRect(AbstractContainerScreen<?> screen, int containerSlot) {

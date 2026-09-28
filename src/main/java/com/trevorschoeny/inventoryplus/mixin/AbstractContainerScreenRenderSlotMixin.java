@@ -5,7 +5,6 @@ import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerEditMode;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
-import com.trevorschoeny.inventoryplus.lockedslots.LockEditMode;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -23,11 +22,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * Renders Locked-Slots + Column-Cycler overlays on top of vanilla slot rendering:
  *
  * <ol>
- *   <li><b>Edit-mode tint</b> on every editable slot: light pink for
- *       {@link LockEditMode} (Trev 2026-09-07), gray for
- *       {@link ColumnCyclerEditMode}. The two modes are mutually exclusive.
- *       Reinforces "no item interactions in this slot during edit mode"
- *       (Trev 2026-05-16).</li>
+ *   <li><b>Edit-mode tint</b>, gray, on the slots {@link ColumnCyclerEditMode}
+ *       edits. Lock edit mode and its pink tint are gone (Trev, 2026-09-11):
+ *       locks are applied with {@code L}.</li>
  *   <li><b>Lock icon</b> on locked player slots — 5×6 PNG at top-right
  *       with 1 px inset from the slot's right edge.</li>
  *   <li><b>Cycle icon</b> on cycle-member slots — 6×6 PNG. When ALSO
@@ -82,13 +79,6 @@ public abstract class AbstractContainerScreenRenderSlotMixin {
     private static final int INVENTORYPLUS$ITEM_MARK_SIZE = 5;
 
     /** 50%-translucent light gray for the edit-mode overlay. */
-    /**
-     * Lock edit mode tints every lockable slot a light pink (Trev 2026-09-07).
-     * Same hue as {@link com.trevorschoeny.inventoryplus.buttonmode.ModeGestures#PIN_TINT}
-     * so the mod has one pink; lower alpha because this covers whole slots
-     * rather than a nine-pixel button.
-     */
-    private static final int INVENTORYPLUS$LOCK_EDIT_TINT = 0x48FF6EC7;
     /** The Column Cycler's edit mode keeps its neutral gray. */
     private static final int INVENTORYPLUS$CYCLER_EDIT_TINT = 0x80808080;
 
@@ -104,15 +94,9 @@ public abstract class AbstractContainerScreenRenderSlotMixin {
     @Inject(method = "extractSlot", at = @At("TAIL"))   // 26.2 extract/draw rename
     private void inventoryplus$renderOverlays(GuiGraphicsExtractor graphics, Slot slot,
                                               int mouseX, int mouseY, CallbackInfo ci) {
-        // 1. Edit-mode gray overlay. The two edit modes diverge now that
-        // lock-edit reaches beyond the player inventory: lock-edit grays every
-        // lock-toggleable slot (inv+hotbar + ender + placed containers), while
-        // cycler-edit stays scoped to the player inv+hotbar slots it operates on.
-        // The two edit modes are mutually exclusive, so at most one tint applies.
+        // 1. Column Cycler edit-mode gray overlay, on the inv+hotbar slots it edits.
         int tint = 0;
-        if (LockEditMode.isOn() && LockedSlots.isEditModeToggleable(slot)) {
-            tint = INVENTORYPLUS$LOCK_EDIT_TINT;
-        } else if (ColumnCyclerEditMode.isOn() && LockedSlots.isInvOrHotbarSlot(slot)) {
+        if (ColumnCyclerEditMode.isOn() && LockedSlots.isInvOrHotbarSlot(slot)) {
             tint = INVENTORYPLUS$CYCLER_EDIT_TINT;
         }
         if (tint != 0) {

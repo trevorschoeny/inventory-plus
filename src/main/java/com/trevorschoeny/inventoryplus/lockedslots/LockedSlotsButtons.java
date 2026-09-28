@@ -1,54 +1,37 @@
 package com.trevorschoeny.inventoryplus.lockedslots;
 
 import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
-import com.trevorschoeny.inventoryplus.buttonmode.ModeGestures;
 import com.trevorschoeny.inventoryplus.buttonmode.PressFeedback;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
-import com.trevorschoeny.inventoryplus.lockeditems.LockedItemModes;
+import com.trevorschoeny.inventoryplus.lockgroups.Reach;
 
+import com.trevlar.menukit.core.Click;
 import com.trevlar.menukit.core.Toggle;
 
-import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
-
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
 /**
- * Lock-edit toolbar-toggle factory + edit-mode lifecycle hook.
+ * The lock button on the inventory toolbar (`plans/lock-groups.md`,
+ * "Applying locks"): it shows which lock group {@code L} applies, and picks
+ * another.
  *
- * <h3>Single sprite, two visual states</h3>
+ * <ul>
+ *   <li><b>Left-click</b> selects the next group; <b>Shift + left-click</b>
+ *       the previous one.</li>
+ *   <li><b>Right-click</b> opens the settings menu on its Lock groups tab.</li>
+ *   <li><b>Ctrl+click</b> (Cmd on a Mac) opens the same tab, as on every
+ *       Inventory Plus button.</li>
+ * </ul>
  *
- * MK's {@link Toggle#spriteLinked} renders the off state with the raw
- * sprite and the on state with the same sprite under MK's
- * HSL-lightness-inversion shader (hue + saturation preserved). One PNG
- * (per Phase 18q); on/off visual difference is automatic.
+ * <p>Lock edit mode, which the left-click used to toggle, is gone (Trev,
+ * 2026-09-11): locks are applied with {@code L} alone. The group's colour on
+ * the button comes with stage 3 of the Reach build, where colour becomes
+ * settable; until then the tooltip names the group and a press flashes.
  *
- * <h3>State ownership</h3>
- *
- * {@code spriteLinked} is the consumer-owned-state variant — the
- * getter is {@link LockEditMode#isOn} and the toggle is
- * {@link LockEditMode#toggle}. MK reads/writes through those; the
- * mod's edit-mode state stays in its existing class.
- *
- * <h3>Left-click edits, right-click chooses what L locks</h3>
- *
- * The toggle carries {@link LockedItemModes}'s three stops (Lock Slot,
- * Lock Item, Lock Exact Item) on its secondary click, the same gesture
- * vocabulary Sort and Move Matching use. Left-click still enters and
- * leaves edit mode, unchanged.
- *
- * <p>The mode is global-only, so middle-click does nothing and the
- * tooltip does not offer it. The press flash still matters here: a
- * right-click that only changes a tooltip line is otherwise
- * indistinguishable from a missed click (`features/button-modes.md`).
- *
- * <h3>Always visible (within scope)</h3>
- *
- * No {@code .showWhen} — the toggle shows whenever its panel shows.
- * The toolbar panel's panel-level {@code showWhen} handles the
- * scope filter (e.g., excluding Creative). The Move Matching buttons
- * gate themselves via per-element {@code .showWhen} for the MM-screen
- * filter.
+ * <p>Shown unless the Lock groups tab's button toggle hides it; never hidden
+ * automatically, since there are always at least two groups to choose from.
  */
 public final class LockedSlotsButtons {
 
@@ -59,42 +42,26 @@ public final class LockedSlotsButtons {
 
     public static final int SIZE = 9;
 
-    /**
-     * Registers the edit-mode lifecycle reset — fires on every
-     * {@code AFTER_INIT} so edit mode auto-disables when the player
-     * closes one screen and opens another. Independent of the
-     * toolbar's render path; called from
-     * {@link com.trevorschoeny.inventoryplus.InventoryPlusClient}.
-     */
-    public static void registerLifecycle() {
-        ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) ->
-                LockEditMode.reset());
-    }
-
-    /**
-     * Lock-edit toggle for the toolbar. Off state: lock icon as-is.
-     * On state: HSL-inverted lock icon (via MK's sprite-toggle shader).
-     */
     public static Toggle toolbarToggle(int x, int y) {
         PressFeedback feedback = new PressFeedback();
-        // Global-only mode, so there is no container to resolve: the stops
-        // choose what L locks, never where.
-        var gestures = ModeGestures.handler(LockedItemModes.MODE, () -> null, feedback);
+        // A sprite toggle whose state always reads off, so the icon never
+        // inverts: the button selects, it does not hold a mode. The widget
+        // still reports each left-click, which is the cycle.
         return Toggle.spriteLinked(x, y, SIZE, SIZE,
-                        LockEditMode::isOn,
-                        // 2.0.0: the widget computes the new state off the linked
-                        // supplier and hands it to us; set() applies it (incl. the
-                        // edit-mode mutual exclusion) — no self-flip here.
-                        on -> {
+                        () -> false,
+                        ignored -> {
                             if (SettingsMenu.ctrlClickOpens(SettingsMenu.LOCK_GROUPS)) return;
-                            LockEditMode.set(on);
+                            feedback.press();
+                            Reach.cycleActive(Click.of(Click.LEFT).shift() ? -1 : 1);
                         },
                         TEXTURE)
-                .tooltip(ModeGestures.tooltip(
-                        () -> LockEditMode.isOn() ? "Finish Editing" : "Edit Locked Slots",
-                        LockedItemModes.MODE, () -> null))
-                .onSecondaryClick(gestures::accept)
-                .tint(ModeGestures.tint(LockedItemModes.MODE, () -> null, feedback))
+                .tooltip(() -> Component.literal("Lock group: " + Reach.active().name())
+                        .append(Component.literal("\nClick: next group. Shift-click: previous.\nRight-click: edit groups.")
+                                .withStyle(ChatFormatting.GRAY)))
+                .onSecondaryClick(click -> {
+                    if (click.isRight()) SettingsMenu.openOn(SettingsMenu.LOCK_GROUPS);
+                })
+                .tint(feedback::tint)
                 .showWhen(IPConfig::lockedSlotsShowButton);
     }
 }

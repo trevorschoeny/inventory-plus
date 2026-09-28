@@ -7,6 +7,7 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
+import com.trevorschoeny.inventoryplus.lockgroups.Reach;
 import com.trevorschoeny.inventoryplus.autotoolswitch.AutoSwitchReturnMode;
 import com.trevorschoeny.inventoryplus.autotoolswitch.WeaponPreference;
 import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
@@ -165,6 +166,9 @@ public final class IPConfig {
     public static void load() {
         if (loaded) return;
         loaded = true;
+        // The reach record rides in this file (`plans/reach.md`, "Where it
+        // lives"); every change to it saves the whole file, like any setting.
+        Reach.onChange(IPConfig::save);
         Path path = filePath();
         if (!Files.exists(path)) {
             InventoryPlusClient.LOGGER.info(
@@ -213,6 +217,7 @@ public final class IPConfig {
             lockCycledRows            = readBool(root, "lockCycledRows",            lockCycledRows);
             hotbarCyclerScrollToCycle = readBool(root, "hotbarCyclerScrollToCycle", hotbarCyclerScrollToCycle);
             columnCyclerHudMode       = HudMode.fromName(readString(root, "columnCyclerHudMode", null), columnCyclerHudMode);
+            Reach.read(root.has("reach") && root.get("reach").isJsonObject() ? root.getAsJsonObject("reach") : null);
             InventoryPlusClient.LOGGER.info("[config] loaded from {}", path);
         } catch (IOException | JsonSyntaxException | IllegalStateException e) {
             InventoryPlusClient.LOGGER.error(
@@ -279,6 +284,7 @@ public final class IPConfig {
             root.addProperty("lockCycledRows",            lockCycledRows);
             root.addProperty("hotbarCyclerScrollToCycle", hotbarCyclerScrollToCycle);
             root.addProperty("columnCyclerHudMode",       columnCyclerHudMode.name());
+            root.add("reach", Reach.write());
             Files.writeString(path, GSON.toJson(root));
         } catch (IOException e) {
             InventoryPlusClient.LOGGER.error(

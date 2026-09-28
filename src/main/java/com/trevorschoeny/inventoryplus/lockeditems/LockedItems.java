@@ -10,7 +10,10 @@ import com.google.gson.JsonSyntaxException;
 import com.mojang.serialization.JsonOps;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
-import com.trevorschoeny.inventoryplus.lockedslots.WorldIdentity;
+import com.trevorschoeny.inventoryplus.api.WorldStore;
+import com.trevorschoeny.inventoryplus.config.IPConfig;
+import com.trevorschoeny.inventoryplus.lockgroups.LockGroup;
+import com.trevorschoeny.inventoryplus.lockgroups.Reach;
 
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -28,102 +31,77 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 /**
- * Protection that belongs to the item rather than the slot
- * (`plans/locked-items.md`). A protected item is skipped by every piece
- * of automation the mod runs, wherever it happens to be sitting.
- *
- * <h3>The kinds are independent, not alternatives</h3>
- *
- * <p>An item can carry any combination of locks at once: locked by id,
- * locked exactly, and slot-locked over in {@link
- * com.trevorschoeny.inventoryplus.lockedslots.LockedSlots}. Each is its
- * own dimension and {@code L} only ever touches the one the lock button's
- * stop names.
- *
- * <p>This was not the first design. Until 2026-09-06 a press removed
- * every lock on the item at once, so switching to Exact and locking an
- * already-id-locked pickaxe read as "already locked" and cleared it
- * instead. The old rule justified itself as never "revealing a second
- * lock underneath", which is exactly what a player with two locks needs
- * to see (Trev).
- *
- * <h3>Two kinds, and why they are not one</h3>
- *
- * <ul>
- *   <li><b>By id</b> ({@link LockKind#ITEM}) protects an item type.
- *       Locking one diamond pickaxe protects every diamond pickaxe.
- *       Coarse deliberately: it is a sentence a player can hold, and it
- *       fails by over-protecting.</li>
- *   <li><b>Exact</b> ({@link LockKind#EXACT}) protects one item as it
- *       is, components and all, for when a stack's identity matters.</li>
- * </ul>
+ * Locks that belong to the item rather than the slot (`plans/lock-groups.md`):
+ * Item locks cover every item of a type, Exact locks one item as it is. Each
+ * lock names its lock group, and an item carries at most one lock of each
+ * kind (`lock-groups.md`, "One group per kind per target").
  *
  * <h3>What "exact" ignores, and why that is the whole feature</h3>
  *
  * <p>Exact match compares the full component set <b>except durability
- * damage</b>, and never stack count. Damage has to go: a lock that
- * included it would release the moment the player used the item, which
- * is precisely the item they cared most about protecting. Everything
- * else that distinguishes one stack from another (enchantments, custom
- * name, potion contents, dye, trim, stored contents) still counts, so
- * "exact" means what a player expects: this item, however worn it gets.
+ * damage</b>, and never stack count. A lock that included damage would
+ * release the moment the player used the item, which is precisely the item
+ * they cared most about protecting. {@link #normalize} is where that
+ * exclusion lives, applied to both sides of every comparison.
  *
- * <p>{@link #normalize} is where that exclusion lives, and it is applied
- * to both sides of every comparison, so a stored entry and a candidate
- * are always compared on equal terms.
+ * <h3>Storage: a {@link WorldStore} of the encoded form</h3>
  *
- * <h3>Locked Items does not constrain the player</h3>
+ * <p>Per world or server, like every per-world lock (`plans/reach.md`, "The
+ * storage standard"). The store holds what the file holds: item ids as text
+ * and exact stacks as their encoded JSON. That form needs no registries, so it
+ * loads at client init, and it has value equality, so the store's
+ * notify-on-change works. Matching needs real stacks, which need the level's
+ * registries; {@link #view} decodes the current world's value on first use and
+ * keeps it until the stored value changes. Ids for items that no longer exist
+ * stay in the file and are never matched.
  *
- * <p>Unlike {@link com.trevorschoeny.inventoryplus.lockedslots.LockedSlots},
- * which also blocks manual shift-clicks and auto-pickup destinations,
- * this class is consulted <b>only</b> by the mod's own automation. The
- * player can always pick a locked item up, drop it, or shift-click it by
- * hand. Wiring {@link #isLocked} into a manual-interaction path would be
- * a bug, not an extension.
- *
- * <h3>Persistence</h3>
- *
- * <p>{@code config/inventoryplus/locked-items.json}, per world or server
- * (Trev 2026-09-06), so a hardcore run and a creative build keep separate
- * lists:
+ * <p>{@code config/inventoryplus/locked-items.json}, version 2:
  *
  * <pre>{@code
- * { "version": 1,
+ * { "version": 2,
  *   "perWorld": {
  *     "singleplayer:World": {
- *       "byId": ["minecraft:diamond_pickaxe"],
- *       "exact": [ { "id": "minecraft:diamond_pickaxe", "components": {...} } ] } } }
+ *       "byId":  { "minecraft:diamond_pickaxe": "g1" },
+ *       "exact": [ { "group": "exact_item", "stack": { "id": "...", "components": {...} } } ] } } }
  * }</pre>
  *
- * <p>The file is parsed at client init but <b>decoded lazily</b>, on the
- * first query inside a world. Exact entries are {@link ItemStack}s, and
- * decoding one needs the world's registries, which do not exist yet when
- * the client starts. {@link #ensureDecoded} therefore holds the raw JSON
- * until a world is loaded and then decodes just that world's section.
+ * <p>Version 1 held a bare {@code byId} array and a bare {@code exact} array.
+ * Loading one is the 1.5.x migration (`lock-groups.md`, "Migration"): exact
+ * locks become Exact item locks, and item locks move into a custom Item group
+ * named "Locked items", made only if any exist, whose reach reproduces 1.5.0.
  */
 public final class LockedItems {
 
     private LockedItems() {}
 
-    private static final int CURRENT_VERSION = 1;
+    private static final int CURRENT_VERSION = 2;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    /** Whole file as parsed, including worlds we are not in. Decoding waits for registries. */
-    private static JsonObject raw = new JsonObject();
+    /** One exact lock: its group and its normalized stack, encoded. */
+    public record ExactLock(String group, JsonElement stack) {}
 
-    /** The world whose section is currently decoded into the two sets below, or null. */
-    private static @Nullable String decodedWorld;
+    /** One world's item locks, in the form the file holds. */
+    public record ItemLocks(Map<String, String> byId, List<ExactLock> exact) {
+        static final ItemLocks EMPTY = new ItemLocks(Collections.emptySortedMap(), List.of());
 
-    /** Item types locked by id. Held as {@link Item} so the hot path is a reference hash. */
-    private static final Set<Item> BY_ID = new HashSet<>();
+        static ItemLocks freeze(ItemLocks v) {
+            List<ExactLock> exact = new ArrayList<>();
+            for (ExactLock e : v.exact()) exact.add(new ExactLock(e.group(), e.stack().deepCopy()));
+            return new ItemLocks(Collections.unmodifiableSortedMap(new TreeMap<>(v.byId())), List.copyOf(exact));
+        }
+    }
 
-    /** Normalized stacks locked exactly. Small by nature: one entry per item a player marked. */
-    private static final List<ItemStack> EXACT = new ArrayList<>();
+    private static final WorldStore<ItemLocks> STORE =
+            WorldStore.of(ItemLocks.EMPTY, ItemLocks::freeze, LockedItems::save);
 
     private static Path filePath() {
         return FabricLoader.getInstance().getConfigDir()
@@ -131,67 +109,167 @@ public final class LockedItems {
                 .resolve("locked-items.json");
     }
 
-    /** Reads the file into memory. Cheap, registry-free; the decode happens later. */
+    // ── Loading, and the 1.5.x migration ────────────────────────────────
+
+    /** Reads the file. Registry-free; the decode waits for a world ({@link #view}). */
     public static void load() {
         Path path = filePath();
         if (!Files.exists(path)) return;
         try {
-            raw = JsonParser.parseString(Files.readString(path)).getAsJsonObject();
-            int worlds = raw.has("perWorld") ? raw.getAsJsonObject("perWorld").size() : 0;
-            InventoryPlusClient.LOGGER.info(
-                    "[locked-items] read {} world section(s) from {}; decoding on world load",
-                    worlds, path.getFileName());
-        } catch (IOException | JsonSyntaxException | IllegalStateException e) {
+            JsonObject root = JsonParser.parseString(Files.readString(path)).getAsJsonObject();
+            JsonObject perWorld = root.has("perWorld") ? root.getAsJsonObject("perWorld") : new JsonObject();
+            boolean v1 = !root.has("version") || root.get("version").getAsInt() < 2;
+            // v1 item locks go to one group made for them, only if there are any.
+            String migratedItemGroup = null;
+            if (v1 && anyV1ItemLocks(perWorld)) migratedItemGroup = makeLockedItemsGroup().id();
+
+            for (var world : perWorld.entrySet()) {
+                JsonObject section = world.getValue().getAsJsonObject();
+                Map<String, String> byId = new HashMap<>();
+                List<ExactLock> exact = new ArrayList<>();
+                if (v1) {
+                    if (section.has("byId")) for (JsonElement e : section.getAsJsonArray("byId")) byId.put(e.getAsString(), migratedItemGroup);
+                    if (section.has("exact")) for (JsonElement e : section.getAsJsonArray("exact")) exact.add(new ExactLock(Reach.EXACT_ITEM, e));
+                } else {
+                    if (section.has("byId")) for (var e : section.getAsJsonObject("byId").entrySet()) byId.put(e.getKey(), e.getValue().getAsString());
+                    if (section.has("exact")) {
+                        for (JsonElement e : section.getAsJsonArray("exact")) {
+                            JsonObject o = e.getAsJsonObject();
+                            exact.add(new ExactLock(o.get("group").getAsString(), o.get("stack")));
+                        }
+                    }
+                }
+                STORE.load(world.getKey(), new ItemLocks(byId, exact));
+            }
+            InventoryPlusClient.LOGGER.info("[locked-items] read {} world section(s) from {}; decoding on world load",
+                    perWorld.size(), path.getFileName());
+            if (v1) {
+                save();
+                InventoryPlusClient.LOGGER.info("[locked-items] upgraded {} from version 1{}", path.getFileName(),
+                        migratedItemGroup == null ? "" : "; item locks moved to group " + migratedItemGroup);
+            }
+        } catch (IOException | JsonSyntaxException | IllegalStateException | NullPointerException e) {
             InventoryPlusClient.LOGGER.error(
                     "[locked-items] failed to parse {} — starting with an empty list", path, e);
-            raw = new JsonObject();
         }
     }
 
-    // ── Matching ────────────────────────────────────────────────────────
-
-    /**
-     * True when this stack carries any item lock. The predicate for the
-     * automations that honour locks unconditionally: Sorting sorts around
-     * it, Move Matching will not take it in either direction, and the
-     * cyclers rotate past it.
-     *
-     * <p>Auto Tool Switch and Auto-Restock call {@link #blocks} instead,
-     * since the player can let those two use a locked item anyway.
-     */
-    public static boolean isLocked(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) return false;
-        if (!ensureDecoded()) return false;
-        return BY_ID.contains(stack.getItem()) || matchesExact(stack);
-    }
-
-    /**
-     * True when this stack is locked <i>exactly</i>, which is only used to
-     * choose between the hollow and solid marks. An item can satisfy both
-     * kinds at once (a type locked by id, one of whose stacks was also
-     * locked exactly); the solid mark wins there, being the more specific
-     * statement of the two.
-     */
-    public static boolean isExactLocked(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) return false;
-        if (!ensureDecoded()) return false;
-        return matchesExact(stack);
-    }
-
-    private static boolean matchesExact(ItemStack stack) {
-        if (EXACT.isEmpty()) return false;
-        ItemStack probe = normalize(stack);
-        for (ItemStack entry : EXACT) {
-            if (ItemStack.isSameItemSameComponents(probe, entry)) return true;
+    private static boolean anyV1ItemLocks(JsonObject perWorld) {
+        for (var world : perWorld.entrySet()) {
+            JsonObject section = world.getValue().getAsJsonObject();
+            if (section.has("byId") && !section.getAsJsonArray("byId").isEmpty()) return true;
         }
         return false;
     }
 
     /**
+     * The "Locked items" group for 1.5.x item locks (`lock-groups.md`,
+     * "Migration"). 1.5.0 blocked sort, Move Matching and the cyclers, and
+     * restock and Auto Tool Switch only if the player had turned off "use
+     * locked items" for them; nothing else. Its kind's default (Exact item's
+     * table) differs from that, so the differences are written as entries,
+     * once. Restock is one operation here but was three settings then; it is
+     * blocked if any of the three said so, since protection wins.
+     */
+    private static LockGroup makeLockedItemsGroup() {
+        LockGroup group = Reach.createGroup(LockKind.ITEM, "Locked items", "gray");
+        Set<String> blocked = new HashSet<>(Set.of(
+                "inventoryplus:sort", "inventoryplus:move_matching_out", "inventoryplus:move_matching_in",
+                "inventoryplus:column_cycle", "inventoryplus:hotbar_cycle"));
+        if (!(IPConfig.autoRestockArmorUsesLockedItems() && IPConfig.autoRestockToolUsesLockedItems()
+                && IPConfig.autoRestockItemUsesLockedItems())) blocked.add("inventoryplus:restock_take");
+        if (!IPConfig.autoToolSwitchUsesLockedItems()) blocked.add("inventoryplus:auto_tool_switch");
+        Set<String> ops = new HashSet<>(blocked);
+        ops.addAll(Reach.EXACT_ITEM_DENIES);
+        for (String op : ops) Reach.setLockDenies(group.id(), op, blocked.contains(op));
+        return group;
+    }
+
+    // ── The decoded view of the current world ───────────────────────────
+
+    /** The current world's locks, decoded; rebuilt when the stored value changes. */
+    private record View(ItemLocks source, Map<Item, String> byId, List<Map.Entry<ItemStack, String>> exact) {}
+
+    private static volatile @Nullable View view;
+
+    /** The decoded locks for the world the player is in, or {@code null} outside one. */
+    private static @Nullable View view() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.level == null) return null;
+        ItemLocks locks = STORE.get();
+        View v = view;
+        if (v != null && v.source() == locks) return v;
+
+        Map<Item, String> byId = new HashMap<>();
+        locks.byId().forEach((id, group) -> {
+            Identifier rl = Identifier.tryParse(id);
+            Item item = rl == null ? null : BuiltInRegistries.ITEM.getOptional(rl).orElse(null);
+            if (item != null) byId.put(item, group);   // an unknown id is kept in the file, never matched
+        });
+        RegistryOps<JsonElement> ops = ops(mc);
+        List<Map.Entry<ItemStack, String>> exact = new ArrayList<>();
+        for (ExactLock e : locks.exact()) {
+            ItemStack decoded = decode(ops, e.stack());
+            if (decoded != null) exact.add(Map.entry(decoded, e.group()));
+        }
+        View built = new View(locks, byId, exact);
+        view = built;
+        return built;
+    }
+
+    private static RegistryOps<JsonElement> ops(Minecraft mc) {
+        return mc.level.registryAccess().createSerializationContext(JsonOps.INSTANCE);
+    }
+
+    /** An exact entry's stack, normalized, or {@code null} if it no longer decodes. */
+    private static @Nullable ItemStack decode(RegistryOps<JsonElement> ops, JsonElement encoded) {
+        return ItemStack.CODEC.parse(ops, encoded)
+                .resultOrPartial(err -> InventoryPlusClient.LOGGER.debug(
+                        "[locked-items] undecodable exact entry, ignoring: {}", err))
+                .map(LockedItems::normalize).orElse(null);
+    }
+
+    // ── Matching ────────────────────────────────────────────────────────
+
+    /** The group of the Item lock on {@code stack}'s type, or {@code null}. */
+    public static @Nullable String itemGroup(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return null;
+        View v = view();
+        return v == null ? null : v.byId().get(stack.getItem());
+    }
+
+    /** The group of the Exact lock on {@code stack}, or {@code null}. */
+    public static @Nullable String exactGroup(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return null;
+        View v = view();
+        if (v == null || v.exact().isEmpty()) return null;
+        ItemStack probe = normalize(stack);
+        for (var e : v.exact()) if (ItemStack.isSameItemSameComponents(probe, e.getKey())) return e.getValue();
+        return null;
+    }
+
+    /** True when this stack carries any item lock. */
+    public static boolean isLocked(ItemStack stack) {
+        return itemGroup(stack) != null || exactGroup(stack) != null;
+    }
+
+    /** True when this stack is locked exactly; chooses the solid mark over the hollow one. */
+    public static boolean isExactLocked(ItemStack stack) {
+        return exactGroup(stack) != null;
+    }
+
+    /**
+     * True when {@code user} must leave this stack alone: it carries an item
+     * lock and that feature is set to honour locks. Goes with the four
+     * {@code *UsesLockedItems} settings in stage 2 of the Reach build.
+     */
+    public static boolean blocks(LockedItemUser user, ItemStack stack) {
+        return !user.usesLockedItems() && isLocked(stack);
+    }
+
+    /**
      * A stack reduced to what an exact lock compares: one item, no
-     * durability damage. Applied to stored entries and to candidates
-     * alike, so "the pickaxe I locked" keeps matching itself as it wears
-     * down. Count goes too, since a lock is about identity, not quantity.
+     * durability damage. Applied to stored entries and candidates alike.
      */
     private static ItemStack normalize(ItemStack stack) {
         ItemStack copy = stack.copyWithCount(1);
@@ -199,179 +277,78 @@ public final class LockedItems {
         return copy;
     }
 
-    // ── Locking and unlocking ───────────────────────────────────────────
+    // ── Applying locks ──────────────────────────────────────────────────
 
     /**
-     * Adds or removes the {@code kind} lock on {@code stack}, leaving
-     * every other kind exactly as it was. Returns true when something
-     * changed, so the caller can decide whether the press did anything.
-     *
-     * <p>Only this one dimension is consulted. An item that is locked by
-     * id and then locked exactly carries both, and unlocking one leaves
-     * the other standing. That is the point: the mark drops from solid to
-     * hollow rather than disappearing, which is how the player sees a
-     * lock still remains.
+     * {@code L} with an Item or Exact group selected (`lock-groups.md`,
+     * "Applying locks"): the same group already on the stack comes off; a
+     * different group of that kind is replaced; none is added. Other kinds
+     * are untouched. Returns true when something changed.
      */
-    public static boolean toggle(ItemStack stack, LockKind kind) {
-        if (stack == null || stack.isEmpty()) return false;
-        if (!ensureDecoded()) return false;
-
-        boolean locked;
-        switch (kind) {
-            case ITEM -> {
-                locked = !BY_ID.remove(stack.getItem());
-                if (locked) BY_ID.add(stack.getItem());
-            }
-            case EXACT -> {
-                ItemStack probe = normalize(stack);
-                locked = !EXACT.removeIf(entry -> ItemStack.isSameItemSameComponents(probe, entry));
-                if (locked) {
-                    // An exact lock is meant to be unique per item identity, so
-                    // adding one while a same-ITEM entry is already present means
-                    // isSameItemSameComponents disagreed with two stacks that
-                    // normalize() should have made identical. Always a bug; dump
-                    // both sides rather than silently growing the list.
-                    for (ItemStack entry : EXACT) {
-                        if (!entry.is(probe.getItem())) continue;
-                        InventoryPlusClient.LOGGER.warn(
-                                "[locked-items] exact-match MISS on {}: "
-                                        + "probe patch {} components {} | stored patch {} components {}",
-                                probe.getItem(),
-                                probe.getComponentsPatch(), probe.getComponents(),
-                                entry.getComponentsPatch(), entry.getComponents());
-                    }
-                    EXACT.add(probe);
-                }
-            }
-            // The slot stop never reaches here; the keybind routes it to LockedSlots.
-            default -> { return false; }
-        }
-        save();
-        InventoryPlusClient.LOGGER.debug("[locked-items] {} {} ({})",
-                locked ? "locked" : "unlocked", stack.getItem(), kind);
-        return true;
-    }
-
-    /**
-     * True when {@code user} must leave this stack alone: it carries an
-     * item lock and that feature is set to honour locks. The cheap
-     * boolean is read first so a player who left the defaults alone never
-     * pays for the set lookup.
-     *
-     * @see LockedItemUser for why these two features get a say and the
-     *      others do not
-     */
-    public static boolean blocks(LockedItemUser user, ItemStack stack) {
-        return !user.usesLockedItems() && isLocked(stack);
-    }
-
-    // ── Per-world decode / encode ───────────────────────────────────────
-
-    /**
-     * Makes {@link #BY_ID} and {@link #EXACT} describe the world the
-     * player is in, decoding that world's section on first use. Returns
-     * false when there is nothing to answer with yet: outside a world, or
-     * before the level's registries exist.
-     */
-    private static boolean ensureDecoded() {
+    public static boolean apply(ItemStack stack, LockGroup group) {
+        if (stack == null || stack.isEmpty() || !group.kind().locksItems()) return false;
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.level == null) return false;
-        String world = WorldIdentity.current(mc);
-        if (world == null) return false;
-        if (world.equals(decodedWorld)) return true;
 
-        BY_ID.clear();
-        EXACT.clear();
-        decodedWorld = world;
-
-        JsonObject section = sectionFor(world);
-        if (section == null) {
-            InventoryPlusClient.LOGGER.info("[locked-items] {}: no entries", world);
-            return true;
-        }
-        if (section.has("byId")) {
-            for (JsonElement e : section.getAsJsonArray("byId")) {
-                Identifier id = Identifier.tryParse(e.getAsString());
-                Item item = id == null ? null : BuiltInRegistries.ITEM.getOptional(id).orElse(null);
-                if (item == null) {
-                    // An entry for a mod that is no longer installed. Inert by
-                    // design (locked-items.md: orphans cost a line in a file).
-                    InventoryPlusClient.LOGGER.debug("[locked-items] unknown item {}, ignoring", e);
-                    continue;
+        ItemLocks before = STORE.get();
+        if (group.kind() == LockKind.ITEM) {
+            String id = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
+            Map<String, String> byId = group.id().equals(before.byId().get(id))
+                    ? WorldStore.withoutKey(before.byId(), id)
+                    : WorldStore.withEntry(before.byId(), id, group.id());
+            STORE.set(new ItemLocks(byId, before.exact()));
+        } else {
+            RegistryOps<JsonElement> ops = ops(mc);
+            ItemStack probe = normalize(stack);
+            String current = exactGroup(stack);
+            // Every entry but this item's stays; this item is re-added under
+            // the new group, unless the press takes the same group off.
+            List<ExactLock> exact = new ArrayList<>();
+            for (ExactLock e : before.exact()) {
+                ItemStack decoded = decode(ops, e.stack());
+                if (decoded == null || !ItemStack.isSameItemSameComponents(probe, decoded)) exact.add(e);
+            }
+            if (!group.id().equals(current)) {
+                JsonElement encoded = ItemStack.CODEC.encodeStart(ops, probe).result().orElse(null);
+                if (encoded == null) {
+                    InventoryPlusClient.LOGGER.error("[locked-items] could not encode {}", probe);
+                    return false;
                 }
-                BY_ID.add(item);
+                exact.add(new ExactLock(group.id(), encoded));
             }
+            STORE.set(new ItemLocks(before.byId(), exact));
         }
-        if (section.has("exact")) {
-            RegistryOps<JsonElement> ops = mc.level.registryAccess()
-                    .createSerializationContext(JsonOps.INSTANCE);
-            for (JsonElement e : section.getAsJsonArray("exact")) {
-                ItemStack.CODEC.parse(ops, e)
-                        .resultOrPartial(err -> InventoryPlusClient.LOGGER.debug(
-                                "[locked-items] undecodable exact entry, ignoring: {}", err))
-                        .ifPresent(s -> {
-                            // Exact entries are unique by identity. Duplicates in the
-                            // file are the symptom of a failed match at lock time; drop
-                            // them on the way in so the list cannot grow without bound.
-                            ItemStack decoded = normalize(s);
-                            for (ItemStack existing : EXACT) {
-                                if (ItemStack.isSameItemSameComponents(decoded, existing)) {
-                                    InventoryPlusClient.LOGGER.warn(
-                                            "[locked-items] dropping duplicate exact entry for {}",
-                                            decoded.getItem());
-                                    return;
-                                }
-                            }
-                            EXACT.add(decoded);
-                        });
-            }
-        }
-        InventoryPlusClient.LOGGER.info(
-                "[locked-items] {}: {} by id, {} exact", world, BY_ID.size(), EXACT.size());
-        return true;
+        boolean changed = !STORE.get().equals(before);
+        InventoryPlusClient.LOGGER.debug("[locked-items] {} on {}: changed {}", group.id(), stack.getItem(), changed);
+        return changed;
     }
 
-    private static @Nullable JsonObject sectionFor(String world) {
-        if (!raw.has("perWorld")) return null;
-        JsonObject perWorld = raw.getAsJsonObject("perWorld");
-        return perWorld.has(world) ? perWorld.getAsJsonObject(world) : null;
-    }
+    // ── Saving ──────────────────────────────────────────────────────────
 
-    /**
-     * Writes the current world's section back and saves the file. Other
-     * worlds' sections ride along untouched inside {@link #raw}, which is
-     * why they are never decoded: nothing here needs to understand them.
-     */
     private static void save() {
-        if (decodedWorld == null) return;
-        Minecraft mc = Minecraft.getInstance();
-        if (mc == null || mc.level == null) return;
-
-        JsonArray byId = new JsonArray();
-        for (Item item : BY_ID) byId.add(BuiltInRegistries.ITEM.getKey(item).toString());
-
-        RegistryOps<JsonElement> ops = mc.level.registryAccess()
-                .createSerializationContext(JsonOps.INSTANCE);
-        JsonArray exact = new JsonArray();
-        for (ItemStack entry : EXACT) {
-            ItemStack.CODEC.encodeStart(ops, entry)
-                    .resultOrPartial(err -> InventoryPlusClient.LOGGER.error(
-                            "[locked-items] could not encode an exact entry: {}", err))
-                    .ifPresent(exact::add);
-        }
-
-        JsonObject section = new JsonObject();
-        section.add("byId", byId);
-        section.add("exact", exact);
-
-        if (!raw.has("perWorld")) raw.add("perWorld", new JsonObject());
-        raw.getAsJsonObject("perWorld").add(decodedWorld, section);
-        raw.addProperty("version", CURRENT_VERSION);
-
+        JsonObject perWorld = new JsonObject();
+        STORE.forEachWorld((world, locks) -> {
+            JsonObject byId = new JsonObject();
+            locks.byId().forEach(byId::addProperty);
+            JsonArray exact = new JsonArray();
+            for (ExactLock e : locks.exact()) {
+                JsonObject o = new JsonObject();
+                o.addProperty("group", e.group());
+                o.add("stack", e.stack());
+                exact.add(o);
+            }
+            JsonObject section = new JsonObject();
+            section.add("byId", byId);
+            section.add("exact", exact);
+            perWorld.add(world, section);
+        });
+        JsonObject root = new JsonObject();
+        root.addProperty("version", CURRENT_VERSION);
+        root.add("perWorld", perWorld);
         Path path = filePath();
         try {
             Files.createDirectories(path.getParent());
-            Files.writeString(path, GSON.toJson(raw));
+            Files.writeString(path, GSON.toJson(root));
         } catch (IOException e) {
             InventoryPlusClient.LOGGER.error(
                     "[locked-items] failed to write {} — the change won't survive a restart", path, e);

@@ -5,7 +5,6 @@ import com.trevorschoeny.inventoryplus.buttonmode.ModeGestures;
 import com.trevorschoeny.inventoryplus.buttonmode.ModeState;
 import com.trevorschoeny.inventoryplus.buttonmode.PressFeedback;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
-import com.trevorschoeny.inventoryplus.lockedslots.LockEditMode;
 
 import com.trevlar.menukit.core.Button;
 
@@ -61,10 +60,7 @@ public final class MoveMatchingButtons {
                             triggerMoveMatching(direction);
                         })
                 .tooltip(ModeGestures.tooltip(what, state, MoveMatchingModes::currentIdentity))
-                .onSecondaryClick(click -> {
-                    if (LockEditMode.isOn()) return;
-                    gestures.accept(click);
-                })
+                .onSecondaryClick(gestures::accept)
                 .tint(ModeGestures.tint(state, MoveMatchingModes::currentIdentity, feedback))
                 .showWhen(MoveMatchingButtons::shouldShow);
     }
@@ -79,7 +75,6 @@ public final class MoveMatchingButtons {
     }
 
     private static void triggerMoveMatching(Direction direction) {
-        if (LockEditMode.isOn()) return;
         Minecraft mc = Minecraft.getInstance();
         Screen screen = mc.gui.screen();
         if (!(screen instanceof AbstractContainerScreen<?>)) return;

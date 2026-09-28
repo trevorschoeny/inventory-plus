@@ -3,9 +3,9 @@ package com.trevorschoeny.inventoryplus.lockedslots;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
-import com.trevorschoeny.inventoryplus.lockeditems.LockKind;
-import com.trevorschoeny.inventoryplus.lockeditems.LockedItemModes;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
+import com.trevorschoeny.inventoryplus.lockgroups.LockGroup;
+import com.trevorschoeny.inventoryplus.lockgroups.Reach;
 import com.trevorschoeny.inventoryplus.movematching.ScreenLayout;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -21,35 +21,26 @@ import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Screen-scoped {@code L} keybind — locks or unlocks whatever is under
- * the cursor, in the kind the lock button's current stop selects.
- *
- * <h3>Three stops, one key</h3>
+ * Screen-scoped {@code L} keybind: applies the active lock group, the one the
+ * lock button has selected, to whatever is under the cursor
+ * (`plans/lock-groups.md`, "Applying locks").
  *
  * <ul>
- *   <li><b>Unlocking always wins, and ignores the stop.</b> {@code L} on
- *       an already item-locked stack removes the lock whatever the button
- *       shows, so nobody has to match the stop to undo one
- *       (`plans/locked-items.md`).</li>
- *   <li><b>{@link LockKind#SLOT}</b> is the original behaviour below:
- *       toggle the hovered slot, with the L-drag to sweep several.</li>
- *   <li><b>{@link LockKind#ITEM} / {@link LockKind#EXACT}</b> lock the
- *       hovered stack by type or exactly. These answer on any slot holding
- *       an item, a container's included, because the lock travels with the
- *       item rather than the place. An empty slot has nothing to lock and
- *       does not fall through to locking the slot: the stop said item.</li>
+ *   <li><b>Slot kind</b> locks the hovered slot, empty or not, with the
+ *       L-drag to sweep several.</li>
+ *   <li><b>Item or Exact kind</b> locks the hovered item. On an empty slot it
+ *       does nothing: the group said item, so it never falls through to the
+ *       slot.</li>
+ *   <li>If that same group is already on the target, {@code L} takes it off;
+ *       a different group of the same kind is replaced. Other kinds are
+ *       untouched: one stack can carry a slot lock, an item lock and an exact
+ *       lock at once.</li>
+ *   <li>{@code L} stays a no-op on a cycle slot while "Lock the slots the
+ *       cyclers use" pairs it.</li>
  * </ul>
  *
- * <p>No-op when {@link LockEditMode} is on — edit mode uses click-to-
- * toggle instead; L is redundant during edit mode.
- *
- * <p>Hovering a non-lockable slot (crafting input, anvil input, etc.)
- * or empty UI → no-op.
- *
- * <p>Scoped via {@link ScreenKeyboardEvents} so {@code L} only fires
- * inside container screens. Promoting to a rebindable
- * {@link net.minecraft.client.KeyMapping} is filed in DEFERRED.md
- * alongside the I/O/S keybinds.
+ * <p>Scoped via {@link ScreenKeyboardEvents} so {@code L} only fires inside
+ * container screens.
  */
 public final class LockedSlotKeybind {
 
@@ -82,57 +73,34 @@ public final class LockedSlotKeybind {
                         // every repeat. The tick handler clears the drag
                         // on key release.
                         if (LockedSlotsDragController.isLKeyDragActive()) return;
-                        // L works regardless of edit mode — edit-mode click
-                        // covers inv + hotbar only, so armor / offhand can
-                        // only be locked via L. Keeping L always-on lets
-                        // the player lock armor / offhand without exiting
-                        // edit mode.
                         if (!(innerScreen instanceof AbstractContainerScreen<?> currentAcs)) return;
 
                         Slot hovered = slotUnderMouse(currentAcs);
                         if (hovered == null) return;
 
-                        // The stop alone decides which lock L acts on. Existing
-                        // locks are not consulted: the three kinds are independent,
-                        // so an item-locked stack must still accept a slot lock or
-                        // an exact lock on top (Trev 2026-09-06).
-                        ItemStack hoveredStack = hovered.getItem();
-                        LockKind kind = LockedItemModes.current();
-                        if (kind != LockKind.SLOT) {
+                        LockGroup group = Reach.active();
+                        if (group.kind().locksItems()) {
                             // The item path starts no drag, so it has no drag to
                             // suppress GLFW auto-repeat for it. Without this latch
                             // a held L would lock and unlock many times a second.
                             if (itemLockLatch) return;
+                            ItemStack hoveredStack = hovered.getItem();
                             if (!hoveredStack.isEmpty()) {
-                                itemLockLatch = LockedItems.toggle(hoveredStack, kind);
+                                itemLockLatch = LockedItems.apply(hoveredStack, group);
                             }
                             return;
                         }
 
                         if (!LockedSlots.isLockableHere(hovered)) return;
-                        // When cycleSlotsLocked is ON, a cycle slot's lock
-                        // state is bound to its cycle state — L can't toggle
-                        // it independently. The player removes the lock by
-                        // removing the cycle (C). When cycleSlotsLocked is
-                        // OFF, cycle and lock are fully independent — L
-                        // works normally on cycle slots. (Cycle slots are
-                        // player-inv only; container/ender never match.)
+                        // While cycleSlotsLocked pairs them, a cycle slot's lock is
+                        // its cycle membership: the player removes it with C.
                         if (IPConfig.cycleSlotsLocked() && ColumnCycler.isCycleSlot(hovered)) return;
-                        // Unified dispatch: player + ender route to IP's
-                        // client store, placed containers to the registered
-                        // provider (IPP's shared channel).
-                        LockedSlots.toggleSlot(hovered);
-                        boolean newState = LockedSlots.isLockedSlot(hovered);
-                        // Start an L-drag in non-edit mode so the user can
-                        // hold L and sweep the cursor across more slots,
-                        // coercing each to the first slot's new state. In
-                        // edit mode the drag is the LMB-drag mechanic;
-                        // L stays a single-slot toggle for armor/offhand
-                        // reach. Keyed by slot.index (menu-unique) so a
-                        // container slot can't collide with a player slot.
-                        if (!LockEditMode.isOn()) {
-                            LockedSlotsDragController.startLKeyDrag(hovered.index, newState);
-                        }
+                        String now = LockedSlots.applyGroup(hovered, group.id());
+                        // Hold L and sweep: every slot entered gets the first
+                        // slot's new state, this group or none. Keyed by
+                        // slot.index (menu-unique), so a container slot can't
+                        // collide with a player slot.
+                        LockedSlotsDragController.startLKeyDrag(hovered.index, now);
                     });
         });
     }

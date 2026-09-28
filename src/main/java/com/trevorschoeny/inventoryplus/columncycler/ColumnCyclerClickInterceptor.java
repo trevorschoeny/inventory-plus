@@ -13,8 +13,7 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * Screen-level mouse handler for Column Cycler — edit-mode dispatch only.
- *
- * <p>Mirrors {@link com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsClickInterceptor}.
+
  *
  * <h3>Edit mode</h3>
  *

@@ -84,11 +84,11 @@ import java.util.function.UnaryOperator;
  *
  * <h2>When not to use it</h2>
  *
- * <p>For state that is one keyed collection per world. Not for caches that
- * decode against the level's registries ({@code LockedItems} holds decoded
- * item stacks for one world at a time, a different shape), not for
- * per-session state that must not persist, and not for state shared across
- * worlds (use a plain config value).
+ * <p>For state that is one value per world. Hold the persisted form, not a
+ * decoded one: {@code LockedItems} keeps exact stacks as their encoded JSON
+ * here and decodes against the level's registries in a cache beside it. Not
+ * for per-session state that must not persist, and not for state shared
+ * across worlds (use a plain config value).
  *
  * <h2>Threading</h2>
  *

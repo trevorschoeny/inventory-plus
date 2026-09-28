@@ -1,55 +1,55 @@
 package com.trevorschoeny.inventoryplus.lockeditems;
 
-import com.trevorschoeny.inventoryplus.buttonmode.ModeStop;
+import org.jetbrains.annotations.Nullable;
 
 /**
- * What a press of {@code L} locks, in cycle order
- * (`plans/locked-items.md`, `features/button-modes.md`). The lock
- * button carries these three stops and the one in force decides which
- * kind of protection the player gets.
+ * What a lock group attaches to (`plans/lock-groups.md`, "A group"). Every
+ * group has exactly one kind, fixed for the two defaults and picked when a
+ * custom group is made.
  *
- * <h3>A granularity choice, not a scope one</h3>
+ * <ul>
+ *   <li><b>Slot</b> locks the position, whatever ends up sitting in it.</li>
+ *   <li><b>Item</b> locks every item of a type: every diamond pickaxe.</li>
+ *   <li><b>Exact</b> locks one item as it is, components and all, however
+ *       worn it later gets.</li>
+ * </ul>
  *
- * <p>The three stops all answer "lock what?", never "lock where?". That
- * is why the lock button's mode is global-only: pinning "lock the item
- * type" to one chest would be meaningless, since the protection it
- * creates is not container-shaped in the first place.
- *
- * <h3>The stop governs both directions</h3>
- *
- * <p>{@code L} adds or removes the lock of the kind showing, and touches
- * no other kind. The three are independent, so an item can be locked by
- * id and exactly and by slot in any combination; unlocking one leaves the
- * rest standing. Until 2026-09-06 unlocking ignored the stop and cleared
- * everything, which made a second lock impossible to add. See
- * {@link com.trevorschoeny.inventoryplus.lockedslots.LockedSlotKeybind}.
+ * <p>The kinds are independent and combine freely: one stack can sit in a
+ * slot lock and carry an item lock and an exact lock at once. Until the
+ * Lock Groups build these were the lock button's three stops; the button
+ * now cycles groups, and a group carries its kind.
  */
-public enum LockKind implements ModeStop {
+public enum LockKind {
 
-    /** The hovered slot, whatever ends up sitting in it. The original behaviour. */
-    SLOT("Lock Slot"),
+    SLOT("slot", "Slot"),
+    ITEM("item", "Item"),
+    EXACT("exact", "Exact item");
 
-    /** The hovered item's type: every diamond pickaxe, not just this one. */
-    ITEM("Lock Item"),
+    /** How the kind is written in {@code config.json}. */
+    private final String id;
+    private final String displayName;
 
-    /** This item as it is, components and all, however worn it later gets. */
-    EXACT("Lock Exact Item");
-
-    private final String label;
-
-    LockKind(String label) {
-        this.label = label;
+    LockKind(String id, String displayName) {
+        this.id = id;
+        this.displayName = displayName;
     }
 
-    @Override
-    public String label() {
-        return label;
+    public String id() {
+        return id;
     }
 
-    /**
-     * Global default. Slot locking is what the button did before this
-     * feature existed, so an upgrading player's {@code L} keeps behaving
-     * as it always has until they choose otherwise.
-     */
-    public static final LockKind DEFAULT = SLOT;
+    public String displayName() {
+        return displayName;
+    }
+
+    /** True for the kinds that lock an item rather than a slot. */
+    public boolean locksItems() {
+        return this != SLOT;
+    }
+
+    /** The kind written as {@code id}, or {@code null} for anything else. */
+    public static @Nullable LockKind fromId(@Nullable String id) {
+        for (LockKind k : values()) if (k.id.equals(id)) return k;
+        return null;
+    }
 }

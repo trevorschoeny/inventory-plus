@@ -5,7 +5,6 @@ import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.buttonmode.ModeGestures;
 import com.trevorschoeny.inventoryplus.buttonmode.PressFeedback;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
-import com.trevorschoeny.inventoryplus.lockedslots.LockEditMode;
 
 import com.trevlar.menukit.core.Button;
 
@@ -66,10 +65,7 @@ public final class SortButton {
                             triggerSort(target);
                         })
                 .tooltip(ModeGestures.tooltip("Sort", SortState.MODE, identity))
-                .onSecondaryClick(click -> {
-                    if (LockEditMode.isOn()) return;
-                    gestures.accept(click);
-                })
+                .onSecondaryClick(gestures::accept)
                 .tint(ModeGestures.tint(SortState.MODE, identity, feedback))
                 .showWhen(IPConfig::sortShowButton);
     }
@@ -88,7 +84,6 @@ public final class SortButton {
     }
 
     private static void triggerSort(Target target) {
-        if (LockEditMode.isOn()) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.gameMode == null) return;
         AbstractContainerMenu menu = openMenu();

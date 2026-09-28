@@ -21,11 +21,9 @@ import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.cyclable.CycleHud;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
-import com.trevorschoeny.inventoryplus.lockeditems.LockedItemModes;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsButtons;
-import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsClickInterceptor;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsDragController;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotKeybind;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingKeybind;
@@ -126,12 +124,9 @@ public class InventoryPlusClient implements ClientModInitializer {
         // Manual cursor placement passes through unmodified — neither
         // mixin blocks the PICKUP click-type path. See package javadocs.
         //
-        // The lock-edit toggle button lives in the IP toolbar (see
-        // Toolbar.register below); registerLifecycle here handles the
-        // edit-mode auto-reset on screen open.
+        // The lock button lives in the IP toolbar (see Toolbar.register
+        // below); it selects the lock group L applies.
         LockedSlots.load();
-        LockedSlotsButtons.registerLifecycle();
-        LockedSlotsClickInterceptor.register();
         LockedSlotKeybind.register();
         ClientTickEvents.END_CLIENT_TICK.register(LockedSlotsDragController::tick);
 
@@ -157,7 +152,6 @@ public class InventoryPlusClient implements ClientModInitializer {
         // need the level's registries to decode — so load() only reads the file
         // here and the decode happens on first use inside a world.
         LockedItems.load();
-        LockedItemModes.load();
         ClientTickEvents.END_CLIENT_TICK.register(LockedSlotKeybind::tick);
 
         // IP toolbar — one right-aligned MK panel above the player 3×9
