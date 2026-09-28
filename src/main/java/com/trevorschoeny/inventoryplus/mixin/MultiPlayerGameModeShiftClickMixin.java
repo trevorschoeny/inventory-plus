@@ -19,65 +19,32 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Cancels shift-click and Q-drop packets that would violate locked
- * slots before they leave the client.
+ * Dedicated servers: re-routes a shift-click that vanilla's server would land
+ * in a slot refusing it, so it lands elsewhere instead.
  *
- * <h3>Split responsibility — SP/LAN vs dedicated MP</h3>
+ * <h3>Why this survives the Reach build</h3>
  *
- * Locked-slot protection runs on two layers depending on environment:
+ * Every lock and reach choice is one MenuKit veto now ({@code Locks}), and
+ * MenuKit asks it at every seam it has, on the client before a click is sent
+ * and, in single player, on the integrated server that runs the move. A
+ * dedicated server runs no Inventory Plus, so where a shift-click lands is
+ * decided there without it. This mixin keeps that one case working: when
+ * vanilla's routing would put items into a slot that refuses shift-click in,
+ * it cancels the click and sends the move as PICKUP clicks, which any server
+ * respects, into slots that allow it. It goes when MenuKit routes shift-clicks
+ * itself (`plans/reach.md`, "Priority").
  *
- * <ol>
- *   <li><b>SP / LAN</b> — the integrated server shares the JVM, so
- *       {@link AbstractContainerMenuMoveItemStackToMixin}'s
- *       {@code getItem} + {@code mayPlace} wraps fire on both Render
- *       and Server threads. Vanilla {@code moveItemStackTo} sees
- *       locked slots as empty + unplaceable → naturally skips them
- *       using its own per-screen iteration order. This mixin
- *       short-circuits for SP/LAN destination-block: vanilla
- *       already does the right thing.</li>
- *   <li><b>Dedicated MP</b> — server JVM doesn't run our mixins,
- *       so vanilla shift-click would place items in locked slots
- *       server-side. This mixin cancels the original packet and
- *       synthesizes the move via {@link ContainerInput#PICKUP} packets
- *       targeted at non-locked slots — PICKUP is universally
- *       server-respected, no server-side companion needed.</li>
- * </ol>
+ * <p>The source side needs nothing here: a shift-click out of, or a drop from,
+ * a slot that refuses it is refused by MenuKit's own client seam before any
+ * packet is sent.
  *
- * <p>Source-block (shift-click or Q-drop FROM a locked slot) runs
- * in both environments — vanilla iteration skip can't help once
- * items have already left the source.
+ * <h3>Iteration order</h3>
  *
- * <p>Manual cursor interaction ({@code PICKUP}, {@code SWAP},
- * {@code CLONE}, {@code PICKUP_ALL}, {@code QUICK_CRAFT}) passes
- * through unmodified — by spec, "manual cursor interaction is
- * allowed."
- *
- * <h3>MP synthesis iteration order</h3>
- *
- * Per Trev 2026-05-16: iterate {@code menu.slots} starting at the
- * first main-inventory slot (the 3×9 grid — player container-slot
- * 9) and continue forward through hotbar, armor, offhand. For each
- * candidate, skip locked slots, skip same-half (vanilla never
- * shift-clicks main→main or hotbar→hotbar), and skip slots where
- * {@code canMergeOrPlace} is false. Send a {@link ContainerInput#PICKUP}
- * for the first eligible slot, then continue if the cursor still
- * has items.
- *
- * <p>This is a simpler heuristic than vanilla's per-screen-handler
- * preference (e.g., chest shift-click iterates hotbar-first in
- * reverse); items end up in the right kind of slot (non-locked,
- * compatible) but the specific slot picked may differ from vanilla
- * by a few positions. Acceptable trade-off for not maintaining
- * per-screen tables, and only affects dedicated-MP UX (SP/LAN gets
- * the exact vanilla order via the @WrapOperations).
- *
- * <h3>Auto-pickup is not covered here</h3>
- *
- * Vanilla auto-pickup (mob drops, ground items) runs server-side
- * via {@code Inventory.add} → {@code getFreeSlot}, covered by
- * {@link InventoryGetFreeSlotMixin} in SP/LAN only. Multiplayer
- * auto-pickup into locked slots remains a hole pending a server-side
- * companion mod — see DEFERRED.md.
+ * Per Trev 2026-05-16: from the first main-inventory slot (player
+ * container-slot 9) forward through hotbar, armor, offhand, skipping the
+ * source's own half and slots that cannot take the stack. Simpler than
+ * vanilla's per-screen preference, so the slot picked may differ by a few
+ * positions; only dedicated servers see it.
  */
 @Mixin(MultiPlayerGameMode.class)
 public abstract class MultiPlayerGameModeShiftClickMixin {
@@ -89,11 +56,9 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
     private void inventoryplus$handleLockedShiftClick(
             int containerId, int slotId, int button, ContainerInput clickType,
             Player player, CallbackInfo ci) {
-        // Only gate shift-click (QUICK_MOVE) and Q-drop (THROW).
-        // PICKUP / SWAP / CLONE / PICKUP_ALL / QUICK_CRAFT all pass
-        // through — including the synthesized PICKUPs this mixin
-        // recurses into below.
-        if (clickType != ContainerInput.QUICK_MOVE && clickType != ContainerInput.THROW) return;
+        // Only shift-click. Everything else, including the synthesized PICKUPs
+        // this mixin recurses into below, passes through.
+        if (clickType != ContainerInput.QUICK_MOVE) return;
 
         AbstractContainerMenu menu = player.containerMenu;
         if (menu == null || menu.containerId != containerId) return;
@@ -101,41 +66,21 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
 
         Slot source = menu.slots.get(slotId);
 
-        // Source-block: never let items leave a locked slot. Both
-        // QUICK_MOVE and THROW. Both SP and MP.
-        if (LockedSlots.isLockedSlot(source)) {
-            ci.cancel();
-            return;
-        }
-
-        // Destination-block applies to QUICK_MOVE only.
-        if (clickType != ContainerInput.QUICK_MOVE) return;
-
-        // SP/LAN: vanilla iteration skip handles it. Let the click go
-        // through normally.
+        // Single player: the integrated server asks MenuKit, and so the veto,
+        // at its own moveItemStackTo seam. Let the click go through.
         //
-        // TRAP, and it cost a released defect. Returning here hands the whole
-        // decision to AbstractContainerMenuMoveItemStackToMixin, which the
-        // integrated server runs on the SERVER thread. A lock namespace whose
-        // predicate is gated on the render thread is therefore INVISIBLE on
-        // this path, and the server's move is the authoritative one. IP 1.5.0
-        // shipped exactly that: container and created locks were render-thread
-        // only, so a single-player shift-click still landed items in a locked
-        // slot while the client briefly predicted otherwise. Fixed in 1.5.1 by
-        // giving both namespaces real server-thread branches, the way
-        // isEnderSlot always had one.
-        //
-        // Any NEW lock namespace must answer isLockedSlot correctly on the
-        // server thread before it counts as enforced.
+        // TRAP, and it cost a released defect (1.5.0): that server-side answer
+        // runs on the SERVER thread, so a lock store that only answers on the
+        // render thread is invisible there. Every store Locks.on reads must
+        // answer on both threads before it counts as enforced.
         if (Minecraft.getInstance().hasSingleplayerServer()) return;
 
-        // Dedicated MP: check whether the click would even touch a
-        // locked slot. If not, let vanilla handle it normally (no
-        // synthesis overhead).
-        if (!wouldShiftClickTouchLockedSlot(menu, source)) return;
+        // Dedicated server: only step in when vanilla's routing would reach a
+        // slot that refuses shift-click in.
+        if (!wouldShiftClickTouchRefusedSlot(menu, source, player)) return;
 
-        // Dedicated MP + locked destination in the way: cancel the
-        // original click and synthesize the move via PICKUPs.
+        // A refusing destination is in the way: cancel the click and send the
+        // move as PICKUPs into slots that allow it.
         ci.cancel();
         MultiPlayerGameMode self = (MultiPlayerGameMode) (Object) this;
         synthesizeShiftClick(self, containerId, slotId, source, menu, player);
@@ -180,8 +125,6 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
             if (menu.getCarried().isEmpty()) break;
             Slot dest = menu.slots.get(i);
             if (dest == source) continue;
-            if (LockedSlots.isLockedSlot(dest)) continue;
-            // Vanilla's own shift-click would skip a slot that refuses it.
             if (!SlotOperations.allows(menu, dest, player, BehaviorKeys.SHIFT_CLICK_IN)) continue;
 
             // Same-half filter — vanilla doesn't shift-click within a
@@ -227,15 +170,11 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
     }
 
     /**
-     * Conservative prediction: returns true if vanilla's shift-click
-     * iteration would attempt to place items into any locked slot.
-     * Same-half filter avoids false-positives within the player half.
-     *
-     * <p>Used to decide whether to invoke synthesis in dedicated MP.
-     * SP/LAN doesn't need this — vanilla's own iteration skip via
-     * the @WrapOperations handles everything.
+     * Conservative prediction: true if vanilla's shift-click iteration could
+     * place items into a slot that refuses shift-click in. The same-half
+     * filter avoids false positives within the player half.
      */
-    private boolean wouldShiftClickTouchLockedSlot(AbstractContainerMenu menu, Slot source) {
+    private boolean wouldShiftClickTouchRefusedSlot(AbstractContainerMenu menu, Slot source, Player player) {
         ItemStack sourceStack = source.getItem();
         if (sourceStack.isEmpty()) return false;
 
@@ -246,7 +185,7 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
 
         for (Slot dest : menu.slots) {
             if (dest == source) continue;
-            if (!LockedSlots.isLockedSlot(dest)) continue;
+            if (SlotOperations.allows(menu, dest, player, BehaviorKeys.SHIFT_CLICK_IN)) continue;
             int destCS = dest.getContainerSlot();
             boolean destInMain = destCS >= 9 && destCS <= 35;
             boolean destInHotbar = destCS >= 0 && destCS <= 8;

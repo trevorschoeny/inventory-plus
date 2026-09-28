@@ -3,7 +3,6 @@ package com.trevorschoeny.inventoryplus.columncycler;
 import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
 import com.trevorschoeny.inventoryplus.api.PlayerMenuSlots;
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
-import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.COLUMN_CYCLE;
 
@@ -200,14 +199,10 @@ public final class ColumnCyclerRotator {
             return false;
         }
 
-        // A locked item does not ride the rotation: it keeps its slot and the
-        // cycle turns around it, the same way sorting works around one. Done by
-        // dropping those slots from the ring rather than special-casing the
-        // click sequence, so both cyclers inherit it — Hotbar Cycler rotates
-        // its nine columns through this same engine.
-        containerSlots = withoutLockedItems(containerSlots, player.getInventory(), feature);
-        // A slot that refuses the operation sits the rotation out the same way a
-        // locked item does: it keeps its item and the ring turns around it.
+        // A slot that refuses the operation sits the rotation out: it keeps its
+        // item and the ring turns around it. Locks refuse through the veto
+        // (Locks), so a locked item stays put the same way. Both cyclers
+        // inherit it; Hotbar Cycler rotates its nine columns through here too.
         containerSlots = withoutRefused(containerSlots, menu, player, take, put, feature);
         int n = containerSlots.size();
         if (n < 2) return false;
@@ -255,26 +250,6 @@ public final class ColumnCyclerRotator {
             }
         });
         return true;
-    }
-
-    /**
-     * The ring minus any slot whose item the player has locked. Fewer than
-     * two slots left means there is nothing to rotate and the caller no-ops,
-     * which is the right outcome: a column of locked items should sit still.
-     */
-    private static List<Integer> withoutLockedItems(List<Integer> containerSlots,
-                                                    Inventory inv, String feature) {
-        List<Integer> kept = new ArrayList<>(containerSlots.size());
-        for (Integer containerSlot : containerSlots) {
-            if (LockedItems.isLocked(inv.getItem(containerSlot))) continue;
-            kept.add(containerSlot);
-        }
-        if (kept.size() != containerSlots.size()) {
-            InventoryPlusClient.LOGGER.debug(
-                    "[{}] rotating {} of {} slots — the rest hold locked items",
-                    feature, kept.size(), containerSlots.size());
-        }
-        return kept;
     }
 
     /**

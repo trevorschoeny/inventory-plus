@@ -9,7 +9,6 @@ import com.trevorschoeny.inventoryplus.autorestock.AutoRestockSuppression;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.cyclable.CycleHudRegistry;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
-import com.trevorschoeny.inventoryplus.lockeditems.LockedItemUser;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockedslots.WorldIdentity;
 import com.trevorschoeny.inventoryplus.sort.ContainerOpenTracker;
@@ -154,8 +153,7 @@ public final class InventoryPlusApi {
      */
     public static int findRestockSource(Inventory inventory, ItemStack probe,
                                         List<HotbarCyclable.ExtraSlot> extras) {
-        return AutoRestockSearch.findSource(inventory, probe, AutoRestockSearch.NONE, extras,
-                LockedItemUser.RESTOCK_ITEM);
+        return AutoRestockSearch.findSource(inventory, probe, AutoRestockSearch.NONE, extras);
     }
 
     /**

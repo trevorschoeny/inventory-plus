@@ -10,7 +10,6 @@ import com.google.gson.JsonSyntaxException;
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.api.WorldStore;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
-import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockedslots.WorldIdentity;
 
 import net.fabricmc.loader.api.FabricLoader;
@@ -30,7 +29,7 @@ import java.util.Set;
 
 /**
  * Central state + persistence for Column Cycler — mirrors the shape of
- * {@link LockedSlots} (per-world Set of slot indices, JSON-backed).
+ * the lock stores (per-world, JSON-backed).
  *
  * <h3>Scope</h3>
  *
@@ -106,26 +105,6 @@ public final class ColumnCycler {
      * for the world on every call, and whose values callers mutated in place.
      */
     private static final WorldStore<Set<Integer>> CYCLE_SLOTS = WorldStore.sortedSet(ColumnCycler::save);
-
-    /**
-     * Per-inv-open memory of "what was this slot's lock state BEFORE
-     * cycle was first applied to it this session?" (Trev 2026-05-19).
-     * Lets us restore the player's pre-cycle manual lock when they
-     * remove the cycle — without persisting across game restarts.
-     *
-     * <p>For inv slots (9-35): recorded on first {@link #addCycleInternal}
-     * this session. Restored on {@link #removeCycleInternal}.
-     *
-     * <p>For derived hotbar slots (0-8): recorded on the column-becomes-
-     * active transition (when an inv add causes its column to flip from
-     * inactive to active). Restored on the column-goes-inactive transition.
-     *
-     * <p>Cleared on every {@code ScreenEvents.AFTER_INIT} — opening any
-     * new screen starts a fresh inv-open session. Across-session lock
-     * loss remains accepted (the manual-lock-preservation guarantee
-     * only applies within one continuous screen session).
-     */
-    private static final Map<Integer, Boolean> SESSION_PRE_LOCK = new HashMap<>();
 
     private static boolean loaded = false;
 
@@ -251,95 +230,44 @@ public final class ColumnCycler {
     }
 
     private static void addCycleInternal(int slot) {
-        // Callers guarantee slot is in 9-35 (isCycleable). Compute the
-        // column's current activeness BEFORE the add so we know if the
-        // column is becoming active (transition false → true).
-        int hotbarSlot = slot % 9; // 0-8
-        boolean colWasActive = isCycleSlot(hotbarSlot);
-        // Write the store FIRST: the lock side effects below read cycle state
-        // back through isCycleSlot, and must see the slot as added.
         CYCLE_SLOTS.modify(slots -> WorldStore.withElement(slots, slot, true));
-        if (IPConfig.cycleSlotsLocked()) {
-            // Record the slot's pre-cycle lock state once per session,
-            // BEFORE we change it. Used on remove to restore the
-            // player's prior manual lock (or lack thereof).
-            SESSION_PRE_LOCK.putIfAbsent(slot, LockedSlots.isLocked(slot));
-            LockedSlots.setLocked(slot, true);
-            // If the column just transitioned to active, lock the hotbar
-            // slot too — it's now a derived cycle member. Also record
-            // the hotbar slot's pre-transition lock state.
-            if (!colWasActive) {
-                SESSION_PRE_LOCK.putIfAbsent(hotbarSlot, LockedSlots.isLocked(hotbarSlot));
-                LockedSlots.setLocked(hotbarSlot, true);
-            }
-        }
     }
 
     private static void removeCycleInternal(int slot) {
-        // Write the store FIRST: the "did the column go inactive?" check below
-        // reads isCycleSlot and must see the slot as already removed.
         CYCLE_SLOTS.modify(slots -> WorldStore.withElement(slots, slot, false));
-        if (IPConfig.cycleSlotsLocked()) {
-            // Restore the slot's pre-cycle lock state if we have it
-            // (recorded this session); else unlock. Removing the entry
-            // after use means a subsequent re-add this session will
-            // re-record from the current state.
-            Boolean prevLock = SESSION_PRE_LOCK.remove(slot);
-            LockedSlots.setLocked(slot, prevLock != null ? prevLock : false);
-            // If the column went inactive (no more inv cycle slots),
-            // restore the hotbar slot's pre-transition lock state too.
-            int hotbarSlot = slot % 9;
-            if (!isCycleSlot(hotbarSlot)) {
-                Boolean prevHotbarLock = SESSION_PRE_LOCK.remove(hotbarSlot);
-                LockedSlots.setLocked(hotbarSlot, prevHotbarLock != null ? prevHotbarLock : false);
-            }
-        }
     }
 
     /**
-     * Clears the per-inv-open memory of pre-cycle lock state. Called
-     * on every {@code ScreenEvents.AFTER_INIT} so opening a new screen
-     * starts a fresh inv-open session.
+     * The Column Cycler's derived lock (`plans/reach.md`): while "Lock the
+     * slots the cyclers use" is on, every cycle slot and the hotbar slot of
+     * every active column carries Slot lock implicitly, so automation leaves
+     * them alone. Derived, like the Hotbar Cycler's row lock: it appears and
+     * vanishes with the cycle and the setting, and never writes into the
+     * player's own lock store. Until the Reach build it did, with a
+     * session-only memory of the player's own locks to restore that was lost
+     * across sessions.
      */
-    public static void clearSessionPreLockState() {
-        SESSION_PRE_LOCK.clear();
+    /**
+     * The player slots the pre-Reach pairing wrote Slot locks onto in
+     * {@code world}: its cycle slots and the hotbar slot of every column that
+     * has one. The 1.5.x lock migration drops those stored locks, since the
+     * derived lock now covers them (LockedSlots.load). Needs this class's
+     * file loaded first.
+     */
+    public static Set<Integer> pairedSlotsIn(String world) {
+        Set<Integer> out = new HashSet<>();
+        CYCLE_SLOTS.forEachWorld((w, slots) -> {
+            if (!w.equals(world)) return;
+            for (int slot : slots) {
+                out.add(slot);
+                out.add(slot % 9);
+            }
+        });
+        return out;
     }
 
-    /**
-     * Changes "lock cycle slots". Turning it on re-locks the cycle slots that
-     * were unlocked while it was off. Every settings screen changes the
-     * setting through here, so the rule lives in one place.
-     */
-    public static void setCycleSlotsLocked(boolean on) {
-        boolean wasOn = IPConfig.cycleSlotsLocked();
-        IPConfig.setCycleSlotsLocked(on);
-        if (on && !wasOn) enforceCycleLockingInvariant();
-    }
-
-    /**
-     * Called when {@code cycleSlotsLocked} flips OFF → ON. Locks every
-     * direct cycle slot (inv) plus every derived hotbar slot whose column
-     * is active. Other worlds will be enforced the next time the player
-     * enters them and toggles anything (their cycle slots get re-locked
-     * on next ADD path).
-     *
-     * <p>No-op when the feature is disabled — there's no "active" cycle
-     * state to enforce against; storage stays untouched until the player
-     * re-enables.
-     */
-    public static void enforceCycleLockingInvariant() {
-        if (!IPConfig.columnCyclerEnabled()) return;
-        for (int slot : CYCLE_SLOTS.get()) {
-            if (!LockedSlots.isLocked(slot)) {
-                LockedSlots.setLocked(slot, true);
-            }
-        }
-        // Derived hotbar slots — lock any hotbar whose column is active.
-        for (int col = 0; col < 9; col++) {
-            if (isCycleSlot(col) && !LockedSlots.isLocked(col)) {
-                LockedSlots.setLocked(col, true);
-            }
-        }
+    public static boolean pairLockApplies(int containerSlotIndex) {
+        return IPConfig.cycleSlotsLocked() && isCycleSlot(containerSlotIndex);
     }
 
     private static void save() {

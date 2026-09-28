@@ -8,9 +8,6 @@ import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
 import com.trevorschoeny.inventoryplus.api.HotbarCyclable.ExtraSlot;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
-import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
-import com.trevorschoeny.inventoryplus.lockeditems.LockedItemUser;
-import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.entity.LivingEntity;
@@ -49,9 +46,9 @@ import java.util.function.ToDoubleFunction;
  * the slot closer to the player's active hotbar slot wins. (Per Trev's
  * 2026-05-25 decision on cyclable tiebreaker, generalized to all tiers.)
  *
- * <p><b>Locked slots excluded.</b> {@link LockedSlots#isLocked} skips
- * protected slots. Locked Items (item-type protection) isn't implemented
- * yet; will plug in here when it lands.
+ * <p><b>Locks answer through the veto.</b> Every candidate slot is asked
+ * whether Auto Tool Switch may use it; a lock group that stops Auto Tool
+ * Switch, on the slot or on the item, refuses there (`plans/reach.md`).
  */
 public final class ToolFinder {
 
@@ -234,29 +231,16 @@ public final class ToolFinder {
             // virtue of being here).
             if (i == activeSlot) continue;
             if (!tierFilter.test(i)) continue;
-            // Locked-slot exclusion — BUT cycle slots are exempt. Under
-            // the default "Lock Cycle Slots" config, every cycle slot
-            // is auto-locked by Column Cycler. That lock is cycle-
-            // derived, not user-initiated; for Auto Tool Switch, the
-            // cycle IS the access path, so we want to consider the
-            // slot.
-            if (LockedSlots.isLocked(i) && !isCyclable(i)) continue;
-            // Tier 3 moves the tool with a swap, so Auto Tool Switch has to be
-            // allowed on the slot it takes from. A hotbar slot (tier 1) only
-            // changes the selection, and a cyclable one (tier 2) is judged by
-            // its cycler through the tier filter findBestByTier passes, so
-            // neither is asked here.
-            if (i > 8 && !isCyclable(i)
-                    && !IPSlotOperations.allowsPlayerSlot(inv.player, i, AUTO_TOOL_SWITCH)) continue;
+            // Auto Tool Switch has to be allowed on the slot it would use, and
+            // locks answer through the veto: a lock group that stops Auto Tool
+            // Switch keeps its slot or item out of the choice, on the hotbar
+            // too. A cyclable slot (tier 2) is judged by its cycler instead,
+            // through the tier filter findBestByTier passes, which asks every
+            // slot the cycle would move. Cycle slots need no exemption: their
+            // derived lock is Slot lock, which allows Auto Tool Switch.
+            if (!isCyclable(i) && !IPSlotOperations.allowsPlayerSlot(inv.player, i, AUTO_TOOL_SWITCH)) continue;
             ItemStack stack = inv.getItem(i);
             if (stack.isEmpty()) continue;
-            // Locked items get no such exemption. The slot exemption above
-            // exists because a cycle lock is the mod's own doing; an item
-            // lock is the player's, and reaching past it to grab their
-            // pickaxe is the thing they asked us not to do. A player who
-            // locks their only pickaxe has opted it out of auto-switching,
-            // which is the feature working (locked-items.md).
-            if (LockedItems.blocks(LockedItemUser.AUTO_TOOL_SWITCH, stack)) continue;
             if (!isMatch.test(stack)) continue;
             double score = scorer.applyAsDouble(stack);
             if (best == null || score > best.score()) {

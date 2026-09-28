@@ -1,8 +1,6 @@
 package com.trevorschoeny.inventoryplus.sort;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
-import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
-import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.SORT;
 
@@ -85,15 +83,12 @@ public final class Sorter {
         // Each stop owns its chunk ordering.
         Comparator<ItemStack> order = type.comparator();
 
-        // Locked slots and locked items both stay put — sort operates only
-        // on what is left. Dropping a slot from this list is what makes the
-        // sort work AROUND it: the slot is never read as a source and never
-        // written as a destination, so its contents survive untouched.
+        // A slot that refuses sorting stays put, and sort operates only on what
+        // is left: dropped from this list, the slot is never read as a source
+        // and never written as a destination. Locks refuse through Inventory
+        // Plus's veto (Locks), so a locked slot or item sits out the same way.
         List<Slot> unlocked = new ArrayList<>();
         for (Slot s : region) {
-            if (LockedSlots.isLockedSlot(s)) continue;
-            if (LockedItems.isLocked(s.getItem())) continue;
-            // A slot that refuses sorting sits it out exactly like a locked one.
             if (!SlotOperations.allows(menu, s, player, SORT)) continue;
             unlocked.add(s);
         }

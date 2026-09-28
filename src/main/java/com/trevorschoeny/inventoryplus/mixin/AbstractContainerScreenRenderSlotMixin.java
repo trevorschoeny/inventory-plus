@@ -78,8 +78,7 @@ public abstract class AbstractContainerScreenRenderSlotMixin {
             Identifier.fromNamespaceAndPath("inventoryplus", "textures/gui/locked_item_exact.png");
     private static final int INVENTORYPLUS$ITEM_MARK_SIZE = 5;
 
-    /** 50%-translucent light gray for the edit-mode overlay. */
-    /** The Column Cycler's edit mode keeps its neutral gray. */
+    /** The Column Cycler's edit-mode overlay: 50%-translucent light gray. */
     private static final int INVENTORYPLUS$CYCLER_EDIT_TINT = 0x80808080;
 
     /**

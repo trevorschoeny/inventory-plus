@@ -22,6 +22,7 @@ import com.trevorschoeny.inventoryplus.cyclable.CycleHud;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
+import com.trevorschoeny.inventoryplus.lockgroups.Locks;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsButtons;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsDragController;
@@ -112,50 +113,33 @@ public class InventoryPlusClient implements ClientModInitializer {
         MoveMatchingModes.load();
         MoveMatchingKeybind.register();
 
-        // Locked Slots — per-world client-side persistence + L keybind
-        // toggle + edit-mode click interceptor + drag-to-toggle.
+        // Locks (`plans/lock-groups.md`, `plans/reach.md`). A lock is a lock
+        // group on a slot (LockedSlots, per world) or on an item (LockedItems,
+        // per world); what each group stops is its choice in the reach record
+        // (Reach, in config.json, loaded with the config above). The lock
+        // button selects a group and L applies it; the button lives in the IP
+        // toolbar (Toolbar.register below).
         //
-        // Protection is mixin-driven (no post-hoc corrector):
-        //   - AbstractContainerMenuMoveItemStackToMixin blocks shift-click
-        //     destination into locked slots (both client + server threads
-        //     in single-player via UUID-equality check in isLockable).
-        //   - InventoryGetFreeSlotMixin blocks auto-pickup destination
-        //     into empty locked slots (same UUID-equality pattern).
-        // Manual cursor placement passes through unmodified — neither
-        // mixin blocks the PICKUP click-type path. See package javadocs.
-        //
-        // The lock button lives in the IP toolbar (see Toolbar.register
-        // below); it selects the lock group L applies.
-        LockedSlots.load();
+        // Enforcement is one MenuKit veto (Locks): every operation MenuKit asks
+        // about, vanilla's or a mod's, is refused on a slot whose group the
+        // operation may not use, or whose lock groups stop it. Inventory Plus's
+        // own features ask MenuKit before they act, so they get the same
+        // answer. Manual cursor moves are operations too (click take / put),
+        // allowed by both default groups.
+        // Column Cycler's membership loads first: upgrading a 1.5.x lock file
+        // drops the locks its old pairing wrote (LockedSlots.load).
+        ColumnCycler.load();
+        LockedSlots.load(ColumnCycler::pairedSlotsIn);
         LockedSlotKeybind.register();
         ClientTickEvents.END_CLIENT_TICK.register(LockedSlotsDragController::tick);
-
-        // Locked Items — protection that belongs to the item rather than the
-        // slot, so it follows the item wherever it goes. Shares the L keybind
-        // with Locked Slots; the lock button's stop decides which kind a press
-        // adds or removes, and it touches only that kind. The three kinds
-        // (slot, by id, exact) are independent and combine freely.
-        //
-        // Enforcement splits by what the automation is doing. The features that
-        // TIDY AN ITEM AWAY honour locks unconditionally via
-        // LockedItems.isLocked(stack): Sorter, MoveMatchingExecutor's source
-        // filter, and the cyclers' rotation engine. The features that HAND THE
-        // ITEM BACK ask LockedItems.blocks(user, stack) instead, so the player
-        // can let them use a locked item anyway: AutoRestockSearch and
-        // ToolFinder. Those default to using locked items (see LockedItemUser).
-        //
-        // Deliberately NOT wired into the shift-click or auto-pickup mixins
-        // that Locked Slots uses: this feature constrains what the mod does,
-        // never what the player can do by hand.
-        //
-        // The list is per world or server and its entries are ItemStacks, which
-        // need the level's registries to decode — so load() only reads the file
-        // here and the decode happens on first use inside a world.
+        // Item locks: the file is read here; the stacks decode against the
+        // level's registries on first use inside a world.
         LockedItems.load();
+        Locks.registerVeto();
         ClientTickEvents.END_CLIENT_TICK.register(LockedSlotKeybind::tick);
 
         // IP toolbar — one right-aligned MK panel above the player 3×9
-        // grid, holding lock-edit toggle + MM IN/OUT (and future
+        // grid, holding the lock button + MM IN/OUT (and future
         // feature buttons). Per-button .showWhen gates per-feature
         // visibility within the same panel.
         Toolbar.register();
@@ -166,13 +150,12 @@ public class InventoryPlusClient implements ClientModInitializer {
 
         // Column Cycler (Power Users) — opt-in feature gated by
         // columnCyclerEnabled. Slot membership state is per-world
-        // (config/inventoryplus/column-cycler.json), with a parallel
-        // tiedLocks set for the Lock-pairing rule. The C keybind toggles
+        // (config/inventoryplus/column-cycler.json). The C keybind toggles
         // membership outside edit mode; the cycle-edit toolbar toggle
-        // enters edit mode (where clicks become toggles). Mutual
-        // exclusion with Lock Slots' edit mode is enforced inside the
-        // edit-mode setters.
-        ColumnCycler.load();
+        // enters edit mode (where clicks become toggles). While "Lock the
+        // slots the cyclers use" is on, cycle slots carry Slot lock as a
+        // derived lock, like the Hotbar Cycler's rows below.
+        LockedSlots.registerDerivedPlayerLock(ColumnCycler::pairLockApplies);
         ColumnCyclerButtons.registerLifecycle();
         ColumnCyclerClickInterceptor.register();
         ColumnCyclerKeybind.register();

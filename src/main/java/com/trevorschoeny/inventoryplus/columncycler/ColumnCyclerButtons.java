@@ -49,10 +49,6 @@ public final class ColumnCyclerButtons {
     public static void registerLifecycle() {
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             ColumnCyclerEditMode.reset();
-            // Per-inv-open scope for the pre-cycle lock memory — see
-            // ColumnCycler#SESSION_PRE_LOCK. Opening any new screen
-            // starts a fresh session.
-            ColumnCycler.clearSessionPreLockState();
         });
     }
 

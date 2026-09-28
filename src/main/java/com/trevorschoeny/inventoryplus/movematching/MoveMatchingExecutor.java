@@ -1,8 +1,6 @@
 package com.trevorschoeny.inventoryplus.movematching;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
-import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
-import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.MOVE_MATCHING_IN;
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.MOVE_MATCHING_OUT;
@@ -166,11 +164,10 @@ public final class MoveMatchingExecutor {
         return moved;
     }
 
-    /** Free room for {@code sample}'s type across unlocked destinations, as the game would fill them. */
+    /** Free room for {@code sample}'s type across the destinations, as the game would fill them. */
     private static int roomFor(ItemStack sample, List<Slot> destinations) {
         int room = 0;
         for (Slot dest : destinations) {
-            if (LockedSlots.isLockedSlot(dest)) continue;
             int limit = Math.min(dest.getMaxStackSize(sample), sample.getMaxStackSize());
             ItemStack in = dest.getItem();
             if (in.isEmpty()) room += limit;
@@ -205,7 +202,6 @@ public final class MoveMatchingExecutor {
         SlotOperations.as(MOVE_MATCHING_OUT, MOVE_MATCHING_IN, () -> {
             for (Slot dest : destinationSlots) {
                 if (menu.getCarried().isEmpty()) break;
-                if (LockedSlots.isLockedSlot(dest)) continue;
                 ItemStack destStack = dest.getItem();
                 if (destStack.isEmpty() || !destStack.is(cursorItem)) continue;
                 if (destStack.getCount() >= destStack.getMaxStackSize()) continue;
@@ -213,7 +209,6 @@ public final class MoveMatchingExecutor {
             }
             for (Slot dest : destinationSlots) {
                 if (menu.getCarried().isEmpty()) break;
-                if (LockedSlots.isLockedSlot(dest)) continue;
                 if (!dest.getItem().isEmpty()) continue;
                 clickPickup(gameMode, player, menu, dest.index);
             }
@@ -248,29 +243,20 @@ public final class MoveMatchingExecutor {
     }
 
     /**
-     * Candidates whose item is in the match-set. Locked slots and locked
-     * items are never pulled from.
-     *
-     * <p>This one filter covers both directions, because it screens the
-     * SOURCE side and the direction only decides which side that is: IN
-     * will not pull a locked type out of the container, OUT will not push
-     * one out of the inventory.
-     *
-     * <p>Destinations need no equivalent check. A locked type is filtered
-     * out here, so it is never the thing being carried, and merging into a
-     * locked stack could only happen while carrying its own type.
+     * Candidates whose item is in the match-set and whose slot allows Move
+     * Matching out. Locks refuse through the veto (Locks), so a locked slot or
+     * a locked item is never pulled from, in either direction: the direction
+     * only decides which side is the source.
      */
     private static List<Slot> filterToMatching(List<Slot> candidates, Set<Item> matchSet,
                                                AbstractContainerMenu menu, LocalPlayer player) {
         List<Slot> filtered = new ArrayList<>();
         for (Slot slot : candidates) {
-            if (LockedSlots.isLockedSlot(slot)) continue;
             // The out key is about the slot being emptied, whichever way the
             // player pointed Move Matching.
             if (!SlotOperations.allows(menu, slot, player, MOVE_MATCHING_OUT)) continue;
             ItemStack stack = slot.getItem();
             if (stack.isEmpty() || !matchSet.contains(stack.getItem())) continue;
-            if (LockedItems.isLocked(stack)) continue;
             filtered.add(slot);
         }
         return filtered;

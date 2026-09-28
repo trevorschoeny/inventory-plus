@@ -9,6 +9,7 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
+import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockgroups.Reach;
 import com.trevorschoeny.inventoryplus.sort.ContainerIdentity;
 import net.minecraft.world.CompoundContainer;
@@ -79,7 +80,7 @@ public final class LockedSlots {
     /** Inclusive upper bound on player container-slot indices we support locking on. */
     public static final int MAX_PLAYER_CONTAINER_SLOT = 40;
 
-    /** Inclusive upper bound on the "inv + hotbar" subset (the part that gets the edit-mode overlay). */
+    /** Inclusive upper bound on the "inv + hotbar" subset (what the Column Cycler's edit mode covers). */
     public static final int MAX_INV_HOTBAR_CONTAINER_SLOT = 35;
 
     /**
@@ -197,7 +198,7 @@ public final class LockedSlots {
     }
 
     /** True if any registered feature derives a lock for this player slot. */
-    private static boolean isDerivedLocked(int containerSlotIndex) {
+    public static boolean isDerivedLocked(int containerSlotIndex) {
         for (IntPredicate p : DERIVED_PLAYER_LOCKS) {
             if (p.test(containerSlotIndex)) return true;
         }
@@ -222,7 +223,12 @@ public final class LockedSlots {
 
     private static boolean loaded = false;
 
-    public static void load() {
+    /**
+     * Reads the file. {@code pairedSlotsIn} names, per world, the player slots
+     * the Column Cycler's old pairing locked (see the migration note in the
+     * body); it is consulted only when upgrading a version 1 file.
+     */
+    public static void load(java.util.function.Function<String, Set<Integer>> pairedSlotsIn) {
         if (loaded) return;
         loaded = true;
         Path path = filePath();
@@ -232,7 +238,32 @@ public final class LockedSlots {
             JsonObject root = JsonParser.parseString(json).getAsJsonObject();
             boolean[] v1 = {false};
             Set<String> worlds = new HashSet<>();
-            int total = loadIndexed(root, "perWorld", PLAYER, worlds, v1);
+            // Player slots, with the 1.5.x pairing's writes dropped. Until the
+            // Reach build, "Lock the slots the cyclers use" wrote a real Slot
+            // lock onto each cycle slot and its column's hotbar slot, and
+            // removed it again when the cycle went (restoring any lock the
+            // player had there, but only within one screen session). The
+            // pairing is a derived lock now and never writes, so those stored
+            // writes would otherwise outlive their cycle forever. Dropping them
+            // on upgrade is what the old code did on removal after a restart.
+            int total = 0;
+            for (var worldEntry : section(root, "perWorld").entrySet()) {
+                Map<Integer, String> map = new HashMap<>();
+                readLocks(worldEntry.getValue(), map, Integer::parseInt, v1);
+                if (worldEntry.getValue().isJsonArray()
+                        && IPConfig.cycleSlotsLocked()) {
+                    Set<Integer> paired = pairedSlotsIn.apply(worldEntry.getKey());
+                    if (map.keySet().removeAll(paired)) {
+                        InventoryPlusClient.LOGGER.info("[locked-slots] {}: dropped the Column Cycler pairing's locks on {}",
+                                worldEntry.getKey(), paired);
+                    }
+                }
+                if (!map.isEmpty()) {
+                    PLAYER.load(worldEntry.getKey(), map);
+                    worlds.add(worldEntry.getKey());
+                    total += map.size();
+                }
+            }
             // Ender locks live under a separate "enderPerWorld" section so their
             // 0-based slot indices don't collide with player slot indices.
             int enderTotal = loadIndexed(root, "enderPerWorld", ENDER, worlds, v1);
@@ -312,20 +343,6 @@ public final class LockedSlots {
     }
 
     /**
-     * The current world's locked player slots. Immutable in every case: before
-     * 1.6.0 this returned the live set when locks existed and an immutable
-     * empty set when they did not, so a caller that mutated it would have
-     * crashed only in a world with no player locks.
-     */
-    public static Set<Integer> getLockedSlots() {
-        return PLAYER.get().keySet();
-    }
-
-    public static boolean isLocked(int containerSlotIndex) {
-        return PLAYER.get().containsKey(containerSlotIndex);
-    }
-
-    /**
      * True if the given Slot is a lockable player slot (any of hotbar /
      * main / armor / offhand).
      *
@@ -356,13 +373,8 @@ public final class LockedSlots {
 
     /**
      * True if the given Slot is in the "inventory + hotbar" subset
-     * (container-slot 0-35) — the part that gets the edit-mode gray
-     * overlay AND the edit-mode click-to-toggle.
-     *
-     * <p>Per Trev 2026-05-16: "Make it so you only can't interact with
-     * the inventory and hotbar slots." Armor / offhand stay
-     * vanilla-interactable in edit mode; their locks are toggled via the
-     * {@code L} keybind only.
+     * (container-slot 0-35): the slots the Column Cycler's edit mode
+     * greys and toggles.
      *
      * <p>Uses UUID equality for the same reason as {@link #isLockable} —
      * the render-thread mixin needs the check to be stable on both client
@@ -405,7 +417,7 @@ public final class LockedSlots {
     public static boolean isLockedSlot(Slot slot) {
         if (isLockable(slot)) {
             int cs = slot.getContainerSlot();
-            return isLocked(cs) || isDerivedLocked(cs);
+            return PLAYER.get().containsKey(cs) || isDerivedLocked(cs);
         }
         if (isEnderSlot(slot)) return isEnderLocked(slot.getContainerSlot());
         if (isCreatedSlot(slot)) return isCreatedLocked(slot);
@@ -473,6 +485,25 @@ public final class LockedSlots {
         String next = groupId.equals(current) ? null : groupId;
         setLockedSlot(slot, next);
         return next;
+    }
+
+    /** The group stored on player slot {@code containerSlotIndex}, or {@code null}. */
+    public static @Nullable String playerStoredGroup(int containerSlotIndex) {
+        return PLAYER.get().get(containerSlotIndex);
+    }
+
+    /**
+     * True when {@code slot} carries a lock nobody stored here: a cycler's
+     * derived lock on a player slot, or a companion's shared container lock.
+     * Both count as Slot lock (`lock-groups.md`: a paired cycle slot carries
+     * Slot lock implicitly; a shared lock is judged by the viewer's Slot lock).
+     * The provider is asked on the render thread only, as before.
+     */
+    public static boolean isImplicitlyLocked(Slot slot) {
+        if (isLockable(slot)) return isDerivedLocked(slot.getContainerSlot());
+        if (isInOwnStore(slot) || !isRenderThread()) return false;
+        SlotLockProvider p = providerFor(slot);
+        return p != null && p.isLocked(slot);
     }
 
     /** True when {@code slot}'s lock lives in one of Inventory Plus's own stores, not a provider's. */
@@ -657,18 +688,6 @@ public final class LockedSlots {
     /** True if the given ender slot index is locked in the current world. */
     public static boolean isEnderLocked(int enderSlotIndex) {
         return ENDER.get().containsKey(enderSlotIndex);
-    }
-
-    /**
-     * Locks or unlocks a player slot for the Column Cycler's pairing. Locking
-     * keeps a lock already there and otherwise adds a Slot lock; unlocking
-     * removes whatever is there. No-op when already in that state.
-     */
-    public static void setLocked(int containerSlotIndex, boolean locked) {
-        PLAYER.modify(map -> {
-            if (locked == map.containsKey(containerSlotIndex)) return map;
-            return withLock(map, containerSlotIndex, locked ? Reach.SLOT_LOCK : null);
-        });
     }
 
     private static void save() {

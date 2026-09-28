@@ -176,9 +176,12 @@ public final class LockedItems {
         Set<String> blocked = new HashSet<>(Set.of(
                 "inventoryplus:sort", "inventoryplus:move_matching_out", "inventoryplus:move_matching_in",
                 "inventoryplus:column_cycle", "inventoryplus:hotbar_cycle"));
-        if (!(IPConfig.autoRestockArmorUsesLockedItems() && IPConfig.autoRestockToolUsesLockedItems()
-                && IPConfig.autoRestockItemUsesLockedItems())) blocked.add("inventoryplus:restock_take");
-        if (!IPConfig.autoToolSwitchUsesLockedItems()) blocked.add("inventoryplus:auto_tool_switch");
+        // The settings themselves are gone; the file's last values are kept for this.
+        IPConfig.LegacyUsesLockedItems legacy = IPConfig.legacyUsesLockedItems();
+        if (!(legacy.restockArmor() && legacy.restockTool() && legacy.restockItem())) {
+            blocked.add("inventoryplus:restock_take");
+        }
+        if (!legacy.autoToolSwitch()) blocked.add("inventoryplus:auto_tool_switch");
         Set<String> ops = new HashSet<>(blocked);
         ops.addAll(Reach.EXACT_ITEM_DENIES);
         for (String op : ops) Reach.setLockDenies(group.id(), op, blocked.contains(op));
@@ -256,15 +259,6 @@ public final class LockedItems {
     /** True when this stack is locked exactly; chooses the solid mark over the hollow one. */
     public static boolean isExactLocked(ItemStack stack) {
         return exactGroup(stack) != null;
-    }
-
-    /**
-     * True when {@code user} must leave this stack alone: it carries an item
-     * lock and that feature is set to honour locks. Goes with the four
-     * {@code *UsesLockedItems} settings in stage 2 of the Reach build.
-     */
-    public static boolean blocks(LockedItemUser user, ItemStack stack) {
-        return !user.usesLockedItems() && isLocked(stack);
     }
 
     /**

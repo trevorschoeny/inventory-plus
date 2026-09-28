@@ -2,7 +2,6 @@ package com.trevorschoeny.inventoryplus.settings;
 
 import com.trevorschoeny.inventoryplus.autotoolswitch.AutoSwitchReturnMode;
 import com.trevorschoeny.inventoryplus.autotoolswitch.WeaponPreference;
-import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
 import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPConfigScreen;
@@ -284,7 +283,7 @@ final class SettingsTabs {
                 // cycleSlotsLocked is global, so it lives with the locks, not in
                 // one cycler's tab.
                 .checkbox("Lock the slots the cyclers use",
-                        Bool.of(IPConfig::cycleSlotsLocked, ColumnCycler::setCycleSlotsLocked));
+                        Bool.of(IPConfig::cycleSlotsLocked, IPConfig::setCycleSlotsLocked));
         // Container locks are Inventory Max's. Kept on the client always; the
         // server copy is an option still to be built.
         if (!maxInstalled) b.line("Install Inventory Max to lock slots in chests and other containers.");
@@ -381,18 +380,12 @@ final class SettingsTabs {
                 .checkbox("Restock armor", armor)
                 .subCheckbox("Swap before it breaks", Bool.of(IPConfig::autoRestockArmorBeforeBreak,
                         IPConfig::setAutoRestockArmorBeforeBreak).onlyWhen(armor.get()))
-                .subCheckbox("Use locked items", Bool.of(IPConfig::autoRestockArmorUsesLockedItems,
-                        IPConfig::setAutoRestockArmorUsesLockedItems).onlyWhen(armor.get()))
                 .heading("Tools")
                 .checkbox("Restock tools", tool)
                 .subCheckbox("Swap before it breaks", Bool.of(IPConfig::autoRestockToolBeforeBreak,
                         IPConfig::setAutoRestockToolBeforeBreak).onlyWhen(tool.get()))
-                .subCheckbox("Use locked items", Bool.of(IPConfig::autoRestockToolUsesLockedItems,
-                        IPConfig::setAutoRestockToolUsesLockedItems).onlyWhen(tool.get()))
                 .heading("Items")
                 .checkbox("Restock items", item)
-                .subCheckbox("Use locked items", Bool.of(IPConfig::autoRestockItemUsesLockedItems,
-                        IPConfig::setAutoRestockItemUsesLockedItems).onlyWhen(item.get()))
                 // Also Restock's Shulker Boxes place in Reach; the two read one setting.
                 .heading("Shulker Boxes")
                 .checkbox("Pull from Shulker Boxes in your inventory", shulker)
@@ -408,8 +401,6 @@ final class SettingsTabs {
                         Bool.of(IPConfig::autoToolSwitchEnabled, IPConfig::setAutoToolSwitchEnabled))
                 .heading("Misc.")
                 .checkbox("Show the Auto Tool Switch button", Bool.placeholder(true))
-                .checkbox("Use locked items", Bool.of(IPConfig::autoToolSwitchUsesLockedItems,
-                        IPConfig::setAutoToolSwitchUsesLockedItems))
                 .heading("Switching back")
                 .choice("Return to the previous tool", Arrays.asList(AutoSwitchReturnMode.values()),
                         AutoSwitchReturnMode::displayName,

@@ -35,7 +35,7 @@ import java.nio.file.Path;
  *   "autoRestockArmor":    true,
  *   "autoRestockTool":     true,
  *   "autoRestockItem":     true,
- *   "autoRestockItemUsesLockedItems": true,
+ *   "reach": { ... },          (lockgroups.Reach)
  *   "sortShowButton":      true,
  *   "moveMatchingShowButtons": true,
  *   "lockedSlotsShowButton":   true
@@ -78,13 +78,10 @@ public final class IPConfig {
     private static boolean autoRestockItem = true;
     private static boolean autoRestockShulker = false;          // parent
     private static boolean autoRestockShulkerAmmo = false;      // sub of Shulker
-    // May each restock draw on a LOCKED item? Default yes: a lock stops the mod
-    // tidying an item away, not handing it back to you (Trev 2026-09-06). One per
-    // restock gate above; the offhand swap runs under Tool and shares its answer.
-    // Locked SLOTS are never overridden by these.
-    private static boolean autoRestockArmorUsesLockedItems = true;
-    private static boolean autoRestockToolUsesLockedItems = true;
-    private static boolean autoRestockItemUsesLockedItems = true;
+    // The four "use locked items" settings (Trev 2026-09-06) are gone: what a
+    // lock stops is its lock group's choice in the reach record now
+    // (`plans/lock-groups.md`). Their old values are still read from the file
+    // once, for the 1.5.x migration of item locks (LockedItems).
     // Durability floor for the two Before-Break swaps (armor + tool share it) —
     // a swap fires when remaining durability sits at or below this. Was the
     // hardcoded AutoRestockTicker.BEFORE_BREAK_THRESHOLD = 10.
@@ -112,9 +109,6 @@ public final class IPConfig {
     // player has multiple weapon kinds available. Default SWORD.
     // Persisted as the enum name.
     private static WeaponPreference autoToolSwitchWeaponPreference = WeaponPreference.SWORD;
-    // Same question for Auto Tool Switch, same default: the tool you bothered to
-    // lock is usually the one you want in your hand (Trev 2026-09-06).
-    private static boolean autoToolSwitchUsesLockedItems = true;
 
     // ─── Show Buttons ────────────────────────────────────────────────
     private static boolean sortShowButton = true;
@@ -185,10 +179,11 @@ public final class IPConfig {
             autoRestockItem              = readBool(root, "autoRestockItem",              autoRestockItem);
             autoRestockShulker           = readBool(root, "autoRestockShulker",           autoRestockShulker);
             autoRestockShulkerAmmo       = readBool(root, "autoRestockShulkerAmmo",       autoRestockShulkerAmmo);
-            autoRestockArmorUsesLockedItems = readBool(root, "autoRestockArmorUsesLockedItems", autoRestockArmorUsesLockedItems);
-            autoRestockToolUsesLockedItems  = readBool(root, "autoRestockToolUsesLockedItems",  autoRestockToolUsesLockedItems);
-            autoRestockItemUsesLockedItems  = readBool(root, "autoRestockItemUsesLockedItems",  autoRestockItemUsesLockedItems);
-            autoToolSwitchUsesLockedItems   = readBool(root, "autoToolSwitchUsesLockedItems",   autoToolSwitchUsesLockedItems);
+            legacyUsesLockedItems = new LegacyUsesLockedItems(
+                    readBool(root, "autoRestockArmorUsesLockedItems", true),
+                    readBool(root, "autoRestockToolUsesLockedItems", true),
+                    readBool(root, "autoRestockItemUsesLockedItems", true),
+                    readBool(root, "autoToolSwitchUsesLockedItems", true));
             autoRestockBeforeBreakThreshold = readInt(root, "autoRestockBeforeBreakThreshold",
                     autoRestockBeforeBreakThreshold);
             autoToolSwitchEnabled  = readBool(root, "autoToolSwitchEnabled",  autoToolSwitchEnabled);
@@ -261,10 +256,6 @@ public final class IPConfig {
             root.addProperty("autoRestockItem",             autoRestockItem);
             root.addProperty("autoRestockShulker",          autoRestockShulker);
             root.addProperty("autoRestockShulkerAmmo",      autoRestockShulkerAmmo);
-            root.addProperty("autoRestockArmorUsesLockedItems", autoRestockArmorUsesLockedItems);
-            root.addProperty("autoRestockToolUsesLockedItems",  autoRestockToolUsesLockedItems);
-            root.addProperty("autoRestockItemUsesLockedItems",  autoRestockItemUsesLockedItems);
-            root.addProperty("autoToolSwitchUsesLockedItems",   autoToolSwitchUsesLockedItems);
             root.addProperty("autoRestockBeforeBreakThreshold", autoRestockBeforeBreakThreshold);
             root.addProperty("autoToolSwitchEnabled",   autoToolSwitchEnabled);
             root.addProperty("autoToolSwitchReturnMode", autoToolSwitchReturnMode.name());
@@ -293,6 +284,17 @@ public final class IPConfig {
         }
     }
 
+    /**
+     * The four removed "use locked items" settings as the file last held them
+     * (true when absent, their old default). Read by the 1.5.x migration only.
+     */
+    public record LegacyUsesLockedItems(boolean restockArmor, boolean restockTool, boolean restockItem,
+                                        boolean autoToolSwitch) {}
+
+    private static LegacyUsesLockedItems legacyUsesLockedItems = new LegacyUsesLockedItems(true, true, true, true);
+
+    public static LegacyUsesLockedItems legacyUsesLockedItems() { return legacyUsesLockedItems; }
+
     // ─── Getters ─────────────────────────────────────────────────────
     public static boolean autoRestockArmor()            { return autoRestockArmor; }
     public static boolean autoRestockArmorBeforeBreak() { return autoRestockArmorBeforeBreak; }
@@ -301,10 +303,6 @@ public final class IPConfig {
     public static boolean autoRestockItem()             { return autoRestockItem; }
     public static boolean autoRestockShulker()          { return autoRestockShulker; }
     public static boolean autoRestockShulkerAmmo()      { return autoRestockShulkerAmmo; }
-    public static boolean autoRestockArmorUsesLockedItems() { return autoRestockArmorUsesLockedItems; }
-    public static boolean autoRestockToolUsesLockedItems()  { return autoRestockToolUsesLockedItems; }
-    public static boolean autoRestockItemUsesLockedItems()  { return autoRestockItemUsesLockedItems; }
-    public static boolean autoToolSwitchUsesLockedItems()   { return autoToolSwitchUsesLockedItems; }
     public static int autoRestockBeforeBreakThreshold() { return autoRestockBeforeBreakThreshold; }
     public static boolean autoToolSwitchEnabled()       { return autoToolSwitchEnabled; }
     public static AutoSwitchReturnMode autoToolSwitchReturnMode() { return autoToolSwitchReturnMode; }
@@ -333,10 +331,6 @@ public final class IPConfig {
     public static void setAutoRestockItem(boolean v)             { autoRestockItem = v; save(); }
     public static void setAutoRestockShulker(boolean v)          { autoRestockShulker = v; save(); }
     public static void setAutoRestockShulkerAmmo(boolean v)      { autoRestockShulkerAmmo = v; save(); }
-    public static void setAutoRestockArmorUsesLockedItems(boolean v) { autoRestockArmorUsesLockedItems = v; save(); }
-    public static void setAutoRestockToolUsesLockedItems(boolean v)  { autoRestockToolUsesLockedItems = v; save(); }
-    public static void setAutoRestockItemUsesLockedItems(boolean v)  { autoRestockItemUsesLockedItems = v; save(); }
-    public static void setAutoToolSwitchUsesLockedItems(boolean v)   { autoToolSwitchUsesLockedItems = v; save(); }
     public static void setAutoRestockBeforeBreakThreshold(int v) { autoRestockBeforeBreakThreshold = v; save(); }
     public static void setAutoToolSwitchEnabled(boolean v)       { autoToolSwitchEnabled = v; save(); }
     public static void setAutoToolSwitchReturnMode(AutoSwitchReturnMode v) { autoToolSwitchReturnMode = v; save(); }

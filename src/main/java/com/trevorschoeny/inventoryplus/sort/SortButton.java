@@ -32,8 +32,6 @@ import java.util.function.Supplier;
  * container. Which container is resolved the same way the click resolves
  * it, by walking the menu for the toolbar's anchor slot, so the tooltip,
  * the tint and the action all agree on what "this container" is.
- *
- * <p>Both buttons stay inert in locked-slots edit mode, gestures included.
  */
 public final class SortButton {
 
