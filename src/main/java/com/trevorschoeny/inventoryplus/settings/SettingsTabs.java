@@ -4,7 +4,6 @@ import com.trevorschoeny.inventoryplus.autotoolswitch.AutoSwitchReturnMode;
 import com.trevorschoeny.inventoryplus.autotoolswitch.WeaponPreference;
 import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
-import com.trevorschoeny.inventoryplus.config.IPConfigScreen;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.lockeditems.LockKind;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
@@ -131,7 +130,7 @@ final class SettingsTabs {
         LockedSlots.reassign(null, null);
         LockedItems.reassign(null, null);
         Reach.resetGroups();
-        IPConfig.reset("lockGroupsEnabled", "lockedSlotsShowButton", "cycleSlotsLocked");
+        IPConfig.reset("lockGroupsEnabled", "lockedSlotsShowButton", "cycleSlotsLocked", "containerLocksOnServer");
         resetKeys(IPKeybinds.LOCK_SLOT);
         SettingsMenu.rebuild();
     }
@@ -153,13 +152,6 @@ final class SettingsTabs {
         // The advert for Inventory Max's tabs; with Inventory Max installed the
         // stand-ins are gone, so there is nothing for this to hide.
         if (!maxInstalled) b.checkbox("Show Inventory Max tabs", true);
-        // ponytail: the settings that still live only in the old screen (none
-        // once this menu is wired through Inventory Max, stage 4); goes then.
-        b.line("The settings that work today, until this menu takes over:")
-                .button("Open the old settings screen", () -> {
-                    Minecraft mc = Minecraft.getInstance();
-                    mc.gui.setScreen(IPConfigScreen.create(mc.gui.screen()));
-                });
         b.heading("Presets")
                 .actions("Save or load a file", "Save to file", "Load from file")
                 .actions("Share by pasting", "Copy to clipboard", "Paste from clipboard");
@@ -334,11 +326,12 @@ final class SettingsTabs {
                 // one cycler's tab.
                 .checkbox("Lock the slots the cyclers use",
                         Bool.of(IPConfig::cycleSlotsLocked, IPConfig::setCycleSlotsLocked));
-        // Container locks are Inventory Max's. Kept on the client always; the
-        // server copy is Inventory Max's setting (stage 4).
-        if (!maxInstalled) b.line("Install Inventory Max to lock slots in chests and other containers.");
+        // Container locks are kept on this computer always; the server copy
+        // goes through Inventory Max's shared channel, so it needs Inventory Max.
+        if (!maxInstalled) b.line("Install Inventory Max to also keep container locks on the server.");
         b.checkbox("Also keep container locks on the server (needs Inventory Max there). "
-                + "They are always kept on your computer.", false);
+                + "They are always kept on your computer.",
+                new Bool(IPConfig::containerLocksOnServer, IPConfig::setContainerLocksOnServer, () -> !maxInstalled));
         // The groups go last (Trev, 2026-09-27).
         b.heading("Groups");
         for (LockGroup g : Reach.groups()) lockGroupSection(b, g);
@@ -569,7 +562,6 @@ final class SettingsTabs {
                         + "and keys to cycle through them.")
                 .heading("Misc.")
                 .checkbox("Show the Pockets button", true)
-                .checkbox("Restock and Auto Tool Switch may take from pockets", true)
                 .choice("Beside the hotbar", List.of("Mini hotbar"), v -> v, "Mini hotbar")
                 .heading("Cycling")
                 .key(Component.literal("Pocket Cycle Forward"), Component.literal("Right Arrow"))

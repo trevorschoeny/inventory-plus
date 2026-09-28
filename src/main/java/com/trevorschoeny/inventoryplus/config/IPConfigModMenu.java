@@ -6,8 +6,7 @@ import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 
 /**
  * ModMenu entrypoint — surfaces IP's settings menu as the "config" button
- * next to IP's row on the mods list. The old YACL screen stays reachable
- * from the menu's General tab until the menu is wired.
+ * next to IP's row on the mods list.
  *
  * <p>ModMenu is a compileOnly + modLocalRuntime dependency
  * (see {@code build.gradle}). If ModMenu isn't installed at runtime,

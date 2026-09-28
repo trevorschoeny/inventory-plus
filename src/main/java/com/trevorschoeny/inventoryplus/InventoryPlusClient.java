@@ -77,7 +77,7 @@ public class InventoryPlusClient implements ClientModInitializer {
     public void onInitializeClient() {
         // Config — loaded once at startup; toggles persist immediately on
         // change via IPConfig setters. Must load before any feature reads
-        // a toggle. See IPConfig + IPConfigScreen javadoc.
+        // a toggle. See the IPConfig javadoc.
         IPConfig.load();
 
         // Slot operations: Inventory Plus's eight, defined with their roles so

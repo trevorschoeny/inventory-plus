@@ -160,6 +160,13 @@ public final class IPConfig {
     private static boolean restockShowButton = true;
     private static boolean autoToolSwitchShowButton = true;
     private static boolean lockGroupsEnabled = true;
+    // "Also keep container locks on the server" (Lock groups tab; Reach build
+    // stage 4, replacing Inventory Max's containerLocksEnabled). Container
+    // locks are always kept on this computer; with this on, each one placed
+    // from now on is also written to Inventory Max's shared channel, where the
+    // server keeps and enforces it as a plain lock. Default off: container
+    // locks are the player's own (Trev 2026-09-07). Needs Inventory Max.
+    private static boolean containerLocksOnServer = false;
 
     /**
      * Every setting at its default, taken before the file is read. A tab's
@@ -248,6 +255,7 @@ public final class IPConfig {
         restockShowButton         = readBool(root, "restockShowButton",         restockShowButton);
         autoToolSwitchShowButton  = readBool(root, "autoToolSwitchShowButton",  autoToolSwitchShowButton);
         lockGroupsEnabled         = readBool(root, "lockGroupsEnabled",         lockGroupsEnabled);
+        containerLocksOnServer    = readBool(root, "containerLocksOnServer",    containerLocksOnServer);
     }
 
     /**
@@ -328,6 +336,7 @@ public final class IPConfig {
         root.addProperty("restockShowButton",         restockShowButton);
         root.addProperty("autoToolSwitchShowButton",  autoToolSwitchShowButton);
         root.addProperty("lockGroupsEnabled",         lockGroupsEnabled);
+        root.addProperty("containerLocksOnServer",    containerLocksOnServer);
         return root;
     }
 
@@ -364,12 +373,14 @@ public final class IPConfig {
     public static boolean restockShowButton()        { return restockShowButton; }
     public static boolean autoToolSwitchShowButton() { return autoToolSwitchShowButton; }
     public static boolean lockGroupsEnabled()        { return lockGroupsEnabled; }
+    public static boolean containerLocksOnServer()   { return containerLocksOnServer; }
     public static void setSortEnabled(boolean v)              { sortEnabled = v; save(); }
     public static void setMoveMatchingEnabled(boolean v)      { moveMatchingEnabled = v; save(); }
     public static void setRestockEnabled(boolean v)           { restockEnabled = v; save(); }
     public static void setRestockShowButton(boolean v)        { restockShowButton = v; save(); }
     public static void setAutoToolSwitchShowButton(boolean v) { autoToolSwitchShowButton = v; save(); }
     public static void setLockGroupsEnabled(boolean v)        { lockGroupsEnabled = v; save(); }
+    public static void setContainerLocksOnServer(boolean v)   { containerLocksOnServer = v; save(); }
 
     // ─── Getters ─────────────────────────────────────────────────────
     public static boolean autoRestockArmor()            { return autoRestockArmor; }

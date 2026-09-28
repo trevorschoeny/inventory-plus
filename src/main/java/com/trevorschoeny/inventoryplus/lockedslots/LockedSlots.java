@@ -530,6 +530,14 @@ public final class LockedSlots {
             int index = slot.getContainerSlot();
             CONTAINERS.modify(byKey -> WorldStore.withEntry(byKey, key,
                     withLock(byKey.getOrDefault(key, Map.of()), index, groupId)));
+            // The server copy (Also keep container locks on the server): a lock
+            // is written there too while the setting is on; an unlock clears a
+            // copy the server holds even with it off, so turning it off never
+            // strands a lock the player can no longer see to remove.
+            SlotLockProvider p = providerFor(slot);
+            if (p != null && (groupId != null ? IPConfig.containerLocksOnServer() : p.isLocked(slot))) {
+                p.setLocked(slot, groupId != null);
+            }
         } else {
             SlotLockProvider p = providerFor(slot);
             if (p != null) p.setLocked(slot, groupId != null);

@@ -179,6 +179,12 @@ public final class SettingsMenu extends MKScreen {
         return new SettingsMenu(parent);
     }
 
+    /** The menu as a screen on {@code tabId}, for a companion's Mod Menu factory. */
+    public static Screen create(@Nullable Screen parent, String tabId) {
+        selectedTab = tabId;
+        return create(parent);
+    }
+
     private static boolean maxInstalled() {
         return FabricLoader.getInstance().isModLoaded("inventorymax");
     }

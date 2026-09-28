@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.api;
 
 import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
+import com.trevlar.menukit.inject.SlotGroupId;
 import com.trevlar.menukit.window.BehaviorKey;
 import com.trevlar.menukit.window.TriBool;
 
@@ -14,12 +15,14 @@ import com.trevorschoeny.inventoryplus.lockedslots.WorldIdentity;
 import com.trevorschoeny.inventoryplus.sort.ContainerOpenTracker;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -226,5 +229,23 @@ public final class InventoryPlusApi {
      */
     public static void registerSettingsReset(Runnable reset) {
         com.trevorschoeny.inventoryplus.settings.SettingsMenu.registerReset(reset);
+    }
+
+    /**
+     * The settings menu as a screen on the tab {@code tabId}, returning to
+     * {@code parent} on close. For a companion's Mod Menu entry.
+     */
+    public static Screen settingsScreen(@Nullable Screen parent, String tabId) {
+        return SettingsMenu.create(parent, tabId);
+    }
+
+    /**
+     * Takes {@code groups} out of what {@code operation} may use, in the
+     * player's reach (as unticking their boxes in the Reach tab would). For a
+     * companion upgrading a setting of its own that the reach now holds.
+     */
+    public static void denyInReach(BehaviorKey<?> operation, Collection<SlotGroupId> groups) {
+        com.trevorschoeny.inventoryplus.lockgroups.Reach.setDenied(operation.id().toString(),
+                groups.stream().map(SlotGroupId::asString).toList(), true);
     }
 }
