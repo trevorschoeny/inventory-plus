@@ -2,11 +2,13 @@ package com.trevorschoeny.inventoryplus.lockedslots;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 
-import com.trevlar.menukit.inject.SlotGroupId;
-import com.trevlar.menukit.window.Address;
-import com.trevlar.menukit.window.ClientSlotAddressing;
-import com.trevlar.menukit.window.KindTag;
+import com.trevlar.menukit.api.slot.SlotGroupId;
+import com.trevlar.menukit.api.window.Address;
+import com.trevlar.menukit.api.window.SlotRef;
+import com.trevlar.menukit.api.window.KindTag;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
 
 import org.jetbrains.annotations.Nullable;
@@ -51,11 +53,13 @@ public final class CreatedSlotKey {
      * fails closed (unlockable) rather than keying garbage into the store.
      */
     public static @Nullable String of(Slot slot) {
+        // The slot comes from the open screen, so it is on the player's open menu.
+        // A created slot's address does not depend on the menu it sits in.
+        Player player = Minecraft.getInstance().player;
+        if (player == null) return null;
         Address address;
         try {
-            // ponytail: ClientSlotAddressing is @Internal; MenuKit's public
-            // slot-to-address (SlotRef.address()) arrives in 6.0.0 phase 3.
-            address = ClientSlotAddressing.addressOf(null, slot);
+            address = SlotRef.of(player.containerMenu, slot, player).address();
         } catch (RuntimeException e) {
             return null;
         }

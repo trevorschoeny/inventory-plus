@@ -5,8 +5,8 @@ import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
 import com.trevorschoeny.inventoryplus.api.HotbarCyclable.ExtraSlot;
 import net.minecraft.world.entity.player.Player;
 
-import com.trevlar.menukit.window.BehaviorKey;
-import com.trevlar.menukit.window.TriBool;
+import com.trevlar.menukit.api.window.BehaviorKey;
+import com.trevlar.menukit.api.window.TriBool;
 
 import java.util.ArrayList;
 import java.util.List;

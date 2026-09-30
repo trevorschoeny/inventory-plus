@@ -1,9 +1,9 @@
 package com.trevorschoeny.inventoryplus.api;
 
 import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
-import com.trevlar.menukit.inject.SlotGroupId;
-import com.trevlar.menukit.window.BehaviorKey;
-import com.trevlar.menukit.window.TriBool;
+import com.trevlar.menukit.api.slot.SlotGroupId;
+import com.trevlar.menukit.api.window.BehaviorKey;
+import com.trevlar.menukit.api.window.TriBool;
 
 import com.trevorschoeny.inventoryplus.autorestock.AutoRestockSearch;
 import com.trevorschoeny.inventoryplus.autorestock.AutoRestockSuppression;

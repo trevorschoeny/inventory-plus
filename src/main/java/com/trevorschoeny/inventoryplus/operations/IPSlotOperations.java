@@ -1,24 +1,24 @@
 package com.trevorschoeny.inventoryplus.operations;
 
-import static com.trevlar.menukit.core.SlotGroupCategory.CHEST_STORAGE;
-import static com.trevlar.menukit.core.SlotGroupCategory.DISPENSER_STORAGE;
-import static com.trevlar.menukit.core.SlotGroupCategory.HOPPER_STORAGE;
-import static com.trevlar.menukit.core.SlotGroupCategory.MOUNT_STORAGE;
-import static com.trevlar.menukit.core.SlotGroupCategory.PLAYER_ARMOR;
-import static com.trevlar.menukit.core.SlotGroupCategory.PLAYER_HOTBAR;
-import static com.trevlar.menukit.core.SlotGroupCategory.PLAYER_INVENTORY;
-import static com.trevlar.menukit.core.SlotGroupCategory.PLAYER_OFFHAND;
-import static com.trevlar.menukit.core.SlotGroupCategory.SHULKER_STORAGE;
+import static com.trevlar.menukit.api.slot.SlotGroupCategory.CHEST_STORAGE;
+import static com.trevlar.menukit.api.slot.SlotGroupCategory.DISPENSER_STORAGE;
+import static com.trevlar.menukit.api.slot.SlotGroupCategory.HOPPER_STORAGE;
+import static com.trevlar.menukit.api.slot.SlotGroupCategory.MOUNT_STORAGE;
+import static com.trevlar.menukit.api.slot.SlotGroupCategory.PLAYER_ARMOR;
+import static com.trevlar.menukit.api.slot.SlotGroupCategory.PLAYER_HOTBAR;
+import static com.trevlar.menukit.api.slot.SlotGroupCategory.PLAYER_INVENTORY;
+import static com.trevlar.menukit.api.slot.SlotGroupCategory.PLAYER_OFFHAND;
+import static com.trevlar.menukit.api.slot.SlotGroupCategory.SHULKER_STORAGE;
 
 import com.trevorschoeny.inventoryplus.api.PlayerMenuSlots;
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.*;
 
-import com.trevlar.menukit.inject.SlotGroupSet;
-import com.trevlar.menukit.window.BehaviorKey;
-import com.trevlar.menukit.window.SlotOperations.AppliesTo;
-import com.trevlar.menukit.window.SlotOperations;
-import com.trevlar.menukit.window.SlotOperations.Role;
-import com.trevlar.menukit.window.TriBool;
+import com.trevlar.menukit.api.slot.SlotGroupSet;
+import com.trevlar.menukit.api.window.BehaviorKey;
+import com.trevlar.menukit.api.window.SlotOperations.AppliesTo;
+import com.trevlar.menukit.api.window.SlotOperations;
+import com.trevlar.menukit.api.window.SlotOperations.Role;
+import com.trevlar.menukit.api.window.TriBool;
 
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;

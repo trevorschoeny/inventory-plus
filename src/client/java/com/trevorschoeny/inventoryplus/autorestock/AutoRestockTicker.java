@@ -11,7 +11,7 @@ import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.RESTOCK_PUT;
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.RESTOCK_TAKE;
 
-import com.trevlar.menukit.window.SlotOperations;
+import com.trevlar.menukit.api.window.SlotOperations;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;

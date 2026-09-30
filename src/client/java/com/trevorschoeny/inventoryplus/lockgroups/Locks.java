@@ -1,7 +1,7 @@
 package com.trevorschoeny.inventoryplus.lockgroups;
 
-import com.trevlar.menukit.window.SlotOperations;
-import com.trevlar.menukit.window.SlotRef;
+import com.trevlar.menukit.api.window.SlotOperations;
+import com.trevlar.menukit.api.window.SlotRef;
 
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockeditems.LockKind;

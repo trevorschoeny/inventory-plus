@@ -6,8 +6,8 @@ import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockgroups.LockColours;
 import com.trevorschoeny.inventoryplus.lockgroups.Reach;
 
-import com.trevlar.menukit.core.Click;
-import com.trevlar.menukit.core.Toggle;
+import com.trevlar.menukit.api.element.Click;
+import com.trevlar.menukit.api.element.Toggle;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -48,14 +48,12 @@ public final class LockedSlotsButtons {
         // A sprite toggle whose state always reads off, so the icon never
         // inverts: the button selects, it does not hold a mode. The widget
         // still reports each left-click, which is the cycle.
-        return Toggle.spriteLinked(x, y, SIZE, SIZE,
-                        () -> false,
-                        ignored -> {
-                            if (SettingsMenu.ctrlClickOpens(SettingsMenu.LOCK_GROUPS)) return;
-                            feedback.press();
-                            Reach.cycleActive(Click.of(Click.LEFT).shift() ? -1 : 1);
-                        },
-                        TEXTURE)
+        return Toggle.builder().sprite(TEXTURE).at(x, y).size(SIZE, SIZE)
+                .state(() -> false, ignored -> {
+                    if (SettingsMenu.ctrlClickOpens(SettingsMenu.LOCK_GROUPS)) return;
+                    feedback.press();
+                    Reach.cycleActive(Click.of(Click.LEFT).shift() ? -1 : 1);
+                })
                 .tooltip(() -> Component.literal("Lock group: " + Reach.active().name()
                                 + (IPConfig.lockGroupsEnabled() ? "" : " (locks paused)"))
                         .append(Component.literal("\nClick: next group. Shift-click: previous.\nRight-click: edit groups.")
@@ -68,6 +66,7 @@ public final class LockedSlotsButtons {
                     int flash = feedback.tint();
                     return flash != 0 ? flash : LockColours.argb(Reach.active().colour(), 0x70);
                 })
-                .showWhen(IPConfig::lockedSlotsShowButton);
+                .visibleWhen(IPConfig::lockedSlotsShowButton)
+                .build();
     }
 }

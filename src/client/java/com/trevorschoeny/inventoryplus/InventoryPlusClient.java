@@ -21,6 +21,7 @@ import com.trevorschoeny.inventoryplus.cyclable.CycleHud;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
+import com.trevorschoeny.inventoryplus.itemtips.ItemTips;
 import com.trevorschoeny.inventoryplus.lockgroups.LockTooltips;
 import com.trevorschoeny.inventoryplus.lockgroups.Locks;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
@@ -135,6 +136,8 @@ public class InventoryPlusClient implements ClientModInitializer {
         LockedItems.load();
         Locks.registerVeto();
         LockTooltips.register();
+        // Item Tips moved here from MenuKit in 6.0.0.
+        ItemTips.register();
         ClientTickEvents.END_CLIENT_TICK.register(LockedSlotKeybind::tick);
 
         // IP toolbar — one right-aligned MK panel above the player 3×9

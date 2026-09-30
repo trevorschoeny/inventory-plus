@@ -6,9 +6,9 @@ import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.COLUMN_CYCLE;
 
-import com.trevlar.menukit.window.BehaviorKey;
-import com.trevlar.menukit.window.SlotOperations;
-import com.trevlar.menukit.window.TriBool;
+import com.trevlar.menukit.api.window.BehaviorKey;
+import com.trevlar.menukit.api.window.SlotOperations;
+import com.trevlar.menukit.api.window.TriBool;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;

@@ -1,16 +1,16 @@
 package com.trevorschoeny.inventoryplus.settings;
 
-import com.trevlar.menukit.core.Button;
-import com.trevlar.menukit.core.Checkbox;
-import com.trevlar.menukit.core.Divider;
-import com.trevlar.menukit.core.Dropdown;
-import com.trevlar.menukit.core.Flow;
-import com.trevlar.menukit.core.PanelElement;
-import com.trevlar.menukit.core.Section;
-import com.trevlar.menukit.core.Slider;
-import com.trevlar.menukit.core.TextField;
-import com.trevlar.menukit.core.TextLabel;
-import com.trevlar.menukit.core.Toggle;
+import com.trevlar.menukit.api.element.Button;
+import com.trevlar.menukit.api.element.Checkbox;
+import com.trevlar.menukit.api.element.Divider;
+import com.trevlar.menukit.api.element.Dropdown;
+import com.trevlar.menukit.api.element.Flow;
+import com.trevlar.menukit.api.element.PanelElement;
+import com.trevlar.menukit.api.element.Section;
+import com.trevlar.menukit.api.element.Slider;
+import com.trevlar.menukit.api.element.TextField;
+import com.trevlar.menukit.api.element.TextLabel;
+import com.trevlar.menukit.api.element.Toggle;
 import com.trevorschoeny.keybindery.chord.ChordButton;
 
 import net.minecraft.client.KeyMapping;
@@ -92,9 +92,8 @@ final class SettingsBody {
      * Reach). {@code onReset} runs on the button, normally a confirm
      * ({@link SettingsMenu#confirm}); {@code null} leaves it greyed.
      *
-     * <p>ponytail: Reset sits beside the switch, not at the top right. Row's
-     * addSpacer pins it right only given the row's pixel width, and a Tabs
-     * body factory is not handed its width; asked of MenuKit, 2026-09-27.
+     * <p>Reset to Defaults sits at the row's right edge, pinned there by a
+     * {@link Flow#spacer()} whatever the body's width (MenuKit 6.0.0).
      */
     SettingsBody frame(String title, String description, @Nullable Runnable onReset) {
         header(title, description, null, onReset);
@@ -107,30 +106,36 @@ final class SettingsBody {
      * it is off.
      */
     SettingsBody frame(String title, String description, Bool use, @Nullable Runnable onReset) {
-        header(title, description, Toggle.linked(0, 0, 40, 16, use.get(), use.set(), use.unavailable())
-                .label(() -> Component.literal(use.get().getAsBoolean() ? "On" : "Off")), onReset);
+        header(title, description, Toggle.builder().size(40, 16)
+                .state(use.get(), use.set())
+                .disabledWhen(use.unavailable())
+                .label(() -> Component.literal(use.get().getAsBoolean() ? "On" : "Off"))
+                .build(), onReset);
         featureOn = use.get();
         return rule();
     }
 
     private void header(String title, String description, @Nullable PanelElement onOff, @Nullable Runnable onReset) {
         int titleColor = greyed ? GREYED_COLOR : HEADING_COLOR;
-        out.add(new TextLabel(0, y, Component.literal(title), titleColor, false).scale(2f));
+        out.add(TextLabel.builder().at(0, y).text(Component.literal(title)).color(titleColor).scale(2f).build());
         y += 2 * TEXT_ROW;
-        out.add(new TextLabel(0, y, Component.literal(description), greyed ? GREYED_COLOR : TEXT_COLOR, false));
+        out.add(TextLabel.builder().at(0, y).text(Component.literal(description))
+                .color(greyed ? GREYED_COLOR : TEXT_COLOR).build());
         y += TEXT_ROW + 4;
-        List<PanelElement> row = new ArrayList<>();
+        Flow.Builder row = Flow.builder().at(0, y).gap(10, 4);
         if (onOff != null) row.add(onOff);
-        row.add(new Button(0, 0, width("Reset to Defaults"), 16, Component.literal("Reset to Defaults"),
-                b -> { if (onReset != null) onReset.run(); }, onReset == null ? DISABLED : () -> false));
-        out.add(Flow.of(row).gap(10, 4).at(0, y));
+        row.add(Flow.spacer());
+        row.add(Button.builder().label(Component.literal("Reset to Defaults")).size(0, 16)
+                .onClick(() -> { if (onReset != null) onReset.run(); })
+                .disabledWhen(onReset == null ? DISABLED : () -> false)
+                .build());
+        out.add(row.build());
         y += CONTROL_ROW + 2;
     }
 
     /** The line between a tab's frame and its settings, as wide as the body. */
     private SettingsBody rule() {
-        // ponytail: a long divider; MenuKit caps it to the body's width.
-        out.add(Divider.horizontal(0, y, 4000, 0xFF8B8B8B, 1));
+        out.add(Divider.horizontal().at(0, y).color(0xFF8B8B8B).build());
         y += 6;
         return this;
     }
@@ -141,11 +146,11 @@ final class SettingsBody {
         return () -> !on.getAsBoolean() || unavailable.getAsBoolean();
     }
 
-    /** Settings text in {@code color}, turning grey while the tab's feature is off. */
+    /** Settings text in {@code color}, drawn in MenuKit's disabled grey while the tab's feature is off. */
     private TextLabel settingText(int x, int y, Component text, int color) {
         BooleanSupplier on = featureOn;
-        return new TextLabel(x, y, () -> on.getAsBoolean() ? text : text.copy().withColor(GREYED_COLOR),
-                color, false);
+        return TextLabel.builder().at(x, y).text(text).color(color)
+                .disabledWhen(() -> !on.getAsBoolean()).build();
     }
 
     /**
@@ -157,7 +162,7 @@ final class SettingsBody {
         if (y > 0) y += SECTION_GAP;
         out.add(settingText(0, y, Component.literal(text), greyed ? GREYED_COLOR : HEADING_COLOR));
         y += TEXT_ROW;
-        out.add(Divider.horizontal(0, y - 2, 160, greyed ? GREYED_COLOR : 0xFF8B8B8B, 1));
+        out.add(Divider.horizontal().at(0, y - 2).size(160, 1).color(greyed ? GREYED_COLOR : 0xFF8B8B8B).build());
         y += 2;
         return this;
     }
@@ -250,8 +255,10 @@ final class SettingsBody {
     }
 
     private SettingsBody checkbox(int x, String label, Bool setting) {
-        out.add(Checkbox.linked(x, y, setting.get(), Component.literal(label), setting.set(),
-                gated(setting.unavailable())));
+        out.add(Checkbox.builder().at(x, y).label(Component.literal(label))
+                .state(setting.get(), setting.set())
+                .disabledWhen(gated(setting.unavailable()))
+                .build());
         y += TEXT_ROW + 4;
         return this;
     }
@@ -275,11 +282,12 @@ final class SettingsBody {
      */
     SettingsBody reach(@Nullable String title, Collection<Place> places) {
         if (title != null) line(0, Component.literal(title));
-        List<PanelElement> boxes = new ArrayList<>();
+        Flow.Builder boxes = Flow.builder().at(INDENT, y).gap(10, 4);
         for (Place place : places) {
-            boxes.add(Checkbox.linked(0, 0, place.on(), place.name(), place.set(), gated(place.unavailable())));
+            boxes.add(Checkbox.builder().label(place.name()).state(place.on(), place.set())
+                    .disabledWhen(gated(place.unavailable())).build());
         }
-        out.add(Flow.of(boxes).gap(10, 4).at(INDENT, y));
+        out.add(boxes.build());
         y += TEXT_ROW + 2;
         return this;
     }
@@ -292,11 +300,11 @@ final class SettingsBody {
 
     /** A row of disabled buttons, wrapping when the body is narrow. */
     SettingsBody buttons(String... labels) {
-        List<PanelElement> row = new ArrayList<>();
+        Flow.Builder row = Flow.builder().at(0, y).gap(4, 4);
         for (String label : labels) {
-            row.add(new Button(0, 0, width(label), 16, Component.literal(label), b -> {}, DISABLED));
+            row.add(Button.builder().label(Component.literal(label)).size(0, 16).disabledWhen(DISABLED).build());
         }
-        out.add(Flow.of(row).gap(4, 4).at(0, y));
+        out.add(row.build());
         y += CONTROL_ROW;
         return this;
     }
@@ -306,12 +314,12 @@ final class SettingsBody {
 
     /** A row of working buttons, wrapping when the body is narrow. */
     SettingsBody actions(Action... actions) {
-        List<PanelElement> row = new ArrayList<>();
+        Flow.Builder row = Flow.builder().at(0, y).gap(4, 4);
         for (Action a : actions) {
-            row.add(new Button(0, 0, width(a.label()), 16, Component.literal(a.label()), b -> a.run().run(),
-                    gated(() -> false)));
+            row.add(Button.builder().label(Component.literal(a.label())).size(0, 16)
+                    .onClick(a.run()).disabledWhen(gated(() -> false)).build());
         }
-        out.add(Flow.of(row).gap(4, 4).at(0, y));
+        out.add(row.build());
         y += CONTROL_ROW;
         return this;
     }
@@ -322,18 +330,19 @@ final class SettingsBody {
      */
     SettingsBody textSetting(String label, String value, String button, Consumer<String> apply) {
         label(0, Component.literal(label));
-        TextField field = TextField.builder().at(0, y).size(120, 16).build();
-        field.setValue(value);
-        out.add(field);
-        out.add(new Button(124, y, width(button), 16, Component.literal(button),
-                b -> apply.accept(field.getValue()), gated(() -> false)));
+        // The field is a lens (MenuKit 6.0.0): its draft lives here, starting at
+        // the saved value, and the button hands the draft on.
+        String[] draft = {value};
+        out.add(TextField.builder().at(0, y).size(120, 16).state(() -> draft[0], v -> draft[0] = v).build());
+        out.add(Button.builder().at(124, y).label(Component.literal(button)).size(0, 16)
+                .onClick(() -> apply.accept(draft[0])).disabledWhen(gated(() -> false)).build());
         y += CONTROL_ROW;
         return this;
     }
 
     /** A button that already works, for the few actions the scaffold keeps. */
     SettingsBody button(String label, Runnable action) {
-        out.add(new Button(0, y, width(label), 16, Component.literal(label), b -> action.run()));
+        out.add(Button.builder().at(0, y).label(Component.literal(label)).size(0, 16).onClick(action).build());
         y += CONTROL_ROW;
         return this;
     }
@@ -348,10 +357,10 @@ final class SettingsBody {
         label(0, Component.literal(label));
         out.add(Dropdown.<T>builder()
                 .at(0, y)
-                .triggerSize(110, 16)
+                .size(110, 16)
                 .items(values)
                 .label(v -> Component.literal(name.apply(v)))
-                .selection(get, set)
+                .state(get, set)
                 .disabledWhen(gated(unavailable))
                 .build());
         y += CONTROL_ROW;
@@ -371,12 +380,10 @@ final class SettingsBody {
      */
     SettingsBody slider(String label, int min, int max, IntSupplier get, IntConsumer set, BooleanSupplier unavailable) {
         label(0, Component.literal(label));
-        out.add(Slider.builder()
+        out.add(Slider.ofInts(min, max)
                 .at(0, y)
                 .size(180, 16)
-                .value(() -> (get.getAsInt() - min) / (double) (max - min),
-                        v -> set.accept(min + (int) Math.round(v * (max - min))))
-                .label(v -> Component.literal(String.valueOf(get.getAsInt())))
+                .state(get::getAsInt, set::accept)
                 .disabledWhen(gated(unavailable))
                 .build());
         y += CONTROL_ROW;
@@ -391,7 +398,7 @@ final class SettingsBody {
     /** A key under text of its own ("Key" in a lock group's section). */
     SettingsBody key(KeyMapping key, Component label) {
         label(0, label);
-        out.add(new ChordButton(key).disabledWhen(gated(() -> false)).at(0, y));
+        out.add(ChordButton.builder(key).at(0, y).disabledWhen(gated(() -> false)).build());
         y += CONTROL_ROW;
         return this;
     }
@@ -399,7 +406,7 @@ final class SettingsBody {
     /** A keybind this mod cannot read, written out (an Inventory Max stand-in). */
     SettingsBody key(Component name, Component current) {
         label(0, name);
-        out.add(new Button(0, y, Minecraft.getInstance().font.width(current) + 12, 16, current, b -> {}, DISABLED));
+        out.add(Button.builder().at(0, y).label(current).size(0, 16).disabledWhen(DISABLED).build());
         y += CONTROL_ROW;
         return this;
     }
@@ -421,9 +428,5 @@ final class SettingsBody {
 
     List<PanelElement> build() {
         return List.copyOf(out);
-    }
-
-    private static int width(String label) {
-        return Minecraft.getInstance().font.width(label) + 12;
     }
 }

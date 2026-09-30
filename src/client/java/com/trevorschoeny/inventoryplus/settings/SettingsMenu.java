@@ -1,14 +1,14 @@
 package com.trevorschoeny.inventoryplus.settings;
 
-import com.trevlar.menukit.core.Click;
-import com.trevlar.menukit.core.Button;
-import com.trevlar.menukit.core.Panel;
-import com.trevlar.menukit.core.TextLabel;
-import com.trevlar.menukit.core.PanelElement;
-import com.trevlar.menukit.core.PanelPosition;
-import com.trevlar.menukit.core.PanelStyle;
-import com.trevlar.menukit.core.Tabs;
-import com.trevlar.menukit.screen.MKScreen;
+import com.trevlar.menukit.api.element.Click;
+import com.trevlar.menukit.api.element.Button;
+import com.trevlar.menukit.api.panel.Panel;
+import com.trevlar.menukit.api.element.TextLabel;
+import com.trevlar.menukit.api.element.PanelElement;
+import com.trevlar.menukit.api.panel.PanelPosition;
+import com.trevlar.menukit.api.panel.PanelStyle;
+import com.trevlar.menukit.api.element.Tabs;
+import com.trevlar.menukit.api.panel.MKScreen;
 
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -58,6 +58,7 @@ public final class SettingsMenu extends MKScreen {
     public static final String AUTO_TOOL_SWITCH = "auto_tool_switch";
     public static final String COLUMN_CYCLER = "column_cycler";
     public static final String HOTBAR_CYCLER = "hotbar_cycler";
+    public static final String ITEM_TIPS = "item_tips";
 
     /**
      * The open tab, kept across reopens for the rest of the session. MenuKit's
@@ -154,24 +155,28 @@ public final class SettingsMenu extends MKScreen {
 
     private static Panel confirmPanel() {
         List<PanelElement> elements = List.of(
-                new TextLabel(0, 0, () -> Component.literal(pending == null ? "" : pending.title()),
-                        TextLabel.COLOR_DARK, false),
-                new TextLabel(0, 14, () -> Component.literal(pending == null ? "" : pending.body()),
-                        0xFF555555, false),
-                new Button(0, 32, 70, 16, Component.literal("Cancel"), b -> pending = null),
-                new Button(74, 32, 70, 16, Component.literal("Confirm"), b -> {
-                    Confirm c = pending;
-                    pending = null;
-                    if (c != null) c.action().run();
-                }));
+                TextLabel.builder().at(0, 0)
+                        .text(() -> Component.literal(pending == null ? "" : pending.title()))
+                        .color(TextLabel.COLOR_DARK).build(),
+                TextLabel.builder().at(0, 14)
+                        .text(() -> Component.literal(pending == null ? "" : pending.body()))
+                        .color(0xFF555555).build(),
+                Button.builder().at(0, 32).size(70, 16).label(Component.literal("Cancel"))
+                        .onClick(() -> pending = null).build(),
+                Button.builder().at(74, 32).size(70, 16).label(Component.literal("Confirm"))
+                        .onClick(() -> {
+                            Confirm c = pending;
+                            pending = null;
+                            if (c != null) c.action().run();
+                        }).build());
         return Panel.builder("inventoryplus:settings_confirm")
                 .elements(elements)
                 .style(PanelStyle.RAISED)
-                .position(PanelPosition.BODY)
+                .position(PanelPosition.center())
                 .build()
                 .modal()
                 .onEscape(() -> pending = null)
-                .showWhen(() -> pending != null);
+                .visibleWhen(() -> pending != null);
     }
 
     /** The menu as a screen, for Mod Menu's factory. */
@@ -200,10 +205,10 @@ public final class SettingsMenu extends MKScreen {
                 .menu(MENU)
                 .mode(Tabs.Mode.SIDEBAR)
                 .align(Tabs.Align.LEFT)
-                .selected(() -> selectedTab, id -> selectedTab = id)
+                .state(() -> selectedTab, id -> selectedTab = id)
                 // Back to game tops the left column, above the tabs; it does what Escape does.
-                .sidebarHeader(new Button(0, 0, Minecraft.getInstance().font.width("Back to game") + 12, 16,
-                        Component.literal("Back to game"), b -> Minecraft.getInstance().gui.screen().onClose()))
+                .sidebarHeader(Button.builder().label(Component.literal("Back to game")).size(0, 16)
+                        .onClick(() -> Minecraft.getInstance().gui.screen().onClose()).build())
                 .tab(tab(GENERAL, "General").body(() -> SettingsTabs.general(max)))
                 .tab(tab(REACH, "Reach").body(SettingsTabs::reach))
                 .tab(tab(LOCK_GROUPS, "Lock groups").body(() -> SettingsTabs.lockGroups(max)))
@@ -213,6 +218,7 @@ public final class SettingsMenu extends MKScreen {
                 .tab(tab(AUTO_TOOL_SWITCH, "Auto Tool Switch").body(SettingsTabs::autoToolSwitch))
                 .tab(tab(COLUMN_CYCLER, "Column Cycler").body(SettingsTabs::columnCycler))
                 .tab(tab(HOTBAR_CYCLER, "Hotbar Cycler").body(SettingsTabs::hotbarCycler))
+                .tab(tab(ITEM_TIPS, "Item Tips").body(SettingsTabs::itemTips))
                 // Inventory Max's places. Its real tabs, added under these ids,
                 // take them over; without it these show dimmed, greyed bodies.
                 .tab(tab("inventorymax:pockets", "Pockets").standIn()

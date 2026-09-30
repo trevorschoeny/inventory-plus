@@ -2,8 +2,8 @@ package com.trevorschoeny.inventoryplus.mixin;
 
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 
-import com.trevlar.menukit.window.BehaviorKeys;
-import com.trevlar.menukit.window.SlotOperations;
+import com.trevlar.menukit.api.window.BehaviorKeys;
+import com.trevlar.menukit.api.window.SlotOperations;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;

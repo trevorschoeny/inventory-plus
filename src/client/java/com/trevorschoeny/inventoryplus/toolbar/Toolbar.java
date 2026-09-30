@@ -5,14 +5,14 @@ import com.trevorschoeny.inventoryplus.movematching.MoveMatchingButtons;
 import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 import com.trevorschoeny.inventoryplus.sort.SortButton;
 
-import com.trevlar.menukit.core.Button;
-import com.trevlar.menukit.core.Panel;
-import com.trevlar.menukit.core.PanelElement;
-import com.trevlar.menukit.core.PanelPosition;
-import com.trevlar.menukit.core.PanelStyle;
-import com.trevlar.menukit.core.SlotGroupCategory;
-import com.trevlar.menukit.core.OutsideRegion;
-import com.trevlar.menukit.inject.SlotGroupPanelAdapter;
+import com.trevlar.menukit.api.element.Button;
+import com.trevlar.menukit.api.panel.Panel;
+import com.trevlar.menukit.api.element.PanelElement;
+import com.trevlar.menukit.api.panel.PanelPosition;
+import com.trevlar.menukit.api.panel.PanelStyle;
+import com.trevlar.menukit.api.slot.SlotGroupCategory;
+import com.trevlar.menukit.api.panel.OutsideRegion;
+import com.trevlar.menukit.api.panel.SlotGroupPanelAdapter;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -109,15 +109,13 @@ public final class Toolbar {
      * real inventory).
      */
     private static void registerInventoryToolbar() {
-        Panel panel = new Panel(
-                "inventoryplus.toolbar.inventory",
-                buildInventoryChildren(),
-                /*visible=*/ true,
-                PanelStyle.NONE,
-                PanelPosition.BODY,
-                /*toggleKey=*/ -1);
-        panel.showWhen(Toolbar::isToolbarScope);
-        new SlotGroupPanelAdapter(panel, OutsideRegion.TOP_ALIGN_RIGHT)
+        Panel panel = Panel.builder("inventoryplus.toolbar.inventory")
+                .elements(buildInventoryChildren())
+                .style(PanelStyle.NONE)
+                .position(PanelPosition.region(OutsideRegion.TOP_ALIGN_RIGHT))
+                .visibleWhen(Toolbar::isToolbarScope)
+                .build();
+        new SlotGroupPanelAdapter(panel)
                 .on(SlotGroupCategory.PLAYER_INVENTORY);
     }
 
@@ -128,14 +126,12 @@ public final class Toolbar {
      * filter — no panel-level showWhen needed.
      */
     private static void registerExternalToolbar() {
-        Panel panel = new Panel(
-                "inventoryplus.toolbar.external",
-                buildExternalChildren(),
-                /*visible=*/ true,
-                PanelStyle.NONE,
-                PanelPosition.BODY,
-                /*toggleKey=*/ -1);
-        new SlotGroupPanelAdapter(panel, OutsideRegion.TOP_ALIGN_RIGHT)
+        Panel panel = Panel.builder("inventoryplus.toolbar.external")
+                .elements(buildExternalChildren())
+                .style(PanelStyle.NONE)
+                .position(PanelPosition.region(OutsideRegion.TOP_ALIGN_RIGHT))
+                .build();
+        new SlotGroupPanelAdapter(panel)
                 .on(SlotGroupCategory.CHEST_STORAGE,
                     SlotGroupCategory.SHULKER_STORAGE,
                     SlotGroupCategory.DISPENSER_STORAGE,
@@ -175,9 +171,10 @@ public final class Toolbar {
 
     /** Opens the settings menu over the current screen, which it returns to on close. */
     private static Button settingsButton(int x, int y) {
-        return Button.sprite(x, y, SETTINGS_SIZE, SETTINGS_SIZE, SETTINGS_TEXTURE,
-                        b -> SettingsMenu.open(Minecraft.getInstance().gui.screen()))
-                .tooltip(Component.literal("Settings"));
+        return Button.builder().sprite(SETTINGS_TEXTURE).at(x, y).size(SETTINGS_SIZE, SETTINGS_SIZE)
+                .onClick(() -> SettingsMenu.open(Minecraft.getInstance().gui.screen()))
+                .tooltip(Component.literal("Settings"))
+                .build();
     }
 
     private static List<PanelElement> buildExternalChildren() {

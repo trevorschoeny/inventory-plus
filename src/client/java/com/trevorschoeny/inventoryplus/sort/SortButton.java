@@ -6,7 +6,7 @@ import com.trevorschoeny.inventoryplus.buttonmode.ModeGestures;
 import com.trevorschoeny.inventoryplus.buttonmode.PressFeedback;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 
-import com.trevlar.menukit.core.Button;
+import com.trevlar.menukit.api.element.Button;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -56,16 +56,17 @@ public final class SortButton {
         PressFeedback feedback = new PressFeedback();
         Supplier<@Nullable ContainerIdentity> identity = () -> currentIdentity(target);
         var gestures = ModeGestures.handler(SortState.MODE, identity, feedback);
-        return Button.sprite(x, y, SIZE, SIZE, TEXTURE,
-                        btn -> {
-                            if (SettingsMenu.ctrlClickOpens(SettingsMenu.SORT)) return;
-                            feedback.press();
-                            triggerSort(target);
-                        })
+        return Button.builder().sprite(TEXTURE).at(x, y).size(SIZE, SIZE)
+                .onClick(() -> {
+                    if (SettingsMenu.ctrlClickOpens(SettingsMenu.SORT)) return;
+                    feedback.press();
+                    triggerSort(target);
+                })
                 .tooltip(ModeGestures.tooltip("Sort", SortState.MODE, identity))
                 .onSecondaryClick(gestures::accept)
                 .tint(ModeGestures.tint(SortState.MODE, identity, feedback))
-                .showWhen(() -> IPConfig.sortEnabled() && IPConfig.sortShowButton());
+                .visibleWhen(() -> IPConfig.sortEnabled() && IPConfig.sortShowButton())
+                .build();
     }
 
     /** The identity of the container this toolbar's button acts on, or null if none is open. */

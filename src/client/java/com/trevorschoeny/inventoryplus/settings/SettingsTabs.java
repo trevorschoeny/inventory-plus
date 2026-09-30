@@ -14,12 +14,12 @@ import com.trevorschoeny.inventoryplus.lockgroups.Reach;
 import com.trevorschoeny.inventoryplus.settings.SettingsBody.Bool;
 import com.trevorschoeny.inventoryplus.settings.SettingsBody.Place;
 
-import com.trevlar.menukit.core.PanelElement;
-import com.trevlar.menukit.inject.SlotGroupId;
-import com.trevlar.menukit.inject.SlotGroups;
-import com.trevlar.menukit.window.BehaviorKey;
-import com.trevlar.menukit.window.BehaviorKeys;
-import com.trevlar.menukit.window.SlotOperations;
+import com.trevlar.menukit.api.element.PanelElement;
+import com.trevlar.menukit.api.slot.SlotGroupId;
+import com.trevlar.menukit.api.slot.SlotGroups;
+import com.trevlar.menukit.api.window.BehaviorKey;
+import com.trevlar.menukit.api.window.BehaviorKeys;
+import com.trevlar.menukit.api.window.SlotOperations;
 
 import com.trevorschoeny.keybindery.api.KeybinderyAPI;
 import com.trevorschoeny.keybindery.chord.IChordKeyMapping;
@@ -88,6 +88,10 @@ final class SettingsTabs {
     private static void resetSort() {
         IPConfig.reset("sortEnabled", "sortShowButton");
         resetKeys(IPKeybinds.SORT);
+    }
+
+    private static void resetItemTips() {
+        IPConfig.reset("itemTipsEnabled");
     }
 
     private static void resetMoveMatching() {
@@ -419,6 +423,19 @@ final class SettingsTabs {
                 .heading("Controls")
                 .checkbox("Show the Sort button", Bool.of(IPConfig::sortShowButton, IPConfig::setSortShowButton))
                 .key(IPKeybinds.SORT)
+                .build();
+    }
+
+    /**
+     * Item Tips, moved from MenuKit in 6.0.0: its on/off is its only setting,
+     * so the tab is the frame alone.
+     */
+    static List<PanelElement> itemTips() {
+        return new SettingsBody()
+                .frame("Item Tips", "Adds lines to item tooltips: a tool's durability, and a food's "
+                        + "nutrition and saturation.",
+                        Bool.of(IPConfig::itemTipsEnabled, IPConfig::setItemTipsEnabled),
+                        confirmReset("Item Tips", SettingsTabs::resetItemTips))
                 .build();
     }
 

@@ -2,7 +2,7 @@ package com.trevorschoeny.inventoryplus.buttonmode;
 
 import com.trevorschoeny.inventoryplus.sort.ContainerIdentity;
 
-import com.trevlar.menukit.core.Click;
+import com.trevlar.menukit.api.element.Click;
 
 import net.minecraft.network.chat.Component;
 

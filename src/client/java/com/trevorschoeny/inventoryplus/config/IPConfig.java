@@ -167,6 +167,9 @@ public final class IPConfig {
     // server keeps and enforces it as a plain lock. Default off: container
     // locks are the player's own (Trev 2026-09-07). Needs Inventory Max.
     private static boolean containerLocksOnServer = false;
+    // Item Tips: durability and food lines on tooltips. Moved from MenuKit in
+    // 6.0.0; on by default, which is what players had from MenuKit.
+    private static boolean itemTipsEnabled = true;
 
     /**
      * Every setting at its default, taken before the file is read. A tab's
@@ -256,6 +259,7 @@ public final class IPConfig {
         autoToolSwitchShowButton  = readBool(root, "autoToolSwitchShowButton",  autoToolSwitchShowButton);
         lockGroupsEnabled         = readBool(root, "lockGroupsEnabled",         lockGroupsEnabled);
         containerLocksOnServer    = readBool(root, "containerLocksOnServer",    containerLocksOnServer);
+        itemTipsEnabled           = readBool(root, "itemTipsEnabled",           itemTipsEnabled);
     }
 
     /**
@@ -337,6 +341,7 @@ public final class IPConfig {
         root.addProperty("autoToolSwitchShowButton",  autoToolSwitchShowButton);
         root.addProperty("lockGroupsEnabled",         lockGroupsEnabled);
         root.addProperty("containerLocksOnServer",    containerLocksOnServer);
+        root.addProperty("itemTipsEnabled",           itemTipsEnabled);
         return root;
     }
 
@@ -374,6 +379,7 @@ public final class IPConfig {
     public static boolean autoToolSwitchShowButton() { return autoToolSwitchShowButton; }
     public static boolean lockGroupsEnabled()        { return lockGroupsEnabled; }
     public static boolean containerLocksOnServer()   { return containerLocksOnServer; }
+    public static boolean itemTipsEnabled()          { return itemTipsEnabled; }
     public static void setSortEnabled(boolean v)              { sortEnabled = v; save(); }
     public static void setMoveMatchingEnabled(boolean v)      { moveMatchingEnabled = v; save(); }
     public static void setRestockEnabled(boolean v)           { restockEnabled = v; save(); }
@@ -381,6 +387,7 @@ public final class IPConfig {
     public static void setAutoToolSwitchShowButton(boolean v) { autoToolSwitchShowButton = v; save(); }
     public static void setLockGroupsEnabled(boolean v)        { lockGroupsEnabled = v; save(); }
     public static void setContainerLocksOnServer(boolean v)   { containerLocksOnServer = v; save(); }
+    public static void setItemTipsEnabled(boolean v)          { itemTipsEnabled = v; save(); }
 
     // ─── Getters ─────────────────────────────────────────────────────
     public static boolean autoRestockArmor()            { return autoRestockArmor; }

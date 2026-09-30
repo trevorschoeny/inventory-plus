@@ -1,18 +1,17 @@
 {
   "key.categories.inventoryplus.controls": "Inventory Plus",
-  "category.inventoryplus.controls":       "Inventory Plus",
-  "key.inventoryplus.lock_slot":          "Lock Slot",
-  "key.inventoryplus.sort":               "Sort",
-  "key.inventoryplus.move_matching_in":   "Move Matching IN",
-  "key.inventoryplus.move_matching_out":  "Move Matching OUT",
-  "key.inventoryplus.cycle_slot":         "Toggle Cycle Slot",
-  "key.inventoryplus.cycle_forward":      "Column Cycle Forward",
-  "key.inventoryplus.cycle_backward":     "Column Cycle Backward",
-  "key.inventoryplus.hotbar_cycle_forward":  "Hotbar Cycle Forward",
+  "category.inventoryplus.controls": "Inventory Plus",
+  "key.inventoryplus.lock_slot": "Lock Slot",
+  "key.inventoryplus.sort": "Sort",
+  "key.inventoryplus.move_matching_in": "Move Matching IN",
+  "key.inventoryplus.move_matching_out": "Move Matching OUT",
+  "key.inventoryplus.cycle_slot": "Toggle Cycle Slot",
+  "key.inventoryplus.cycle_forward": "Column Cycle Forward",
+  "key.inventoryplus.cycle_backward": "Column Cycle Backward",
+  "key.inventoryplus.hotbar_cycle_forward": "Hotbar Cycle Forward",
   "key.inventoryplus.hotbar_cycle_backward": "Hotbar Cycle Backward",
   "key.inventoryplus.auto_switch_return": "Auto-Switch: Return to Previous Tool",
-  "key.inventoryplus.open_settings":      "Open Settings",
-
+  "key.inventoryplus.open_settings": "Open Settings",
   "slot_operation.inventoryplus.sort": "Sort",
   "slot_operation.inventoryplus.sort.description": "Sorting may move items in and out of this slot.",
   "slot_operation.inventoryplus.move_matching_out": "Move Matching out",
@@ -28,5 +27,8 @@
   "slot_operation.inventoryplus.column_cycle": "Column Cycler",
   "slot_operation.inventoryplus.column_cycle.description": "Column Cycler may rotate items through this slot.",
   "slot_operation.inventoryplus.hotbar_cycle": "Hotbar Cycler",
-  "slot_operation.inventoryplus.hotbar_cycle.description": "Hotbar Cycler may rotate items through this slot."
+  "slot_operation.inventoryplus.hotbar_cycle.description": "Hotbar Cycler may rotate items through this slot.",
+  "tooltip.inventoryplus.item_tips.durability": "Durability: ",
+  "tooltip.inventoryplus.item_tips.nutrition": "Nutrition: ",
+  "tooltip.inventoryplus.item_tips.saturation": "Saturation: "
 }

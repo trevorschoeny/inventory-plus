@@ -7,7 +7,7 @@ import com.google.gson.JsonObject;
 
 import com.trevorschoeny.inventoryplus.lockeditems.LockKind;
 
-import com.trevlar.menukit.inject.SlotGroupId;
+import com.trevlar.menukit.api.slot.SlotGroupId;
 
 import org.jetbrains.annotations.Nullable;
 

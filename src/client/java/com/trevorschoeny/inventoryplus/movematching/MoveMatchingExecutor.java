@@ -5,7 +5,7 @@ import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.MOVE_MATCHING_IN;
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.MOVE_MATCHING_OUT;
 
-import com.trevlar.menukit.window.SlotOperations;
+import com.trevlar.menukit.api.window.SlotOperations;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;

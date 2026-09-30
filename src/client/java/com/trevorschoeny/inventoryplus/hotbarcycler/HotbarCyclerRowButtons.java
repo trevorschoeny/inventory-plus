@@ -3,15 +3,15 @@ package com.trevorschoeny.inventoryplus.hotbarcycler;
 import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 
-import com.trevlar.menukit.core.Panel;
-import com.trevlar.menukit.core.PanelElement;
-import com.trevlar.menukit.core.PanelPosition;
-import com.trevlar.menukit.core.PanelStyle;
-import com.trevlar.menukit.core.Toggle;
-import com.trevlar.menukit.inject.ScreenOrigin;
-import com.trevlar.menukit.inject.ScreenPanelAdapter;
-import com.trevlar.menukit.inject.SlotScreenRect;
-import com.trevlar.menukit.inject.VanillaSlotResolver;
+import com.trevlar.menukit.api.panel.Panel;
+import com.trevlar.menukit.api.element.PanelElement;
+import com.trevlar.menukit.api.panel.PanelPosition;
+import com.trevlar.menukit.api.panel.PanelStyle;
+import com.trevlar.menukit.api.element.Toggle;
+import com.trevlar.menukit.api.panel.ScreenOrigin;
+import com.trevlar.menukit.api.panel.ScreenPanelAdapter;
+import com.trevlar.menukit.api.slot.SlotScreenRect;
+import com.trevlar.menukit.api.slot.VanillaSlotResolver;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -78,17 +78,16 @@ public final class HotbarCyclerRowButtons {
 
     private static void registerRow(int row) {
         final int r = row;
-        PanelElement button = Toggle.spriteLinked(0, 0, BUTTON_SIZE, BUTTON_SIZE,
-                        () -> HotbarCycler.isRowToggled(r),
-                        on -> {
-                            if (SettingsMenu.ctrlClickOpens(SettingsMenu.HOTBAR_CYCLER)) return;
-                            HotbarCycler.setRow(r, on);
-                        },
-                        TEXTURE)
+        PanelElement button = Toggle.builder().sprite(TEXTURE).size(BUTTON_SIZE, BUTTON_SIZE)
+                .state(() -> HotbarCycler.isRowToggled(r), on -> {
+                    if (SettingsMenu.ctrlClickOpens(SettingsMenu.HOTBAR_CYCLER)) return;
+                    HotbarCycler.setRow(r, on);
+                })
                 .tooltip(() -> Component.literal(
                         HotbarCycler.isRowToggled(r)
                                 ? "Remove row from cycle"
-                                : "Add row to cycle"));
+                                : "Add row to cycle"))
+                .build();
 
         Panel panel = Panel.builder("inventoryplus:hotbarcycler_row_" + r)
                 .elements(List.of(button))
@@ -127,11 +126,10 @@ public final class HotbarCyclerRowButtons {
      * than given click behaviour to suppress.
      */
     private static void registerHotbarIndicator() {
-        PanelElement indicator = Toggle.spriteLinked(0, 0, BUTTON_SIZE, BUTTON_SIZE,
-                        () -> true,
-                        on -> { /* not clickable: the hotbar's membership isn't a choice */ },
-                        TEXTURE)
-                .tooltip(() -> Component.literal("The hotbar is always in the cycle"));
+        PanelElement indicator = Toggle.builder().sprite(TEXTURE).size(BUTTON_SIZE, BUTTON_SIZE)
+                .state(() -> true, on -> { /* not clickable: the hotbar's membership isn't a choice */ })
+                .tooltip(() -> Component.literal("The hotbar is always in the cycle"))
+                .build();
 
         Panel panel = Panel.builder("inventoryplus:hotbarcycler_hotbar")
                 .elements(List.of(indicator))

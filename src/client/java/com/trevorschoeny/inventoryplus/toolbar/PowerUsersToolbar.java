@@ -2,13 +2,13 @@ package com.trevorschoeny.inventoryplus.toolbar;
 
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerButtons;
 
-import com.trevlar.menukit.core.Panel;
-import com.trevlar.menukit.core.PanelElement;
-import com.trevlar.menukit.core.PanelPosition;
-import com.trevlar.menukit.core.PanelStyle;
-import com.trevlar.menukit.core.SlotGroupCategory;
-import com.trevlar.menukit.core.OutsideRegion;
-import com.trevlar.menukit.inject.SlotGroupPanelAdapter;
+import com.trevlar.menukit.api.panel.Panel;
+import com.trevlar.menukit.api.element.PanelElement;
+import com.trevlar.menukit.api.panel.PanelPosition;
+import com.trevlar.menukit.api.panel.PanelStyle;
+import com.trevlar.menukit.api.slot.SlotGroupCategory;
+import com.trevlar.menukit.api.panel.OutsideRegion;
+import com.trevlar.menukit.api.panel.SlotGroupPanelAdapter;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -57,15 +57,13 @@ public final class PowerUsersToolbar {
     public static final int BUTTON_GAP = 1;
 
     public static void register() {
-        Panel panel = new Panel(
-                "inventoryplus.toolbar.power-users",
-                buildChildren(),
-                /*visible=*/ true,
-                PanelStyle.NONE,
-                PanelPosition.BODY,
-                /*toggleKey=*/ -1);
-        panel.showWhen(PowerUsersToolbar::isToolbarScope);
-        new SlotGroupPanelAdapter(panel, OutsideRegion.RIGHT_ALIGN_TOP)
+        Panel panel = Panel.builder("inventoryplus.toolbar.power-users")
+                .elements(buildChildren())
+                .style(PanelStyle.NONE)
+                .position(PanelPosition.region(OutsideRegion.RIGHT_ALIGN_TOP))
+                .visibleWhen(PowerUsersToolbar::isToolbarScope)
+                .build();
+        new SlotGroupPanelAdapter(panel)
                 .on(SlotGroupCategory.PLAYER_INVENTORY);
     }
 

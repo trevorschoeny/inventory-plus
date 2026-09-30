@@ -3,7 +3,7 @@ package com.trevorschoeny.inventoryplus.toolbar;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 
-import com.trevlar.menukit.core.Toggle;
+import com.trevlar.menukit.api.element.Toggle;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -37,13 +37,14 @@ public final class FeatureToggleButtons {
 
     private static Toggle toggle(int x, int y, String sprite, String name, String tab,
                                  BooleanSupplier on, Consumer<Boolean> set, BooleanSupplier shown) {
-        return Toggle.spriteLinked(x, y, SIZE, SIZE, on,
-                        v -> {
-                            if (SettingsMenu.ctrlClickOpens(tab)) return;
-                            set.accept(v);
-                        },
-                        Identifier.fromNamespaceAndPath("inventoryplus", sprite))
+        return Toggle.builder().sprite(Identifier.fromNamespaceAndPath("inventoryplus", sprite))
+                .at(x, y).size(SIZE, SIZE)
+                .state(on, v -> {
+                    if (SettingsMenu.ctrlClickOpens(tab)) return;
+                    set.accept(v);
+                })
                 .tooltip(() -> Component.literal(name + ": " + (on.getAsBoolean() ? "on" : "off")))
-                .showWhen(shown);
+                .visibleWhen(shown)
+                .build();
     }
 }

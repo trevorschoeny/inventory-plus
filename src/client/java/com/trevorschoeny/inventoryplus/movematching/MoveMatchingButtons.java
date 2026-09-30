@@ -6,7 +6,7 @@ import com.trevorschoeny.inventoryplus.buttonmode.ModeState;
 import com.trevorschoeny.inventoryplus.buttonmode.PressFeedback;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 
-import com.trevlar.menukit.core.Button;
+import com.trevlar.menukit.api.element.Button;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -53,16 +53,17 @@ public final class MoveMatchingButtons {
         PressFeedback feedback = new PressFeedback();
         ModeState<MoveMatchingMode> state = MoveMatchingModes.state(direction);
         var gestures = ModeGestures.handler(state, MoveMatchingModes::currentIdentity, feedback);
-        return Button.sprite(x, y, SIZE, SIZE, texture,
-                        btn -> {
-                            if (SettingsMenu.ctrlClickOpens(SettingsMenu.MOVE_MATCHING)) return;
-                            feedback.press();
-                            triggerMoveMatching(direction);
-                        })
+        return Button.builder().sprite(texture).at(x, y).size(SIZE, SIZE)
+                .onClick(() -> {
+                    if (SettingsMenu.ctrlClickOpens(SettingsMenu.MOVE_MATCHING)) return;
+                    feedback.press();
+                    triggerMoveMatching(direction);
+                })
                 .tooltip(ModeGestures.tooltip(what, state, MoveMatchingModes::currentIdentity))
                 .onSecondaryClick(gestures::accept)
                 .tint(ModeGestures.tint(state, MoveMatchingModes::currentIdentity, feedback))
-                .showWhen(MoveMatchingButtons::shouldShow);
+                .visibleWhen(MoveMatchingButtons::shouldShow)
+                .build();
     }
 
     private static boolean shouldShow() {

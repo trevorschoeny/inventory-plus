@@ -3,10 +3,9 @@ package com.trevorschoeny.inventoryplus.cyclable;
 import com.trevorschoeny.inventoryplus.api.CycleHudSource;
 import com.trevorschoeny.inventoryplus.api.CycleView;
 import com.trevorschoeny.inventoryplus.api.CyclerDirection;
-import com.trevlar.menukit.core.InsideRegion;
-import com.trevlar.menukit.hud.MKHudPanel;
+import com.trevlar.menukit.api.panel.InsideRegion;
+import com.trevlar.menukit.api.hud.HudPanel;
 
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -84,11 +83,13 @@ public final class CycleHud {
     // ─── Registration ────────────────────────────────────────────────
 
     public static void register() {
-        MKHudPanel.builder("inventoryplus-cycle-mini-hotbar")
+        HudPanel.builder("inventoryplus-cycle-mini-hotbar")
                 .region(InsideRegion.BOTTOM_CENTER)
                 .autoSize()
-                .showWhen(CycleHud::shouldShow)
-                .onRender(CycleHud::render)
+                .visibleWhen(CycleHud::shouldShow)
+                // A zero-size element that draws the strip; render places it from
+                // the window size, not from the panel (MenuKit 6.0.0 dropped onRender).
+                .custom(0, 0, 0, 0, ctx -> render(ctx.graphics()))
                 .build();
     }
 
@@ -104,7 +105,7 @@ public final class CycleHud {
 
     // ─── Dispatch ────────────────────────────────────────────────────
 
-    private static void render(GuiGraphicsExtractor graphics, int ux, int uy, int uw, int uh, DeltaTracker delta) {
+    private static void render(GuiGraphicsExtractor graphics) {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null) return;
         int activeSlot = mc.player.getInventory().getSelectedSlot();

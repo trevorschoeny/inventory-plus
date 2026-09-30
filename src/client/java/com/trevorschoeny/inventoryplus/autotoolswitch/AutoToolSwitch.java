@@ -9,7 +9,7 @@ import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
 
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.AUTO_TOOL_SWITCH;
 
-import com.trevlar.menukit.window.SlotOperations;
+import com.trevlar.menukit.api.window.SlotOperations;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 

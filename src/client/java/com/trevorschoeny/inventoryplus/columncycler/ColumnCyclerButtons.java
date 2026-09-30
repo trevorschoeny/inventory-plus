@@ -3,7 +3,7 @@ package com.trevorschoeny.inventoryplus.columncycler;
 import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 
-import com.trevlar.menukit.core.Toggle;
+import com.trevlar.menukit.api.element.Toggle;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 
@@ -57,21 +57,19 @@ public final class ColumnCyclerButtons {
      * icon as-is. On state: HSL-inverted via MK's sprite-toggle shader.
      */
     public static Toggle toolbarToggle(int x, int y) {
-        return Toggle.spriteLinked(x, y, SIZE, SIZE,
-                        ColumnCyclerEditMode::isOn,
-                        // 2.0.0: the widget computes the new state off the linked
-                        // supplier and hands it to us; set() applies it (incl. the
-                        // edit-mode mutual exclusion) — no self-flip here.
-                        on -> {
-                            if (SettingsMenu.ctrlClickOpens(SettingsMenu.COLUMN_CYCLER)) return;
-                            ColumnCyclerEditMode.set(on);
-                        },
-                        TEXTURE)
+        return Toggle.builder().sprite(TEXTURE).at(x, y).size(SIZE, SIZE)
+                // The widget computes the new state off the lens and hands it to
+                // us; set() applies it (incl. the edit-mode mutual exclusion).
+                .state(ColumnCyclerEditMode::isOn, on -> {
+                    if (SettingsMenu.ctrlClickOpens(SettingsMenu.COLUMN_CYCLER)) return;
+                    ColumnCyclerEditMode.set(on);
+                })
                 .tooltip(() -> Component.literal(
                         ColumnCyclerEditMode.isOn()
                                 ? "Finish Editing"
                                 : "Edit Cycle Slots"))
-                .showWhen(() -> IPConfig.columnCyclerEnabled()
-                        && IPConfig.columnCyclerShowButton());
+                .visibleWhen(() -> IPConfig.columnCyclerEnabled()
+                        && IPConfig.columnCyclerShowButton())
+                .build();
     }
 }
