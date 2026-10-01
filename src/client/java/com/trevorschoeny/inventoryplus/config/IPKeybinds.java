@@ -7,7 +7,6 @@ import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import com.trevorschoeny.keybindery.api.KeybinderyAPI;
 
 import net.minecraft.client.KeyMapping;
-import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 
 import org.lwjgl.glfw.GLFW;
@@ -152,16 +151,11 @@ public final class IPKeybinds {
     /**
      * Whether every key of {@code mapping}'s chord is physically down right
      * now. Vanilla releases mapping states while a screen is open, so a key
-     * that must work under any screen (the pause menu included) is polled
-     * from the window instead.
-     *
-     * <p>ponytail: {@code Chord.isActiveHeld} is marked internal in
-     * Keybindery; ask Keybindery to publish a held-state read and switch to it.
+     * that must work under any screen (the pause menu included) reads
+     * Keybindery's physical state instead ({@link KeybinderyAPI#isHeld}).
      */
     public static boolean isHeld(KeyMapping mapping) {
-        Minecraft mc = Minecraft.getInstance();
-        return mc.getWindow() != null
-                && KeybinderyAPI.getInstance().getChord(mapping).isActiveHeld(mc.getWindow().handle());
+        return KeybinderyAPI.getInstance().isHeld(mapping);
     }
 
     /** Register all keybinds with Fabric. Call once from client init. */
