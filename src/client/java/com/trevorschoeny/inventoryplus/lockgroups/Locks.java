@@ -56,6 +56,35 @@ public final class Locks {
     /** Registers the veto. Once, at client init. */
     public static void registerVeto() {
         SlotOperations.veto((ref, group, operation) -> {
+            boolean denied = denies(ref, group, operation);
+            if (denied && PROBED.contains(operation.id().toString())) probe(ref, group, operation);
+            return denied;
+        });
+    }
+
+    // ponytail: [reach-probe] diagnostic for the rare "can't place, reopening
+    // fixes it" report (Designer brief 2026-09-30). Logs every player gesture
+    // this veto refuses, on whichever thread asks, so a client refusal the
+    // server would allow (or the reverse) shows as a line on one side only.
+    // Remove once the cause is found.
+    private static final java.util.Set<String> PROBED = java.util.Set.of(
+            "menukit:click_put", "menukit:click_take", "menukit:drag_fill",
+            "menukit:hotbar_swap", "menukit:offhand_swap", "menukit:shift_click_out");
+
+    private static void probe(SlotRef ref, @Nullable com.trevlar.menukit.api.slot.SlotGroupId group,
+                              com.trevlar.menukit.api.window.BehaviorKey<?> operation) {
+        com.trevorschoeny.inventoryplus.InventoryPlusClient.LOGGER.info(
+                "[reach-probe] DENY thread={} op={} menu={} slot={} containerSlot={} container={} group={} on={} key={}",
+                Thread.currentThread().getName(), operation.id(),
+                ref.menu() == null ? "-" : ref.menu().containerId,
+                ref.slot() == null ? "-" : ref.slot().index, ref.containerSlot(),
+                ref.container().getClass().getSimpleName(), group, on(ref),
+                ref.slot() == null ? "-" : LockedSlots.probeContainerKey(ref.slot()));
+    }
+
+    private static boolean denies(SlotRef ref, @Nullable com.trevlar.menukit.api.slot.SlotGroupId group,
+                                  com.trevlar.menukit.api.window.BehaviorKey<?> operation) {
+        {
             if (!isLocalPlayer(ref.player())) return false;
             String op = operation.id().toString();
             if (group != null && Reach.denies(op, group.asString())) return true;
@@ -72,7 +101,7 @@ public final class Locks {
                 if (!Reach.isFeatureKey(lock) && Reach.lockDenies(lock, op)) return true;
             }
             return false;
-        });
+        }
     }
 
     /**

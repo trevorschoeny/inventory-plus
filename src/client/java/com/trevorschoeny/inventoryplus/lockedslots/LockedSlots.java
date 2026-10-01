@@ -558,6 +558,12 @@ public final class LockedSlots {
             cachedContainerId = menu.containerId;
             ContainerIdentity id = ContainerIdentity.forMenu(menu);
             cachedContainerKey = (id != null && id.isPersistent()) ? id.key() : null;
+            // [reach-probe]: this key is kept for the whole life of the menu. If
+            // the tracker has not yet tied a block to it (that happens at
+            // AFTER_INIT), it is kept unbound until the menu is reopened.
+            InventoryPlusClient.LOGGER.info("[reach-probe] container key for menu {}: {} (tracker pos {})",
+                    menu.containerId, cachedContainerKey,
+                    com.trevorschoeny.inventoryplus.sort.ContainerOpenTracker.getBlockPos(menu.containerId));
             if (cachedContainerKey != null) pruneToCapacity(cachedContainerKey, menu);
         }
         return cachedContainerKey;
@@ -617,6 +623,13 @@ public final class LockedSlots {
      * <p>1.5.0 had no server-thread answer here at all, which is the defect
      * 1.5.1 fixes.
      */
+    /** [reach-probe]: the container key this thread judges {@code slot} by, or "-" when it is not a placed container's. */
+    public static String probeContainerKey(Slot slot) {
+        if (!isPlacedContainerSlot(slot)) return "-";
+        String key = containerKeyFor(slot);
+        return key == null ? "none" : key;
+    }
+
     private static @Nullable String containerKeyFor(Slot slot) {
         return isRenderThread() ? currentContainerKey()
                                 : ContainerIdentity.keyForContainer(slot.container);
