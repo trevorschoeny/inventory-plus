@@ -92,7 +92,9 @@ final class SettingsTabs {
     }
 
     private static void resetTooltips() {
-        IPConfig.reset("tooltipsEnabled", "itemTipsEnabled", "hideTooltipsOnKey");
+        IPConfig.reset("tooltipsEnabled", "tooltipDurability", "tooltipFood", "tooltipFoodEffects",
+                "tooltipEnchantmentDescriptions", "tooltipSortEnchantments", "tooltipToolStats",
+                "tooltipCompare", "tooltipCondenseTrims", "tooltipModName", "hideTooltipsOnKey");
         resetKeys(IPKeybinds.HIDE_TOOLTIPS);
     }
 
@@ -451,14 +453,32 @@ final class SettingsTabs {
                         + "and a key to hide every tooltip while you hold it.",
                         Bool.of(IPConfig::tooltipsEnabled, IPConfig::setTooltipsEnabled),
                         confirmReset("Tooltips", SettingsTabs::resetTooltips))
-                .heading("Misc.")
-                .checkbox("Item tips: a tool's durability, a food's nutrition and saturation",
-                        Bool.of(IPConfig::itemTipsEnabled, IPConfig::setItemTipsEnabled))
+                // One checkbox per provider in tooltips/, in the order they apply.
+                .heading("Lines")
+                .checkbox("Durability", Bool.of(IPConfig::tooltipDurability, IPConfig::setTooltipDurability))
+                .checkbox("Food: nutrition and saturation", Bool.of(IPConfig::tooltipFood, IPConfig::setTooltipFood))
+                .checkbox("Food effects", Bool.of(IPConfig::tooltipFoodEffects, IPConfig::setTooltipFoodEffects))
+                .checkbox("Enchantment descriptions", Bool.of(IPConfig::tooltipEnchantmentDescriptions,
+                        IPConfig::setTooltipEnchantmentDescriptions))
+                .checkbox("Sort enchantments alphabetically", Bool.of(IPConfig::tooltipSortEnchantments,
+                        IPConfig::setTooltipSortEnchantments))
+                .checkbox("Tool stats: mining speed, tier and enchantability",
+                        Bool.of(IPConfig::tooltipToolStats, IPConfig::setTooltipToolStats))
+                .checkbox("Compare with what you're wearing or holding",
+                        Bool.of(IPConfig::tooltipCompare, IPConfig::setTooltipCompare))
+                .checkbox("Condense armor trim lines", Bool.of(IPConfig::tooltipCondenseTrims,
+                        IPConfig::setTooltipCondenseTrims))
+                .checkbox("Mod name", Bool.of(IPConfig::tooltipModName, IPConfig::setTooltipModName))
                 // Hidden by MenuKit's tooltip seam, through a predicate Inventory
-                // Plus registers at client init (InventoryPlusClient).
+                // Plus registers at client init (tooltips/Tooltips).
+                .heading("Display")
                 .checkbox("Hold a key to hide tooltips",
                         Bool.of(IPConfig::hideTooltipsOnKey, IPConfig::setHideTooltipsOnKey))
                 .key(IPKeybinds.HIDE_TOOLTIPS)
+                // Both wait on MenuKit's tooltip positioner seam (asked 2026-09-30);
+                // vanilla 26.2 clamps a tooltip's corner but neither wraps nor scrolls.
+                .checkbox("Scroll long tooltips (waits on MenuKit)", false)
+                .checkbox("Keep tooltips on screen (waits on MenuKit)", false)
                 .build();
     }
 

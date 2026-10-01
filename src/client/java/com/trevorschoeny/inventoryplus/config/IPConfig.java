@@ -165,13 +165,24 @@ public final class IPConfig {
     private static boolean containerLocksOnServer = false;
     // Tooltips: everything Inventory Plus does to tooltips (Trev, 2026-09-30).
     // tooltipsEnabled off means Inventory Plus leaves every tooltip alone.
-    // Item tips (durability and food lines) moved from MenuKit in 6.0.0, on
-    // by default as players had it there. Holding the hide-tooltips key
+    // One boolean per line Inventory Plus adds or changes (tooltips/, one
+    // provider each; Designer's Tooltips brief, 2026-09-30). Durability and
+    // Food were the one Item tips switch (moved from MenuKit in 6.0.0); both
+    // read the old itemTipsEnabled as a fallback. Mod name is off by default:
+    // noise for a vanilla-only player. Holding the hide-tooltips key
     // (IPKeybinds.HIDE_TOOLTIPS, Space by default) hides every tooltip; on by
     // default. Saved as hideTooltipsOnKey; was hideTooltipsOnCtrl while the
     // key was fixed to Ctrl (read as a fallback in load()).
     private static boolean tooltipsEnabled = true;
-    private static boolean itemTipsEnabled = true;
+    private static boolean tooltipDurability = true;
+    private static boolean tooltipFood = true;
+    private static boolean tooltipFoodEffects = true;
+    private static boolean tooltipEnchantmentDescriptions = true;
+    private static boolean tooltipSortEnchantments = true;
+    private static boolean tooltipToolStats = true;
+    private static boolean tooltipCompare = true;
+    private static boolean tooltipCondenseTrims = true;
+    private static boolean tooltipModName = false;
     private static boolean hideTooltipsOnKey = true;
 
     /**
@@ -263,7 +274,15 @@ public final class IPConfig {
         lockGroupsEnabled         = readBool(root, "lockGroupsEnabled",         lockGroupsEnabled);
         containerLocksOnServer    = readBool(root, "containerLocksOnServer",    containerLocksOnServer);
         tooltipsEnabled           = readBool(root, "tooltipsEnabled",           tooltipsEnabled);
-        itemTipsEnabled           = readBool(root, "itemTipsEnabled",           itemTipsEnabled);
+        tooltipDurability = readBool(root, "tooltipDurability", readBool(root, "itemTipsEnabled", tooltipDurability));
+        tooltipFood = readBool(root, "tooltipFood", readBool(root, "itemTipsEnabled", tooltipFood));
+        tooltipFoodEffects = readBool(root, "tooltipFoodEffects", tooltipFoodEffects);
+        tooltipEnchantmentDescriptions = readBool(root, "tooltipEnchantmentDescriptions", tooltipEnchantmentDescriptions);
+        tooltipSortEnchantments = readBool(root, "tooltipSortEnchantments", tooltipSortEnchantments);
+        tooltipToolStats = readBool(root, "tooltipToolStats", tooltipToolStats);
+        tooltipCompare = readBool(root, "tooltipCompare", tooltipCompare);
+        tooltipCondenseTrims = readBool(root, "tooltipCondenseTrims", tooltipCondenseTrims);
+        tooltipModName = readBool(root, "tooltipModName", tooltipModName);
         hideTooltipsOnKey         = readBool(root, "hideTooltipsOnKey",
                 readBool(root, "hideTooltipsOnCtrl", hideTooltipsOnKey));
     }
@@ -346,7 +365,15 @@ public final class IPConfig {
         root.addProperty("lockGroupsEnabled",         lockGroupsEnabled);
         root.addProperty("containerLocksOnServer",    containerLocksOnServer);
         root.addProperty("tooltipsEnabled",           tooltipsEnabled);
-        root.addProperty("itemTipsEnabled",           itemTipsEnabled);
+        root.addProperty("tooltipDurability", tooltipDurability);
+        root.addProperty("tooltipFood", tooltipFood);
+        root.addProperty("tooltipFoodEffects", tooltipFoodEffects);
+        root.addProperty("tooltipEnchantmentDescriptions", tooltipEnchantmentDescriptions);
+        root.addProperty("tooltipSortEnchantments", tooltipSortEnchantments);
+        root.addProperty("tooltipToolStats", tooltipToolStats);
+        root.addProperty("tooltipCompare", tooltipCompare);
+        root.addProperty("tooltipCondenseTrims", tooltipCondenseTrims);
+        root.addProperty("tooltipModName", tooltipModName);
         root.addProperty("hideTooltipsOnKey",         hideTooltipsOnKey);
         return root;
     }
@@ -401,7 +428,15 @@ public final class IPConfig {
     public static boolean lockGroupsEnabled()        { return lockGroupsEnabled; }
     public static boolean containerLocksOnServer()   { return containerLocksOnServer; }
     public static boolean tooltipsEnabled()          { return tooltipsEnabled; }
-    public static boolean itemTipsEnabled()          { return itemTipsEnabled; }
+    public static boolean tooltipDurability() { return tooltipDurability; }
+    public static boolean tooltipFood() { return tooltipFood; }
+    public static boolean tooltipFoodEffects() { return tooltipFoodEffects; }
+    public static boolean tooltipEnchantmentDescriptions() { return tooltipEnchantmentDescriptions; }
+    public static boolean tooltipSortEnchantments() { return tooltipSortEnchantments; }
+    public static boolean tooltipToolStats() { return tooltipToolStats; }
+    public static boolean tooltipCompare() { return tooltipCompare; }
+    public static boolean tooltipCondenseTrims() { return tooltipCondenseTrims; }
+    public static boolean tooltipModName() { return tooltipModName; }
     public static boolean hideTooltipsOnKey()        { return hideTooltipsOnKey; }
     public static void setSortEnabled(boolean v)              { sortEnabled = v; save(); }
     public static void setMoveMatchingEnabled(boolean v)      { moveMatchingEnabled = v; save(); }
@@ -411,7 +446,15 @@ public final class IPConfig {
     public static void setLockGroupsEnabled(boolean v)        { lockGroupsEnabled = v; save(); }
     public static void setContainerLocksOnServer(boolean v)   { containerLocksOnServer = v; save(); }
     public static void setTooltipsEnabled(boolean v)          { tooltipsEnabled = v; save(); }
-    public static void setItemTipsEnabled(boolean v)          { itemTipsEnabled = v; save(); }
+    public static void setTooltipDurability(boolean v) { tooltipDurability = v; save(); }
+    public static void setTooltipFood(boolean v) { tooltipFood = v; save(); }
+    public static void setTooltipFoodEffects(boolean v) { tooltipFoodEffects = v; save(); }
+    public static void setTooltipEnchantmentDescriptions(boolean v) { tooltipEnchantmentDescriptions = v; save(); }
+    public static void setTooltipSortEnchantments(boolean v) { tooltipSortEnchantments = v; save(); }
+    public static void setTooltipToolStats(boolean v) { tooltipToolStats = v; save(); }
+    public static void setTooltipCompare(boolean v) { tooltipCompare = v; save(); }
+    public static void setTooltipCondenseTrims(boolean v) { tooltipCondenseTrims = v; save(); }
+    public static void setTooltipModName(boolean v) { tooltipModName = v; save(); }
     public static void setHideTooltipsOnKey(boolean v)        { hideTooltipsOnKey = v; save(); }
 
     // ─── Getters ─────────────────────────────────────────────────────

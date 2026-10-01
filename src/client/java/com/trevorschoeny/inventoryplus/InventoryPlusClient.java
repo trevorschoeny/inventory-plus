@@ -1,7 +1,6 @@
 package com.trevorschoeny.inventoryplus;
 
 
-import com.trevlar.menukit.api.element.MKTooltip;
 import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
 import com.trevorschoeny.inventoryplus.autorestock.AutoRestockTicker;
 import com.trevorschoeny.inventoryplus.autotoolswitch.AutoToolSwitch;
@@ -22,7 +21,7 @@ import com.trevorschoeny.inventoryplus.cyclable.CycleHud;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
-import com.trevorschoeny.inventoryplus.itemtips.ItemTips;
+import com.trevorschoeny.inventoryplus.tooltips.Tooltips;
 import com.trevorschoeny.inventoryplus.lockgroups.LockTooltips;
 import com.trevorschoeny.inventoryplus.lockgroups.Locks;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
@@ -138,13 +137,8 @@ public class InventoryPlusClient implements ClientModInitializer {
         LockedItems.load();
         Locks.registerVeto();
         LockTooltips.register();
-        // Item Tips moved here from MenuKit in 6.0.0.
-        ItemTips.register();
-        // Hold the hide-tooltips key to hide tooltips (Trev, 2026-09-30):
-        // MenuKit owns the one seam every tooltip goes through and asks this
-        // first. The key is read raw, so it works under every screen.
-        MKTooltip.hideWhen(() -> IPConfig.tooltipsEnabled() && IPConfig.hideTooltipsOnKey()
-                && IPKeybinds.isHeld(IPKeybinds.HIDE_TOOLTIPS));
+        // Tooltips: every line Inventory Plus adds or changes, and the hide key.
+        Tooltips.register();
         ClientTickEvents.END_CLIENT_TICK.register(LockedSlotKeybind::tick);
 
         // IP toolbar — one right-aligned MK panel above the player 3×9
