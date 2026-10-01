@@ -87,42 +87,46 @@ final class SettingsBody {
     // ── Text ────────────────────────────────────────────────────────────
 
     /**
-     * The top of every tab (Trev, 2026-09-27): the title at twice size;
-     * the description; a row with Reset to Defaults; then a line, with the
-     * tab's settings below it. For a tab with no feature to turn off (General,
-     * Reach). {@code onReset} runs on the button, normally a confirm
-     * ({@link SettingsMenu#confirm}); {@code null} leaves it greyed.
-     *
-     * <p>Reset to Defaults sits at the row's right edge, pinned there by a
-     * {@link Flow#spacer()} whatever the body's width (MenuKit 6.0.0).
+     * The top of every tab (Trev, 2026-09-30): the mod's name centred, the
+     * tab's title, its description, the line, then one row at the left with
+     * Reset to Defaults and (on a feature tab) the On/Off switch after it;
+     * the settings follow. For a tab with no feature to turn off (General,
+     * Reach), Reset stands alone. {@code onReset} runs on the button,
+     * normally a confirm ({@link SettingsMenu#confirm}); {@code null} leaves
+     * it greyed.
      */
     SettingsBody frame(String title, String description, @Nullable Runnable onReset) {
-        header(title, description, null, onReset);
-        return rule();
+        header(title, description);
+        return controls(null, onReset);
     }
 
     /**
-     * The same, with the feature's on/off toggle, reading "On" or "Off", left
-     * of Reset to Defaults in that row. Everything below the line greys while
-     * it is off.
+     * The same, with the feature's On/Off switch right of Reset to Defaults.
+     * Everything below the switch greys while it is off.
      */
     SettingsBody frame(String title, String description, Bool use, @Nullable Runnable onReset) {
-        header(title, description, Toggle.builder().size(40, 16)
+        header(title, description);
+        PanelElement onOff = Toggle.builder().size(40, 16)
                 .state(use.get(), use.set())
                 .disabledWhen(use.unavailable())
                 .label(() -> Component.literal(use.get().getAsBoolean() ? "On" : "Off"))
-                .build(), onReset);
+                .build();
+        controls(onOff, onReset);
         featureOn = use.get();
-        return rule();
+        return this;
     }
 
-    private void header(String title, String description, @Nullable PanelElement onOff, @Nullable Runnable onReset) {
+    private void header(String title, String description) {
         int titleColor = greyed ? GREYED_COLOR : HEADING_COLOR;
-        // The mod's name at twice size, bold, then the tab's title under it,
-        // bold (Trev, 2026-09-30).
-        out.add(TextLabel.builder().at(0, y)
-                .text(Component.literal(SettingsMenu.modName()).withStyle(ChatFormatting.BOLD))
-                .color(titleColor).scale(2f).build());
+        // The mod's name at twice size, bold, centred (Trev, 2026-09-30): a
+        // spacer either side shares the row's leftover evenly.
+        out.add(Flow.builder().at(0, y).gap(0, 0)
+                .add(Flow.spacer())
+                .add(TextLabel.builder()
+                        .text(Component.literal(SettingsMenu.modName()).withStyle(ChatFormatting.BOLD))
+                        .color(titleColor).scale(2f).build())
+                .add(Flow.spacer())
+                .build());
         y += 2 * TEXT_ROW;
         out.add(TextLabel.builder().at(0, y).text(Component.literal(title).withStyle(ChatFormatting.BOLD))
                 .color(titleColor).build());
@@ -130,21 +134,24 @@ final class SettingsBody {
         out.add(TextLabel.builder().at(0, y).text(Component.literal(description))
                 .color(greyed ? GREYED_COLOR : TEXT_COLOR).build());
         y += TEXT_ROW + 4;
+        // The line between the tab's heading and everything it controls.
+        out.add(Divider.horizontal().at(0, y).color(0xFF8B8B8B).build());
+        y += 6;
+    }
+
+    /**
+     * Under the line, above the first heading: Reset to Defaults furthest
+     * left, then the On/Off switch when the tab has one, left-aligned.
+     */
+    private SettingsBody controls(@Nullable PanelElement onOff, @Nullable Runnable onReset) {
         Flow.Builder row = Flow.builder().at(0, y).gap(10, 4);
-        if (onOff != null) row.add(onOff);
-        row.add(Flow.spacer());
         row.add(Button.builder().label(Component.literal("Reset to Defaults")).size(0, 16)
                 .onClick(() -> { if (onReset != null) onReset.run(); })
                 .disabledWhen(onReset == null ? DISABLED : () -> false)
                 .build());
+        if (onOff != null) row.add(onOff);
         out.add(row.build());
         y += CONTROL_ROW + 2;
-    }
-
-    /** The line between a tab's frame and its settings, as wide as the body. */
-    private SettingsBody rule() {
-        out.add(Divider.horizontal().at(0, y).color(0xFF8B8B8B).build());
-        y += 6;
         return this;
     }
 
