@@ -52,7 +52,20 @@ public final class Tooltips {
         // screen. Read raw, so it works where vanilla releases key states.
         MKTooltip.hideWhen(() -> IPConfig.tooltipsEnabled() && IPConfig.hideTooltipsOnKey()
                 && IPKeybinds.isHeld(IPKeybinds.HIDE_TOOLTIPS));
+        // Scroll long tooltips: the wheel moves the tooltip on screen. MenuKit
+        // clamps the offset to the tooltip, so one that fits never moves, and
+        // pins the title. Wheel down (negative) moves the tooltip up, bringing
+        // its lower lines into view, as a list scrolls. Never consumes the wheel.
+        MKTooltip.onWheel((horizontal, vertical) -> {
+            if (!IPConfig.tooltipsEnabled() || !IPConfig.tooltipScrollLong()) return;
+            MKTooltip.scrollBy((int) Math.round(horizontal * SCROLL_STEP),
+                    (int) Math.round(vertical * SCROLL_STEP));
+        });
     }
+
+    // ponytail: two tooltip lines (10 px each) per wheel notch; the knob if it
+    // feels slow or jumpy.
+    private static final int SCROLL_STEP = 20;
 
     private static List<Component> apply(ItemStack stack, List<Component> vanilla, float tickRate) {
         List<Component> lines = new ArrayList<>(vanilla);

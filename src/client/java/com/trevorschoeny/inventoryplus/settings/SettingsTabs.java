@@ -94,7 +94,8 @@ final class SettingsTabs {
     private static void resetTooltips() {
         IPConfig.reset("tooltipsEnabled", "tooltipDurability", "tooltipFood", "tooltipFoodEffects",
                 "tooltipEnchantmentDescriptions", "tooltipSortEnchantments", "tooltipToolStats",
-                "tooltipCompare", "tooltipCondenseTrims", "tooltipModName", "hideTooltipsOnKey");
+                "tooltipCompare", "tooltipCondenseTrims", "tooltipModName", "hideTooltipsOnKey",
+                "tooltipScrollLong");
         resetKeys(IPKeybinds.HIDE_TOOLTIPS);
     }
 
@@ -475,9 +476,10 @@ final class SettingsTabs {
                 .checkbox("Hold a key to hide tooltips",
                         Bool.of(IPConfig::hideTooltipsOnKey, IPConfig::setHideTooltipsOnKey))
                 .key(IPKeybinds.HIDE_TOOLTIPS)
-                // Both wait on MenuKit's tooltip positioner seam (asked 2026-09-30);
-                // vanilla 26.2 clamps a tooltip's corner but neither wraps nor scrolls.
-                .checkbox("Scroll long tooltips (waits on MenuKit)", false)
+                // On MenuKit's tooltip scroll hook (MKTooltip.onWheel/scrollBy, 3b6473e).
+                .checkbox("Scroll long tooltips", Bool.of(IPConfig::tooltipScrollLong,
+                        IPConfig::setTooltipScrollLong))
+                // Waits on MenuKit's tooltip positioner seam (asked 2026-09-30).
                 .checkbox("Keep tooltips on screen (waits on MenuKit)", false)
                 .build();
     }

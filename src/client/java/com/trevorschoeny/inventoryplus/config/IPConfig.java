@@ -184,6 +184,10 @@ public final class IPConfig {
     private static boolean tooltipCondenseTrims = true;
     private static boolean tooltipModName = false;
     private static boolean hideTooltipsOnKey = true;
+    // The wheel scrolls a tooltip taller or wider than the screen, title pinned
+    // (MenuKit's MKTooltip.scrollBy). On by default: it only ever moves a
+    // tooltip that runs off the screen.
+    private static boolean tooltipScrollLong = true;
 
     /**
      * Every setting at its default, taken before the file is read. A tab's
@@ -285,6 +289,7 @@ public final class IPConfig {
         tooltipModName = readBool(root, "tooltipModName", tooltipModName);
         hideTooltipsOnKey         = readBool(root, "hideTooltipsOnKey",
                 readBool(root, "hideTooltipsOnCtrl", hideTooltipsOnKey));
+        tooltipScrollLong = readBool(root, "tooltipScrollLong", tooltipScrollLong);
     }
 
     /**
@@ -375,6 +380,7 @@ public final class IPConfig {
         root.addProperty("tooltipCondenseTrims", tooltipCondenseTrims);
         root.addProperty("tooltipModName", tooltipModName);
         root.addProperty("hideTooltipsOnKey",         hideTooltipsOnKey);
+        root.addProperty("tooltipScrollLong", tooltipScrollLong);
         return root;
     }
 
@@ -438,6 +444,7 @@ public final class IPConfig {
     public static boolean tooltipCondenseTrims() { return tooltipCondenseTrims; }
     public static boolean tooltipModName() { return tooltipModName; }
     public static boolean hideTooltipsOnKey()        { return hideTooltipsOnKey; }
+    public static boolean tooltipScrollLong() { return tooltipScrollLong; }
     public static void setSortEnabled(boolean v)              { sortEnabled = v; save(); }
     public static void setMoveMatchingEnabled(boolean v)      { moveMatchingEnabled = v; save(); }
     public static void setRestockEnabled(boolean v)           { restockEnabled = v; save(); }
@@ -456,6 +463,7 @@ public final class IPConfig {
     public static void setTooltipCondenseTrims(boolean v) { tooltipCondenseTrims = v; save(); }
     public static void setTooltipModName(boolean v) { tooltipModName = v; save(); }
     public static void setHideTooltipsOnKey(boolean v)        { hideTooltipsOnKey = v; save(); }
+    public static void setTooltipScrollLong(boolean v) { tooltipScrollLong = v; save(); }
 
     // ─── Getters ─────────────────────────────────────────────────────
     public static boolean autoRestockArmor()            { return autoRestockArmor; }
