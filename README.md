@@ -30,9 +30,9 @@ Pockets, extra equipment slots, and container locks the whole server shares live
 
 ## Requirements
 
-- Keybindery 1.1.0 or newer
-- MenuKit 6.0.0 or newer, below 7.0.0
-- Fabric API
+- [Keybindery](https://modrinth.com/mod/keybindery) 1.1.0 or newer
+- [MenuKit](https://modrinth.com/mod/menukit) 6.0.0 or newer, below 7.0.0
+- [Fabric API](https://modrinth.com/mod/fabric-api)
 
 ## Compatibility
 
