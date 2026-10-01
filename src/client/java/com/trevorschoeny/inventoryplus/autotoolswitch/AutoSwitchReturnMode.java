@@ -22,8 +22,8 @@ package com.trevorschoeny.inventoryplus.autotoolswitch;
  *
  * <p>The window length (for the {@linkplain #isWindowed() windowed} modes —
  * {@link #AUTOMATIC} + {@link #HOTKEY_TIMED}) is
- * {@code IPConfig.autoToolSwitchReturnCooldownSeconds}. Cycled via the YACL
- * config screen; persisted in {@code config.json} as the enum name. Migrated
+ * {@code IPConfig.autoToolSwitchReturnCooldownSeconds}. Chosen in the settings
+ * menu (Auto Tool Switch tab, Switching back); persisted in {@code config.json} as the enum name. Migrated
  * from the old boolean {@code autoToolSwitchReturn} (true → {@link #AUTOMATIC},
  * false → {@link #OFF}).
  */

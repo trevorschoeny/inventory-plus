@@ -38,11 +38,10 @@ repositories {
     // ModMenu — Terraformers' Maven; used for the per-mod config entry
     // point on the mods list.
     maven { url 'https://maven.terraformersmc.com/releases/' }
-    // YACL — modern Fabric config-screen framework (horizontal tabs,
-    // right-pane descriptions, per-entry reset arrows). Same look as
-    // Sodium / Iris / Debugify configs.
-    // 26.x: isxander's own maven stops at the 3.8.x line; the 26.2 builds
-    // (3.9.x) ship via the Modrinth maven only (verified 2026-07-02).
+    // Modrinth maven: not for this mod. Keybindery (a project dependency)
+    // depends on YACL, whose 26.2 builds ship only here, so Gradle needs it
+    // to resolve Keybindery's runtime classpath. This mod neither compiles
+    // against YACL nor bundles it.
     maven { url 'https://api.modrinth.com/maven' }
 }
 
@@ -60,13 +59,6 @@ dependencies {
     minecraft "com.mojang:minecraft:${property('minecraft_version')}"
     implementation "net.fabricmc:fabric-loader:${property('loader_version')}"
     implementation "net.fabricmc.fabric-api:fabric-api:${property('fabric_version')}"
-
-    // YACL — config-screen framework. Bundled into IP's jar via Loom's
-    // `include` (Jar-in-Jar), so players install IP and YACL comes along
-    // for free. `implementation` covers compile + dev runtime; the
-    // `include` line is what JIJs YACL into the production jar.
-    implementation "maven.modrinth:yacl:3.9.6+26.2-fabric"
-    include        "maven.modrinth:yacl:3.9.6+26.2-fabric"
 
     // §0042 / §0005: depend on MenuKit and ONLY MenuKit. Adding
     // :menukit-containers here would put its types on the classpath and break

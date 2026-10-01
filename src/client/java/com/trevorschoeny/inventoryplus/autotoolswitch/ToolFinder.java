@@ -372,8 +372,8 @@ public final class ToolFinder {
      *
      * <p>Primary signal: <b>preferred weapon type wins</b> regardless
      * of other type's material — e.g., a preferred AXE in iron beats a
-     * non-preferred SWORD in netherite. Configurable via the YACL
-     * "Preferred Weapon" cycler.
+     * non-preferred SWORD in netherite. Set in the settings menu's
+     * "Preferred weapon" dropdown.
      *
      * <p>Within the same type-tier (all preferred, or all non-
      * preferred), material via maxDamage proxy (Netherite > Diamond >

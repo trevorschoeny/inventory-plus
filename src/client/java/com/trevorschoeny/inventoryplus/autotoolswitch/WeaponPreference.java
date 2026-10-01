@@ -8,8 +8,8 @@ package com.trevorschoeny.inventoryplus.autotoolswitch;
  * material — e.g., a preferred AXE in iron beats a non-preferred SWORD
  * in netherite. Within the preferred type, material/durability decide.
  *
- * <p>Cycled via the YACL config screen (Auto Tool Switch group →
- * Preferred Weapon). Persisted in {@code config.json} as the enum
+ * <p>Chosen in the settings menu (Auto Tool Switch tab, Weapons →
+ * Preferred weapon). Persisted in {@code config.json} as the enum
  * name string.
  */
 public enum WeaponPreference {
