@@ -37,7 +37,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.IntPredicate;
 
 /**
  * Central state + persistence for Locked Slots.
@@ -169,42 +168,6 @@ public final class LockedSlots {
     // to it. IP itself registers nothing.
     private static final List<SlotLockProvider> PROVIDERS = new ArrayList<>();
 
-    // ── Derived player-slot locks ───────────────────────────────────────
-    //
-    // Some features lock player slots without owning an entry in the stored
-    // set: the lock is derived from feature state and must appear and vanish
-    // the instant that state or its config changes, with nothing to migrate.
-    // Hotbar Cycler's toggled rows are the first case (see hotbar-cycler.md:
-    // the lock is positional, stays put across a rotation, and is governed by
-    // two configs at once).
-    //
-    // A seam rather than a direct call because the alternative inverts the
-    // package dependency: hotbarcycler already imports this package, so
-    // importing it back would close a cycle. Features register themselves at
-    // init and this class stays ignorant of them, the same shape as
-    // SlotLockProvider above.
-    private static final List<IntPredicate> DERIVED_PLAYER_LOCKS = new ArrayList<>();
-
-    /**
-     * Registers a predicate over player container-slot indices that reports
-     * additional locked slots. Consulted by {@link #isLockedSlot(Slot)} on top
-     * of the stored set; it never writes, so the player's manual locks are
-     * untouched and a slot stops being derived-locked as soon as the feature
-     * says so.
-     */
-    public static void registerDerivedPlayerLock(IntPredicate predicate) {
-        if (predicate == null || DERIVED_PLAYER_LOCKS.contains(predicate)) return;
-        DERIVED_PLAYER_LOCKS.add(predicate);
-    }
-
-    /** True if any registered feature derives a lock for this player slot. */
-    public static boolean isDerivedLocked(int containerSlotIndex) {
-        for (IntPredicate p : DERIVED_PLAYER_LOCKS) {
-            if (p.test(containerSlotIndex)) return true;
-        }
-        return false;
-    }
-
     /** Registers a downstream provider (called by IPP at mod init). */
     public static void registerProvider(SlotLockProvider provider) {
         PROVIDERS.add(provider);
@@ -243,7 +206,7 @@ public final class LockedSlots {
             // lock onto each cycle slot and its column's hotbar slot, and
             // removed it again when the cycle went (restoring any lock the
             // player had there, but only within one screen session). The
-            // pairing is a derived lock now and never writes, so those stored
+            // pairing is a reach group now and never writes, so those stored
             // writes would otherwise outlive their cycle forever. Dropping them
             // on upgrade is what the old code did on removal after a restart.
             int total = 0;
@@ -251,7 +214,7 @@ public final class LockedSlots {
                 Map<Integer, String> map = new HashMap<>();
                 readLocks(worldEntry.getValue(), map, Integer::parseInt, v1);
                 if (worldEntry.getValue().isJsonArray()
-                        && IPConfig.cycleSlotsLocked()) {
+                        && IPConfig.legacyCycleSlotsLocked()) {
                     Set<Integer> paired = pairedSlotsIn.apply(worldEntry.getKey());
                     if (map.keySet().removeAll(paired)) {
                         InventoryPlusClient.LOGGER.info("[locked-slots] {}: dropped the Column Cycler pairing's locks on {}",
@@ -418,7 +381,7 @@ public final class LockedSlots {
     public static boolean isLockedSlot(Slot slot) {
         if (isLockable(slot)) {
             int cs = slot.getContainerSlot();
-            return PLAYER.get().containsKey(cs) || isDerivedLocked(cs);
+            return PLAYER.get().containsKey(cs);
         }
         if (isEnderSlot(slot)) return isEnderLocked(slot.getContainerSlot());
         if (isCreatedSlot(slot)) return isCreatedLocked(slot);
@@ -494,14 +457,13 @@ public final class LockedSlots {
     }
 
     /**
-     * True when {@code slot} carries a lock nobody stored here: a cycler's
-     * derived lock on a player slot, or a companion's shared container lock.
-     * Both count as Slot lock (`lock-groups.md`: a paired cycle slot carries
-     * Slot lock implicitly; a shared lock is judged by the viewer's Slot lock).
-     * The provider is asked on the render thread only, as before.
+     * True when {@code slot} carries a lock nobody stored here: a companion's
+     * shared container lock, judged as Slot lock (`lock-groups.md`). A cycle
+     * slot is not one since 2026-09-30: it is in its cycler's feature reach
+     * group ({@code Reach.featuresOf}). The provider is asked on the render
+     * thread only, as before.
      */
     public static boolean isImplicitlyLocked(Slot slot) {
-        if (isLockable(slot)) return isDerivedLocked(slot.getContainerSlot());
         if (isInOwnStore(slot) || !isRenderThread()) return false;
         SlotLockProvider p = providerFor(slot);
         return p != null && p.isLocked(slot);

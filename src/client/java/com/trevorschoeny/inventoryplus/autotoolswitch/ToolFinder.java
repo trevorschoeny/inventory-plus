@@ -237,7 +237,8 @@ public final class ToolFinder {
             // too. A cyclable slot (tier 2) is judged by its cycler instead,
             // through the tier filter findBestByTier passes, which asks every
             // slot the cycle would move. Cycle slots need no exemption: their
-            // derived lock is Slot lock, which allows Auto Tool Switch.
+            // cycler's reach group is denied only what Slot lock stops by
+            // default, which does not include Auto Tool Switch.
             if (!isCyclable(i) && !IPSlotOperations.allowsPlayerSlot(inv.player, i, AUTO_TOOL_SWITCH)) continue;
             ItemStack stack = inv.getItem(i);
             if (stack.isEmpty()) continue;

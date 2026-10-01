@@ -25,6 +25,7 @@ import com.trevorschoeny.inventoryplus.itemtips.ItemTips;
 import com.trevorschoeny.inventoryplus.lockgroups.LockTooltips;
 import com.trevorschoeny.inventoryplus.lockgroups.Locks;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
+import com.trevorschoeny.inventoryplus.lockgroups.Reach;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsButtons;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsDragController;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotKeybind;
@@ -154,10 +155,11 @@ public class InventoryPlusClient implements ClientModInitializer {
         // columnCyclerEnabled. Slot membership state is per-world
         // (config/inventoryplus/column-cycler.json). The C keybind toggles
         // membership outside edit mode; the cycle-edit toolbar toggle
-        // enters edit mode (where clicks become toggles). While "Lock the
-        // slots the cyclers use" is on, cycle slots carry Slot lock as a
-        // derived lock, like the Hotbar Cycler's rows below.
-        LockedSlots.registerDerivedPlayerLock(ColumnCycler::pairLockApplies);
+        // enters edit mode (where clicks become toggles). The cycle slots are
+        // a feature reach group (reach.md, "Feature reach groups"): every
+        // move Slot lock stops by default leaves them alone, per move.
+        Reach.registerFeature(Reach.COLUMN_CYCLER, "Column Cycler", "inventoryplus:column_cycle",
+                ColumnCycler::inReachGroup);
         ColumnCyclerButtons.registerLifecycle();
         ColumnCyclerClickInterceptor.register();
         ColumnCyclerKeybind.register();
@@ -170,15 +172,17 @@ public class InventoryPlusClient implements ClientModInitializer {
         // rotation reuses ColumnCyclerRotator's engine across all nine
         // columns, which is what keeps items in their own column.
         //
-        // The row lock is registered as a DERIVED lock rather than written
-        // into the stored set: it belongs to the position, has to stay put
-        // while items rotate through it, and has to appear and vanish the
-        // instant a row or either lock config is toggled. Registering the
-        // predicate here means Sort, Move Matching, shift-click and the
-        // lock icon all honour it through the one enforcement predicate
-        // they already call.
+        // The cycled rows are a feature reach group, asked per slot at veto
+        // time: the protection belongs to the position, stays put while items
+        // rotate through it, and follows a row's toggle at once.
         HotbarCycler.load();
-        LockedSlots.registerDerivedPlayerLock(HotbarCycler::rowLockApplies);
+        Reach.registerFeature(Reach.HOTBAR_CYCLER, "Hotbar Cycler", "inventoryplus:hotbar_cycle",
+                HotbarCycler::inReachGroup);
+        // A player who had either old cycle-lock switch off keeps that answer
+        // as explicit reach entries, once (Trev, 2026-09-30).
+        IPConfig.LegacyCycleLocks legacyCycleLocks = IPConfig.legacyCycleLocks();
+        if (!legacyCycleLocks.cycleSlotsLocked()) Reach.allowEverywhere(Reach.COLUMN_CYCLER, Reach.HOTBAR_CYCLER);
+        else if (!legacyCycleLocks.lockCycledRows()) Reach.allowEverywhere(Reach.HOTBAR_CYCLER);
         HotbarCyclerRowButtons.register();
         HotbarCyclerKeybind.register();
         ClientTickEvents.END_CLIENT_TICK.register(HotbarCyclerKeybind::tick);

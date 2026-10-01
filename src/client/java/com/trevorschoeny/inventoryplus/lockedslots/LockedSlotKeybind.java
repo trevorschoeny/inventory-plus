@@ -1,6 +1,5 @@
 package com.trevorschoeny.inventoryplus.lockedslots;
 
-import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
@@ -94,9 +93,6 @@ public final class LockedSlotKeybind {
                         }
 
                         if (!LockedSlots.isLockableHere(hovered)) return;
-                        // While cycleSlotsLocked pairs them, a cycle slot's lock is
-                        // its cycle membership: the player removes it with C.
-                        if (IPConfig.cycleSlotsLocked() && ColumnCycler.isCycleSlot(hovered)) return;
                         String now = LockedSlots.applyGroup(hovered, group.id());
                         // Hold L and sweep: every slot entered gets the first
                         // slot's new state, this group or none. Keyed by

@@ -41,27 +41,20 @@ import java.util.Set;
  * <p><b>Derived cycle membership</b> applies to hotbar slots (0-8): a
  * hotbar slot is "cycle-active" iff any inv slot in its column is in
  * the stored cycle set. {@link #isCycleSlot(int)} returns the derived
- * value for hotbar slots. The hotbar slot's lock state follows its
- * column under {@link IPConfig#cycleSlotsLocked}.
+ * value for hotbar slots.
  *
  * <p>Armor / offhand can't be cycled at all — they're equipment, not
  * inventory positions.
  *
- * <h3>Lock pairing (Trev 2026-05-19)</h3>
+ * <h3>Reach group (Trev 2026-09-30)</h3>
  *
- * Under {@link IPConfig#cycleSlotsLocked} ON (default), cycle and lock
- * are bound as one unit: adding an inv slot to a cycle locks it AND
- * its column's hotbar slot; removing the last cycle slot in a column
- * unlocks both. {@code L} is a no-op on cycle slots (direct or derived);
- * the lock icon is suppressed (the cycle icon represents both).
- *
- * <p>Under {@code cycleSlotsLocked} OFF, cycle and lock are fully
- * independent — toggling cycle does nothing to lock state, and {@code L}
- * works normally on cycle slots.
- *
- * <p>{@link #enforceCycleLockingInvariant} is called when the config
- * flips OFF → ON to retroactively lock any cycle slots (direct + derived
- * hotbar) that aren't.
+ * The cycle slots and the hotbar slot of every active column are Column
+ * Cycler's feature reach group ({@link #inReachGroup}, `plans/reach.md`):
+ * every move Slot lock stops by default leaves them alone, which the
+ * player changes per move in Reach. They carry no lock; {@code L} puts a
+ * real Slot lock on top, and the cycle mark is what they show. Until
+ * 2026-09-30 this was the "Lock the slots the cyclers use" pairing, a
+ * derived Slot lock behind one global switch.
  *
  * <h3>Persistence</h3>
  *
@@ -238,16 +231,6 @@ public final class ColumnCycler {
     }
 
     /**
-     * The Column Cycler's derived lock (`plans/reach.md`): while "Lock the
-     * slots the cyclers use" is on, every cycle slot and the hotbar slot of
-     * every active column carries Slot lock implicitly, so automation leaves
-     * them alone. Derived, like the Hotbar Cycler's row lock: it appears and
-     * vanishes with the cycle and the setting, and never writes into the
-     * player's own lock store. Until the Reach build it did, with a
-     * session-only memory of the player's own locks to restore that was lost
-     * across sessions.
-     */
-    /**
      * The player slots the pre-Reach pairing wrote Slot locks onto in
      * {@code world}: its cycle slots and the hotbar slot of every column that
      * has one. The 1.5.x lock migration drops those stored locks, since the
@@ -266,8 +249,13 @@ public final class ColumnCycler {
         return out;
     }
 
-    public static boolean pairLockApplies(int containerSlotIndex) {
-        return IPConfig.cycleSlotsLocked() && isCycleSlot(containerSlotIndex);
+    /**
+     * Whether player slot {@code containerSlotIndex} is in Column Cycler's
+     * reach group now: a cycle slot, or the hotbar slot below an active
+     * column. Registered with {@code Reach.registerFeature}.
+     */
+    public static boolean inReachGroup(int containerSlotIndex) {
+        return isCycleSlot(containerSlotIndex);
     }
 
     private static void save() {

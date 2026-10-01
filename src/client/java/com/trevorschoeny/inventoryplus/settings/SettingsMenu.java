@@ -58,7 +58,7 @@ public final class SettingsMenu extends MKScreen {
     public static final String AUTO_TOOL_SWITCH = "auto_tool_switch";
     public static final String COLUMN_CYCLER = "column_cycler";
     public static final String HOTBAR_CYCLER = "hotbar_cycler";
-    public static final String ITEM_TIPS = "item_tips";
+    public static final String TOOLTIPS = "tooltips";
 
     /**
      * The open tab, kept across reopens for the rest of the session. MenuKit's
@@ -226,7 +226,7 @@ public final class SettingsMenu extends MKScreen {
                 .tab(tab(AUTO_TOOL_SWITCH, "Auto Tool Switch").body(SettingsTabs::autoToolSwitch))
                 .tab(tab(COLUMN_CYCLER, "Column Cycler").body(SettingsTabs::columnCycler))
                 .tab(tab(HOTBAR_CYCLER, "Hotbar Cycler").body(SettingsTabs::hotbarCycler))
-                .tab(tab(ITEM_TIPS, "Item Tips").body(SettingsTabs::itemTips))
+                .tab(tab(TOOLTIPS, "Tooltips").body(SettingsTabs::tooltips))
                 // Inventory Max's places. Its real tabs, added under these ids,
                 // take them over; without it these show dimmed, greyed bodies.
                 .tab(tab("inventorymax:pockets", "Pockets").standIn()

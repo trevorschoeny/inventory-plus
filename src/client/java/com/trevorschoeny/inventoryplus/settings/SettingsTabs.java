@@ -15,6 +15,7 @@ import com.trevorschoeny.inventoryplus.settings.SettingsBody.Bool;
 import com.trevorschoeny.inventoryplus.settings.SettingsBody.Place;
 
 import com.trevlar.menukit.api.element.PanelElement;
+import com.trevlar.menukit.api.slot.SlotGroupCategory;
 import com.trevlar.menukit.api.slot.SlotGroupId;
 import com.trevlar.menukit.api.slot.SlotGroups;
 import com.trevlar.menukit.api.window.BehaviorKey;
@@ -90,8 +91,8 @@ final class SettingsTabs {
         resetKeys(IPKeybinds.SORT);
     }
 
-    private static void resetItemTips() {
-        IPConfig.reset("itemTipsEnabled");
+    private static void resetTooltips() {
+        IPConfig.reset("tooltipsEnabled", "itemTipsEnabled", "hideTooltipsOnCtrl");
     }
 
     private static void resetMoveMatching() {
@@ -119,8 +120,7 @@ final class SettingsTabs {
     }
 
     private static void resetHotbarCycler() {
-        IPConfig.reset("hotbarCyclerEnabled", "hotbarCyclerShowButtons", "lockCycledRows",
-                "hotbarCyclerScrollToCycle");
+        IPConfig.reset("hotbarCyclerEnabled", "hotbarCyclerShowButtons", "hotbarCyclerScrollToCycle");
         resetKeys(IPKeybinds.HOTBAR_CYCLE_FORWARD, IPKeybinds.HOTBAR_CYCLE_BACKWARD);
     }
 
@@ -134,7 +134,7 @@ final class SettingsTabs {
         LockedSlots.reassign(null, null);
         LockedItems.reassign(null, null);
         Reach.resetGroups();
-        IPConfig.reset("lockGroupsEnabled", "lockedSlotsShowButton", "cycleSlotsLocked", "containerLocksOnServer");
+        IPConfig.reset("lockGroupsEnabled", "lockedSlotsShowButton", "containerLocksOnServer");
         resetKeys(IPKeybinds.LOCK_SLOT);
         SettingsMenu.rebuild();
     }
@@ -250,6 +250,23 @@ final class SettingsTabs {
             else if (isOurs(namespaceOf(e))) ourGroups.add(box);
             else otherGroups.add(box);
         }
+        // The cyclers' slots, as reach options (reach.md, "Feature reach
+        // groups"): offered by every group that applies to the player's
+        // inventory or hotbar, since they are subsets of those, first in the
+        // Inventory Plus and Inventory Max row. A cycler's own group keeps its
+        // own option checked and fixed: it must rotate its own slots.
+        boolean carried = applies.contains(new SlotGroupId.Category(SlotGroupCategory.PLAYER_INVENTORY).asString())
+                || applies.contains(new SlotGroupId.Category(SlotGroupCategory.PLAYER_HOTBAR).asString());
+        if (carried) {
+            List<Place> features = new ArrayList<>();
+            for (Reach.Feature f : Reach.features()) {
+                features.add(f.owner().equals(id)
+                        ? Place.fixed(Component.literal(f.label()), true)
+                        : new Place(Component.literal(f.label()), () -> !Reach.featureDenies(f.key(), id),
+                                v -> Reach.setDenied(id, List.of(f.key()), !v), () -> false));
+            }
+            ourGroups.addAll(0, features);
+        }
         List<Place> lockGroups = new ArrayList<>();
         List<LockGroup> offered = new ArrayList<>();
         for (LockGroup g : Reach.groups()) {
@@ -324,12 +341,9 @@ final class SettingsTabs {
                                 "Every custom group goes, and " + lockCount(null) + " kept on this computer are removed.",
                                 SettingsTabs::resetLockGroups));
         b.heading("Misc.")
-                .checkbox("Show the lock button", Bool.of(IPConfig::lockedSlotsShowButton, IPConfig::setLockedSlotsShowButton))
-                // One switch for every cycler (columns, hotbar rows, pockets):
-                // cycleSlotsLocked is global, so it lives with the locks, not in
-                // one cycler's tab.
-                .checkbox("Lock the slots the cyclers use",
-                        Bool.of(IPConfig::cycleSlotsLocked, IPConfig::setCycleSlotsLocked));
+                // What the cyclers' slots are protected from is Reach's, per move
+                // (reach.md, "Feature reach groups"); no switch here since 2026-09-30.
+                .checkbox("Show the lock button", Bool.of(IPConfig::lockedSlotsShowButton, IPConfig::setLockedSlotsShowButton));
         // Container locks are kept on this computer always; the server copy
         // goes through Inventory Max's shared channel, so it needs Inventory Max.
         if (!maxInstalled) b.line("Install Inventory Max to also keep container locks on the server.");
@@ -427,15 +441,22 @@ final class SettingsTabs {
     }
 
     /**
-     * Item Tips, moved from MenuKit in 6.0.0: its on/off is its only setting,
-     * so the tab is the frame alone.
+     * Tooltips (was Item Tips; Trev, 2026-09-30): everything Inventory Plus
+     * does to tooltips. Off, Inventory Plus leaves every tooltip alone.
      */
-    static List<PanelElement> itemTips() {
+    static List<PanelElement> tooltips() {
         return new SettingsBody()
-                .frame("Item Tips", "Adds lines to item tooltips: a tool's durability, and a food's "
-                        + "nutrition and saturation.",
-                        Bool.of(IPConfig::itemTipsEnabled, IPConfig::setItemTipsEnabled),
-                        confirmReset("Item Tips", SettingsTabs::resetItemTips))
+                .frame("Tooltips", "Changes Inventory Plus makes to tooltips: extra lines on items, "
+                        + "and a key to hide every tooltip while you hold it.",
+                        Bool.of(IPConfig::tooltipsEnabled, IPConfig::setTooltipsEnabled),
+                        confirmReset("Tooltips", SettingsTabs::resetTooltips))
+                .heading("Misc.")
+                .checkbox("Item tips: a tool's durability, a food's nutrition and saturation",
+                        Bool.of(IPConfig::itemTipsEnabled, IPConfig::setItemTipsEnabled))
+                // Hidden by MenuKit's tooltip seam, through a predicate Inventory
+                // Plus registers at client init (InventoryPlusClient).
+                .checkbox("Hold Ctrl to hide tooltips",
+                        Bool.of(IPConfig::hideTooltipsOnCtrl, IPConfig::setHideTooltipsOnCtrl))
                 .build();
     }
 
@@ -556,9 +577,6 @@ final class SettingsTabs {
                 .heading("Misc.")
                 .checkbox("Show the row buttons",
                         Bool.of(IPConfig::hotbarCyclerShowButtons, IPConfig::setHotbarCyclerShowButtons))
-                // Rows lock only while "Lock the slots the cyclers use" is on too.
-                .checkbox("Lock cycled rows", Bool.of(IPConfig::lockCycledRows, IPConfig::setLockCycledRows)
-                        .onlyWhen(IPConfig::cycleSlotsLocked))
                 .heading("Cycling")
                 .key(IPKeybinds.HOTBAR_CYCLE_FORWARD)
                 .key(IPKeybinds.HOTBAR_CYCLE_BACKWARD)

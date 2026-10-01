@@ -113,16 +113,14 @@ public abstract class AbstractContainerScreenRenderSlotMixin {
         boolean locksOn = IPConfig.lockGroupsEnabled();
         boolean locked = locksOn && LockedSlots.isLockedSlot(slot);
         boolean cycle = ColumnCycler.isCycleSlot(slot);
-        // When the lock-cycle pairing is ON, a cycle slot's lock is
-        // implied by the cycle — suppress the lock icon to avoid
-        // double-indication. When the pairing is OFF, cycle and lock
-        // are independent and both icons render side-by-side.
-        boolean suppressLockIcon = cycle && IPConfig.cycleSlotsLocked();
+        // A cycle slot's mark is the cycle mark; it carries no lock of its
+        // own (its cycler's reach group, reach.md). A real Slot lock put on
+        // one with L draws its padlock beside the cycle mark (2026-09-30).
 
         // 2. Lock icon — top-right of slot, 1 px inset from the right edge.
         // In the colour of the slot's lock group (lock-groups.md, "What the
-        // player sees"); a derived or shared lock is Slot lock.
-        if (locked && !suppressLockIcon) {
+        // player sees"); a shared lock is Slot lock.
+        if (locked) {
             int iconX = slot.x + 16 - INVENTORYPLUS$LOCK_ICON_W - 1;
             int iconY = slot.y + 1;
             String stored = LockedSlots.storedGroup(slot);
@@ -140,12 +138,11 @@ public abstract class AbstractContainerScreenRenderSlotMixin {
             inventoryplus$padlockTooltip(graphics, iconX, iconY, group);
         }
 
-        // 3. Cycle icon — sits left of the lock icon when BOTH are shown
-        // (only happens when cycleSlotsLocked is OFF and both states are
-        // independently true). Otherwise takes the top-right slot with
-        // 1 px inset from the right edge.
+        // 3. Cycle icon — sits left of the lock icon when the slot also
+        // carries a real lock; otherwise takes the top-right slot with 1 px
+        // inset from the right edge.
         if (cycle) {
-            boolean lockIconAlsoShown = locked && !suppressLockIcon;
+            boolean lockIconAlsoShown = locked;
             int cycleX = lockIconAlsoShown
                     ? (slot.x + 16 - INVENTORYPLUS$LOCK_ICON_W - 1) - 1 - INVENTORYPLUS$CYCLE_ICON_W
                     : slot.x + 16 - INVENTORYPLUS$CYCLE_ICON_W - 1;

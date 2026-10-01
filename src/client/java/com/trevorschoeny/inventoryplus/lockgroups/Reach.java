@@ -22,6 +22,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.IntPredicate;
 
 /**
  * The reach record (`plans/reach.md`): one record, kept by the player, that
@@ -54,7 +56,8 @@ import java.util.TreeSet;
  * <h2>Keys</h2>
  *
  * <p>A slot group's key is {@code SlotGroupId.asString()}; a lock group's is
- * {@code inventoryplus:lock/<id>}; a place's is {@code inventoryplus:place/<name>}.
+ * {@code inventoryplus:lock/<id>}; a place's is {@code inventoryplus:place/<name>};
+ * a feature's is {@code inventoryplus:feature/<name>} (see {@link #registerFeature}).
  * Keys the running game does not know (a mod removed, say) are kept and never
  * consulted, so reinstalling it finds its choices where it left them.
  *
@@ -75,6 +78,7 @@ public final class Reach {
 
     private static final String LOCK_PREFIX = "inventoryplus:lock/";
     private static final String PLACE_PREFIX = "inventoryplus:place/";
+    private static final String FEATURE_PREFIX = "inventoryplus:feature/";
 
     public static String lockKey(String groupId) {
         return LOCK_PREFIX + groupId;
@@ -83,6 +87,18 @@ public final class Reach {
     public static String placeKey(String name) {
         return PLACE_PREFIX + name;
     }
+
+    public static String featureKey(String name) {
+        return FEATURE_PREFIX + name;
+    }
+
+    public static boolean isFeatureKey(String key) {
+        return key.startsWith(FEATURE_PREFIX);
+    }
+
+    /** The cyclers' slots, as reach groups of their own (`plans/reach.md`, "Feature reach groups"). */
+    public static final String COLUMN_CYCLER = featureKey("column_cycler");
+    public static final String HOTBAR_CYCLER = featureKey("hotbar_cycler");
 
     /** The three places Inventory Plus declares (`plans/reach.md`, "Places"). */
     public static final String SHULKER_BOXES = placeKey("shulker_boxes");
@@ -106,6 +122,68 @@ public final class Reach {
             "menukit:drop", "menukit:drop_stack", "menukit:shift_click_out", "menukit:collect",
             "inventoryplus:sort", "inventoryplus:move_matching_out", "inventoryplus:move_matching_in",
             "inventoryplus:column_cycle", "inventoryplus:hotbar_cycle", "inventorymax:pocket_cycle");
+
+    // ── Feature reach groups (`plans/reach.md`, "Feature reach groups") ──
+
+    /**
+     * A feature's slots as a reach group: the slots in the current column
+     * cycle, the cycled hotbar rows. Membership is asked per player slot at
+     * veto time, because it changes as the player cycles; nothing is stored
+     * but the denied sets.
+     *
+     * @param key     the record key, {@code inventoryplus:feature/<name>}
+     * @param label   the reach option's label
+     * @param owner   the feature's own operation, which is never denied its slots
+     * @param members whether a player container-slot index is in the group now
+     */
+    public record Feature(String key, String label, String owner, IntPredicate members) {}
+
+    private static final List<Feature> FEATURES = new CopyOnWriteArrayList<>();
+
+    /**
+     * Registers a feature's slots as a reach group. Once per feature, at client
+     * init. A feature's key is denied by default to every operation Slot lock
+     * stops by default ({@link #SLOT_LOCK_DENIES}), which is what the cyclers'
+     * old derived Slot lock did; its own operation is never denied.
+     */
+    public static void registerFeature(String key, String label, String owner, IntPredicate members) {
+        if (!isFeatureKey(key)) throw new IllegalArgumentException("[reach] not a feature key: " + key);
+        for (Feature f : FEATURES) if (f.key().equals(key)) return;
+        FEATURES.add(new Feature(key, label, owner, members));
+    }
+
+    public static List<Feature> features() {
+        return List.copyOf(FEATURES);
+    }
+
+    /** The keys of the features whose slots include player slot {@code containerSlot} now. */
+    public static List<String> featuresOf(int containerSlot) {
+        List<String> out = new ArrayList<>(2);
+        for (Feature f : FEATURES) if (f.members().test(containerSlot)) out.add(f.key());
+        return out;
+    }
+
+    /** True when {@code operation} may not touch feature {@code key}'s slots. */
+    public static boolean featureDenies(String key, String operation) {
+        for (Feature f : FEATURES) if (f.key().equals(key) && f.owner().equals(operation)) return false;
+        Set<String> entry = state.denied().get(operation);
+        return entry != null ? entry.contains(key) : SLOT_LOCK_DENIES.contains(operation);
+    }
+
+    /**
+     * The upgrade for a player who had a cycle-lock switch off: every
+     * operation that denies one of {@code keys} stops denying it, written as
+     * explicit entries, so the old answer survives the defaults (2026-09-30).
+     */
+    public static void allowEverywhere(String... keys) {
+        Set<String> ops = new TreeSet<>(SLOT_LOCK_DENIES);
+        ops.addAll(state.denied().keySet());
+        for (String op : ops) {
+            List<String> allowed = new ArrayList<>();
+            for (String key : keys) if (featureDenies(key, op)) allowed.add(key);
+            if (!allowed.isEmpty()) setDenied(op, allowed, false);
+        }
+    }
 
     /** The default group of {@code kind}: what a new group copies and an orphaned lock falls back to. */
     public static String defaultOf(LockKind kind) {
@@ -164,7 +242,7 @@ public final class Reach {
             }
             frozenDenied.forEach((op, keys) -> {
                 Set<String> others = new HashSet<>();
-                for (String k : keys) if (!k.startsWith(LOCK_PREFIX)) others.add(k);
+                for (String k : keys) if (!k.startsWith(LOCK_PREFIX) && !k.startsWith(FEATURE_PREFIX)) others.add(k);
                 if (!others.isEmpty()) groupDenies.put(op, Set.copyOf(others));
             });
 
@@ -406,7 +484,8 @@ public final class Reach {
 
     /**
      * The set of keys {@code operation} may not use as it stands: its entry,
-     * or for an operation without one, the lock groups the kind defaults stop.
+     * or for an operation without one, the lock groups the kind defaults stop
+     * and the features denied by default.
      */
     public static Set<String> effectiveDenied(String operation) {
         State s = state;
@@ -415,6 +494,9 @@ public final class Reach {
         Set<String> out = new TreeSet<>();
         for (LockGroup g : s.groups()) {
             if (defaultDenies(g.kind()).contains(operation)) out.add(g.reachKey());
+        }
+        for (Feature f : FEATURES) {
+            if (featureDenies(f.key(), operation)) out.add(f.key());
         }
         return Collections.unmodifiableSet(out);
     }

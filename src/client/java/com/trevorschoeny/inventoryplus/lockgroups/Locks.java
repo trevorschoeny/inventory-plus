@@ -25,9 +25,10 @@ import java.util.List;
  * <h2>{@link #on}: which lock groups are on this slot</h2>
  *
  * <p>The Slot-kind lock on the slot (stored in the player, ender, created or
- * container store; derived from a cycler; or a companion's shared container
- * lock, judged as Slot lock), plus the Item and Exact locks matching the
- * stack in it. It replaces {@code isLocked(int)}, {@code isLockedSlot(Slot)},
+ * container store, or a companion's shared container lock, judged as Slot
+ * lock), the Item and Exact locks matching the stack in it, and the feature
+ * reach groups the slot is in now (a cycle slot reports Column Cycler by
+ * name, not an implicit Slot lock; Trev, 2026-09-30). It replaces {@code isLocked(int)}, {@code isLockedSlot(Slot)},
  * {@code LockedItems.isLocked} and {@code LockedItems.blocks(user)}, which
  * disagreed with each other, so every feature now gets the same answer.
  *
@@ -58,11 +59,17 @@ public final class Locks {
             if (!isLocalPlayer(ref.player())) return false;
             String op = operation.id().toString();
             if (group != null && Reach.denies(op, group.asString())) return true;
+            List<String> on = on(ref);
+            // Feature reach groups are reach, like slot groups: the Lock groups
+            // switch does not pause them.
+            for (String key : on) {
+                if (Reach.isFeatureKey(key) && Reach.featureDenies(key, op)) return true;
+            }
             // The Lock groups switch pauses every lock without deleting any;
             // the slot groups' own reach still holds.
             if (!IPConfig.lockGroupsEnabled()) return false;
-            for (String lock : on(ref)) {
-                if (Reach.lockDenies(lock, op)) return true;
+            for (String lock : on) {
+                if (!Reach.isFeatureKey(lock) && Reach.lockDenies(lock, op)) return true;
             }
             return false;
         });
@@ -70,23 +77,25 @@ public final class Locks {
 
     /**
      * The ids of the lock groups on {@code ref}'s slot and on the stack in it,
-     * each resolved (a lock whose group is gone counts as its kind's default).
-     * Empty when nothing is locked.
+     * each resolved (a lock whose group is gone counts as its kind's default),
+     * then the keys of the feature reach groups the slot is in
+     * ({@link Reach#isFeatureKey}). Empty when nothing applies.
      */
     public static List<String> on(SlotRef ref) {
         List<String> groups = new ArrayList<>(3);
-        // The Slot-kind lock: stored, and implicit (a cycler's derived lock or
-        // a companion's shared one, both Slot lock). Deny-overrides, so both
-        // count when a stored custom group sits on a cycle slot.
+        // The Slot-kind lock: stored, or a companion's shared one (Slot lock).
+        // Deny-overrides, so both count when they sit on one slot.
         String stored = null;
         boolean implicit = false;
+        List<String> features = List.of();
         if (ref.slot() != null) {
             stored = LockedSlots.storedGroup(ref.slot());
             implicit = LockedSlots.isImplicitlyLocked(ref.slot());
+            if (LockedSlots.isLockable(ref.slot())) features = Reach.featuresOf(ref.slot().getContainerSlot());
         } else if (ref.container() instanceof Inventory inv && isLocalPlayer(inv.player)) {
             // Off-menu (world pickup, no screen): the player's own slot by index.
             stored = LockedSlots.playerStoredGroup(ref.containerSlot());
-            implicit = LockedSlots.isDerivedLocked(ref.containerSlot());
+            features = Reach.featuresOf(ref.containerSlot());
         }
         if (stored != null) groups.add(Reach.resolve(stored, LockKind.SLOT).id());
         if (implicit && !groups.contains(Reach.SLOT_LOCK)) groups.add(Reach.SLOT_LOCK);
@@ -98,6 +107,7 @@ public final class Locks {
             String exact = LockedItems.exactGroup(stack);
             if (exact != null) groups.add(Reach.resolve(exact, LockKind.EXACT).id());
         }
+        groups.addAll(features);
         return groups;
     }
 

@@ -28,7 +28,7 @@ public final class ItemTips {
     /** Appends the lines to every tooltip while the setting is on. Call once from client init. */
     public static void register() {
         ItemTooltipCallback.EVENT.register((stack, context, type, lines) -> {
-            if (IPConfig.itemTipsEnabled()) lines.addAll(lines(stack));
+            if (IPConfig.tooltipsEnabled() && IPConfig.itemTipsEnabled()) lines.addAll(lines(stack));
         });
     }
 

@@ -121,13 +121,11 @@ public final class IPConfig {
     // showButton controls whether the PU toolbar button is visible even
     // when the feature is enabled — power users who prefer keybind-only
     // can hide the button while keeping C functional.
-    // cycleSlotsLocked binds cycle ⇔ lock under ON (default): a slot's
-    // cycle membership and lock state are toggled as one unit. L is a
-    // no-op on cycle slots; the lock icon is suppressed (cycle icon
-    // represents both). Under OFF, cycle and lock are fully independent.
+    // The cycle slots' protection is Reach's since 2026-09-30: Column
+    // Cycler's slots are a feature reach group (reach.md), and the global
+    // cycleSlotsLocked is gone (read once below, for the upgrade).
     private static boolean columnCyclerEnabled = false;
     private static boolean columnCyclerShowButton = true;
-    private static boolean cycleSlotsLocked = true;
     // Scroll wheel as alternative trigger for forward/backward cycle.
     // Default OFF; opt-in trade-off — scrolling on a cycle-active column
     // rotates the cycle instead of switching the hotbar slot.
@@ -135,12 +133,10 @@ public final class IPConfig {
 
     // ── Hotbar Cycler (Power Users) ─────────────────────────────────────
     // Rotates whole inventory rows through the hotbar. Off by default like
-    // every Power Users feature. lockCycledRows stacks ON TOP of the global
-    // cycleSlotsLocked: both must be on for rows to lock, so a player can
-    // keep column and pocket locking while leaving rows free to sort.
+    // every Power Users feature. Its rows are a feature reach group since
+    // 2026-09-30; lockCycledRows is gone (read once below, for the upgrade).
     private static boolean hotbarCyclerEnabled = false;
     private static boolean hotbarCyclerShowButtons = true;
-    private static boolean lockCycledRows = true;
     private static boolean hotbarCyclerScrollToCycle = false;
     // Column Cycler HUD overlay mode. MINI_HOTBAR is the default per
     // Trev's spec — when Column Cycler is enabled, the HUD strip shows
@@ -167,9 +163,14 @@ public final class IPConfig {
     // server keeps and enforces it as a plain lock. Default off: container
     // locks are the player's own (Trev 2026-09-07). Needs Inventory Max.
     private static boolean containerLocksOnServer = false;
-    // Item Tips: durability and food lines on tooltips. Moved from MenuKit in
-    // 6.0.0; on by default, which is what players had from MenuKit.
+    // Tooltips: everything Inventory Plus does to tooltips (Trev, 2026-09-30).
+    // tooltipsEnabled off means Inventory Plus leaves every tooltip alone.
+    // Item tips (durability and food lines) moved from MenuKit in 6.0.0, on
+    // by default as players had it there. Hold Ctrl to hide tooltips is on by
+    // default too: holding Ctrl over a slot otherwise does nothing.
+    private static boolean tooltipsEnabled = true;
     private static boolean itemTipsEnabled = true;
+    private static boolean hideTooltipsOnCtrl = true;
 
     /**
      * Every setting at its default, taken before the file is read. A tab's
@@ -207,6 +208,8 @@ public final class IPConfig {
                     readBool(root, "autoRestockToolUsesLockedItems", true),
                     readBool(root, "autoRestockItemUsesLockedItems", true),
                     readBool(root, "autoToolSwitchUsesLockedItems", true));
+            legacyCycleLocks = new LegacyCycleLocks(
+                    readBool(root, "cycleSlotsLocked", true), readBool(root, "lockCycledRows", true));
             Reach.read(root.has("reach") && root.get("reach").isJsonObject() ? root.getAsJsonObject("reach") : null);
             InventoryPlusClient.LOGGER.info("[config] loaded from {}", path);
         } catch (IOException | JsonSyntaxException | IllegalStateException e) {
@@ -245,11 +248,9 @@ public final class IPConfig {
         lockedSlotsShowButton  = readBool(root, "lockedSlotsShowButton",  lockedSlotsShowButton);
         columnCyclerEnabled       = readBool(root, "columnCyclerEnabled",       columnCyclerEnabled);
         columnCyclerShowButton    = readBool(root, "columnCyclerShowButton",    columnCyclerShowButton);
-        cycleSlotsLocked          = readBool(root, "cycleSlotsLocked",          cycleSlotsLocked);
         columnCyclerScrollToCycle = readBool(root, "columnCyclerScrollToCycle", columnCyclerScrollToCycle);
         hotbarCyclerEnabled       = readBool(root, "hotbarCyclerEnabled",       hotbarCyclerEnabled);
         hotbarCyclerShowButtons   = readBool(root, "hotbarCyclerShowButtons",   hotbarCyclerShowButtons);
-        lockCycledRows            = readBool(root, "lockCycledRows",            lockCycledRows);
         hotbarCyclerScrollToCycle = readBool(root, "hotbarCyclerScrollToCycle", hotbarCyclerScrollToCycle);
         columnCyclerHudMode       = HudMode.fromName(readString(root, "columnCyclerHudMode", null), columnCyclerHudMode);
         sortEnabled               = readBool(root, "sortEnabled",               sortEnabled);
@@ -259,7 +260,9 @@ public final class IPConfig {
         autoToolSwitchShowButton  = readBool(root, "autoToolSwitchShowButton",  autoToolSwitchShowButton);
         lockGroupsEnabled         = readBool(root, "lockGroupsEnabled",         lockGroupsEnabled);
         containerLocksOnServer    = readBool(root, "containerLocksOnServer",    containerLocksOnServer);
+        tooltipsEnabled           = readBool(root, "tooltipsEnabled",           tooltipsEnabled);
         itemTipsEnabled           = readBool(root, "itemTipsEnabled",           itemTipsEnabled);
+        hideTooltipsOnCtrl        = readBool(root, "hideTooltipsOnCtrl",        hideTooltipsOnCtrl);
     }
 
     /**
@@ -327,11 +330,9 @@ public final class IPConfig {
         root.addProperty("lockedSlotsShowButton",   lockedSlotsShowButton);
         root.addProperty("columnCyclerEnabled",       columnCyclerEnabled);
         root.addProperty("columnCyclerShowButton",    columnCyclerShowButton);
-        root.addProperty("cycleSlotsLocked",          cycleSlotsLocked);
         root.addProperty("columnCyclerScrollToCycle", columnCyclerScrollToCycle);
         root.addProperty("hotbarCyclerEnabled",       hotbarCyclerEnabled);
         root.addProperty("hotbarCyclerShowButtons",   hotbarCyclerShowButtons);
-        root.addProperty("lockCycledRows",            lockCycledRows);
         root.addProperty("hotbarCyclerScrollToCycle", hotbarCyclerScrollToCycle);
         root.addProperty("columnCyclerHudMode",       columnCyclerHudMode.name());
         root.addProperty("sortEnabled",               sortEnabled);
@@ -341,7 +342,9 @@ public final class IPConfig {
         root.addProperty("autoToolSwitchShowButton",  autoToolSwitchShowButton);
         root.addProperty("lockGroupsEnabled",         lockGroupsEnabled);
         root.addProperty("containerLocksOnServer",    containerLocksOnServer);
+        root.addProperty("tooltipsEnabled",           tooltipsEnabled);
         root.addProperty("itemTipsEnabled",           itemTipsEnabled);
+        root.addProperty("hideTooltipsOnCtrl",        hideTooltipsOnCtrl);
         return root;
     }
 
@@ -372,6 +375,21 @@ public final class IPConfig {
 
     public static LegacyUsesLockedItems legacyUsesLockedItems() { return legacyUsesLockedItems; }
 
+    /**
+     * The two removed cycle-lock switches as the file last held them (true
+     * when absent, their default): "Lock the slots the cyclers use" and
+     * Hotbar Cycler's "Lock cycled rows". Read by the upgrade to feature reach
+     * groups only (Trev, 2026-09-30).
+     */
+    public record LegacyCycleLocks(boolean cycleSlotsLocked, boolean lockCycledRows) {}
+
+    private static LegacyCycleLocks legacyCycleLocks = new LegacyCycleLocks(true, true);
+
+    public static LegacyCycleLocks legacyCycleLocks() { return legacyCycleLocks; }
+
+    /** The old global switch as the file held it, for the 1.5.x pairing drop in LockedSlots. */
+    public static boolean legacyCycleSlotsLocked() { return legacyCycleLocks.cycleSlotsLocked(); }
+
     public static boolean sortEnabled()              { return sortEnabled; }
     public static boolean moveMatchingEnabled()      { return moveMatchingEnabled; }
     public static boolean restockEnabled()           { return restockEnabled; }
@@ -379,7 +397,9 @@ public final class IPConfig {
     public static boolean autoToolSwitchShowButton() { return autoToolSwitchShowButton; }
     public static boolean lockGroupsEnabled()        { return lockGroupsEnabled; }
     public static boolean containerLocksOnServer()   { return containerLocksOnServer; }
+    public static boolean tooltipsEnabled()          { return tooltipsEnabled; }
     public static boolean itemTipsEnabled()          { return itemTipsEnabled; }
+    public static boolean hideTooltipsOnCtrl()       { return hideTooltipsOnCtrl; }
     public static void setSortEnabled(boolean v)              { sortEnabled = v; save(); }
     public static void setMoveMatchingEnabled(boolean v)      { moveMatchingEnabled = v; save(); }
     public static void setRestockEnabled(boolean v)           { restockEnabled = v; save(); }
@@ -387,7 +407,9 @@ public final class IPConfig {
     public static void setAutoToolSwitchShowButton(boolean v) { autoToolSwitchShowButton = v; save(); }
     public static void setLockGroupsEnabled(boolean v)        { lockGroupsEnabled = v; save(); }
     public static void setContainerLocksOnServer(boolean v)   { containerLocksOnServer = v; save(); }
+    public static void setTooltipsEnabled(boolean v)          { tooltipsEnabled = v; save(); }
     public static void setItemTipsEnabled(boolean v)          { itemTipsEnabled = v; save(); }
+    public static void setHideTooltipsOnCtrl(boolean v)       { hideTooltipsOnCtrl = v; save(); }
 
     // ─── Getters ─────────────────────────────────────────────────────
     public static boolean autoRestockArmor()            { return autoRestockArmor; }
@@ -409,11 +431,9 @@ public final class IPConfig {
     public static boolean lockedSlotsShowButton()       { return lockedSlotsShowButton; }
     public static boolean columnCyclerEnabled()         { return columnCyclerEnabled; }
     public static boolean columnCyclerShowButton()      { return columnCyclerShowButton; }
-    public static boolean cycleSlotsLocked()            { return cycleSlotsLocked; }
     public static boolean columnCyclerScrollToCycle()   { return columnCyclerScrollToCycle; }
     public static boolean hotbarCyclerEnabled()         { return hotbarCyclerEnabled; }
     public static boolean hotbarCyclerShowButtons()     { return hotbarCyclerShowButtons; }
-    public static boolean lockCycledRows()              { return lockCycledRows; }
     public static boolean hotbarCyclerScrollToCycle()   { return hotbarCyclerScrollToCycle; }
     public static HudMode columnCyclerHudMode()         { return columnCyclerHudMode; }
 
@@ -437,7 +457,6 @@ public final class IPConfig {
     public static void setLockedSlotsShowButton(boolean v)       { lockedSlotsShowButton = v; save(); }
     public static void setColumnCyclerEnabled(boolean v)         { columnCyclerEnabled = v; save(); }
     public static void setColumnCyclerShowButton(boolean v)      { columnCyclerShowButton = v; save(); }
-    public static void setCycleSlotsLocked(boolean v)            { cycleSlotsLocked = v; save(); }
     // Scroll-to-cycle has a single owner: the wheel is one input, so turning
     // it on for one cycler turns it off for the other (cycle-modes.md). Both
     // setters enforce it, so the rule holds wherever it's set from.
@@ -448,7 +467,6 @@ public final class IPConfig {
     }
     public static void setHotbarCyclerEnabled(boolean v)         { hotbarCyclerEnabled = v; save(); }
     public static void setHotbarCyclerShowButtons(boolean v)     { hotbarCyclerShowButtons = v; save(); }
-    public static void setLockCycledRows(boolean v)              { lockCycledRows = v; save(); }
     public static void setHotbarCyclerScrollToCycle(boolean v) {
         hotbarCyclerScrollToCycle = v;
         if (v) columnCyclerScrollToCycle = false;

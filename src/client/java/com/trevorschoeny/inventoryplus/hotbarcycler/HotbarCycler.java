@@ -163,30 +163,19 @@ public final class HotbarCycler {
         return !toggledRows().isEmpty();
     }
 
-    // ── Lock pairing ────────────────────────────────────────────────────
+    // ── Reach group ─────────────────────────────────────────────────────
 
     /**
-     * Whether a cycling row currently keeps automation off
-     * {@code containerSlot}. Registered with
-     * {@link com.trevorschoeny.inventoryplus.lockedslots.LockedSlots#registerDerivedPlayerLock}
-     * so Sort, Move Matching, shift-click and the lock icon all honour it
-     * through the one enforcement predicate they already call.
-     *
-     * <p>Two configs must both be on, per the spec: the global <b>Lock
-     * Cycle Slots</b> that covers all three cyclers, and the
-     * Hotbar-specific <b>Lock Cycled Rows</b>. That lets a player keep
-     * column and pocket locking while leaving rows free to sort.
-     *
-     * <p>Derived, never stored. The lock belongs to the position, so it
-     * stays put while items rotate through it, it appears and vanishes
-     * the moment a row or a config is toggled, and it leaves the
-     * player's own manual locks completely alone. A slot hand-locked
-     * inside a toggled row still rotates: the lock keeps automation off
-     * the position, it does not pin the item.
+     * Whether player slot {@code containerSlot} is in Hotbar Cycler's reach
+     * group now: a slot of a cycling row. Registered with
+     * {@code Reach.registerFeature}, which asks per slot at veto time, so the
+     * protection belongs to the position, stays put while items rotate
+     * through it, and leaves the player's own locks alone. Which moves leave
+     * these slots alone is the player's, per move, in Reach (2026-09-30; it
+     * was two global switches).
      */
-    public static boolean rowLockApplies(int containerSlot) {
+    public static boolean inReachGroup(int containerSlot) {
         if (!IPConfig.hotbarCyclerEnabled()) return false;
-        if (!IPConfig.cycleSlotsLocked() || !IPConfig.lockCycledRows()) return false;
         return isCycledSlot(containerSlot);
     }
 
