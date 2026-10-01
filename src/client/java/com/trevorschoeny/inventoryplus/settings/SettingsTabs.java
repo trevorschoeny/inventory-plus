@@ -47,7 +47,7 @@ import java.util.function.Supplier;
  * <p>Every tab has one frame (Trev, 2026-09-27): the title, a description,
  * Reset to Defaults, the feature's on/off checkbox (not on General or
  * Reach), a line, then its settings one per line, every one of them greyed
- * while the feature is off. Back to game sits above the tab column, not in
+ * while the feature is off. Back to game floats above the menu panel, not in
  * a tab. Every reach lives in the Reach tab; feature tabs have none.
  *
  * <p>Controls with a real setting behind them read and write it live; the

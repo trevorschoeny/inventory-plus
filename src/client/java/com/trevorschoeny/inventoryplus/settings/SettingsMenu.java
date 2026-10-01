@@ -5,6 +5,7 @@ import com.trevlar.menukit.api.element.Button;
 import com.trevlar.menukit.api.panel.Panel;
 import com.trevlar.menukit.api.element.TextLabel;
 import com.trevlar.menukit.api.element.PanelElement;
+import com.trevlar.menukit.api.panel.OutsideRegion;
 import com.trevlar.menukit.api.panel.PanelPosition;
 import com.trevlar.menukit.api.panel.PanelStyle;
 import com.trevlar.menukit.api.element.Tabs;
@@ -70,7 +71,7 @@ public final class SettingsMenu extends MKScreen {
     private final @Nullable Screen parent;
 
     private SettingsMenu(@Nullable Screen parent) {
-        super(title(), List.of(main(), confirmPanel()));
+        super(title(), List.of(main(), backPanel(), confirmPanel()));
         this.parent = parent;
         // No bar across the top (Trev, 2026-09-27): Back to game heads the tab
         // column instead, and the body starts at the top.
@@ -207,6 +208,22 @@ public final class SettingsMenu extends MKScreen {
         return Component.literal(modName());
     }
 
+    /**
+     * Back to game, floating above the menu panel and detached from it,
+     * left-aligned with its left edge (Designer's frame brief, 2026-09-30).
+     * A panel with no background claims only the button itself; MenuKit
+     * shortens the main panel to leave it room (menukit df08cbf). Same
+     * action as Escape.
+     */
+    private static Panel backPanel() {
+        return Panel.builder("inventoryplus:settings_back")
+                .style(PanelStyle.NONE)
+                .position(PanelPosition.region(OutsideRegion.TOP_ALIGN_LEFT))
+                .add(Button.builder().label(Component.literal("Back to game")).size(0, 16)
+                        .onClick(() -> Minecraft.getInstance().gui.screen().onClose()).build())
+                .build();
+    }
+
     private static Panel main() {
         boolean max = maxInstalled();
         Tabs tabs = Tabs.builder()
@@ -214,9 +231,6 @@ public final class SettingsMenu extends MKScreen {
                 .mode(Tabs.Mode.SIDEBAR)
                 .align(Tabs.Align.LEFT)
                 .state(() -> selectedTab, id -> selectedTab = id)
-                // Back to game tops the left column, above the tabs; it does what Escape does.
-                .sidebarHeader(Button.builder().label(Component.literal("Back to game")).size(0, 16)
-                        .onClick(() -> Minecraft.getInstance().gui.screen().onClose()).build())
                 .tab(tab(GENERAL, "General").body(() -> SettingsTabs.general(max)))
                 .tab(tab(REACH, "Reach").body(SettingsTabs::reach))
                 .tab(tab(LOCK_GROUPS, "Lock groups").body(() -> SettingsTabs.lockGroups(max)))
