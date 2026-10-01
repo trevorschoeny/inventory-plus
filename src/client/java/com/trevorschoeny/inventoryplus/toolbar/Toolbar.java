@@ -1,5 +1,7 @@
 package com.trevorschoeny.inventoryplus.toolbar;
 
+import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerButtons;
+
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsButtons;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingButtons;
 import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
@@ -104,7 +106,7 @@ public final class Toolbar {
 
     /**
      * Inventory toolbar — anchored above the player's 3×9 main inv.
-     * Holds Lock-edit + Sort-inv + MM Out + MM In. Panel-level
+     * Holds Edit cycle slots, Lock edit, Sort, MM Out, MM In, Settings. Panel-level
      * showWhen excludes Creative (the creative item picker isn't a
      * real inventory).
      */
@@ -138,30 +140,30 @@ public final class Toolbar {
                     SlotGroupCategory.HOPPER_STORAGE);
     }
 
+    /**
+     * Left to right (settings-menu.md, "Opening it", 2026-09-30): Edit cycle
+     * slots, Lock edit, Sort, Move Matching out, Move Matching in, Settings at
+     * the right end. Positions are fixed at build time, so a hidden button
+     * leaves its gap; the row has never collapsed.
+     */
     private static List<PanelElement> buildInventoryChildren() {
         int x = 0;
-        // Restock and Auto Tool Switch, the features that had no button
-        // (2026-09-27). Leftmost, so adding them moved none of the buttons
-        // players already reach for; the toolbar is right-aligned.
-        PanelElement restock = FeatureToggleButtons.restock(x, 0);
-        x += FeatureToggleButtons.SIZE + BUTTON_GAP;
-        PanelElement autoToolSwitch = FeatureToggleButtons.autoToolSwitch(x, 0);
-        x += FeatureToggleButtons.SIZE + BUTTON_GAP;
-        // Settings (leftmost before those, for the same reason).
-        PanelElement settings = settingsButton(x, 0);
-        x += SETTINGS_SIZE + BUTTON_GAP;
-        // Lock-edit toggle (leftmost, always visible — inventory-tied).
+        // Column Cycler's edit toggle, moved here from the power-users column;
+        // its own visibleWhen still gates it on the feature and its button.
+        PanelElement cycleEdit = ColumnCyclerButtons.toolbarToggle(x, 0);
+        x += ColumnCyclerButtons.SIZE + BUTTON_GAP;
         PanelElement lockEdit = LockedSlotsButtons.toolbarToggle(x, 0);
         x += LockedSlotsButtons.SIZE + BUTTON_GAP;
-        // Sort — targets the player main inv from this toolbar.
+        // Sort targets the player's main inventory from this toolbar.
         PanelElement sort = SortButton.inventoryToolbarButton(x, 0);
         x += SortButton.SIZE + BUTTON_GAP;
-        // Move Matching OUT.
         PanelElement mmOut = MoveMatchingButtons.toolbarOutButton(x, 0);
         x += MoveMatchingButtons.SIZE + BUTTON_GAP;
-        // Move Matching IN (rightmost when MM is visible).
         PanelElement mmIn = MoveMatchingButtons.toolbarInButton(x, 0);
-        return List.of(restock, autoToolSwitch, settings, lockEdit, sort, mmOut, mmIn);
+        x += MoveMatchingButtons.SIZE + BUTTON_GAP;
+        // Settings at the right end: always shown, so the row's edge never moves.
+        PanelElement settings = settingsButton(x, 0);
+        return List.of(cycleEdit, lockEdit, sort, mmOut, mmIn, settings);
     }
 
     private static final int SETTINGS_SIZE = 9;

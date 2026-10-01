@@ -1,7 +1,5 @@
 package com.trevorschoeny.inventoryplus.toolbar;
 
-import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerButtons;
-
 import com.trevlar.menukit.api.panel.Panel;
 import com.trevlar.menukit.api.element.PanelElement;
 import com.trevlar.menukit.api.panel.PanelPosition;
@@ -35,13 +33,9 @@ import java.util.List;
  *
  * <h3>Dynamic stacking</h3>
  *
- * Each PU button registers itself via its own factory + per-button
- * {@code .showWhen} gate. Buttons whose feature is disabled hide
- * naturally; the panel's vertical layout closes the gap because the
- * y-offset arithmetic is done at build time and the hide-when-empty
- * behavior is automatic. (When more PU features ship, this approach
- * may need to graduate to a stack-with-auto-reflow if hide gaps
- * appear — for the first feature alone, explicit offsets suffice.)
+ * Each button keeps its own {@code visibleWhen} gate. Offsets are fixed
+ * at build time, so a hidden button leaves its gap rather than the ones
+ * below it moving up.
  *
  * <h3>Per-screen scope</h3>
  *
@@ -67,13 +61,17 @@ public final class PowerUsersToolbar {
                 .on(SlotGroupCategory.PLAYER_INVENTORY);
     }
 
+    /**
+     * Top to bottom (settings-menu.md, "Opening it", 2026-09-30): Restock,
+     * Auto Tool Switch. Column Cycler's edit toggle moved to the top row.
+     * Positions are fixed at build time, so a hidden button leaves its gap.
+     */
     private static List<PanelElement> buildChildren() {
         int y = 0;
-        // Column Cycler edit toggle — first PU button. Per-button
-        // .showWhen handles columnCyclerEnabled + columnCyclerShowButton.
-        PanelElement columnCyclerEdit = ColumnCyclerButtons.toolbarToggle(0, y);
-        y += ColumnCyclerButtons.SIZE + BUTTON_GAP;
-        return List.of(columnCyclerEdit);
+        PanelElement restock = FeatureToggleButtons.restock(0, y);
+        y += FeatureToggleButtons.SIZE + BUTTON_GAP;
+        PanelElement autoToolSwitch = FeatureToggleButtons.autoToolSwitch(0, y);
+        return List.of(restock, autoToolSwitch);
     }
 
     private static boolean isToolbarScope() {
