@@ -13,6 +13,7 @@ import com.trevlar.menukit.api.element.TextLabel;
 import com.trevlar.menukit.api.element.Toggle;
 import com.trevorschoeny.keybindery.chord.ChordButton;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -117,8 +118,15 @@ final class SettingsBody {
 
     private void header(String title, String description, @Nullable PanelElement onOff, @Nullable Runnable onReset) {
         int titleColor = greyed ? GREYED_COLOR : HEADING_COLOR;
-        out.add(TextLabel.builder().at(0, y).text(Component.literal(title)).color(titleColor).scale(2f).build());
+        // The mod's name at twice size, bold, then the tab's title under it,
+        // bold (Trev, 2026-09-30).
+        out.add(TextLabel.builder().at(0, y)
+                .text(Component.literal(SettingsMenu.modName()).withStyle(ChatFormatting.BOLD))
+                .color(titleColor).scale(2f).build());
         y += 2 * TEXT_ROW;
+        out.add(TextLabel.builder().at(0, y).text(Component.literal(title).withStyle(ChatFormatting.BOLD))
+                .color(titleColor).build());
+        y += TEXT_ROW + 2;
         out.add(TextLabel.builder().at(0, y).text(Component.literal(description))
                 .color(greyed ? GREYED_COLOR : TEXT_COLOR).build());
         y += TEXT_ROW + 4;

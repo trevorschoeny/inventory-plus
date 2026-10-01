@@ -190,13 +190,21 @@ public final class SettingsMenu extends MKScreen {
         return create(parent);
     }
 
+    /**
+     * The menu's name, which heads every tab: "Inventory Plus Max" with
+     * Inventory Max installed, "Inventory Plus" without (Trev, 2026-09-30).
+     */
+    static String modName() {
+        return maxInstalled() ? "Inventory Plus Max" : "Inventory Plus";
+    }
+
     private static boolean maxInstalled() {
         return FabricLoader.getInstance().isModLoaded("inventorymax");
     }
 
     /** "Inventory Plus", or both names when Inventory Max is here to be configured too. */
     private static Component title() {
-        return Component.literal(maxInstalled() ? "Inventory Plus and Inventory Max" : "Inventory Plus");
+        return Component.literal(modName());
     }
 
     private static Panel main() {
