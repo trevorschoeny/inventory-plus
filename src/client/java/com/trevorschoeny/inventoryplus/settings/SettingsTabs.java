@@ -92,7 +92,8 @@ final class SettingsTabs {
     }
 
     private static void resetTooltips() {
-        IPConfig.reset("tooltipsEnabled", "itemTipsEnabled", "hideTooltipsOnCtrl");
+        IPConfig.reset("tooltipsEnabled", "itemTipsEnabled", "hideTooltipsOnKey");
+        resetKeys(IPKeybinds.HIDE_TOOLTIPS);
     }
 
     private static void resetMoveMatching() {
@@ -455,8 +456,9 @@ final class SettingsTabs {
                         Bool.of(IPConfig::itemTipsEnabled, IPConfig::setItemTipsEnabled))
                 // Hidden by MenuKit's tooltip seam, through a predicate Inventory
                 // Plus registers at client init (InventoryPlusClient).
-                .checkbox("Hold Ctrl to hide tooltips",
-                        Bool.of(IPConfig::hideTooltipsOnCtrl, IPConfig::setHideTooltipsOnCtrl))
+                .checkbox("Hold a key to hide tooltips",
+                        Bool.of(IPConfig::hideTooltipsOnKey, IPConfig::setHideTooltipsOnKey))
+                .key(IPKeybinds.HIDE_TOOLTIPS)
                 .build();
     }
 

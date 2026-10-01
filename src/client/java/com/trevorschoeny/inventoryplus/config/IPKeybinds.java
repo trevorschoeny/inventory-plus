@@ -4,7 +4,10 @@ import com.mojang.blaze3d.platform.InputConstants;
 
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 
+import com.trevorschoeny.keybindery.api.KeybinderyAPI;
+
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 
 import org.lwjgl.glfw.GLFW;
@@ -134,6 +137,33 @@ public final class IPKeybinds {
             InputConstants.UNKNOWN.getValue(),
             CATEGORY);
 
+    /**
+     * Hides every tooltip while held (Trev, 2026-09-30). Space by default,
+     * which Jump shares: 26.2 maps a key to a list of mappings, so both fire.
+     * Read as a raw held state ({@link #isHeld}), never consumed, so it works
+     * on every screen and a focused button or text field still gets Space.
+     */
+    public static final KeyMapping HIDE_TOOLTIPS = new KeyMapping(
+            "key.inventoryplus.hide_tooltips",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_SPACE,
+            CATEGORY);
+
+    /**
+     * Whether every key of {@code mapping}'s chord is physically down right
+     * now. Vanilla releases mapping states while a screen is open, so a key
+     * that must work under any screen (the pause menu included) is polled
+     * from the window instead.
+     *
+     * <p>ponytail: {@code Chord.isActiveHeld} is marked internal in
+     * Keybindery; ask Keybindery to publish a held-state read and switch to it.
+     */
+    public static boolean isHeld(KeyMapping mapping) {
+        Minecraft mc = Minecraft.getInstance();
+        return mc.getWindow() != null
+                && KeybinderyAPI.getInstance().getChord(mapping).isActiveHeld(mc.getWindow().handle());
+    }
+
     /** Register all keybinds with Fabric. Call once from client init. */
     public static void register() {
         KeyMappingHelper.registerKeyMapping(LOCK_SLOT);
@@ -147,5 +177,6 @@ public final class IPKeybinds {
         KeyMappingHelper.registerKeyMapping(HOTBAR_CYCLE_BACKWARD);
         KeyMappingHelper.registerKeyMapping(AUTO_SWITCH_RETURN);
         KeyMappingHelper.registerKeyMapping(OPEN_SETTINGS);
+        KeyMappingHelper.registerKeyMapping(HIDE_TOOLTIPS);
     }
 }

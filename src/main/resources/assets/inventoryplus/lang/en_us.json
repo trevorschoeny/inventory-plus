@@ -12,6 +12,7 @@
   "key.inventoryplus.hotbar_cycle_backward": "Hotbar Cycle Backward",
   "key.inventoryplus.auto_switch_return": "Auto-Switch: Return to Previous Tool",
   "key.inventoryplus.open_settings": "Open Settings",
+  "key.inventoryplus.hide_tooltips": "Hide Tooltips",
   "slot_operation.inventoryplus.sort": "Sort",
   "slot_operation.inventoryplus.sort.description": "Sorting may move items in and out of this slot.",
   "slot_operation.inventoryplus.move_matching_out": "Move Matching out",

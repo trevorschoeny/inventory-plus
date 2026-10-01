@@ -1,7 +1,6 @@
 package com.trevorschoeny.inventoryplus;
 
 
-import com.trevlar.menukit.api.element.Click;
 import com.trevlar.menukit.api.element.MKTooltip;
 import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
 import com.trevorschoeny.inventoryplus.autorestock.AutoRestockTicker;
@@ -141,11 +140,11 @@ public class InventoryPlusClient implements ClientModInitializer {
         LockTooltips.register();
         // Item Tips moved here from MenuKit in 6.0.0.
         ItemTips.register();
-        // Hold Ctrl to hide tooltips (Trev, 2026-09-30): MenuKit owns the one
-        // seam every tooltip goes through and asks this first. "Ctrl" is
-        // MenuKit's control rule (Cmd on a Mac), the same as Ctrl+click.
-        MKTooltip.hideWhen(() -> IPConfig.tooltipsEnabled() && IPConfig.hideTooltipsOnCtrl()
-                && Click.of(Click.LEFT).ctrl());
+        // Hold the hide-tooltips key to hide tooltips (Trev, 2026-09-30):
+        // MenuKit owns the one seam every tooltip goes through and asks this
+        // first. The key is read raw, so it works under every screen.
+        MKTooltip.hideWhen(() -> IPConfig.tooltipsEnabled() && IPConfig.hideTooltipsOnKey()
+                && IPKeybinds.isHeld(IPKeybinds.HIDE_TOOLTIPS));
         ClientTickEvents.END_CLIENT_TICK.register(LockedSlotKeybind::tick);
 
         // IP toolbar — one right-aligned MK panel above the player 3×9

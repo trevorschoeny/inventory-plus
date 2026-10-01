@@ -166,11 +166,13 @@ public final class IPConfig {
     // Tooltips: everything Inventory Plus does to tooltips (Trev, 2026-09-30).
     // tooltipsEnabled off means Inventory Plus leaves every tooltip alone.
     // Item tips (durability and food lines) moved from MenuKit in 6.0.0, on
-    // by default as players had it there. Hold Ctrl to hide tooltips is on by
-    // default too: holding Ctrl over a slot otherwise does nothing.
+    // by default as players had it there. Holding the hide-tooltips key
+    // (IPKeybinds.HIDE_TOOLTIPS, Space by default) hides every tooltip; on by
+    // default. Saved as hideTooltipsOnKey; was hideTooltipsOnCtrl while the
+    // key was fixed to Ctrl (read as a fallback in load()).
     private static boolean tooltipsEnabled = true;
     private static boolean itemTipsEnabled = true;
-    private static boolean hideTooltipsOnCtrl = true;
+    private static boolean hideTooltipsOnKey = true;
 
     /**
      * Every setting at its default, taken before the file is read. A tab's
@@ -262,7 +264,8 @@ public final class IPConfig {
         containerLocksOnServer    = readBool(root, "containerLocksOnServer",    containerLocksOnServer);
         tooltipsEnabled           = readBool(root, "tooltipsEnabled",           tooltipsEnabled);
         itemTipsEnabled           = readBool(root, "itemTipsEnabled",           itemTipsEnabled);
-        hideTooltipsOnCtrl        = readBool(root, "hideTooltipsOnCtrl",        hideTooltipsOnCtrl);
+        hideTooltipsOnKey         = readBool(root, "hideTooltipsOnKey",
+                readBool(root, "hideTooltipsOnCtrl", hideTooltipsOnKey));
     }
 
     /**
@@ -344,7 +347,7 @@ public final class IPConfig {
         root.addProperty("containerLocksOnServer",    containerLocksOnServer);
         root.addProperty("tooltipsEnabled",           tooltipsEnabled);
         root.addProperty("itemTipsEnabled",           itemTipsEnabled);
-        root.addProperty("hideTooltipsOnCtrl",        hideTooltipsOnCtrl);
+        root.addProperty("hideTooltipsOnKey",         hideTooltipsOnKey);
         return root;
     }
 
@@ -399,7 +402,7 @@ public final class IPConfig {
     public static boolean containerLocksOnServer()   { return containerLocksOnServer; }
     public static boolean tooltipsEnabled()          { return tooltipsEnabled; }
     public static boolean itemTipsEnabled()          { return itemTipsEnabled; }
-    public static boolean hideTooltipsOnCtrl()       { return hideTooltipsOnCtrl; }
+    public static boolean hideTooltipsOnKey()        { return hideTooltipsOnKey; }
     public static void setSortEnabled(boolean v)              { sortEnabled = v; save(); }
     public static void setMoveMatchingEnabled(boolean v)      { moveMatchingEnabled = v; save(); }
     public static void setRestockEnabled(boolean v)           { restockEnabled = v; save(); }
@@ -409,7 +412,7 @@ public final class IPConfig {
     public static void setContainerLocksOnServer(boolean v)   { containerLocksOnServer = v; save(); }
     public static void setTooltipsEnabled(boolean v)          { tooltipsEnabled = v; save(); }
     public static void setItemTipsEnabled(boolean v)          { itemTipsEnabled = v; save(); }
-    public static void setHideTooltipsOnCtrl(boolean v)       { hideTooltipsOnCtrl = v; save(); }
+    public static void setHideTooltipsOnKey(boolean v)        { hideTooltipsOnKey = v; save(); }
 
     // ─── Getters ─────────────────────────────────────────────────────
     public static boolean autoRestockArmor()            { return autoRestockArmor; }
