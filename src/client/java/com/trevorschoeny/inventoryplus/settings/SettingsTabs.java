@@ -95,7 +95,7 @@ final class SettingsTabs {
         IPConfig.reset("tooltipsEnabled", "tooltipDurability", "tooltipFood", "tooltipFoodEffects",
                 "tooltipEnchantmentDescriptions", "tooltipSortEnchantments", "tooltipToolStats",
                 "tooltipCompare", "tooltipCondenseTrims", "tooltipModName", "hideTooltipsOnKey",
-                "tooltipScrollLong");
+                "tooltipScrollLong", "tooltipKeepOnScreen");
         resetKeys(IPKeybinds.HIDE_TOOLTIPS);
     }
 
@@ -479,8 +479,10 @@ final class SettingsTabs {
                 // On MenuKit's tooltip scroll hook (MKTooltip.onWheel/scrollBy, 3b6473e).
                 .checkbox("Scroll long tooltips", Bool.of(IPConfig::tooltipScrollLong,
                         IPConfig::setTooltipScrollLong))
-                // Waits on MenuKit's tooltip positioner seam (asked 2026-09-30).
-                .checkbox("Keep tooltips on screen (waits on MenuKit)", false)
+                // On MenuKit's MKTooltip.wrapWhen / clampWhen (ca179c2): wraps a
+                // tooltip wider than the screen and keeps its top on screen.
+                .checkbox("Keep tooltips on screen", Bool.of(IPConfig::tooltipKeepOnScreen,
+                        IPConfig::setTooltipKeepOnScreen))
                 .build();
     }
 

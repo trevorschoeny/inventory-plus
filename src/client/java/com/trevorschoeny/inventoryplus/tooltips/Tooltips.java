@@ -15,6 +15,7 @@ import net.minecraft.world.item.ItemStack;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.BooleanSupplier;
 
 /**
  * Everything Inventory Plus does to tooltips, one checkbox each (the Tooltips
@@ -56,6 +57,11 @@ public final class Tooltips {
         // clamps the offset to the tooltip, so one that fits never moves, and
         // pins the title. Wheel down (negative) moves the tooltip up, bringing
         // its lower lines into view, as a list scrolls. Never consumes the wheel.
+        // Keep tooltips on screen: one predicate for both of MenuKit's halves,
+        // wrapping a tooltip wider than the screen and clamping its top.
+        BooleanSupplier keepOnScreen = () -> IPConfig.tooltipsEnabled() && IPConfig.tooltipKeepOnScreen();
+        MKTooltip.wrapWhen(keepOnScreen);
+        MKTooltip.clampWhen(keepOnScreen);
         MKTooltip.onWheel((horizontal, vertical) -> {
             if (!IPConfig.tooltipsEnabled() || !IPConfig.tooltipScrollLong()) return;
             MKTooltip.scrollBy((int) Math.round(horizontal * SCROLL_STEP),

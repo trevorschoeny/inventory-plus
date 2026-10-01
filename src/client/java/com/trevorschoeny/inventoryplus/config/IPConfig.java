@@ -188,6 +188,10 @@ public final class IPConfig {
     // (MenuKit's MKTooltip.scrollBy). On by default: it only ever moves a
     // tooltip that runs off the screen.
     private static boolean tooltipScrollLong = true;
+    // Wrap a tooltip wider than the screen and keep its top on screen
+    // (MenuKit's MKTooltip.wrapWhen / clampWhen). On by default: it only
+    // changes a tooltip that would run off the screen.
+    private static boolean tooltipKeepOnScreen = true;
 
     /**
      * Every setting at its default, taken before the file is read. A tab's
@@ -290,6 +294,7 @@ public final class IPConfig {
         hideTooltipsOnKey         = readBool(root, "hideTooltipsOnKey",
                 readBool(root, "hideTooltipsOnCtrl", hideTooltipsOnKey));
         tooltipScrollLong = readBool(root, "tooltipScrollLong", tooltipScrollLong);
+        tooltipKeepOnScreen = readBool(root, "tooltipKeepOnScreen", tooltipKeepOnScreen);
     }
 
     /**
@@ -381,6 +386,7 @@ public final class IPConfig {
         root.addProperty("tooltipModName", tooltipModName);
         root.addProperty("hideTooltipsOnKey",         hideTooltipsOnKey);
         root.addProperty("tooltipScrollLong", tooltipScrollLong);
+        root.addProperty("tooltipKeepOnScreen", tooltipKeepOnScreen);
         return root;
     }
 
@@ -445,6 +451,7 @@ public final class IPConfig {
     public static boolean tooltipModName() { return tooltipModName; }
     public static boolean hideTooltipsOnKey()        { return hideTooltipsOnKey; }
     public static boolean tooltipScrollLong() { return tooltipScrollLong; }
+    public static boolean tooltipKeepOnScreen() { return tooltipKeepOnScreen; }
     public static void setSortEnabled(boolean v)              { sortEnabled = v; save(); }
     public static void setMoveMatchingEnabled(boolean v)      { moveMatchingEnabled = v; save(); }
     public static void setRestockEnabled(boolean v)           { restockEnabled = v; save(); }
@@ -464,6 +471,7 @@ public final class IPConfig {
     public static void setTooltipModName(boolean v) { tooltipModName = v; save(); }
     public static void setHideTooltipsOnKey(boolean v)        { hideTooltipsOnKey = v; save(); }
     public static void setTooltipScrollLong(boolean v) { tooltipScrollLong = v; save(); }
+    public static void setTooltipKeepOnScreen(boolean v) { tooltipKeepOnScreen = v; save(); }
 
     // ─── Getters ─────────────────────────────────────────────────────
     public static boolean autoRestockArmor()            { return autoRestockArmor; }
