@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.settings;
 
 import com.trevlar.menukit.api.element.Click;
+import com.trevlar.menukit.api.element.Flow;
 import com.trevlar.menukit.api.element.Button;
 import com.trevlar.menukit.api.panel.Panel;
 import com.trevlar.menukit.api.element.TextLabel;
@@ -13,6 +14,7 @@ import com.trevlar.menukit.api.panel.MKScreen;
 
 import net.fabricmc.loader.api.FabricLoader;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -192,11 +194,27 @@ public final class SettingsMenu extends MKScreen {
     }
 
     /**
-     * The menu's name, which heads every tab: "Inventory Plus Max" with
-     * Inventory Max installed, "Inventory Plus" without (Trev, 2026-09-30).
+     * The menu's name: "Inventory Plus Max" with Inventory Max installed,
+     * "Inventory Plus" without (Trev, 2026-09-30).
      */
     static String modName() {
         return maxInstalled() ? "Inventory Plus Max" : "Inventory Plus";
+    }
+
+    /**
+     * The name as one bar across the whole menu panel, above the sidebar and
+     * the body, centred on the panel (Trev, 2026-09-30): the name at twice
+     * size, bold, between two spacers that share the row's leftover evenly.
+     * The menu panel's first row; the Tabs are the second (see {@link #main}).
+     */
+    static PanelElement nameBar() {
+        return Flow.builder().at(0, 0).gap(0, 0)
+                .add(Flow.spacer())
+                .add(TextLabel.builder()
+                        .text(Component.literal(modName()).withStyle(ChatFormatting.BOLD))
+                        .color(TextLabel.COLOR_DARK).scale(2f).build())
+                .add(Flow.spacer())
+                .build();
     }
 
     private static boolean maxInstalled() {
@@ -224,9 +242,21 @@ public final class SettingsMenu extends MKScreen {
                 .build();
     }
 
+    /** The name bar's height (the name at twice size), and the gap under it. */
+    private static final int NAME_BAR_HEIGHT = 18;
+    private static final int NAME_BAR_GAP = 6;
+
+    /**
+     * The menu panel holds two rows: the name bar at the top, then the Tabs
+     * below it. The Tabs set no size, so they fill: the panel hands a filling
+     * element the viewport height less its own y (Panel's height pass), which
+     * puts their bottom on the panel's. Inventory Max's tabs come in through
+     * {@code Tabs.addTo}, so this layout is the whole of it.
+     */
     private static Panel main() {
         boolean max = maxInstalled();
         Tabs tabs = Tabs.builder()
+                .at(0, NAME_BAR_HEIGHT + NAME_BAR_GAP)
                 .menu(MENU)
                 .mode(Tabs.Mode.SIDEBAR)
                 .align(Tabs.Align.LEFT)
@@ -253,6 +283,7 @@ public final class SettingsMenu extends MKScreen {
         return Panel.builder("inventoryplus:settings")
                 .style(PanelStyle.RAISED)
                 .position(PanelPosition.main())
+                .add(nameBar())
                 .add(tabs)
                 .build();
     }

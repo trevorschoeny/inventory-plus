@@ -118,16 +118,8 @@ final class SettingsBody {
 
     private void header(String title, String description) {
         int titleColor = greyed ? GREYED_COLOR : HEADING_COLOR;
-        // The mod's name at twice size, bold, centred (Trev, 2026-09-30): a
-        // spacer either side shares the row's leftover evenly.
-        out.add(Flow.builder().at(0, y).gap(0, 0)
-                .add(Flow.spacer())
-                .add(TextLabel.builder()
-                        .text(Component.literal(SettingsMenu.modName()).withStyle(ChatFormatting.BOLD))
-                        .color(titleColor).scale(2f).build())
-                .add(Flow.spacer())
-                .build());
-        y += 2 * TEXT_ROW;
+        // The mod's name is not here: it is one bar across the whole menu panel,
+        // above the sidebar and the body (SettingsMenu.nameBar).
         out.add(TextLabel.builder().at(0, y).text(Component.literal(title).withStyle(ChatFormatting.BOLD))
                 .color(titleColor).build());
         y += TEXT_ROW + 2;
