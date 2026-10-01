@@ -8,6 +8,7 @@ import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 import com.trevorschoeny.inventoryplus.sort.SortButton;
 
 import com.trevlar.menukit.api.element.Button;
+import com.trevlar.menukit.api.element.Flow;
 import com.trevlar.menukit.api.panel.Panel;
 import com.trevlar.menukit.api.element.PanelElement;
 import com.trevlar.menukit.api.panel.PanelPosition;
@@ -143,27 +144,26 @@ public final class Toolbar {
     /**
      * Left to right (settings-menu.md, "Opening it", 2026-09-30): Edit cycle
      * slots, Lock edit, Sort, Move Matching out, Move Matching in, Settings at
-     * the right end. Positions are fixed at build time, so a hidden button
-     * leaves its gap; the row has never collapsed.
+     * the right end. One Flow, flush right with no holes (Trev, 2026-09-30
+     * smoke): a hidden button is skipped in layout, and the leading spacer
+     * takes what the hidden ones leave. The Flow's natural width counts every
+     * button, so the panel keeps that width whatever is shown and its right
+     * edge, with the gear last, never moves.
      */
     private static List<PanelElement> buildInventoryChildren() {
-        int x = 0;
-        // Column Cycler's edit toggle, moved here from the power-users column;
-        // its own visibleWhen still gates it on the feature and its button.
-        PanelElement cycleEdit = ColumnCyclerButtons.toolbarToggle(x, 0);
-        x += ColumnCyclerButtons.SIZE + BUTTON_GAP;
-        PanelElement lockEdit = LockedSlotsButtons.toolbarToggle(x, 0);
-        x += LockedSlotsButtons.SIZE + BUTTON_GAP;
-        // Sort targets the player's main inventory from this toolbar.
-        PanelElement sort = SortButton.inventoryToolbarButton(x, 0);
-        x += SortButton.SIZE + BUTTON_GAP;
-        PanelElement mmOut = MoveMatchingButtons.toolbarOutButton(x, 0);
-        x += MoveMatchingButtons.SIZE + BUTTON_GAP;
-        PanelElement mmIn = MoveMatchingButtons.toolbarInButton(x, 0);
-        x += MoveMatchingButtons.SIZE + BUTTON_GAP;
-        // Settings at the right end: always shown, so the row's edge never moves.
-        PanelElement settings = settingsButton(x, 0);
-        return List.of(cycleEdit, lockEdit, sort, mmOut, mmIn, settings);
+        return List.of(Flow.builder().gap(BUTTON_GAP, BUTTON_GAP)
+                .add(Flow.spacer())
+                // Column Cycler's edit toggle; its own visibleWhen gates it on
+                // the feature and its button.
+                .add(ColumnCyclerButtons.toolbarToggle(0, 0))
+                .add(LockedSlotsButtons.toolbarToggle(0, 0))
+                // Sort targets the player's main inventory from this toolbar.
+                .add(SortButton.inventoryToolbarButton(0, 0))
+                .add(MoveMatchingButtons.toolbarOutButton(0, 0))
+                .add(MoveMatchingButtons.toolbarInButton(0, 0))
+                // Settings at the right end: always shown.
+                .add(settingsButton(0, 0))
+                .build());
     }
 
     private static final int SETTINGS_SIZE = 9;
