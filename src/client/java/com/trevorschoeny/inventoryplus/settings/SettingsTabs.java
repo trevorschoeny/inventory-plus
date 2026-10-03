@@ -83,7 +83,10 @@ final class SettingsTabs {
     }
 
     private static void resetGeneral() {
+        IPConfig.reset("settingsOptionsLook");
         resetKeys(IPKeybinds.OPEN_SETTINGS);
+        // The look may have just gone back to the options look: reopen in it.
+        SettingsMenu.reopen();
     }
 
     private static void resetSort() {
@@ -160,6 +163,13 @@ final class SettingsTabs {
         // The advert for Inventory Max's tabs; with Inventory Max installed the
         // stand-ins are gone, so there is nothing for this to hide.
         if (!maxInstalled) b.checkbox("Show Inventory Max tabs", true);
+        // The menu is made as one kind of screen or the other, so a change
+        // reopens it on General in the new look (Trev, 2026-10-03).
+        b.heading("Look")
+                .checkbox("Look like Minecraft's options screens", Bool.of(IPConfig::settingsOptionsLook, v -> {
+                    IPConfig.setSettingsOptionsLook(v);
+                    SettingsMenu.reopen();
+                }));
         b.heading("Presets")
                 .actions("Save or load a file", "Save to file", "Load from file")
                 .actions("Share by pasting", "Copy to clipboard", "Paste from clipboard");

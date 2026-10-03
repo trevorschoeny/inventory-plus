@@ -10,6 +10,7 @@ import com.trevlar.menukit.api.element.Section;
 import com.trevlar.menukit.api.element.Slider;
 import com.trevlar.menukit.api.element.TextField;
 import com.trevlar.menukit.api.element.TextLabel;
+import com.trevlar.menukit.api.element.TextRole;
 import com.trevlar.menukit.api.element.Toggle;
 import com.trevorschoeny.keybindery.chord.ChordButton;
 
@@ -45,6 +46,11 @@ import java.util.function.Supplier;
  * <p>A {@code greyed} body is an Inventory Max stand-in: headings and text are
  * drawn in the disabled grey as well, so the whole tab reads as unavailable.
  *
+ * <p>No text here is hand-coloured: each label names its {@link TextRole}
+ * (heading, body, disabled) and the kind of screen the menu is made as turns
+ * that into a colour, so one body reads on the options look and the inventory
+ * look alike (MenuKit 6.1.0).
+ *
  * <p>Rows are positioned assuming single-line text. A label that wraps at a
  * narrow width pushes the rows below it down; MenuKit's panel reflow does that,
  * not this class.
@@ -59,9 +65,11 @@ final class SettingsBody {
     private static final int CONTROL_ROW = 20;
     private static final int SECTION_GAP = 8;
 
-    private static final int HEADING_COLOR = TextLabel.COLOR_DARK;
-    private static final int TEXT_COLOR = 0xFF555555;
-    private static final int GREYED_COLOR = 0xFF8B8B8B;
+    /**
+     * A divider's colour on the inventory look; the options look draws vanilla's
+     * separator and ignores it.
+     */
+    private static final int LINE_COLOR = 0xFF8B8B8B;
 
     private final List<PanelElement> out = new ArrayList<>();
     private final boolean greyed;
@@ -117,17 +125,17 @@ final class SettingsBody {
     }
 
     private void header(String title, String description) {
-        int titleColor = greyed ? GREYED_COLOR : HEADING_COLOR;
-        // The mod's name is not here: it is one bar across the whole menu panel,
-        // above the sidebar and the body (SettingsMenu.nameBar).
+        // The mod's name is not here: it is the screen's title on the options
+        // look, and one bar across the menu panel on the inventory look
+        // (SettingsMenu.nameBar).
         out.add(TextLabel.builder().at(0, y).text(Component.literal(title).withStyle(ChatFormatting.BOLD))
-                .color(titleColor).build());
+                .role(role(TextRole.HEADING)).build());
         y += TEXT_ROW + 2;
         out.add(TextLabel.builder().at(0, y).text(Component.literal(description))
-                .color(greyed ? GREYED_COLOR : TEXT_COLOR).build());
+                .role(role(TextRole.BODY)).build());
         y += TEXT_ROW + 4;
         // The line between the tab's heading and everything it controls.
-        out.add(Divider.horizontal().at(0, y).color(0xFF8B8B8B).build());
+        out.add(Divider.horizontal().at(0, y).color(LINE_COLOR).build());
         y += 6;
     }
 
@@ -153,10 +161,15 @@ final class SettingsBody {
         return () -> !on.getAsBoolean() || unavailable.getAsBoolean();
     }
 
-    /** Settings text in {@code color}, drawn in MenuKit's disabled grey while the tab's feature is off. */
-    private TextLabel settingText(int x, int y, Component text, int color) {
+    /** {@code role}, or the disabled role on a greyed stand-in body. */
+    private TextRole role(TextRole role) {
+        return greyed ? TextRole.DISABLED : role;
+    }
+
+    /** Settings text in {@code role}, drawn in the disabled colour while the tab's feature is off. */
+    private TextLabel settingText(int x, int y, Component text, TextRole role) {
         BooleanSupplier on = featureOn;
-        return TextLabel.builder().at(x, y).text(text).color(color)
+        return TextLabel.builder().at(x, y).text(text).role(role(role))
                 .disabledWhen(() -> !on.getAsBoolean()).build();
     }
 
@@ -167,9 +180,9 @@ final class SettingsBody {
      */
     SettingsBody heading(String text) {
         if (y > 0) y += SECTION_GAP;
-        out.add(settingText(0, y, Component.literal(text), greyed ? GREYED_COLOR : HEADING_COLOR));
+        out.add(settingText(0, y, Component.literal(text), TextRole.HEADING));
         y += TEXT_ROW;
-        out.add(Divider.horizontal().at(0, y - 2).size(160, 1).color(greyed ? GREYED_COLOR : 0xFF8B8B8B).build());
+        out.add(Divider.horizontal().at(0, y - 2).size(160, 1).color(LINE_COLOR).build());
         y += 2;
         return this;
     }
@@ -194,7 +207,9 @@ final class SettingsBody {
                 .summary(summary)
                 .content(inner.build());
         if (swatch != null) section.swatch(swatch);
-        if (greyed) section.colors(GREYED_COLOR, GREYED_COLOR);
+        // A section takes the kind's heading and muted colours itself, and the
+        // disabled colour while disabled: a stand-in's sections are.
+        if (greyed) section.disabledWhen(DISABLED);
         out.add(section.build());
         y += Section.HEADER_HEIGHT + 2;
         return this;
@@ -206,7 +221,7 @@ final class SettingsBody {
     }
 
     SettingsBody line(int indent, Component text) {
-        out.add(settingText(indent, y, text, greyed ? GREYED_COLOR : TEXT_COLOR));
+        out.add(settingText(indent, y, text, TextRole.BODY));
         y += TEXT_ROW;
         return this;
     }
@@ -243,7 +258,7 @@ final class SettingsBody {
 
     /** A setting's text, on its own line, greying while the feature is off. */
     private void label(int x, Component text) {
-        out.add(settingText(x, y, text, greyed ? GREYED_COLOR : TEXT_COLOR));
+        out.add(settingText(x, y, text, TextRole.BODY));
         y += TEXT_ROW;
     }
 
@@ -427,10 +442,6 @@ final class SettingsBody {
 
     boolean greyed() {
         return greyed;
-    }
-
-    int textColor() {
-        return greyed ? GREYED_COLOR : TEXT_COLOR;
     }
 
     List<PanelElement> build() {

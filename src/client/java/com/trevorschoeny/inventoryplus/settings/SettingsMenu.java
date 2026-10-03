@@ -11,12 +11,16 @@ import com.trevlar.menukit.api.panel.PanelPosition;
 import com.trevlar.menukit.api.panel.PanelStyle;
 import com.trevlar.menukit.api.element.Tabs;
 import com.trevlar.menukit.api.panel.MKScreen;
+import com.trevlar.menukit.api.panel.ScreenKind;
+import com.trevlar.menukit.api.element.TextRole;
+import com.trevorschoeny.inventoryplus.config.IPConfig;
 
 import net.fabricmc.loader.api.FabricLoader;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
@@ -25,9 +29,23 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 /**
- * The Inventory Plus and Inventory Max settings menu: full screen, a sidebar
- * of tabs down the left, a tab per feature (plan: Leadership drive,
- * {@code mods/inventory-plus/plans/settings-menu.md}).
+ * The Inventory Plus and Inventory Max settings menu: full screen, a tab per
+ * feature (plan: Leadership drive, {@code mods/inventory-plus/plans/settings-menu.md}).
+ *
+ * <p><b>Two looks, one menu</b> (Trev, 2026-10-03). The player picks the look on
+ * General ({@code IPConfig.settingsOptionsLook}), and the menu is made as that
+ * kind of MenuKit screen, fixed for its life:
+ * <ul>
+ *   <li>{@link ScreenKind#OPTIONS}, the default: the pause-menu look. The name is
+ *       the screen's title, centred in white; the tabs run across the top; the
+ *       page sits in the list band over the blurred world; Done at the bottom.</li>
+ *   <li>{@link ScreenKind#CONTAINER}: the inventory look the menu had before. A
+ *       grey panel with the name bar, the tabs down a sidebar, Back to game
+ *       floating above.</li>
+ * </ul>
+ * Every tab and body is the same on both: their text is coloured by role
+ * ({@code TextRole}), so the kind decides how it reads. Changing the look
+ * reopens the menu on General in the other kind ({@link #reopen}).
  *
  * <p>The menu is named {@link #MENU}, so other mods add tabs to it with
  * MenuKit's {@code Tabs.addTo}. Inventory Plus sets the order, and holds the
@@ -72,12 +90,12 @@ public final class SettingsMenu extends MKScreen {
     /** The screen the menu returns to on close, kept so a rebuild returns there too. */
     private final @Nullable Screen parent;
 
-    private SettingsMenu(@Nullable Screen parent) {
-        super(title(), List.of(main(), backPanel(), confirmPanel()));
+    private SettingsMenu(@Nullable Screen parent, ScreenKind kind) {
+        super(title(), kind, panels(kind));
         this.parent = parent;
-        // No bar across the top (Trev, 2026-09-27): Back to game heads the tab
-        // column instead, and the body starts at the top.
-        hideTitle();
+        // The inventory look has its own name bar inside the panel and Back to
+        // game above it, so no title band; the options look's title is the name.
+        if (kind == ScreenKind.CONTAINER) hideTitle();
         // Escape goes back to wherever the menu was opened from: the inventory,
         // Mod Menu, or the game. A container stays open underneath, because
         // swapping screens does not close it; returning reuses the same screen.
@@ -117,8 +135,30 @@ public final class SettingsMenu extends MKScreen {
     static void rebuild() {
         Minecraft mc = Minecraft.getInstance();
         mc.execute(() -> {
-            if (mc.gui.screen() instanceof SettingsMenu menu) mc.gui.setScreen(new SettingsMenu(menu.parent));
+            if (mc.gui.screen() instanceof SettingsMenu menu) mc.gui.setScreen(new SettingsMenu(menu.parent, kind()));
         });
+    }
+
+    /**
+     * Opens the menu again on General, in the look the setting now asks for:
+     * after the look checkbox changes, and after a reset that may have put it
+     * back. Same parent, so Escape still returns where the player came from.
+     */
+    static void reopen() {
+        selectedTab = GENERAL;
+        rebuild();
+    }
+
+    /** The kind of screen the look setting asks for. */
+    private static ScreenKind kind() {
+        return IPConfig.settingsOptionsLook() ? ScreenKind.OPTIONS : ScreenKind.CONTAINER;
+    }
+
+    /** The menu's panels for {@code kind}: the confirm panel is the same on both. */
+    private static List<Panel> panels(ScreenKind kind) {
+        return kind == ScreenKind.OPTIONS
+                ? List.of(main(kind), donePanel(), confirmPanel())
+                : List.of(main(kind), backPanel(), confirmPanel());
     }
 
     // ── Resets other mods add (Inventory Max) ───────────────────────────
@@ -160,10 +200,10 @@ public final class SettingsMenu extends MKScreen {
         List<PanelElement> elements = List.of(
                 TextLabel.builder().at(0, 0)
                         .text(() -> Component.literal(pending == null ? "" : pending.title()))
-                        .color(TextLabel.COLOR_DARK).build(),
+                        .role(TextRole.HEADING).build(),
                 TextLabel.builder().at(0, 14)
                         .text(() -> Component.literal(pending == null ? "" : pending.body()))
-                        .color(0xFF555555).build(),
+                        .role(TextRole.MUTED).build(),
                 Button.builder().at(0, 32).size(70, 16).label(Component.literal("Cancel"))
                         .onClick(() -> pending = null).build(),
                 Button.builder().at(74, 32).size(70, 16).label(Component.literal("Confirm"))
@@ -184,7 +224,7 @@ public final class SettingsMenu extends MKScreen {
 
     /** The menu as a screen, for Mod Menu's factory. */
     public static Screen create(@Nullable Screen parent) {
-        return new SettingsMenu(parent);
+        return new SettingsMenu(parent, kind());
     }
 
     /** The menu as a screen on {@code tabId}, for a companion's Mod Menu factory. */
@@ -202,7 +242,7 @@ public final class SettingsMenu extends MKScreen {
     }
 
     /**
-     * The name as one bar across the whole menu panel, above the sidebar and
+     * The inventory look's name: one bar across the whole menu panel, above the sidebar and
      * the body, centred on the panel (Trev, 2026-09-30): the name at twice
      * size, bold, between two spacers that share the row's leftover evenly.
      * The menu panel's first row; the Tabs are the second (see {@link #main}).
@@ -212,7 +252,7 @@ public final class SettingsMenu extends MKScreen {
                 .add(Flow.spacer())
                 .add(TextLabel.builder()
                         .text(Component.literal(modName()).withStyle(ChatFormatting.BOLD))
-                        .color(TextLabel.COLOR_DARK).scale(2f).build())
+                        .role(TextRole.HEADING).scale(2f).build())
                 .add(Flow.spacer())
                 .build();
     }
@@ -242,24 +282,47 @@ public final class SettingsMenu extends MKScreen {
                 .build();
     }
 
+    /**
+     * The options look's Done, at the bottom centre at vanilla's width, the way
+     * every Options screen ends. {@code onClose} runs the return action, so Done
+     * and Escape agree.
+     */
+    private static Panel donePanel() {
+        return Panel.builder("inventoryplus:settings_done")
+                .style(PanelStyle.NONE)
+                .position(PanelPosition.region(OutsideRegion.BOTTOM_CENTER))
+                .add(Button.builder().label(CommonComponents.GUI_DONE).size(200, 20)
+                        .onClick(() -> Minecraft.getInstance().gui.screen().onClose()).build())
+                .build();
+    }
+
     /** The name bar's height (the name at twice size), and the gap under it. */
     private static final int NAME_BAR_HEIGHT = 18;
     private static final int NAME_BAR_GAP = 6;
 
     /**
-     * The menu panel holds two rows: the name bar at the top, then the Tabs
-     * below it. The Tabs set no size, so they fill: the panel hands a filling
-     * element the viewport height less its own y (Panel's height pass), which
-     * puts their bottom on the panel's. Inventory Max's tabs come in through
+     * The menu panel. Options look: no box, so the blurred world shows, and the
+     * Tabs alone, across the top (Create World's tab bar, scrolling sideways
+     * with thirteen tabs). Inventory look: the grey panel with two rows, the
+     * name bar, then the Tabs as a sidebar below it.
+     *
+     * <p>The Tabs set no size, so they fill: the panel hands a filling element
+     * the viewport height less its own y (Panel's height pass), which puts
+     * their bottom on the panel's. Inventory Max's tabs come in through
      * {@code Tabs.addTo}, so this layout is the whole of it.
      */
-    private static Panel main() {
+    private static Panel main(ScreenKind kind) {
         boolean max = maxInstalled();
-        Tabs tabs = Tabs.builder()
-                .at(0, NAME_BAR_HEIGHT + NAME_BAR_GAP)
-                .menu(MENU)
-                .mode(Tabs.Mode.SIDEBAR)
-                .align(Tabs.Align.LEFT)
+        boolean options = kind == ScreenKind.OPTIONS;
+        Tabs.Builder builder = Tabs.builder().menu(MENU);
+        if (options) {
+            builder.mode(Tabs.Mode.SIDE_SCROLL);
+        } else {
+            builder.at(0, NAME_BAR_HEIGHT + NAME_BAR_GAP)
+                    .mode(Tabs.Mode.SIDEBAR)
+                    .align(Tabs.Align.LEFT);
+        }
+        Tabs tabs = builder
                 .state(() -> selectedTab, id -> selectedTab = id)
                 .tab(tab(GENERAL, "General").body(() -> SettingsTabs.general(max)))
                 .tab(tab(REACH, "Reach").body(SettingsTabs::reach))
@@ -280,12 +343,11 @@ public final class SettingsMenu extends MKScreen {
                 .tab(tab("inventorymax:mend_anywhere", "Mend Anywhere").standIn()
                         .body(SettingsTabs::mendAnywhereStandIn))
                 .build();
-        return Panel.builder("inventoryplus:settings")
-                .style(PanelStyle.RAISED)
-                .position(PanelPosition.main())
-                .add(nameBar())
-                .add(tabs)
-                .build();
+        Panel.Builder panel = Panel.builder("inventoryplus:settings")
+                .style(options ? PanelStyle.NONE : PanelStyle.RAISED)
+                .position(PanelPosition.main());
+        if (!options) panel.add(nameBar());
+        return panel.add(tabs).build();
     }
 
     private static Tabs.TabSpec tab(String id, String label) {

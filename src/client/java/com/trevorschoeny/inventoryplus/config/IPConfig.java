@@ -193,6 +193,11 @@ public final class IPConfig {
     // changes a tooltip that would run off the screen.
     private static boolean tooltipKeepOnScreen = true;
 
+    // ─── Settings menu ───────────────────────────────────────────────
+    // The menu's look (Trev, 2026-10-03): on, the pause-menu look (MenuKit's
+    // options screen); off, the inventory look it had before.
+    private static boolean settingsOptionsLook = true;
+
     /**
      * Every setting at its default, taken before the file is read. A tab's
      * Reset to Defaults applies the part of this it owns ({@link #reset}).
@@ -295,6 +300,7 @@ public final class IPConfig {
                 readBool(root, "hideTooltipsOnCtrl", hideTooltipsOnKey));
         tooltipScrollLong = readBool(root, "tooltipScrollLong", tooltipScrollLong);
         tooltipKeepOnScreen = readBool(root, "tooltipKeepOnScreen", tooltipKeepOnScreen);
+        settingsOptionsLook = readBool(root, "settingsOptionsLook", settingsOptionsLook);
     }
 
     /**
@@ -387,6 +393,7 @@ public final class IPConfig {
         root.addProperty("hideTooltipsOnKey",         hideTooltipsOnKey);
         root.addProperty("tooltipScrollLong", tooltipScrollLong);
         root.addProperty("tooltipKeepOnScreen", tooltipKeepOnScreen);
+        root.addProperty("settingsOptionsLook", settingsOptionsLook);
         return root;
     }
 
@@ -452,6 +459,7 @@ public final class IPConfig {
     public static boolean hideTooltipsOnKey()        { return hideTooltipsOnKey; }
     public static boolean tooltipScrollLong() { return tooltipScrollLong; }
     public static boolean tooltipKeepOnScreen() { return tooltipKeepOnScreen; }
+    public static boolean settingsOptionsLook() { return settingsOptionsLook; }
     public static void setSortEnabled(boolean v)              { sortEnabled = v; save(); }
     public static void setMoveMatchingEnabled(boolean v)      { moveMatchingEnabled = v; save(); }
     public static void setRestockEnabled(boolean v)           { restockEnabled = v; save(); }
@@ -472,6 +480,7 @@ public final class IPConfig {
     public static void setHideTooltipsOnKey(boolean v)        { hideTooltipsOnKey = v; save(); }
     public static void setTooltipScrollLong(boolean v) { tooltipScrollLong = v; save(); }
     public static void setTooltipKeepOnScreen(boolean v) { tooltipKeepOnScreen = v; save(); }
+    public static void setSettingsOptionsLook(boolean v) { settingsOptionsLook = v; save(); }
 
     // ─── Getters ─────────────────────────────────────────────────────
     public static boolean autoRestockArmor()            { return autoRestockArmor; }
