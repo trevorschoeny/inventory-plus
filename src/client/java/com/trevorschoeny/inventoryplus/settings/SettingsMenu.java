@@ -203,7 +203,7 @@ public final class SettingsMenu extends MKScreen {
                         .role(TextRole.HEADING).build(),
                 TextLabel.builder().at(0, 14)
                         .text(() -> Component.literal(pending == null ? "" : pending.body()))
-                        .role(TextRole.MUTED).build(),
+                        .role(TextRole.BODY).build(),
                 Button.builder().at(0, 32).size(70, 16).label(Component.literal("Cancel"))
                         .onClick(() -> pending = null).build(),
                 Button.builder().at(74, 32).size(70, 16).label(Component.literal("Confirm"))
