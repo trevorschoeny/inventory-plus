@@ -49,8 +49,7 @@ import java.util.function.Supplier;
  * <p>No text here is hand-coloured: each label names its {@link TextRole}
  * (heading, body, disabled) and the kind of screen the menu is made as turns
  * that into a colour, so one body reads on the options look and the inventory
- * look alike (MenuKit 6.1.0). Dividers set no colour either: each takes the
- * kind's line, vanilla's separator on the options look.
+ * look alike (MenuKit 6.1.0).
  *
  * <p>Rows are positioned assuming single-line text. A label that wraps at a
  * narrow width pushes the rows below it down; MenuKit's panel reflow does that,
@@ -66,6 +65,11 @@ final class SettingsBody {
     private static final int CONTROL_ROW = 20;
     private static final int SECTION_GAP = 8;
 
+    /**
+     * A divider's colour on the inventory look; the options look draws vanilla's
+     * separator and ignores it.
+     */
+    private static final int LINE_COLOR = 0xFF8B8B8B;
 
     private final List<PanelElement> out = new ArrayList<>();
     private final boolean greyed;
@@ -131,7 +135,7 @@ final class SettingsBody {
                 .role(role(TextRole.BODY)).build());
         y += TEXT_ROW + 4;
         // The line between the tab's heading and everything it controls.
-        out.add(Divider.horizontal().at(0, y).build());
+        out.add(Divider.horizontal().at(0, y).color(LINE_COLOR).build());
         y += 6;
     }
 
@@ -178,7 +182,7 @@ final class SettingsBody {
         if (y > 0) y += SECTION_GAP;
         out.add(settingText(0, y, Component.literal(text), TextRole.HEADING));
         y += TEXT_ROW;
-        out.add(Divider.horizontal().at(0, y - 2).size(160, 1).build());
+        out.add(Divider.horizontal().at(0, y - 2).size(160, 1).color(LINE_COLOR).build());
         y += 2;
         return this;
     }
