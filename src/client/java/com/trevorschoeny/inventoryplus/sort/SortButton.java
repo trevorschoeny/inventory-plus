@@ -65,7 +65,8 @@ public final class SortButton {
                     triggerSort(target);
                 })
                 .tooltip(SettingsMenu.tooltip("Sort",
-                        ModeGestures.tooltip(t -> "Sort by " + t.label(), SortState.MODE, identity, pinHere)))
+                        ModeGestures.tooltip(t -> "Sort by " + t.label(), t -> "Sort: " + t.label(),
+                                SortState.MODE, identity, pinHere)))
                 .onSecondaryClick(gestures::accept)
                 .tint(ModeGestures.tint(SortState.MODE, identity, feedback))
                 .visibleWhen(() -> IPConfig.sortEnabled() && IPConfig.sortShowButton())

@@ -83,10 +83,10 @@ public final class HotbarCyclerRowButtons {
                     if (SettingsMenu.ctrlClickOpens(SettingsMenu.HOTBAR_CYCLER)) return;
                     HotbarCycler.setRow(r, on);
                 })
-                .tooltip(() -> Component.literal(
-                        HotbarCycler.isRowToggled(r)
-                                ? "Remove row from cycle"
-                                : "Add row to cycle"))
+                // Compact tooltips (General): the short form.
+                .tooltip(() -> Component.literal(HotbarCycler.isRowToggled(r)
+                        ? (IPConfig.compactTooltips() ? "Remove row" : "Remove row from cycle")
+                        : (IPConfig.compactTooltips() ? "Add row" : "Add row to cycle")))
                 .build();
 
         Panel panel = Panel.builder("inventoryplus:hotbarcycler_row_" + r)
@@ -128,7 +128,8 @@ public final class HotbarCyclerRowButtons {
     private static void registerHotbarIndicator() {
         PanelElement indicator = Toggle.builder().sprite(TEXTURE).size(BUTTON_SIZE, BUTTON_SIZE)
                 .state(() -> true, on -> { /* not clickable: the hotbar's membership isn't a choice */ })
-                .tooltip(() -> Component.literal("The hotbar is always in the cycle"))
+                .tooltip(() -> Component.literal(IPConfig.compactTooltips()
+                        ? "Always cycled" : "The hotbar is always in the cycle"))
                 .build();
 
         Panel panel = Panel.builder("inventoryplus:hotbarcycler_hotbar")

@@ -30,7 +30,7 @@ import java.util.function.Supplier;
  *   <li>Tooltip (Trev, 2026-10-03): the action with its mode in one line
  *       ("Sort by Category"), "Right click: cycle", and only on a button
  *       that pins here, "Middle click: pin to container". Compact
- *       tooltips (General) keep the first line alone.</li>
+ *       tooltips (General) show one short line ("Sort: Category").</li>
  *   <li>Tint: the press flash while it lasts, else pink when pinned.</li>
  * </ul>
  */
@@ -60,17 +60,19 @@ public final class ModeGestures {
 
     /**
      * {@code action} turns the mode in force into the first line ("Sort by
-     * Category"); the gesture lines follow.
+     * Category"); the gesture lines follow. With Compact tooltips on
+     * (General) the tooltip is {@code compact}'s one short line instead
+     * ("Sort: Category"), so it takes little room.
      */
     public static <E extends Enum<E> & ModeStop> Supplier<Component> tooltip(
-            Function<E, String> action, ModeState<E> state, Supplier<@Nullable ContainerIdentity> identity,
-            boolean pinHere) {
+            Function<E, String> action, Function<E, String> compact, ModeState<E> state,
+            Supplier<@Nullable ContainerIdentity> identity, boolean pinHere) {
         return () -> {
             ContainerIdentity id = identity.get();
+            if (IPConfig.compactTooltips()) return Component.literal(compact.apply(state.effective(id)));
             List<String> lines = new ArrayList<>(3);
             lines.add(action.apply(state.effective(id)));
-            // Compact tooltips (General) keep only the first line.
-            if (state.hasCycle() && !IPConfig.compactTooltips()) {
+            if (state.hasCycle()) {
                 lines.add("Right click: cycle");
                 if (state.isPinned(id)) lines.add("Middle click: unpin");
                 else if (pinHere && state.pinnable() && id != null) lines.add("Middle click: pin to container");

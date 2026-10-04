@@ -42,14 +42,15 @@ public final class MoveMatchingButtons {
     public static final int SIZE = 9;
 
     public static Button toolbarOutButton(int x, int y) {
-        return build(x, y, TEXTURE_OUT, "out of inventory", Direction.OUT);
+        return build(x, y, TEXTURE_OUT, "out of inventory", "Move out", Direction.OUT);
     }
 
     public static Button toolbarInButton(int x, int y) {
-        return build(x, y, TEXTURE_IN, "into inventory", Direction.IN);
+        return build(x, y, TEXTURE_IN, "into inventory", "Move in", Direction.IN);
     }
 
-    private static Button build(int x, int y, Identifier texture, String where, Direction direction) {
+    private static Button build(int x, int y, Identifier texture, String where, String shortName,
+                                Direction direction) {
         PressFeedback feedback = new PressFeedback();
         ModeState<MoveMatchingMode> state = MoveMatchingModes.state(direction);
         // Only moving out pins to the container (Trev, 2026-10-03).
@@ -62,7 +63,8 @@ public final class MoveMatchingButtons {
                     triggerMoveMatching(direction);
                 })
                 .tooltip(SettingsMenu.tooltip("Move Matching", ModeGestures.tooltip(
-                        m -> m.sentence(where), state, MoveMatchingModes::currentIdentity, pinHere)))
+                        m -> m.sentence(where), m -> shortName + ": " + m.label(),
+                        state, MoveMatchingModes::currentIdentity, pinHere)))
                 .onSecondaryClick(gestures::accept)
                 .tint(ModeGestures.tint(state, MoveMatchingModes::currentIdentity, feedback))
                 .visibleWhen(MoveMatchingButtons::shouldShow)

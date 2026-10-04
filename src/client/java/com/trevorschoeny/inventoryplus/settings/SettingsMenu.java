@@ -129,11 +129,14 @@ public final class SettingsMenu extends MKScreen {
     /**
      * An inventory button's tooltip: {@code tooltip}, or "Open settings for
      * {@code feature}" while Ctrl (Cmd on a Mac) is held, which is what a
-     * click would then do (Trev, 2026-10-03).
+     * click would then do (Trev, 2026-10-03); "Settings" with Compact
+     * tooltips on.
      */
     public static Supplier<Component> tooltip(String feature, Supplier<Component> tooltip) {
         Component open = Component.literal("Open settings for " + feature);
-        return () -> Click.of(Click.LEFT).ctrl() ? open : tooltip.get();
+        Component compact = Component.literal("Settings");
+        return () -> !Click.of(Click.LEFT).ctrl() ? tooltip.get()
+                : IPConfig.compactTooltips() ? compact : open;
     }
 
     /**

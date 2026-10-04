@@ -160,8 +160,9 @@ final class SettingsTabs {
                 .frame("General", "Settings for the whole menu. Greyed settings aren't built yet.");
         // No category header on the first settings (Trev, 2026-10-03).
         b.key(IPKeybinds.OPEN_SETTINGS)
-                // Inventory buttons' tooltips without their hint lines (Trev, 2026-10-03).
-                .checkbox("Compact tooltips: inventory buttons show only what they do",
+                // The inventory buttons' tooltips in one short line each, to
+                // take less room (Trev, 2026-10-03). Off by default.
+                .checkbox("Compact tooltips: short, one line on inventory buttons",
                         Bool.of(IPConfig::compactTooltips, IPConfig::setCompactTooltips))
                 // Moved here from Tooltips (Trev, 2026-10-03): it hides every
                 // tooltip, so it is the whole menu's, not that feature's.

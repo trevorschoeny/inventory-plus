@@ -47,7 +47,7 @@ public final class FeatureToggleButtons {
         PressFeedback feedback = new PressFeedback();
         return builder(x, y, "locked_slot_edit", "Lock groups", SettingsMenu.LOCK_GROUPS,
                 IPConfig::lockGroupsEnabled, IPConfig::setLockGroupsEnabled, IPConfig::lockedSlotsShowButton,
-                () -> "Group: " + Reach.active().name(),
+                () -> Reach.active().name(),
                 () -> keyHint("Hover over a slot or item", IPKeybinds.LOCK_SLOT) + "\nRight click: cycle")
                 .onSecondaryClick(click -> {
                     if (!click.isRight()) return;
@@ -89,19 +89,23 @@ public final class FeatureToggleButtons {
 
     /**
      * A feature's switch: "Restock: On", then {@code detail} (state worth
-     * knowing, always shown) and {@code hints} (how to use it, dropped by
-     * Compact tooltips) in grey when given, left click toggling {@code on}
-     * through {@code set}.
+     * knowing: the lock group's name) and {@code hints} (how to use it) in
+     * grey when given, left click toggling {@code on} through {@code set}.
+     * With Compact tooltips on (General) it is one line, the detail after a
+     * dot and no hints: "Lock groups: On · Default slots".
      */
     private static Toggle.Builder builder(int x, int y, String sprite, String name, String tab,
                                           BooleanSupplier on, Consumer<Boolean> set, BooleanSupplier shown,
                                           @Nullable Supplier<String> detail, @Nullable Supplier<String> hints) {
         Supplier<Component> tooltip = () -> {
+            String first = name + ": " + (on.getAsBoolean() ? "On" : "Off");
+            if (IPConfig.compactTooltips()) {
+                return Component.literal(detail == null ? first : first + " · " + detail.get());
+            }
             StringBuilder more = new StringBuilder();
-            if (detail != null) more.append("\n").append(detail.get());
-            if (hints != null && !IPConfig.compactTooltips()) more.append("\n").append(hints.get());
-            return Component.literal(name + ": " + (on.getAsBoolean() ? "On" : "Off"))
-                    .append(Component.literal(more.toString()).withStyle(ChatFormatting.GRAY));
+            if (detail != null) more.append("\nGroup: ").append(detail.get());
+            if (hints != null) more.append("\n").append(hints.get());
+            return Component.literal(first).append(Component.literal(more.toString()).withStyle(ChatFormatting.GRAY));
         };
         return Toggle.builder().sprite(Identifier.fromNamespaceAndPath("inventoryplus", sprite))
                 .at(x, y).size(SIZE, SIZE)
