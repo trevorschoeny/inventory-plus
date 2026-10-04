@@ -95,11 +95,21 @@ final class SettingsBody {
     // ── Text ────────────────────────────────────────────────────────────
 
     /**
+     * The heading alone, with no Reset or On/Off row: for General, small
+     * enough to need no reset of its own (Trev, 2026-10-03). Reset everything
+     * still lives in its settings.
+     */
+    SettingsBody frame(String title, String description) {
+        header(title, description);
+        return this;
+    }
+
+    /**
      * The top of every tab (Trev, 2026-09-30): the mod's name centred, the
      * tab's title, its description, the line, then one row at the left with
      * Reset to Defaults and (on a feature tab) the On/Off switch after it;
-     * the settings follow. For a tab with no feature to turn off (General,
-     * Reach), Reset stands alone. {@code onReset} runs on the button,
+     * the settings follow. For a tab with no feature to turn off (Reach),
+     * Reset stands alone. {@code onReset} runs on the button,
      * normally a confirm ({@link SettingsMenu#confirm}); {@code null} leaves
      * it greyed.
      */

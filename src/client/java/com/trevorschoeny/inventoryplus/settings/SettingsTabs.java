@@ -82,6 +82,7 @@ final class SettingsTabs {
         }
     }
 
+    /** General's own settings back to default; only Reset everything runs it now. */
     private static void resetGeneral() {
         IPConfig.reset("settingsOptionsLook");
         resetKeys(IPKeybinds.OPEN_SETTINGS);
@@ -157,17 +158,19 @@ final class SettingsTabs {
 
     static List<PanelElement> general(boolean maxInstalled) {
         SettingsBody b = new SettingsBody()
-                .frame("General", "Settings for the whole menu. Greyed settings aren't built yet.",
-                        confirmReset("General", SettingsTabs::resetGeneral));
+                .frame("General", "Settings for the whole menu. Greyed settings aren't built yet.");
         b.heading("Misc.").key(IPKeybinds.OPEN_SETTINGS);
         // The advert for Inventory Max's tabs; with Inventory Max installed the
         // stand-ins are gone, so there is nothing for this to hide.
         if (!maxInstalled) b.checkbox("Show Inventory Max tabs", true);
-        // The menu is made as one kind of screen or the other, so a change
-        // reopens it on General in the new look (Trev, 2026-10-03).
+        // A button that flips between the two looks, named for the one in use:
+        // Classic (Minecraft's options screens) or Panel (a container-style
+        // panel) (Trev, 2026-10-03). The menu is made as one kind of screen or
+        // the other, so a click reopens it on General in the new look, which
+        // also rebuilds this button with the new name.
         b.heading("Look")
-                .checkbox("Look like Minecraft's options screens", Bool.of(IPConfig::settingsOptionsLook, v -> {
-                    IPConfig.setSettingsOptionsLook(v);
+                .actions(new SettingsBody.Action(IPConfig.settingsOptionsLook() ? "Classic" : "Panel", () -> {
+                    IPConfig.setSettingsOptionsLook(!IPConfig.settingsOptionsLook());
                     SettingsMenu.reopen();
                 }));
         b.heading("Presets")
