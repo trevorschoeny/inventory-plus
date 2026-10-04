@@ -302,9 +302,9 @@ public final class SettingsMenu extends MKScreen {
 
     /**
      * The menu panel. Options look: no box, so the blurred world shows, and the
-     * Tabs alone, across the top (Create World's tab bar, scrolling sideways
-     * with thirteen tabs). Inventory look: the grey panel with two rows, the
-     * name bar, then the Tabs as a sidebar below it.
+     * Tabs alone, as a sidebar (Create World's tab bar turned on its side).
+     * Inventory look: the grey panel with two rows, the name bar, then the
+     * Tabs as a sidebar below it.
      *
      * <p>The Tabs set no size, so they fill: the panel hands a filling element
      * the viewport height less its own y (Panel's height pass), which puts
@@ -315,13 +315,10 @@ public final class SettingsMenu extends MKScreen {
         boolean max = maxInstalled();
         boolean options = kind == ScreenKind.OPTIONS;
         Tabs.Builder builder = Tabs.builder().menu(MENU);
-        if (options) {
-            builder.mode(Tabs.Mode.SIDE_SCROLL);
-        } else {
-            builder.at(0, NAME_BAR_HEIGHT + NAME_BAR_GAP)
-                    .mode(Tabs.Mode.SIDEBAR)
-                    .align(Tabs.Align.LEFT);
-        }
+        // Both looks put the tabs in a sidebar (Trev, 2026-10-03); on the
+        // options screen MenuKit draws it as Create World's tab bar on its side.
+        builder.mode(Tabs.Mode.SIDEBAR).align(Tabs.Align.LEFT);
+        if (!options) builder.at(0, NAME_BAR_HEIGHT + NAME_BAR_GAP);
         Tabs tabs = builder
                 .state(() -> selectedTab, id -> selectedTab = id)
                 .tab(tab(GENERAL, "General").body(() -> SettingsTabs.general(max)))
