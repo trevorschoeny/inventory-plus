@@ -83,8 +83,8 @@ final class SettingsTabs {
 
     /** General's own settings back to default; only Reset everything runs it now. */
     private static void resetGeneral() {
-        IPConfig.reset("settingsOptionsLook");
-        resetKeys(IPKeybinds.OPEN_SETTINGS);
+        IPConfig.reset("settingsOptionsLook", "compactTooltips", "hideTooltipsOnKey");
+        resetKeys(IPKeybinds.OPEN_SETTINGS, IPKeybinds.HIDE_TOOLTIPS);
         // The look may have just gone back to the options look: reopen in it.
         SettingsMenu.reopen();
     }
@@ -97,9 +97,8 @@ final class SettingsTabs {
     private static void resetTooltips() {
         IPConfig.reset("tooltipsEnabled", "tooltipDurability", "tooltipFood", "tooltipFoodEffects",
                 "tooltipEnchantmentDescriptions", "tooltipSortEnchantments", "tooltipToolStats",
-                "tooltipCompare", "tooltipCondenseTrims", "tooltipModName", "hideTooltipsOnKey",
+                "tooltipCompare", "tooltipCondenseTrims", "tooltipModName",
                 "tooltipScrollLong", "tooltipKeepOnScreen");
-        resetKeys(IPKeybinds.HIDE_TOOLTIPS);
     }
 
     private static void resetMoveMatching() {
@@ -160,7 +159,16 @@ final class SettingsTabs {
         SettingsBody b = new SettingsBody()
                 .frame("General", "Settings for the whole menu. Greyed settings aren't built yet.");
         // No category header on the first settings (Trev, 2026-10-03).
-        b.key(IPKeybinds.OPEN_SETTINGS);
+        b.key(IPKeybinds.OPEN_SETTINGS)
+                // Inventory buttons' tooltips without their hint lines (Trev, 2026-10-03).
+                .checkbox("Compact tooltips: inventory buttons show only what they do",
+                        Bool.of(IPConfig::compactTooltips, IPConfig::setCompactTooltips))
+                // Moved here from Tooltips (Trev, 2026-10-03): it hides every
+                // tooltip, so it is the whole menu's, not that feature's.
+                .checkbox("Hold a key to hide tooltips",
+                        Bool.of(IPConfig::hideTooltipsOnKey, IPConfig::setHideTooltipsOnKey))
+                .key(IPKeybinds.HIDE_TOOLTIPS, Component.translatable(IPKeybinds.HIDE_TOOLTIPS.getName()), null,
+                        () -> !IPConfig.hideTooltipsOnKey());
         // The advert for Inventory Max's tabs; with Inventory Max installed the
         // stand-ins are gone, so there is nothing for this to hide.
         if (!maxInstalled) b.checkbox("Show Inventory Max tabs", true);
@@ -472,7 +480,7 @@ final class SettingsTabs {
     static List<PanelElement> tooltips() {
         return new SettingsBody()
                 .frame("Tooltips", "Changes Inventory Plus makes to tooltips: extra lines on items, "
-                        + "and a key to hide every tooltip while you hold it.",
+                        + "and how long ones scroll and stay on screen.",
                         Bool.of(IPConfig::tooltipsEnabled, IPConfig::setTooltipsEnabled),
                         confirmReset("Tooltips", SettingsTabs::resetTooltips))
                 // One checkbox per provider in tooltips/, in the order they apply.
@@ -494,9 +502,6 @@ final class SettingsTabs {
                 // Hidden by MenuKit's tooltip seam, through a predicate Inventory
                 // Plus registers at client init (tooltips/Tooltips).
                 .heading("Display")
-                .checkbox("Hold a key to hide tooltips",
-                        Bool.of(IPConfig::hideTooltipsOnKey, IPConfig::setHideTooltipsOnKey))
-                .key(IPKeybinds.HIDE_TOOLTIPS)
                 // On MenuKit's tooltip scroll hook (MKTooltip.onWheel/scrollBy, 3b6473e).
                 .checkbox("Scroll long tooltips", Bool.of(IPConfig::tooltipScrollLong,
                         IPConfig::setTooltipScrollLong))

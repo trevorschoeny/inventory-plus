@@ -185,7 +185,11 @@ public final class IPConfig {
     private static boolean tooltipCompare = true;
     private static boolean tooltipCondenseTrims = true;
     private static boolean tooltipModName = false;
+    // A General setting since 2026-10-03, no longer under Tooltips' switch.
     private static boolean hideTooltipsOnKey = true;
+    // Compact tooltips (Trev, 2026-10-03): the inventory buttons' tooltips
+    // keep only their essential lines (what it does, its state), no hints.
+    private static boolean compactTooltips = false;
     // The wheel scrolls a tooltip taller or wider than the screen, title pinned
     // (MenuKit's MKTooltip.scrollBy). On by default: it only ever moves a
     // tooltip that runs off the screen.
@@ -305,6 +309,7 @@ public final class IPConfig {
         tooltipModName = readBool(root, "tooltipModName", tooltipModName);
         hideTooltipsOnKey         = readBool(root, "hideTooltipsOnKey",
                 readBool(root, "hideTooltipsOnCtrl", hideTooltipsOnKey));
+        compactTooltips           = readBool(root, "compactTooltips",           compactTooltips);
         tooltipScrollLong = readBool(root, "tooltipScrollLong", tooltipScrollLong);
         tooltipKeepOnScreen = readBool(root, "tooltipKeepOnScreen", tooltipKeepOnScreen);
         settingsOptionsLook = readBool(root, "settingsOptionsLook", settingsOptionsLook);
@@ -399,6 +404,7 @@ public final class IPConfig {
         root.addProperty("tooltipCondenseTrims", tooltipCondenseTrims);
         root.addProperty("tooltipModName", tooltipModName);
         root.addProperty("hideTooltipsOnKey",         hideTooltipsOnKey);
+        root.addProperty("compactTooltips",           compactTooltips);
         root.addProperty("tooltipScrollLong", tooltipScrollLong);
         root.addProperty("tooltipKeepOnScreen", tooltipKeepOnScreen);
         root.addProperty("settingsOptionsLook", settingsOptionsLook);
@@ -465,6 +471,7 @@ public final class IPConfig {
     public static boolean tooltipCondenseTrims() { return tooltipCondenseTrims; }
     public static boolean tooltipModName() { return tooltipModName; }
     public static boolean hideTooltipsOnKey()        { return hideTooltipsOnKey; }
+    public static boolean compactTooltips()          { return compactTooltips; }
     public static boolean tooltipScrollLong() { return tooltipScrollLong; }
     public static boolean tooltipKeepOnScreen() { return tooltipKeepOnScreen; }
     public static boolean settingsOptionsLook() { return settingsOptionsLook; }
@@ -486,6 +493,7 @@ public final class IPConfig {
     public static void setTooltipCondenseTrims(boolean v) { tooltipCondenseTrims = v; save(); }
     public static void setTooltipModName(boolean v) { tooltipModName = v; save(); }
     public static void setHideTooltipsOnKey(boolean v)        { hideTooltipsOnKey = v; save(); }
+    public static void setCompactTooltips(boolean v)          { compactTooltips = v; save(); }
     public static void setTooltipScrollLong(boolean v) { tooltipScrollLong = v; save(); }
     public static void setTooltipKeepOnScreen(boolean v) { tooltipKeepOnScreen = v; save(); }
     public static void setSettingsOptionsLook(boolean v) { settingsOptionsLook = v; save(); }

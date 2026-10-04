@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.buttonmode;
 
+import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.sort.ContainerIdentity;
 
 import com.trevlar.menukit.api.element.Click;
@@ -28,7 +29,8 @@ import java.util.function.Supplier;
  *       here ({@code pinHere}), or to release a pin made before.</li>
  *   <li>Tooltip (Trev, 2026-10-03): the action with its mode in one line
  *       ("Sort by Category"), "Right click: cycle", and only on a button
- *       that pins here, "Middle click: pin to container".</li>
+ *       that pins here, "Middle click: pin to container". Compact
+ *       tooltips (General) keep the first line alone.</li>
  *   <li>Tint: the press flash while it lasts, else pink when pinned.</li>
  * </ul>
  */
@@ -67,7 +69,8 @@ public final class ModeGestures {
             ContainerIdentity id = identity.get();
             List<String> lines = new ArrayList<>(3);
             lines.add(action.apply(state.effective(id)));
-            if (state.hasCycle()) {
+            // Compact tooltips (General) keep only the first line.
+            if (state.hasCycle() && !IPConfig.compactTooltips()) {
                 lines.add("Right click: cycle");
                 if (state.isPinned(id)) lines.add("Middle click: unpin");
                 else if (pinHere && state.pinnable() && id != null) lines.add("Middle click: pin to container");

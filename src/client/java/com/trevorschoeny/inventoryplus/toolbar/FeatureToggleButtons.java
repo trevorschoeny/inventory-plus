@@ -47,9 +47,8 @@ public final class FeatureToggleButtons {
         PressFeedback feedback = new PressFeedback();
         return builder(x, y, "locked_slot_edit", "Lock groups", SettingsMenu.LOCK_GROUPS,
                 IPConfig::lockGroupsEnabled, IPConfig::setLockGroupsEnabled, IPConfig::lockedSlotsShowButton,
-                () -> "Group: " + Reach.active().name()
-                        + "\n" + keyHint("Hover over a slot or item", IPKeybinds.LOCK_SLOT)
-                        + "\nRight click: cycle")
+                () -> "Group: " + Reach.active().name(),
+                () -> keyHint("Hover over a slot or item", IPKeybinds.LOCK_SLOT) + "\nRight click: cycle")
                 .onSecondaryClick(click -> {
                     if (!click.isRight()) return;
                     // A Mac's Ctrl+click arrives as a right click: still opens the tab.
@@ -67,20 +66,20 @@ public final class FeatureToggleButtons {
 
     public static Toggle restock(int x, int y) {
         return builder(x, y, "restock_button", "Restock", SettingsMenu.RESTOCK,
-                IPConfig::restockEnabled, IPConfig::setRestockEnabled, IPConfig::restockShowButton, null).build();
+                IPConfig::restockEnabled, IPConfig::setRestockEnabled, IPConfig::restockShowButton, null, null).build();
     }
 
     public static Toggle autoToolSwitch(int x, int y) {
         return builder(x, y, "auto_tool_switch_button", "Auto Tool Switch", SettingsMenu.AUTO_TOOL_SWITCH,
                 IPConfig::autoToolSwitchEnabled, IPConfig::setAutoToolSwitchEnabled,
-                IPConfig::autoToolSwitchShowButton, null).build();
+                IPConfig::autoToolSwitchShowButton, null, null).build();
     }
 
     /** Column Cycler: slots join a column's cycle by the key, not by an edit mode. */
     public static Toggle columnCycler(int x, int y) {
         return builder(x, y, "cycle_slot_edit", "Column Cycler", SettingsMenu.COLUMN_CYCLER,
                 IPConfig::columnCyclerEnabled, IPConfig::setColumnCyclerEnabled, IPConfig::columnCyclerShowButton,
-                () -> keyHint("Hover over a slot", IPKeybinds.CYCLE_SLOT)).build();
+                null, () -> keyHint("Hover over a slot", IPKeybinds.CYCLE_SLOT)).build();
     }
 
     /** "Hover over a slot and press C", with the key as bound now. */
@@ -89,16 +88,20 @@ public final class FeatureToggleButtons {
     }
 
     /**
-     * A feature's switch: "Restock: On", then {@code more} in grey when given,
-     * left click toggling {@code on} through {@code set}.
+     * A feature's switch: "Restock: On", then {@code detail} (state worth
+     * knowing, always shown) and {@code hints} (how to use it, dropped by
+     * Compact tooltips) in grey when given, left click toggling {@code on}
+     * through {@code set}.
      */
     private static Toggle.Builder builder(int x, int y, String sprite, String name, String tab,
                                           BooleanSupplier on, Consumer<Boolean> set, BooleanSupplier shown,
-                                          @Nullable Supplier<String> more) {
+                                          @Nullable Supplier<String> detail, @Nullable Supplier<String> hints) {
         Supplier<Component> tooltip = () -> {
-            Component first = Component.literal(name + ": " + (on.getAsBoolean() ? "On" : "Off"));
-            return more == null ? first
-                    : first.copy().append(Component.literal("\n" + more.get()).withStyle(ChatFormatting.GRAY));
+            StringBuilder more = new StringBuilder();
+            if (detail != null) more.append("\n").append(detail.get());
+            if (hints != null && !IPConfig.compactTooltips()) more.append("\n").append(hints.get());
+            return Component.literal(name + ": " + (on.getAsBoolean() ? "On" : "Off"))
+                    .append(Component.literal(more.toString()).withStyle(ChatFormatting.GRAY));
         };
         return Toggle.builder().sprite(Identifier.fromNamespaceAndPath("inventoryplus", sprite))
                 .at(x, y).size(SIZE, SIZE)
