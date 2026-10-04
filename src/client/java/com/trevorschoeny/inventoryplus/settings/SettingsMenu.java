@@ -26,7 +26,9 @@ import net.minecraft.resources.Identifier;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 /**
@@ -87,6 +89,13 @@ public final class SettingsMenu extends MKScreen {
      * Tabs reads it every frame and writes the tab the player picks.
      */
     private static String selectedTab = GENERAL;
+
+    /**
+     * Each tab's body scroll, by tab id, for the session (MenuKit 8aa2151's
+     * Tabs.bodyScroll): a rebuild (a lock group added or recoloured) opens
+     * the body where the player was, not at the top.
+     */
+    private static final Map<String, Double> bodyScroll = new HashMap<>();
 
     /** The screen the menu returns to on close, kept so a rebuild returns there too. */
     private final @Nullable Screen parent;
@@ -335,6 +344,7 @@ public final class SettingsMenu extends MKScreen {
         if (!options) builder.at(0, NAME_BAR_HEIGHT + NAME_BAR_GAP);
         Tabs tabs = builder
                 .state(() -> selectedTab, id -> selectedTab = id)
+                .bodyScroll(bodyScroll::get, bodyScroll::put)
                 .tab(tab(GENERAL, "General").body(() -> SettingsTabs.general(max)))
                 .tab(tab(REACH, "Reach").body(SettingsTabs::reach))
                 .tab(tab(LOCK_GROUPS, "Lock groups").body(() -> SettingsTabs.lockGroups(max)))
