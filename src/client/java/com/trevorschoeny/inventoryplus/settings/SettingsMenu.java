@@ -43,8 +43,8 @@ import java.util.function.Supplier;
  *       the screen's title, centred in white; the tabs run across the top; the
  *       page sits in the list band over the blurred world; Done at the bottom.</li>
  *   <li>{@link ScreenKind#CONTAINER}: the inventory look the menu had before. A
- *       grey panel with the name bar, the tabs down a sidebar, Back to game
- *       floating above.</li>
+ *       grey panel from the top of the screen with the name bar, the tabs down
+ *       a sidebar, Done below it.</li>
  * </ul>
  * Every tab and body is the same on both: their text is coloured by role
  * ({@code TextRole}), so the kind decides how it reads. Changing the look
@@ -103,8 +103,8 @@ public final class SettingsMenu extends MKScreen {
     private SettingsMenu(@Nullable Screen parent, ScreenKind kind) {
         super(title(), kind, panels(kind));
         this.parent = parent;
-        // The inventory look has its own name bar inside the panel and Back to
-        // game above it, so no title band; the options look's title is the name.
+        // The inventory look has its own name bar inside the panel, so no title
+        // band; the options look's title is the name.
         if (kind == ScreenKind.CONTAINER) hideTitle();
         // Escape goes back to wherever the menu was opened from: the inventory,
         // Mod Menu, or the game. A container stays open underneath, because
@@ -179,9 +179,9 @@ public final class SettingsMenu extends MKScreen {
 
     /** The menu's panels for {@code kind}: the confirm panel is the same on both. */
     private static List<Panel> panels(ScreenKind kind) {
-        return kind == ScreenKind.OPTIONS
-                ? List.of(main(kind), donePanel(), confirmPanel())
-                : List.of(main(kind), backPanel(), confirmPanel());
+        // Both looks end in Done at the bottom; the Panel look's Back to game
+        // went (Trev, 2026-10-03), so its menu panel runs to the top.
+        return List.of(main(kind), donePanel(), confirmPanel());
     }
 
     // ── Resets other mods add (Inventory Max) ───────────────────────────
@@ -290,24 +290,8 @@ public final class SettingsMenu extends MKScreen {
     }
 
     /**
-     * Back to game, floating above the menu panel and detached from it,
-     * left-aligned with its left edge (Designer's frame brief, 2026-09-30).
-     * A panel with no background claims only the button itself; MenuKit
-     * shortens the main panel to leave it room (menukit df08cbf). Same
-     * action as Escape.
-     */
-    private static Panel backPanel() {
-        return Panel.builder("inventoryplus:settings_back")
-                .style(PanelStyle.NONE)
-                .position(PanelPosition.region(OutsideRegion.TOP_ALIGN_LEFT))
-                .add(Button.builder().label(Component.literal("Back to game")).size(0, 16)
-                        .onClick(() -> Minecraft.getInstance().gui.screen().onClose()).build())
-                .build();
-    }
-
-    /**
-     * The options look's Done, at the bottom centre at vanilla's width, the way
-     * every Options screen ends. {@code onClose} runs the return action, so Done
+     * Done, at the bottom centre at vanilla's width, the way every Options
+     * screen ends; on both looks. {@code onClose} runs the return action, so Done
      * and Escape agree.
      */
     private static Panel donePanel() {
