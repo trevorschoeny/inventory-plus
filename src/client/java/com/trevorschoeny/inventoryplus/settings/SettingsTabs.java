@@ -83,8 +83,8 @@ final class SettingsTabs {
 
     /** General's own settings back to default; only Reset everything runs it now. */
     private static void resetGeneral() {
-        IPConfig.reset("settingsOptionsLook", "compactTooltips", "hideTooltipsOnKey");
-        resetKeys(IPKeybinds.OPEN_SETTINGS, IPKeybinds.HIDE_TOOLTIPS);
+        IPConfig.reset("settingsOptionsLook", "compactTooltips");
+        resetKeys(IPKeybinds.OPEN_SETTINGS);
         // The look may have just gone back to the options look: reopen in it.
         SettingsMenu.reopen();
     }
@@ -97,8 +97,9 @@ final class SettingsTabs {
     private static void resetTooltips() {
         IPConfig.reset("tooltipsEnabled", "tooltipDurability", "tooltipFood", "tooltipFoodEffects",
                 "tooltipEnchantmentDescriptions", "tooltipSortEnchantments", "tooltipToolStats",
-                "tooltipCompare", "tooltipCondenseTrims", "tooltipModName",
+                "tooltipCompare", "tooltipCondenseTrims", "tooltipModName", "hideTooltipsOnKey",
                 "tooltipScrollLong", "tooltipKeepOnScreen", "tooltipAvoidCover");
+        resetKeys(IPKeybinds.HIDE_TOOLTIPS);
     }
 
     private static void resetMoveMatching() {
@@ -127,7 +128,8 @@ final class SettingsTabs {
     }
 
     private static void resetHotbarCycler() {
-        IPConfig.reset("hotbarCyclerEnabled", "hotbarCyclerShowButtons", "hotbarCyclerScrollToCycle");
+        IPConfig.reset("hotbarCyclerEnabled", "hotbarCyclerShowButton", "hotbarCyclerShowButtons",
+                "hotbarCyclerScrollToCycle");
         resetKeys(IPKeybinds.HOTBAR_CYCLE_FORWARD, IPKeybinds.HOTBAR_CYCLE_BACKWARD);
     }
 
@@ -163,13 +165,7 @@ final class SettingsTabs {
                 // The inventory buttons' tooltips in one short line each, to
                 // take less room (Trev, 2026-10-03). Off by default.
                 .checkbox("Compact tooltips: short, one line on inventory buttons",
-                        Bool.of(IPConfig::compactTooltips, IPConfig::setCompactTooltips))
-                // Moved here from Tooltips (Trev, 2026-10-03): it hides every
-                // tooltip, so it is the whole menu's, not that feature's.
-                .checkbox("Hold a key to hide tooltips",
-                        Bool.of(IPConfig::hideTooltipsOnKey, IPConfig::setHideTooltipsOnKey))
-                .key(IPKeybinds.HIDE_TOOLTIPS, Component.translatable(IPKeybinds.HIDE_TOOLTIPS.getName()), null,
-                        () -> !IPConfig.hideTooltipsOnKey());
+                        Bool.of(IPConfig::compactTooltips, IPConfig::setCompactTooltips));
         // The advert for Inventory Max's tabs; with Inventory Max installed the
         // stand-ins are gone, so there is nothing for this to hide.
         if (!maxInstalled) b.checkbox("Show Inventory Max tabs", true);
@@ -481,11 +477,25 @@ final class SettingsTabs {
     static List<PanelElement> tooltips() {
         return new SettingsBody()
                 .frame("Tooltips", "Changes Inventory Plus makes to tooltips: extra lines on items, "
-                        + "and how long ones scroll and stay on screen.",
+                        + "and where they sit on screen.",
                         Bool.of(IPConfig::tooltipsEnabled, IPConfig::setTooltipsEnabled),
                         confirmReset("Tooltips", SettingsTabs::resetTooltips))
+                // Display first, then Item Details (Trev, 2026-10-04). Scrolling
+                // a long tooltip and keeping it on screen have no switch here:
+                // they stay at their defaults (on).
+                .heading("Display")
+                // MenuKit 6.1.0's avoidCoverWhen: a tooltip that would land over
+                // the menu opens on whichever side covers less of it instead.
+                .checkbox("Keep long tooltips out of the way",
+                        Bool.of(IPConfig::tooltipAvoidCover, IPConfig::setTooltipAvoidCover))
+                // Hidden by MenuKit's tooltip seam, through a predicate Inventory
+                // Plus registers at client init (tooltips/Tooltips).
+                .checkbox("Hold a key to hide tooltips",
+                        Bool.of(IPConfig::hideTooltipsOnKey, IPConfig::setHideTooltipsOnKey))
+                .key(IPKeybinds.HIDE_TOOLTIPS, Component.translatable(IPKeybinds.HIDE_TOOLTIPS.getName()), null,
+                        () -> !IPConfig.hideTooltipsOnKey())
                 // One checkbox per provider in tooltips/, in the order they apply.
-                .heading("Lines")
+                .heading("Item Details")
                 .checkbox("Durability", Bool.of(IPConfig::tooltipDurability, IPConfig::setTooltipDurability))
                 .checkbox("Food: nutrition and saturation", Bool.of(IPConfig::tooltipFood, IPConfig::setTooltipFood))
                 .checkbox("Food effects", Bool.of(IPConfig::tooltipFoodEffects, IPConfig::setTooltipFoodEffects))
@@ -500,20 +510,6 @@ final class SettingsTabs {
                 .checkbox("Condense armor trim lines", Bool.of(IPConfig::tooltipCondenseTrims,
                         IPConfig::setTooltipCondenseTrims))
                 .checkbox("Mod name", Bool.of(IPConfig::tooltipModName, IPConfig::setTooltipModName))
-                // Hidden by MenuKit's tooltip seam, through a predicate Inventory
-                // Plus registers at client init (tooltips/Tooltips).
-                .heading("Display")
-                // On MenuKit's tooltip scroll hook (MKTooltip.onWheel/scrollBy, 3b6473e).
-                .checkbox("Scroll long tooltips", Bool.of(IPConfig::tooltipScrollLong,
-                        IPConfig::setTooltipScrollLong))
-                // On MenuKit's MKTooltip.wrapWhen / clampWhen (ca179c2): wraps a
-                // tooltip wider than the screen and keeps its top on screen.
-                .checkbox("Keep tooltips on screen", Bool.of(IPConfig::tooltipKeepOnScreen,
-                        IPConfig::setTooltipKeepOnScreen))
-                // MenuKit 6.1.0's avoidCoverWhen: a tooltip that would land over
-                // the menu opens on whichever side covers less of it instead.
-                .checkbox("Keep tooltips out of the way",
-                        Bool.of(IPConfig::tooltipAvoidCover, IPConfig::setTooltipAvoidCover))
                 .build();
     }
 
@@ -639,6 +635,8 @@ final class SettingsTabs {
                         + "Add rows with the buttons beside them, then cycle with the forward and backward keys.",
                         Bool.of(IPConfig::hotbarCyclerEnabled, IPConfig::setHotbarCyclerEnabled),
                         confirmReset("Hotbar Cycler", SettingsTabs::resetHotbarCycler))
+                .checkbox("Show the Hotbar Cycler button",
+                        Bool.of(IPConfig::hotbarCyclerShowButton, IPConfig::setHotbarCyclerShowButton))
                 .checkbox("Show the row buttons",
                         Bool.of(IPConfig::hotbarCyclerShowButtons, IPConfig::setHotbarCyclerShowButtons))
                 .heading("Cycling")

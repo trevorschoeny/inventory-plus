@@ -139,6 +139,9 @@ public final class IPConfig {
     // 2026-09-30; lockCycledRows is gone (read once below, for the upgrade).
     private static boolean hotbarCyclerEnabled = false;
     private static boolean hotbarCyclerShowButtons = true;
+    // The on/off switch in the inventory's right column (Trev, 2026-10-04);
+    // hotbarCyclerShowButtons is the row buttons beside the grid.
+    private static boolean hotbarCyclerShowButton = true;
     private static boolean hotbarCyclerScrollToCycle = false;
     // Column Cycler HUD overlay mode. MINI_HOTBAR is the default per
     // Trev's spec — when Column Cycler is enabled, the HUD strip shows
@@ -185,7 +188,7 @@ public final class IPConfig {
     private static boolean tooltipCompare = true;
     private static boolean tooltipCondenseTrims = true;
     private static boolean tooltipModName = false;
-    // A General setting since 2026-10-03, no longer under Tooltips' switch.
+    // On the Tooltips tab, under its switch (Trev, 2026-10-04; on General for a day).
     private static boolean hideTooltipsOnKey = true;
     // Compact tooltips (Trev, 2026-10-03): the inventory buttons' tooltips
     // keep only their essential lines (what it does, its state), no hints.
@@ -294,6 +297,7 @@ public final class IPConfig {
         columnCyclerScrollToCycle = readBool(root, "columnCyclerScrollToCycle", columnCyclerScrollToCycle);
         hotbarCyclerEnabled       = readBool(root, "hotbarCyclerEnabled",       hotbarCyclerEnabled);
         hotbarCyclerShowButtons   = readBool(root, "hotbarCyclerShowButtons",   hotbarCyclerShowButtons);
+        hotbarCyclerShowButton    = readBool(root, "hotbarCyclerShowButton",    hotbarCyclerShowButton);
         hotbarCyclerScrollToCycle = readBool(root, "hotbarCyclerScrollToCycle", hotbarCyclerScrollToCycle);
         columnCyclerHudMode       = HudMode.fromName(readString(root, "columnCyclerHudMode", null), columnCyclerHudMode);
         sortEnabled               = readBool(root, "sortEnabled",               sortEnabled);
@@ -391,6 +395,7 @@ public final class IPConfig {
         root.addProperty("columnCyclerScrollToCycle", columnCyclerScrollToCycle);
         root.addProperty("hotbarCyclerEnabled",       hotbarCyclerEnabled);
         root.addProperty("hotbarCyclerShowButtons",   hotbarCyclerShowButtons);
+        root.addProperty("hotbarCyclerShowButton",    hotbarCyclerShowButton);
         root.addProperty("hotbarCyclerScrollToCycle", hotbarCyclerScrollToCycle);
         root.addProperty("columnCyclerHudMode",       columnCyclerHudMode.name());
         root.addProperty("sortEnabled",               sortEnabled);
@@ -532,6 +537,7 @@ public final class IPConfig {
     public static boolean columnCyclerScrollToCycle()   { return columnCyclerScrollToCycle; }
     public static boolean hotbarCyclerEnabled()         { return hotbarCyclerEnabled; }
     public static boolean hotbarCyclerShowButtons()     { return hotbarCyclerShowButtons; }
+    public static boolean hotbarCyclerShowButton()      { return hotbarCyclerShowButton; }
     public static boolean hotbarCyclerScrollToCycle()   { return hotbarCyclerScrollToCycle; }
     public static HudMode columnCyclerHudMode()         { return columnCyclerHudMode; }
 
@@ -566,6 +572,7 @@ public final class IPConfig {
     }
     public static void setHotbarCyclerEnabled(boolean v)         { hotbarCyclerEnabled = v; save(); }
     public static void setHotbarCyclerShowButtons(boolean v)     { hotbarCyclerShowButtons = v; save(); }
+    public static void setHotbarCyclerShowButton(boolean v)      { hotbarCyclerShowButton = v; save(); }
     public static void setHotbarCyclerScrollToCycle(boolean v) {
         hotbarCyclerScrollToCycle = v;
         if (v) columnCyclerScrollToCycle = false;

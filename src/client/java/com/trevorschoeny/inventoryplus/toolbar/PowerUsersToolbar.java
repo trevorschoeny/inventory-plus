@@ -69,7 +69,7 @@ public final class PowerUsersToolbar {
     /**
      * Top to bottom (Trev, 2026-10-03): Settings, then one on/off switch per
      * feature in the settings menu's tab order (Lock groups, Restock, Auto
-     * Tool Switch, Column Cycler). Positions are fixed at build time, so a
+     * Tool Switch, Column Cycler, Hotbar Cycler). Positions are fixed at build time, so a
      * hidden button leaves its gap.
      */
     private static List<PanelElement> buildChildren() {
@@ -79,7 +79,8 @@ public final class PowerUsersToolbar {
                 FeatureToggleButtons.lockGroups(0, step),
                 FeatureToggleButtons.restock(0, 2 * step),
                 FeatureToggleButtons.autoToolSwitch(0, 3 * step),
-                FeatureToggleButtons.columnCycler(0, 4 * step));
+                FeatureToggleButtons.columnCycler(0, 4 * step),
+                FeatureToggleButtons.hotbarCycler(0, 5 * step));
     }
 
     private static final Identifier SETTINGS_TEXTURE =

@@ -82,6 +82,13 @@ public final class FeatureToggleButtons {
                 null, () -> keyHint("Hover over a slot", IPKeybinds.CYCLE_SLOT)).build();
     }
 
+    /** Hotbar Cycler: rows join with the buttons beside them. */
+    public static Toggle hotbarCycler(int x, int y) {
+        return builder(x, y, "hotbar_cycler_button", "Hotbar Cycler", SettingsMenu.HOTBAR_CYCLER,
+                IPConfig::hotbarCyclerEnabled, IPConfig::setHotbarCyclerEnabled, IPConfig::hotbarCyclerShowButton,
+                null, () -> "Add rows with the button beside each row").build();
+    }
+
     /** "Hover over a slot and press C", with the key as bound now. */
     private static String keyHint(String where, KeyMapping key) {
         return where + " and press " + key.getTranslatedKeyMessage().getString();

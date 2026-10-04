@@ -50,9 +50,8 @@ public final class Tooltips {
             lines.addAll(result);
         });
         // Hold the hide key (Space by default) to hide every tooltip, on any
-        // screen. Read raw, so it works where vanilla releases key states. A
-        // General setting, so Tooltips' own switch doesn't gate it.
-        MKTooltip.hideWhen(() -> IPConfig.hideTooltipsOnKey()
+        // screen. Read raw, so it works where vanilla releases key states.
+        MKTooltip.hideWhen(() -> IPConfig.tooltipsEnabled() && IPConfig.hideTooltipsOnKey()
                 && IPKeybinds.isHeld(IPKeybinds.HIDE_TOOLTIPS));
         // Tooltips that would land over the menu flip to whichever side covers
         // less of it (MenuKit 6.1.0 avoidCoverWhen): IP's wide in-inventory

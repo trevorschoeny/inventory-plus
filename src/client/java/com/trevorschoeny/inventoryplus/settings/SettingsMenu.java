@@ -330,6 +330,8 @@ public final class SettingsMenu extends MKScreen {
                 .state(() -> selectedTab, id -> selectedTab = id)
                 .bodyScroll(bodyScroll::get, bodyScroll::put)
                 .tab(tab(GENERAL, "General").body(() -> SettingsTabs.general(max)))
+                // Tooltips right under General (Trev, 2026-10-04).
+                .tab(tab(TOOLTIPS, "Tooltips").body(SettingsTabs::tooltips))
                 .tab(tab(REACH, "Reach").body(SettingsTabs::reach))
                 .tab(tab(LOCK_GROUPS, "Lock groups").body(() -> SettingsTabs.lockGroups(max)))
                 .tab(tab(SORT, "Sort").body(SettingsTabs::sort))
@@ -338,7 +340,6 @@ public final class SettingsMenu extends MKScreen {
                 .tab(tab(AUTO_TOOL_SWITCH, "Auto Tool Switch").body(SettingsTabs::autoToolSwitch))
                 .tab(tab(COLUMN_CYCLER, "Column Cycler").body(SettingsTabs::columnCycler))
                 .tab(tab(HOTBAR_CYCLER, "Hotbar Cycler").body(SettingsTabs::hotbarCycler))
-                .tab(tab(TOOLTIPS, "Tooltips").body(SettingsTabs::tooltips))
                 // Inventory Max's places. Its real tabs, added under these ids,
                 // take them over; without it these show dimmed, greyed bodies.
                 .tab(tab("inventorymax:pockets", "Pockets").standIn()
