@@ -77,15 +77,22 @@ public final class CycleHudRegistry {
     // at once, so state is keyed by source. A cycler fires this after a
     // successful rotation; CycleHud reads it per strip to compute the slide.
 
-    /** One in-flight slide for a source. */
-    public record Animation(int hotbarSlot, long startMillis, CyclerDirection direction) {}
+    /**
+     * One in-flight slide for a source. {@code heldOnly}: only the held cell
+     * changed, from {@code heldBefore}, because Hotbar Cycler moved the item
+     * in the hand; the HUD slides that cell up or down, as the hotbar's own
+     * slide does, and leaves the rest of the strip still (Trev, 2026-10-04).
+     */
+    public record Animation(int hotbarSlot, long startMillis, CyclerDirection direction,
+                            boolean heldOnly, ItemStack heldBefore) {}
 
     private static final Map<CycleHudSource, Animation> ANIMATIONS = new HashMap<>();
 
     /** Fire a slide for {@code source} on {@code hotbarSlot} in {@code direction}. */
     public static void fireCycleAnimation(CycleHudSource source, int hotbarSlot, CyclerDirection direction) {
         if (source == null) return;
-        ANIMATIONS.put(source, new Animation(hotbarSlot, System.currentTimeMillis(), direction));
+        ANIMATIONS.put(source, new Animation(hotbarSlot, System.currentTimeMillis(), direction,
+                false, ItemStack.EMPTY));
     }
 
     /** The in-flight slide for {@code source}, or {@code null} if none. */
@@ -132,8 +139,19 @@ public final class CycleHudRegistry {
         for (CycleHudSource s : SOURCES) {
             CycleView was = before.get(s);
             CycleView now = s.cycleViewForHotbar(hotbarSlot);
-            if (viewChanged(was, now)) fireCycleAnimation(s, hotbarSlot, direction);
+            if (viewChanged(was, now)) {
+                ANIMATIONS.put(s, new Animation(hotbarSlot, System.currentTimeMillis(), direction,
+                        true, heldOf(was)));
+            }
         }
+    }
+
+    /** The item a view shows in its held cell, or EMPTY. */
+    private static ItemStack heldOf(CycleView view) {
+        if (view == null) return ItemStack.EMPTY;
+        List<ItemStack> items = view.orderedItems();
+        int hi = view.highlightIndex();
+        return hi >= 0 && hi < items.size() ? items.get(hi) : ItemStack.EMPTY;
     }
 
     /** Item-by-item comparison of the raw visual order; ItemStack has no content equals. */

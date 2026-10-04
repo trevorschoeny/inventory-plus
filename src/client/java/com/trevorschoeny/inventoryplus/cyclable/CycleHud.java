@@ -178,6 +178,26 @@ public final class CycleHud {
 
     // ─── Horizontal strip (solo, and the cross's Pocket arm) ─────────
 
+    /**
+     * The held cell's vertical slide, as the hotbar's (HudHotbarSlideMixin):
+     * FORWARD drops the new item in from a cell above while the old one
+     * leaves below; BACKWARD is the mirror. Clipped to the cell.
+     */
+    private static void renderHeldVertical(GuiGraphicsExtractor graphics, Minecraft mc,
+                                           CycleHudRegistry.Animation anim, ItemStack now, int cellX, int stripY) {
+        float p = CycleSlide.progress(anim.startMillis());
+        int travelled = Math.round(SLOT_PX * p);
+        int remaining = Math.round(SLOT_PX * (1f - p));
+        boolean down = anim.direction() == CyclerDirection.FORWARD;
+        graphics.enableScissor(cellX, stripY, cellX + SLOT_PX, stripY + STRIP_HEIGHT_PX);
+        try {
+            renderItem(graphics, mc, anim.heldBefore(), cellX, down ? stripY + travelled : stripY - travelled);
+            renderItem(graphics, mc, now, cellX, down ? stripY - remaining : stripY + remaining);
+        } finally {
+            graphics.disableScissor();
+        }
+    }
+
     private static void renderHorizontalStrip(GuiGraphicsExtractor graphics, Minecraft mc,
                                               CycleHudRegistry.ActiveCycle cycle, int activeSlot,
                                               int stripX, int stripY, boolean includeHeld) {
@@ -187,9 +207,13 @@ public final class CycleHud {
         if (n < 2) return;
 
         int stripWidth = n * SLOT_PX + 2 * OUTER_BORDER_PX;
-        int slide = slideOffset(cycle.source(), activeSlot);
         CyclerDirection direction = animDirection(cycle.source(), activeSlot);
         int hi = Math.max(0, Math.min(n - 1, view.highlightIndex()));
+        // A Hotbar Cycler change moved only the held item, up or down: the
+        // strip stays still and that one cell slides vertically.
+        CycleHudRegistry.Animation anim = direction == null ? null : CycleHudRegistry.animationFor(cycle.source());
+        boolean heldOnly = anim != null && anim.heldOnly();
+        int slide = heldOnly ? 0 : slideOffset(cycle.source(), activeSlot);
 
         renderStripBackground(graphics, stripX, stripY, stripWidth);
 
@@ -199,10 +223,12 @@ public final class CycleHud {
             for (int k = 0; k < n; k++) {
                 // The column arm owns the held cell's item when it's the one
                 // animating — skip it here so the two don't both draw it.
-                if (k == hi && !includeHeld) continue;
+                if (k == hi && (!includeHeld || heldOnly)) continue;
                 renderItem(graphics, mc, displayItems.get(k), slotAreaLeft + k * SLOT_PX + slide, stripY);
             }
-            if (direction != null) {
+            if (heldOnly && includeHeld) {
+                renderHeldVertical(graphics, mc, anim, displayItems.get(hi), slotAreaLeft + hi * SLOT_PX, stripY);
+            } else if (direction != null) {
                 int wrapIndex = (direction == CyclerDirection.FORWARD) ? n - 1 : 0;
                 int wrapBase = (direction == CyclerDirection.FORWARD) ? -SLOT_PX : n * SLOT_PX;
                 renderItem(graphics, mc, displayItems.get(wrapIndex), slotAreaLeft + wrapBase + slide, stripY);
