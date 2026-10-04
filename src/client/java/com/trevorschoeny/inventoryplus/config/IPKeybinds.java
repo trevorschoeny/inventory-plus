@@ -85,16 +85,18 @@ public final class IPKeybinds {
     // Hotbar Cycler could take them; see cycle-modes.md for the six-keybind
     // table. Minecraft stores bindings in options.txt, so existing installs
     // keep the brackets and get Hotbar Cycler double-bound until rebound.
+    // Up cycles forward, Down backward (Trev, 2026-10-04: the other way
+    // round read backwards).
     public static final KeyMapping CYCLE_FORWARD = new KeyMapping(
             "key.inventoryplus.cycle_forward",
             InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_DOWN,
+            GLFW.GLFW_KEY_UP,
             CATEGORY);
 
     public static final KeyMapping CYCLE_BACKWARD = new KeyMapping(
             "key.inventoryplus.cycle_backward",
             InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_UP,
+            GLFW.GLFW_KEY_DOWN,
             CATEGORY);
 
     /** Hotbar Cycler forward — rows shift down toward the hotbar. */
