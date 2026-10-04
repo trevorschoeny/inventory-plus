@@ -101,7 +101,7 @@ public final class FeatureToggleButtons {
         CONTRIBUTED.add(c);
     }
 
-    /** Every companion's switch, in the order they were added. */
+    /** Every companion's switch, in the order they were added; {@code step} spaces them down from {@code y}. */
     static List<Toggle> contributed(int x, int y, int step) {
         List<Toggle> out = new ArrayList<>();
         for (Contributed c : CONTRIBUTED) {

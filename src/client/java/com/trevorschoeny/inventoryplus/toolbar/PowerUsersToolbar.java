@@ -3,6 +3,7 @@ package com.trevorschoeny.inventoryplus.toolbar;
 import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 
 import com.trevlar.menukit.api.element.Button;
+import com.trevlar.menukit.api.element.Flow;
 import com.trevlar.menukit.api.panel.Panel;
 import com.trevlar.menukit.api.element.PanelElement;
 import com.trevlar.menukit.api.panel.PanelPosition;
@@ -20,7 +21,6 @@ import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -41,9 +41,9 @@ import java.util.List;
  *
  * <h3>Dynamic stacking</h3>
  *
- * Each button keeps its own {@code visibleWhen} gate. Offsets are fixed
- * at build time, so a hidden button leaves its gap rather than the ones
- * below it moving up.
+ * Each button keeps its own {@code visibleWhen} gate. One vertical Flow
+ * lays them out, so a hidden button is skipped and the ones below move up,
+ * and the column wraps into a second at the bottom of the inventory frame.
  *
  * <h3>Per-screen scope</h3>
  *
@@ -81,24 +81,22 @@ public final class PowerUsersToolbar {
     /**
      * Top to bottom (Trev, 2026-10-03): Settings, then one on/off switch per
      * feature in the settings menu's tab order (Lock groups, Restock, Auto
-     * Tool Switch, Column Cycler, Hotbar Cycler). Positions are fixed at build time, so a
-     * hidden button leaves its gap.
+     * Tool Switch, Column Cycler, Hotbar Cycler), then companions' (Inventory
+     * Max: Pockets, Equipment Slots, Mend Anywhere). One vertical Flow
+     * (MenuKit 956188a): a hidden button is skipped, and at the bottom of the
+     * inventory's frame the column wraps into a second one to the right
+     * (Trev, 2026-10-04).
      */
     private static List<PanelElement> buildChildren() {
-        int step = FeatureToggleButtons.SIZE + BUTTON_GAP;
-        List<PanelElement> children = new ArrayList<>(List.of(
-                settingsButton(0, 0),
-                FeatureToggleButtons.lockGroups(0, step),
-                FeatureToggleButtons.restock(0, 2 * step),
-                FeatureToggleButtons.autoToolSwitch(0, 3 * step),
-                FeatureToggleButtons.columnCycler(0, 4 * step),
-                FeatureToggleButtons.hotbarCycler(0, 5 * step)));
-        // Companions' switches after Inventory Plus's (Inventory Max: Pockets,
-        // Equipment Slots, Mend Anywhere, its tab order).
-        // ponytail: one fixed column; it wraps into a second at the frame's
-        // bottom once MenuKit's vertical Flow lands (asked 2026-10-04).
-        children.addAll(FeatureToggleButtons.contributed(0, 6 * step, step));
-        return children;
+        Flow.Builder column = Flow.builder().vertical().gap(BUTTON_GAP, BUTTON_GAP)
+                .add(settingsButton(0, 0))
+                .add(FeatureToggleButtons.lockGroups(0, 0))
+                .add(FeatureToggleButtons.restock(0, 0))
+                .add(FeatureToggleButtons.autoToolSwitch(0, 0))
+                .add(FeatureToggleButtons.columnCycler(0, 0))
+                .add(FeatureToggleButtons.hotbarCycler(0, 0));
+        for (PanelElement c : FeatureToggleButtons.contributed(0, 0, 0)) column.add(c);
+        return List.of(column.build());
     }
 
     private static final Identifier SETTINGS_TEXTURE =
