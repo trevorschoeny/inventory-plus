@@ -16,6 +16,8 @@ import net.minecraft.resources.Identifier;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -89,6 +91,26 @@ public final class FeatureToggleButtons {
                 null, () -> "Add rows with the button beside each row").build();
     }
 
+    /** A companion's switch ({@code InventoryPlusApi.addFeatureSwitch}). */
+    public record Contributed(String tabId, String name, Identifier sprite, BooleanSupplier on,
+                              Consumer<Boolean> set, BooleanSupplier shown, @Nullable String hint) {}
+
+    private static final List<Contributed> CONTRIBUTED = new ArrayList<>();
+
+    public static void contribute(Contributed c) {
+        CONTRIBUTED.add(c);
+    }
+
+    /** Every companion's switch, in the order they were added. */
+    static List<Toggle> contributed(int x, int y, int step) {
+        List<Toggle> out = new ArrayList<>();
+        for (Contributed c : CONTRIBUTED) {
+            out.add(builder(x, y + out.size() * step, c.sprite(), c.name(), c.tabId(), c.on(), c.set(), c.shown(),
+                    null, c.hint() == null ? null : c::hint).build());
+        }
+        return out;
+    }
+
     /** "Hover over a slot and press C", with the key as bound now. */
     private static String keyHint(String where, KeyMapping key) {
         return where + " and press " + key.getTranslatedKeyMessage().getString();
@@ -104,6 +126,13 @@ public final class FeatureToggleButtons {
     private static Toggle.Builder builder(int x, int y, String sprite, String name, String tab,
                                           BooleanSupplier on, Consumer<Boolean> set, BooleanSupplier shown,
                                           @Nullable Supplier<String> detail, @Nullable Supplier<String> hints) {
+        return builder(x, y, Identifier.fromNamespaceAndPath("inventoryplus", sprite), name, tab,
+                on, set, shown, detail, hints);
+    }
+
+    private static Toggle.Builder builder(int x, int y, Identifier sprite, String name, String tab,
+                                          BooleanSupplier on, Consumer<Boolean> set, BooleanSupplier shown,
+                                          @Nullable Supplier<String> detail, @Nullable Supplier<String> hints) {
         Supplier<Component> tooltip = () -> {
             String first = name + ": " + (on.getAsBoolean() ? "On" : "Off");
             if (IPConfig.compactTooltips()) {
@@ -114,7 +143,7 @@ public final class FeatureToggleButtons {
             if (hints != null) more.append("\n").append(hints.get());
             return Component.literal(first).append(Component.literal(more.toString()).withStyle(ChatFormatting.GRAY));
         };
-        return Toggle.builder().sprite(Identifier.fromNamespaceAndPath("inventoryplus", sprite))
+        return Toggle.builder().sprite(sprite)
                 .at(x, y).size(SIZE, SIZE)
                 .state(on, v -> {
                     if (SettingsMenu.ctrlClickOpens(tab)) return;

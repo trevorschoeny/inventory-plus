@@ -206,10 +206,8 @@ public class InventoryPlusClient implements ClientModInitializer {
         ColumnCyclerHudSource.register();
         CycleHud.register();
 
-        // Power Users toolbar — right-of-grid vertical stack for opt-in
-        // PU buttons. Currently holds just the Column Cycler edit
-        // toggle. Hides entirely when no PU feature is enabled (each
-        // button has its own .showWhen gate).
+        // The right column: Settings, then each feature's on/off switch,
+        // companions' after ours (built at client start).
         PowerUsersToolbar.register();
 
         // Sort — S keybind sorts the simplecontainer under the cursor.

@@ -13,9 +13,11 @@ import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockedslots.WorldIdentity;
 import com.trevorschoeny.inventoryplus.sort.ContainerOpenTracker;
+import com.trevorschoeny.inventoryplus.toolbar.FeatureToggleButtons;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
@@ -24,6 +26,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 /**
  * The entry points Inventory Plus offers to a companion mod.
@@ -202,6 +206,22 @@ public final class InventoryPlusApi {
      */
     public static void openSettings(String tabId) {
         SettingsMenu.openOn(tabId);
+    }
+
+    /**
+     * Adds a feature's on/off switch to the inventory's right column, after
+     * Inventory Plus's own, in the order companions call this (Inventory Max:
+     * its tab order). It behaves as Inventory Plus's switches do: left click
+     * toggles {@code on} through {@code set}, Ctrl/Cmd+click opens
+     * {@code tabId}, the tooltip reads "{@code name}: On" with {@code hint}
+     * under it (left out by Compact tooltips), and it shows while
+     * {@code shown}. {@code sprite} is a 9×9 GUI sprite. Call during client
+     * init: the column is built when the client starts.
+     */
+    public static void addFeatureSwitch(String tabId, String name, Identifier sprite, BooleanSupplier on,
+                                        Consumer<Boolean> set, BooleanSupplier shown, @Nullable String hint) {
+        FeatureToggleButtons.contribute(new FeatureToggleButtons.Contributed(
+                tabId, name, sprite, on, set, shown, hint));
     }
 
     /**

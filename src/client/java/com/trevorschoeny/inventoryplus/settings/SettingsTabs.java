@@ -24,6 +24,8 @@ import com.trevlar.menukit.api.window.SlotOperations;
 import com.trevorschoeny.keybindery.api.KeybinderyAPI;
 import com.trevorschoeny.keybindery.chord.IChordKeyMapping;
 
+import net.fabricmc.loader.api.FabricLoader;
+
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -230,6 +232,7 @@ final class SettingsTabs {
         }
         operations(b, "Vanilla", vanilla);
         operations(b, "Inventory Plus and Inventory Max", ours);
+        if (FabricLoader.getInstance().isModLoaded("inventorymax")) mendAnywhereSection(b);
         operations(b, "Other mods", others);
         // Shown now: from the next build on, none of these reads as new.
         List<String> shown = new ArrayList<>();
@@ -331,14 +334,40 @@ final class SettingsTabs {
     }
 
     /**
+     * Mend Anywhere's reach (Trev, 2026-10-04): which items it repairs from
+     * XP, so it can take in the containers carried in the inventory too. Not
+     * a move, so not one of MenuKit's operations, and not wired yet: mending
+     * runs on the server, which can't read this reach record (kept on the
+     * client) until Inventory Max carries it there. Greyed at today's
+     * behaviour: the inventory and hotbar mend, carried containers don't.
+     */
+    private static void mendAnywhereSection(SettingsBody b) {
+        b.section("Mend Anywhere", () -> Component.literal("not built yet"), null, c -> {
+            c.line(0, Component.literal("Which items Mend Anywhere repairs from XP."));
+            c.reach("Slot groups", List.of(Place.fixed(Component.literal("Inventory"), true),
+                    Place.fixed(Component.literal("Hotbar"), true)));
+            c.reach("Places", carriedPlaces(false, false, false));
+        });
+    }
+
+    /** Containers carried in the inventory, as greyed reach boxes (none is reachable yet). */
+    private static List<Place> carriedPlaces(boolean shulker, boolean bundle, boolean enderChest) {
+        return List.of(Place.fixed(Component.literal("Shulker Boxes"), shulker),
+                Place.fixed(Component.literal("Bundles"), bundle),
+                Place.fixed(Component.literal("Ender Chest"), enderChest));
+    }
+
+    /**
      * The places Inventory Plus declares for an operation: things carried
      * that aren't slots (`plans/reach.md`, "Places"). Only Restock's takes from
-     * reaches into one, Shulker Boxes, and that mechanic is still to come, so
-     * its box is greyed and shows the old "Pull from Shulker Boxes" setting.
+     * reaches into: Shulker Boxes, Bundles and the Ender Chest carried in the
+     * inventory. None of those mechanics is built yet, so the boxes are greyed.
      */
     private static List<Place> placesOf(String operation) {
+        // Bundles and the Ender Chest beside Shulker Boxes (Trev, 2026-10-04),
+        // at the Restock tab's planned defaults.
         return operation.equals("inventoryplus:restock_take")
-                ? List.of(Place.fixed(Component.literal("Shulker Boxes"), IPConfig.autoRestockShulker()))
+                ? carriedPlaces(IPConfig.autoRestockShulker(), true, false)
                 : List.of();
     }
 

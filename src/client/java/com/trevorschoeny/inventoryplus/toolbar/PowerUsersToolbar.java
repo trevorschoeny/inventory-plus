@@ -11,6 +11,8 @@ import com.trevlar.menukit.api.slot.SlotGroupCategory;
 import com.trevlar.menukit.api.panel.OutsideRegion;
 import com.trevlar.menukit.api.panel.SlotGroupPanelAdapter;
 
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -18,6 +20,7 @@ import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -55,7 +58,16 @@ public final class PowerUsersToolbar {
     /** 1-px gap between adjacent buttons in the vertical stack. */
     public static final int BUTTON_GAP = 1;
 
+    /**
+     * Builds the column when the client starts, after every mod's init (so a
+     * companion's {@code addFeatureSwitch} is in) and before MenuKit freezes
+     * declarations (its freeze runs in a later phase of the same event).
+     */
     public static void register() {
+        ClientLifecycleEvents.CLIENT_STARTED.register(client -> registerPanel());
+    }
+
+    private static void registerPanel() {
         Panel panel = Panel.builder("inventoryplus.toolbar.power-users")
                 .elements(buildChildren())
                 .style(PanelStyle.NONE)
@@ -74,13 +86,19 @@ public final class PowerUsersToolbar {
      */
     private static List<PanelElement> buildChildren() {
         int step = FeatureToggleButtons.SIZE + BUTTON_GAP;
-        return List.of(
+        List<PanelElement> children = new ArrayList<>(List.of(
                 settingsButton(0, 0),
                 FeatureToggleButtons.lockGroups(0, step),
                 FeatureToggleButtons.restock(0, 2 * step),
                 FeatureToggleButtons.autoToolSwitch(0, 3 * step),
                 FeatureToggleButtons.columnCycler(0, 4 * step),
-                FeatureToggleButtons.hotbarCycler(0, 5 * step));
+                FeatureToggleButtons.hotbarCycler(0, 5 * step)));
+        // Companions' switches after Inventory Plus's (Inventory Max: Pockets,
+        // Equipment Slots, Mend Anywhere, its tab order).
+        // ponytail: one fixed column; it wraps into a second at the frame's
+        // bottom once MenuKit's vertical Flow lands (asked 2026-10-04).
+        children.addAll(FeatureToggleButtons.contributed(0, 6 * step, step));
+        return children;
     }
 
     private static final Identifier SETTINGS_TEXTURE =

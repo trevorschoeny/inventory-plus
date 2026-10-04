@@ -1,5 +1,7 @@
 package com.trevorschoeny.inventoryplus.columncycler;
 
+import com.trevorschoeny.inventoryplus.autorestock.AutoRestockSuppression;
+
 import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
 import com.trevorschoeny.inventoryplus.api.PlayerMenuSlots;
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
@@ -24,7 +26,7 @@ import java.util.List;
 /**
  * Physical-rotation engine for Column Cycler. Given a column index +
  * direction, walks the column's cycle members (top inv slots → hotbar)
- * and sends a {@link ContainerInput#PICKUP} click sequence that physically
+ * and sends a {@link ContainerInput#SWAP} click sequence that physically
  * moves items through the slots.
  *
  * <h3>Cycle list layout</h3>
@@ -46,39 +48,31 @@ import java.util.List;
  * <h3>Rotation algorithm</h3>
  *
  * Given cycle list {@code [s0, s1, ..., sN-1]} where {@code s0} is the
- * topmost visible slot and {@code sN-1} is the hotbar slot.
- *
- * <p><b>Forward</b> = items shift toward hotbar (the slot just above
- * the hotbar moves into hand; previous hotbar item wraps to top).
- * Click sequence:
+ * topmost visible slot and {@code sN-1} is the hotbar slot, the rotation
+ * is {@code N-1} {@link ContainerInput#SWAP} clicks, each exchanging one
+ * ring slot with the hotbar slot (button = its hotbar index):
  * <pre>
- *   click sN-1   → cursor = old-hotbar item
- *   click s0     → cursor swaps; s0 has old-hotbar; cursor has s0's old item
- *   click s1     → s1 has cursor's; cursor has s1's old item
- *   ...
- *   click sN-2   → sN-2 has cursor's; cursor has sN-2's old item
- *   click sN-1   → cursor empties into hotbar
+ *   forward  (toward the hotbar, hotbar wraps to the top): swap s0, s1, ..., sN-2
+ *   backward (away from the hotbar, top wraps to it):      swap sN-2, ..., s1, s0
  * </pre>
+ * Swaps, not PICKUP clicks through the cursor (Trev, 2026-10-04: cycling
+ * stopped partway and the hand jumped slots). A PICKUP onto a stack of the
+ * same item merges instead of exchanging, which left an item on the cursor,
+ * so every later rotation no-oped on the occupied cursor. A swap never
+ * merges and never uses the cursor.
  *
- * <p><b>Backward</b> = items shift away from hotbar (top slot's item
- * wraps to hotbar; everything else shifts up). Click sequence:
- * <pre>
- *   click sN-1   → cursor = old-hotbar item
- *   click sN-2   → sN-2 has old-hotbar; cursor has sN-2's old item
- *   ...
- *   click s0     → s0 has cursor's; cursor has s0's old item
- *   click sN-1   → cursor empties into hotbar
- * </pre>
- *
- * <p>{@code N+1} packets total either direction.
+ * <p>The hotbar slot's contents change wholesale (an empty ring slot can
+ * rotate into the hand), so each rotation marks it for
+ * {@link AutoRestockSuppression}; otherwise Restock reads the hand as used
+ * up and moves the selection to a backup stack.
  *
  * <h3>No-op cases</h3>
  *
  * <ul>
  *   <li>Cycle list has fewer than 2 slots (nothing to rotate).</li>
- *   <li>Cursor is already holding an item — rotation would interleave
- *       the cursor item into the cycle in unintended ways. Player must
- *       drop the cursor first.</li>
+ *   <li>Cursor is already holding an item (the player is mid-move; a
+ *       rotation under it would surprise them).</li>
+ *   <li>The last slot is not a hotbar slot (a swap's button names one).</li>
  *   <li>Any container-slot-to-menu-slot lookup fails (the slot isn't
  *       in the currently open menu's slot list).</li>
  * </ul>
@@ -124,8 +118,7 @@ public final class ColumnCyclerRotator {
 
     /**
      * Rotate the cycle slots in {@code column} (0-8) in the given direction.
-     * Sends {@code (N+1) * 1} PICKUP click packets to the active container
-     * menu. No-op if the cycle has fewer than 2 slots, if the cursor is
+     * Sends {@code N-1} SWAP clicks to the active container menu. No-op if the cycle has fewer than 2 slots, if the cursor is
      * holding an item, or if any slot lookup fails.
      */
     public static void rotate(int column, Direction direction) {
@@ -171,9 +164,8 @@ public final class ColumnCyclerRotator {
      * FORWARD shifts items toward that last slot and wraps it to the
      * front; BACKWARD reverses.
      *
-     * <p>Each call is self-contained: it starts by picking the last
-     * slot's item onto the cursor and ends by dropping the cursor there,
-     * so consecutive calls compose safely.
+     * <p>Each call is self-contained (swaps only, cursor untouched), so
+     * consecutive calls compose safely.
      *
      * @param feature label for the debug log, so a skipped rotation names
      *                the cycler that asked for it
@@ -220,33 +212,31 @@ public final class ColumnCyclerRotator {
             menuSlots[i] = menuIdx;
         }
 
-        // Build click sequence per direction. Both start and end at the
-        // hotbar slot (cursor pickup ... cursor drop).
-        int[] clickSeq = new int[n + 1];
-        clickSeq[0] = menuSlots[n - 1]; // hotbar pickup
-        if (direction == Direction.FORWARD) {
-            // Walk s0 → sN-2
-            for (int i = 0; i < n - 1; i++) {
-                clickSeq[i + 1] = menuSlots[i];
-            }
-        } else {
-            // Walk sN-2 → s0
-            for (int i = 0; i < n - 1; i++) {
-                clickSeq[i + 1] = menuSlots[n - 2 - i];
-            }
+        // The destination is the hotbar slot a SWAP names by its index.
+        int hotbar = containerSlots.get(n - 1);
+        if (hotbar < 0 || hotbar > 8) {
+            InventoryPlusClient.LOGGER.debug("[{}] rotate skipped — last slot {} is not a hotbar slot",
+                    feature, hotbar);
+            return false;
         }
-        clickSeq[n] = menuSlots[n - 1]; // hotbar drop
 
-        // Send the clicks. The server processes them sequentially; the
-        // client predicts cursor state between clicks so the chain
-        // behaves correctly without per-click round-trips.
+        // Swap each other ring slot with the hotbar slot, top down to go
+        // forward, bottom up to go back (see the class doc for why swaps).
+        int[] swapSeq = new int[n - 1];
+        for (int i = 0; i < n - 1; i++) {
+            swapSeq[i] = direction == Direction.FORWARD ? menuSlots[i] : menuSlots[n - 2 - i];
+        }
+
+        // A deliberate change to the hand, not the item running out.
+        AutoRestockSuppression.markExternalChange(hotbar);
+
         int containerId = menu.containerId;
         // Sent as the operation the rotation serves, so MenuKit judges these
-        // PICKUPs as a cycle (or the restock / tool switch riding it), not as
-        // plain clicks a lock on clicking would refuse.
+        // swaps as a cycle (or the restock / tool switch riding it), not as
+        // the hotbar-swap key a lock on swapping would refuse.
         SlotOperations.as(take, put, () -> {
-            for (int slotIdx : clickSeq) {
-                gameMode.handleContainerInput(containerId, slotIdx, 0, ContainerInput.PICKUP, player);
+            for (int slotIdx : swapSeq) {
+                gameMode.handleContainerInput(containerId, slotIdx, hotbar, ContainerInput.SWAP, player);
             }
         });
         return true;
@@ -350,7 +340,7 @@ public final class ColumnCyclerRotator {
      * rotate.
      *
      * <p>Picks the cheaper of FORWARD vs BACKWARD by step count — each
-     * rotation sends {@code N+1} PICKUP packets, so direction choice
+     * rotation sends {@code N-1} SWAP packets, so direction choice
      * matters for chains.
      *
      * <h3>Step math</h3>
