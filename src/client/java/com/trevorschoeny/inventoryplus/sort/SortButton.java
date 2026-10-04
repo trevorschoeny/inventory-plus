@@ -29,7 +29,7 @@ import java.util.function.Supplier;
  * <p>The button carries Sort's mode ({@code features/button-modes.md}):
  * left-click sorts in the order in force, right-click changes the order,
  * shift+right-click goes back, middle-click pins the order to this
- * container. Which container is resolved the same way the click resolves
+ * container (on a container's toolbar only). Which container is resolved the same way the click resolves
  * it, by walking the menu for the toolbar's anchor slot, so the tooltip,
  * the tint and the action all agree on what "this container" is.
  */
@@ -55,14 +55,17 @@ public final class SortButton {
     private static Button build(int x, int y, Target target) {
         PressFeedback feedback = new PressFeedback();
         Supplier<@Nullable ContainerIdentity> identity = () -> currentIdentity(target);
-        var gestures = ModeGestures.handler(SortState.MODE, identity, feedback);
+        // Only a container's own Sort pins (Trev, 2026-10-03), not the inventory's.
+        boolean pinHere = target == Target.EXTERNAL;
+        var gestures = ModeGestures.handler(SortState.MODE, identity, pinHere, feedback);
         return Button.builder().sprite(TEXTURE).at(x, y).size(SIZE, SIZE)
                 .onClick(() -> {
                     if (SettingsMenu.ctrlClickOpens(SettingsMenu.SORT)) return;
                     feedback.press();
                     triggerSort(target);
                 })
-                .tooltip(ModeGestures.tooltip("Sort", SortState.MODE, identity))
+                .tooltip(SettingsMenu.tooltip("Sort",
+                        ModeGestures.tooltip(t -> "Sort by " + t.label(), SortState.MODE, identity, pinHere)))
                 .onSecondaryClick(gestures::accept)
                 .tint(ModeGestures.tint(SortState.MODE, identity, feedback))
                 .visibleWhen(() -> IPConfig.sortEnabled() && IPConfig.sortShowButton())

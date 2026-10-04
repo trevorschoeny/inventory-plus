@@ -8,7 +8,6 @@ import com.google.gson.JsonSyntaxException;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.lockgroups.Reach;
-import com.trevorschoeny.inventoryplus.autotoolswitch.AutoSwitchReturnMode;
 import com.trevorschoeny.inventoryplus.autotoolswitch.WeaponPreference;
 import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
 
@@ -99,10 +98,13 @@ public final class IPConfig {
     // Auto Tool Switch spec + AutoToolSwitch class javadoc for the
     // three-tier resolution and auto-return mechanics.
     private static boolean autoToolSwitchEnabled = false;
-    // Return mode + window: how/when the hotbar snaps back after a switch.
-    // Replaces the old boolean autoToolSwitchReturn (migrated in load()).
-    private static AutoSwitchReturnMode autoToolSwitchReturnMode = AutoSwitchReturnMode.OFF;
-    private static int autoToolSwitchReturnCooldownSeconds = 3;  // window for SNEAK / HOTKEY_TIMED
+    // Switching back (Trev, 2026-10-03): by default the hotbar snaps back on
+    // its own once you have stopped for the window; the key to the previous
+    // tool is opt-in, and returns early (or, with automatic off, any time).
+    // Replace the old four-way autoToolSwitchReturnMode (migrated in load()).
+    private static boolean autoToolSwitchReturnAuto = true;
+    private static boolean autoToolSwitchReturnKey = false;
+    private static int autoToolSwitchReturnCooldownSeconds = 1;  // 0 = back as soon as you stop
     private static boolean autoToolSwitchWeapons = false;    // sub of Enabled
     private static boolean autoToolSwitchAllMobs = false;    // sub of Weapons; false = hostile only
     // Preferred weapon type — wins regardless of material when the
@@ -256,14 +258,19 @@ public final class IPConfig {
         autoRestockBeforeBreakThreshold = readInt(root, "autoRestockBeforeBreakThreshold",
                 autoRestockBeforeBreakThreshold);
         autoToolSwitchEnabled  = readBool(root, "autoToolSwitchEnabled",  autoToolSwitchEnabled);
-        // Migrate the old boolean (true → AUTOMATIC, false → OFF), then let a
-        // present mode key override it.
-        if (root.has("autoToolSwitchReturn")) {
-            autoToolSwitchReturnMode = readBool(root, "autoToolSwitchReturn", false)
-                    ? AutoSwitchReturnMode.AUTOMATIC : AutoSwitchReturnMode.OFF;
+        // Migrate the old four-way mode, or the boolean before it: AUTOMATIC
+        // returns on its own, either hotkey mode keeps the key, OFF neither.
+        // The timed hotkey (key only within the window) has no new form; it
+        // becomes the key any time.
+        String oldMode = root.has("autoToolSwitchReturn")
+                ? (readBool(root, "autoToolSwitchReturn", false) ? "AUTOMATIC" : "OFF")
+                : readString(root, "autoToolSwitchReturnMode", null);
+        if (oldMode != null) {
+            autoToolSwitchReturnAuto = oldMode.equals("AUTOMATIC");
+            autoToolSwitchReturnKey = oldMode.startsWith("HOTKEY");
         }
-        autoToolSwitchReturnMode = AutoSwitchReturnMode.fromName(
-                readString(root, "autoToolSwitchReturnMode", null), autoToolSwitchReturnMode);
+        autoToolSwitchReturnAuto = readBool(root, "autoToolSwitchReturnAuto", autoToolSwitchReturnAuto);
+        autoToolSwitchReturnKey = readBool(root, "autoToolSwitchReturnKey", autoToolSwitchReturnKey);
         autoToolSwitchReturnCooldownSeconds = readInt(root, "autoToolSwitchReturnCooldownSeconds",
                 autoToolSwitchReturnCooldownSeconds);
         autoToolSwitchWeapons  = readBool(root, "autoToolSwitchWeapons",  autoToolSwitchWeapons);
@@ -358,7 +365,8 @@ public final class IPConfig {
         root.addProperty("autoRestockShulkerAmmo",      autoRestockShulkerAmmo);
         root.addProperty("autoRestockBeforeBreakThreshold", autoRestockBeforeBreakThreshold);
         root.addProperty("autoToolSwitchEnabled",   autoToolSwitchEnabled);
-        root.addProperty("autoToolSwitchReturnMode", autoToolSwitchReturnMode.name());
+        root.addProperty("autoToolSwitchReturnAuto", autoToolSwitchReturnAuto);
+        root.addProperty("autoToolSwitchReturnKey", autoToolSwitchReturnKey);
         root.addProperty("autoToolSwitchReturnCooldownSeconds", autoToolSwitchReturnCooldownSeconds);
         root.addProperty("autoToolSwitchWeapons",   autoToolSwitchWeapons);
         root.addProperty("autoToolSwitchAllMobs",   autoToolSwitchAllMobs);
@@ -492,7 +500,8 @@ public final class IPConfig {
     public static boolean autoRestockShulkerAmmo()      { return autoRestockShulkerAmmo; }
     public static int autoRestockBeforeBreakThreshold() { return autoRestockBeforeBreakThreshold; }
     public static boolean autoToolSwitchEnabled()       { return autoToolSwitchEnabled; }
-    public static AutoSwitchReturnMode autoToolSwitchReturnMode() { return autoToolSwitchReturnMode; }
+    public static boolean autoToolSwitchReturnAuto() { return autoToolSwitchReturnAuto; }
+    public static boolean autoToolSwitchReturnKey()  { return autoToolSwitchReturnKey; }
     public static int autoToolSwitchReturnCooldownSeconds()       { return autoToolSwitchReturnCooldownSeconds; }
     public static boolean autoToolSwitchWeapons()       { return autoToolSwitchWeapons; }
     public static boolean autoToolSwitchAllMobs()       { return autoToolSwitchAllMobs; }
@@ -518,7 +527,8 @@ public final class IPConfig {
     public static void setAutoRestockShulkerAmmo(boolean v)      { autoRestockShulkerAmmo = v; save(); }
     public static void setAutoRestockBeforeBreakThreshold(int v) { autoRestockBeforeBreakThreshold = v; save(); }
     public static void setAutoToolSwitchEnabled(boolean v)       { autoToolSwitchEnabled = v; save(); }
-    public static void setAutoToolSwitchReturnMode(AutoSwitchReturnMode v) { autoToolSwitchReturnMode = v; save(); }
+    public static void setAutoToolSwitchReturnAuto(boolean v) { autoToolSwitchReturnAuto = v; save(); }
+    public static void setAutoToolSwitchReturnKey(boolean v)  { autoToolSwitchReturnKey = v; save(); }
     public static void setAutoToolSwitchReturnCooldownSeconds(int v)       { autoToolSwitchReturnCooldownSeconds = v; save(); }
     public static void setAutoToolSwitchWeapons(boolean v)       { autoToolSwitchWeapons = v; save(); }
     public static void setAutoToolSwitchAllMobs(boolean v)       { autoToolSwitchAllMobs = v; save(); }

@@ -28,4 +28,14 @@ public enum MoveMatchingMode implements ModeStop {
     public String label() {
         return label;
     }
+
+    /** The button's first line in this mode, moving {@code where} ("out of inventory"). */
+    public String sentence(String where) {
+        return switch (this) {
+            case ALL -> "Move all matching items " + where;
+            case BUT_ONE -> "Move matching items " + where + ", all but one of each stack";
+            case BUT_ONE_STACK -> "Move matching items " + where + ", all but one stack of each";
+            case NO_OVERFLOW -> "Move matching items " + where + ", only if they all fit";
+        };
+    }
 }

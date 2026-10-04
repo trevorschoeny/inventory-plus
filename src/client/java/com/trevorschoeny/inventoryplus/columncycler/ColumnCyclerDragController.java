@@ -10,7 +10,6 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.Slot;
 
 import org.jetbrains.annotations.Nullable;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -21,14 +20,9 @@ import java.util.Set;
  * FIRST touched slot. Mirrors
  * {@link com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsDragController}.
  *
- * <ul>
- *   <li><b>Edit-mode drag</b> — held LMB while
- *       {@link ColumnCyclerEditMode} is on. Inv + hotbar only.
- *       Started by {@link ColumnCyclerClickInterceptor}.</li>
- *   <li><b>C-key drag</b> — held C key. Inv + hotbar only. Started by
- *       {@link ColumnCyclerKeybind} after the initial C-press toggles
- *       the first slot.</li>
- * </ul>
+ * <p>Held C key, inv + hotbar only. Started by {@link ColumnCyclerKeybind}
+ * after the initial C-press toggles the first slot. The edit-mode LMB drag
+ * went with edit mode (Trev, 2026-10-03: no edit modes).
  *
  * <p>Same state semantics + polling cadence + termination conditions
  * as the locked-slots drag controller.
@@ -37,18 +31,11 @@ public final class ColumnCyclerDragController {
 
     private ColumnCyclerDragController() {}
 
-    private enum Mode { NONE, EDIT_LMB, C_KEY }
+    private enum Mode { NONE, C_KEY }
 
     private static Mode mode = Mode.NONE;
     private static boolean targetCycle;
     private static final Set<Integer> touchedSlots = new HashSet<>();
-
-    public static void startEditModeDrag(int firstSlotContainerIdx, boolean newState) {
-        mode = Mode.EDIT_LMB;
-        targetCycle = newState;
-        touchedSlots.clear();
-        touchedSlots.add(firstSlotContainerIdx);
-    }
 
     public static void startCKeyDrag(int firstSlotContainerIdx, boolean newState) {
         mode = Mode.C_KEY;
@@ -79,10 +66,6 @@ public final class ColumnCyclerDragController {
             return;
         }
 
-        if (mode == Mode.EDIT_LMB && !isMouseHeld(mc, GLFW.GLFW_MOUSE_BUTTON_LEFT)) {
-            endDrag();
-            return;
-        }
         if (mode == Mode.C_KEY && !isKeyHeld(mc, InputConstants.KEY_C)) {
             endDrag();
             return;
@@ -103,11 +86,6 @@ public final class ColumnCyclerDragController {
 
         touchedSlots.add(slotIdx);
         ColumnCycler.setCycle(slotIdx, targetCycle);
-    }
-
-    private static boolean isMouseHeld(Minecraft mc, int button) {
-        long window = mc.getWindow().handle();
-        return GLFW.glfwGetMouseButton(window, button) == GLFW.GLFW_PRESS;
     }
 
     private static boolean isKeyHeld(Minecraft mc, int key) {

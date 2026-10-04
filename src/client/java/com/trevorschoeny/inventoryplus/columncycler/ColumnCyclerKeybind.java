@@ -24,12 +24,8 @@ import org.jetbrains.annotations.Nullable;
  *       container / non-player inventory).</li>
  * </ul>
  *
- * <p>Works regardless of edit mode — mirroring the {@code L} keybind's
- * always-on behavior so the player can use the keyboard gesture
- * without leaving edit mode (Trev 2026-05-19). In edit mode the
- * C-key drag is suppressed (LMB-drag is the edit-mode bulk gesture);
- * outside edit mode, holding C lets the player sweep across multiple
- * slots.
+ * <p>Holding C sweeps across multiple slots. The key is the only way to
+ * add slots now that edit mode is gone (Trev, 2026-10-03).
  *
  * <p>Pattern mirrors {@link com.trevorschoeny.inventoryplus.lockedslots.LockedSlotKeybind}.
  */
@@ -61,15 +57,10 @@ public final class ColumnCyclerKeybind {
                         int slotIdx = hovered.getContainerSlot();
                         ColumnCycler.toggleByContainerSlot(slotIdx);
                         boolean newState = ColumnCycler.isCycleSlot(slotIdx);
-                        // Start a C-key drag in non-edit mode so the user
-                        // can hold C and sweep across multiple slots,
-                        // coercing each to the first slot's new state. In
-                        // edit mode the drag is the LMB-drag mechanic;
-                        // C stays a single-slot toggle to avoid two
-                        // drag gestures competing.
-                        if (!ColumnCyclerEditMode.isOn()) {
-                            ColumnCyclerDragController.startCKeyDrag(slotIdx, newState);
-                        }
+                        // Start a C-key drag so the user can hold C and
+                        // sweep across multiple slots, coercing each to the
+                        // first slot's new state.
+                        ColumnCyclerDragController.startCKeyDrag(slotIdx, newState);
                     });
         });
     }

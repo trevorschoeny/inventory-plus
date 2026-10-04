@@ -1,22 +1,37 @@
 package com.trevorschoeny.inventoryplus.toolbar;
 
+import com.trevorschoeny.inventoryplus.buttonmode.PressFeedback;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
+import com.trevorschoeny.inventoryplus.config.IPKeybinds;
+import com.trevorschoeny.inventoryplus.lockgroups.LockColours;
+import com.trevorschoeny.inventoryplus.lockgroups.Reach;
 import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 
 import com.trevlar.menukit.api.element.Toggle;
 
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
- * The inventory buttons for features that had none: the most basic kind, a
- * toggle that turns the feature on and off (Trev, 2026-09-27: every feature
- * has an in-inventory button). The icon inverts while the feature is on, like
- * the Column Cycler's. Ctrl+click (Cmd on a Mac) opens the feature's tab, as
- * on every Inventory Plus button. Each is hidden by its tab's button toggle.
+ * The right column's buttons: one per feature, each the feature's on/off
+ * switch (Trev, 2026-10-03). The same three gestures on every one:
+ * <ul>
+ *   <li><b>Left click</b> turns the feature on or off. The icon inverts while on.</li>
+ *   <li><b>Right click</b> cycles, where the feature has something to cycle
+ *       (the lock group a key press applies). Shift+right click goes back.</li>
+ *   <li><b>Ctrl+click</b> (Cmd on a Mac) opens the feature's tab, and holding
+ *       Ctrl says so in the tooltip.</li>
+ * </ul>
+ * No button holds an edit mode: a feature that acts on slots names its key in
+ * the tooltip instead. Each is hidden by its tab's "Show the button" setting.
  */
 public final class FeatureToggleButtons {
 
@@ -24,27 +39,74 @@ public final class FeatureToggleButtons {
 
     public static final int SIZE = 9;
 
+    /**
+     * Lock groups: on/off pauses every lock without deleting any; right click
+     * picks the group the lock key applies, shown in the button's tint.
+     */
+    public static Toggle lockGroups(int x, int y) {
+        PressFeedback feedback = new PressFeedback();
+        return builder(x, y, "locked_slot_edit", "Lock groups", SettingsMenu.LOCK_GROUPS,
+                IPConfig::lockGroupsEnabled, IPConfig::setLockGroupsEnabled, IPConfig::lockedSlotsShowButton,
+                () -> "Group: " + Reach.active().name()
+                        + "\n" + keyHint("Hover over a slot or item", IPKeybinds.LOCK_SLOT)
+                        + "\nRight click: cycle")
+                .onSecondaryClick(click -> {
+                    if (!click.isRight()) return;
+                    // A Mac's Ctrl+click arrives as a right click: still opens the tab.
+                    if (SettingsMenu.ctrlClickOpens(SettingsMenu.LOCK_GROUPS)) return;
+                    feedback.press();
+                    Reach.cycleActive(click.isShiftRight() ? -1 : 1);
+                })
+                // The active group's colour, faint; the press flash over it.
+                .tint(() -> {
+                    int flash = feedback.tint();
+                    return flash != 0 ? flash : LockColours.argb(Reach.active().colour(), 0x70);
+                })
+                .build();
+    }
+
     public static Toggle restock(int x, int y) {
-        return toggle(x, y, "restock_button", "Restock", SettingsMenu.RESTOCK,
-                IPConfig::restockEnabled, IPConfig::setRestockEnabled, IPConfig::restockShowButton);
+        return builder(x, y, "restock_button", "Restock", SettingsMenu.RESTOCK,
+                IPConfig::restockEnabled, IPConfig::setRestockEnabled, IPConfig::restockShowButton, null).build();
     }
 
     public static Toggle autoToolSwitch(int x, int y) {
-        return toggle(x, y, "auto_tool_switch_button", "Auto Tool Switch", SettingsMenu.AUTO_TOOL_SWITCH,
+        return builder(x, y, "auto_tool_switch_button", "Auto Tool Switch", SettingsMenu.AUTO_TOOL_SWITCH,
                 IPConfig::autoToolSwitchEnabled, IPConfig::setAutoToolSwitchEnabled,
-                IPConfig::autoToolSwitchShowButton);
+                IPConfig::autoToolSwitchShowButton, null).build();
     }
 
-    private static Toggle toggle(int x, int y, String sprite, String name, String tab,
-                                 BooleanSupplier on, Consumer<Boolean> set, BooleanSupplier shown) {
+    /** Column Cycler: slots join a column's cycle by the key, not by an edit mode. */
+    public static Toggle columnCycler(int x, int y) {
+        return builder(x, y, "cycle_slot_edit", "Column Cycler", SettingsMenu.COLUMN_CYCLER,
+                IPConfig::columnCyclerEnabled, IPConfig::setColumnCyclerEnabled, IPConfig::columnCyclerShowButton,
+                () -> keyHint("Hover over a slot", IPKeybinds.CYCLE_SLOT)).build();
+    }
+
+    /** "Hover over a slot and press C", with the key as bound now. */
+    private static String keyHint(String where, KeyMapping key) {
+        return where + " and press " + key.getTranslatedKeyMessage().getString();
+    }
+
+    /**
+     * A feature's switch: "Restock: On", then {@code more} in grey when given,
+     * left click toggling {@code on} through {@code set}.
+     */
+    private static Toggle.Builder builder(int x, int y, String sprite, String name, String tab,
+                                          BooleanSupplier on, Consumer<Boolean> set, BooleanSupplier shown,
+                                          @Nullable Supplier<String> more) {
+        Supplier<Component> tooltip = () -> {
+            Component first = Component.literal(name + ": " + (on.getAsBoolean() ? "On" : "Off"));
+            return more == null ? first
+                    : first.copy().append(Component.literal("\n" + more.get()).withStyle(ChatFormatting.GRAY));
+        };
         return Toggle.builder().sprite(Identifier.fromNamespaceAndPath("inventoryplus", sprite))
                 .at(x, y).size(SIZE, SIZE)
                 .state(on, v -> {
                     if (SettingsMenu.ctrlClickOpens(tab)) return;
                     set.accept(v);
                 })
-                .tooltip(() -> Component.literal(name + ": " + (on.getAsBoolean() ? "on" : "off")))
-                .visibleWhen(shown)
-                .build();
+                .tooltip(SettingsMenu.tooltip(name, tooltip))
+                .visibleWhen(shown);
     }
 }

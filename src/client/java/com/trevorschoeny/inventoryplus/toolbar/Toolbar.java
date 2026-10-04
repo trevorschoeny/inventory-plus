@@ -1,13 +1,8 @@
 package com.trevorschoeny.inventoryplus.toolbar;
 
-import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerButtons;
-
-import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsButtons;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingButtons;
-import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 import com.trevorschoeny.inventoryplus.sort.SortButton;
 
-import com.trevlar.menukit.api.element.Button;
 import com.trevlar.menukit.api.element.Flow;
 import com.trevlar.menukit.api.panel.Panel;
 import com.trevlar.menukit.api.element.PanelElement;
@@ -21,8 +16,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
 
 import java.util.List;
 
@@ -107,7 +100,7 @@ public final class Toolbar {
 
     /**
      * Inventory toolbar — anchored above the player's 3×9 main inv.
-     * Holds Edit cycle slots, Lock edit, Sort, MM Out, MM In, Settings. Panel-level
+     * Holds MM Out, MM In, Sort. Panel-level
      * showWhen excludes Creative (the creative item picker isn't a
      * real inventory).
      */
@@ -142,41 +135,20 @@ public final class Toolbar {
     }
 
     /**
-     * Left to right (settings-menu.md, "Opening it", 2026-09-30): Edit cycle
-     * slots, Lock edit, Sort, Move Matching out, Move Matching in, Settings at
-     * the right end. One Flow, flush right with no holes (Trev, 2026-09-30
-     * smoke): a hidden button is skipped in layout, and the leading spacer
-     * takes what the hidden ones leave. The Flow's natural width counts every
-     * button, so the panel keeps that width whatever is shown and its right
-     * edge, with the gear last, never moves.
+     * The top row is for acting, the right column for switching features
+     * (Trev, 2026-10-03). Left to right: Move Matching out, Move Matching
+     * in, Sort at the right end. One Flow, flush right with no holes: a
+     * hidden button is skipped in layout, and the leading spacer takes what
+     * the hidden ones leave, so the right edge never moves.
      */
     private static List<PanelElement> buildInventoryChildren() {
         return List.of(Flow.builder().gap(BUTTON_GAP, BUTTON_GAP)
                 .add(Flow.spacer())
-                // Column Cycler's edit toggle; its own visibleWhen gates it on
-                // the feature and its button.
-                .add(ColumnCyclerButtons.toolbarToggle(0, 0))
-                .add(LockedSlotsButtons.toolbarToggle(0, 0))
-                // Sort targets the player's main inventory from this toolbar.
-                .add(SortButton.inventoryToolbarButton(0, 0))
                 .add(MoveMatchingButtons.toolbarOutButton(0, 0))
                 .add(MoveMatchingButtons.toolbarInButton(0, 0))
-                // Settings at the right end: always shown.
-                .add(settingsButton(0, 0))
+                // Sort targets the player's main inventory from this toolbar.
+                .add(SortButton.inventoryToolbarButton(0, 0))
                 .build());
-    }
-
-    private static final int SETTINGS_SIZE = 9;
-
-    private static final Identifier SETTINGS_TEXTURE =
-            Identifier.fromNamespaceAndPath("inventoryplus", "settings_button");
-
-    /** Opens the settings menu over the current screen, which it returns to on close. */
-    private static Button settingsButton(int x, int y) {
-        return Button.builder().sprite(SETTINGS_TEXTURE).at(x, y).size(SETTINGS_SIZE, SETTINGS_SIZE)
-                .onClick(() -> SettingsMenu.open(Minecraft.getInstance().gui.screen()))
-                .tooltip(Component.literal("Settings"))
-                .build();
     }
 
     private static List<PanelElement> buildExternalChildren() {

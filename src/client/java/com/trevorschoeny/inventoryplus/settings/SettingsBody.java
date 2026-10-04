@@ -23,7 +23,9 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -71,6 +73,13 @@ final class SettingsBody {
      */
     private static final int LINE_COLOR = 0xFF8B8B8B;
 
+    /**
+     * Which sections are open, by title, for the session. ponytail: keyed by
+     * title, so two sections with one title share a state; key by id if that
+     * ever shows.
+     */
+    private static final Map<String, Boolean> OPEN = new HashMap<>();
+
     private final List<PanelElement> out = new ArrayList<>();
     private final boolean greyed;
     private int y = 0;
@@ -101,21 +110,21 @@ final class SettingsBody {
      */
     SettingsBody frame(String title, String description) {
         header(title, description);
-        return this;
+        return rule();
     }
 
     /**
-     * The top of every tab (Trev, 2026-09-30): the mod's name centred, the
-     * tab's title, its description, the line, then one row at the left with
-     * Reset to Defaults and (on a feature tab) the On/Off switch after it;
-     * the settings follow. For a tab with no feature to turn off (Reach),
+     * The top of every tab: the tab's title, its description, one row at the
+     * left with Reset to Defaults and (on a feature tab) the On/Off switch
+     * after it, then the line (Trev, 2026-10-03: the row sits above the line,
+     * right under the description); the settings follow. For a tab with no feature to turn off (Reach),
      * Reset stands alone. {@code onReset} runs on the button,
      * normally a confirm ({@link SettingsMenu#confirm}); {@code null} leaves
      * it greyed.
      */
     SettingsBody frame(String title, String description, @Nullable Runnable onReset) {
         header(title, description);
-        return controls(null, onReset);
+        return controls(null, onReset).rule();
     }
 
     /**
@@ -129,7 +138,7 @@ final class SettingsBody {
                 .disabledWhen(use.unavailable())
                 .label(() -> Component.literal(use.get().getAsBoolean() ? "On" : "Off"))
                 .build();
-        controls(onOff, onReset);
+        controls(onOff, onReset).rule();
         featureOn = use.get();
         return this;
     }
@@ -144,13 +153,17 @@ final class SettingsBody {
         out.add(TextLabel.builder().at(0, y).text(Component.literal(description))
                 .role(role(TextRole.BODY)).build());
         y += TEXT_ROW + 4;
-        // The line between the tab's heading and everything it controls.
+    }
+
+    /** The line between the tab's heading and everything it controls. */
+    private SettingsBody rule() {
         out.add(Divider.horizontal().at(0, y).color(LINE_COLOR).build());
         y += 6;
+        return this;
     }
 
     /**
-     * Under the line, above the first heading: Reset to Defaults furthest
+     * Under the description, above the line: Reset to Defaults furthest
      * left, then the On/Off switch when the tab has one, left-aligned.
      */
     private SettingsBody controls(@Nullable PanelElement onOff, @Nullable Runnable onReset) {
@@ -161,7 +174,7 @@ final class SettingsBody {
                 .build());
         if (onOff != null) row.add(onOff);
         out.add(row.build());
-        y += CONTROL_ROW + 2;
+        y += CONTROL_ROW;
         return this;
     }
 
@@ -178,15 +191,23 @@ final class SettingsBody {
 
     /** Settings text in {@code role}, drawn in the disabled colour while the tab's feature is off. */
     private TextLabel settingText(int x, int y, Component text, TextRole role) {
+        return settingText(x, y, text, role, null);
+    }
+
+    /** The same, with a hover tooltip when {@code tooltip} is given. */
+    private TextLabel settingText(int x, int y, Component text, TextRole role, @Nullable Component tooltip) {
         BooleanSupplier on = featureOn;
-        return TextLabel.builder().at(x, y).text(text).role(role(role))
-                .disabledWhen(() -> !on.getAsBoolean()).build();
+        TextLabel.Builder label = TextLabel.builder().at(x, y).text(text).role(role(role))
+                .disabledWhen(() -> !on.getAsBoolean());
+        if (tooltip != null) label.tooltip(tooltip);
+        return label.build();
     }
 
     /**
      * A category: its title and a short line under it, with a gap above
      * (Trev, 2026-09-27). Every setting in a tab sits in one; settings that
-     * would each be a category of one go together under "Misc.".
+     * would each be a category of one go headerless at the top of the tab,
+     * straight under the line (Trev, 2026-10-03: no "Misc." header).
      */
     SettingsBody heading(String text) {
         if (y > 0) y += SECTION_GAP;
@@ -214,6 +235,9 @@ final class SettingsBody {
         content.accept(inner);
         Section.Builder section = Section.builder(Component.literal(title))
                 .at(0, y)
+                // Open state lives here, not in the Section, so a rebuild of the
+                // menu (a lock group added or recoloured) leaves open what was.
+                .state(() -> OPEN.getOrDefault(title, false), v -> OPEN.put(title, v))
                 .summary(summary)
                 .content(inner.build());
         if (swatch != null) section.swatch(swatch);
@@ -231,7 +255,12 @@ final class SettingsBody {
     }
 
     SettingsBody line(int indent, Component text) {
-        out.add(settingText(indent, y, text, TextRole.BODY));
+        return line(indent, text, null);
+    }
+
+    /** A line that explains more on hover (a lock group's kind). */
+    SettingsBody line(int indent, Component text, @Nullable Component tooltip) {
+        out.add(settingText(indent, y, text, TextRole.BODY, tooltip));
         y += TEXT_ROW;
         return this;
     }
@@ -268,7 +297,11 @@ final class SettingsBody {
 
     /** A setting's text, on its own line, greying while the feature is off. */
     private void label(int x, Component text) {
-        out.add(settingText(x, y, text, TextRole.BODY));
+        label(x, text, null);
+    }
+
+    private void label(int x, Component text, @Nullable Component tooltip) {
+        out.add(settingText(x, y, text, TextRole.BODY, tooltip));
         y += TEXT_ROW;
     }
 
@@ -342,14 +375,26 @@ final class SettingsBody {
     }
 
     /** A button that works, with its action. */
-    record Action(String label, Runnable run) {}
+    record Action(String label, Runnable run, @Nullable Component tooltip) {
+        Action(String label, Runnable run) {
+            this(label, run, null);
+        }
+    }
+
+    /** A setting whose control is a row of working buttons: its text above them. */
+    SettingsBody actions(String label, Action... actions) {
+        label(0, Component.literal(label));
+        return actions(actions);
+    }
 
     /** A row of working buttons, wrapping when the body is narrow. */
     SettingsBody actions(Action... actions) {
         Flow.Builder row = Flow.builder().at(0, y).gap(4, 4);
         for (Action a : actions) {
-            row.add(Button.builder().label(Component.literal(a.label())).size(0, 16)
-                    .onClick(a.run()).disabledWhen(gated(() -> false)).build());
+            Button.Builder button = Button.builder().label(Component.literal(a.label())).size(0, 16)
+                    .onClick(a.run()).disabledWhen(gated(() -> false));
+            if (a.tooltip() != null) button.tooltip(a.tooltip());
+            row.add(button.build());
         }
         out.add(row.build());
         y += CONTROL_ROW;
@@ -429,8 +474,18 @@ final class SettingsBody {
 
     /** A key under text of its own ("Key" in a lock group's section). */
     SettingsBody key(KeyMapping key, Component label) {
-        label(0, label);
-        out.add(ChordButton.builder(key).at(0, y).disabledWhen(gated(() -> false)).build());
+        return key(key, label, null);
+    }
+
+    /** A key whose text explains more on hover (Sort's: which container it sorts). */
+    SettingsBody key(KeyMapping key, Component label, @Nullable Component tooltip) {
+        return key(key, label, tooltip, () -> false);
+    }
+
+    /** The same, greyed while {@code unavailable} (its checkbox above is off). */
+    SettingsBody key(KeyMapping key, Component label, @Nullable Component tooltip, BooleanSupplier unavailable) {
+        label(0, label, tooltip);
+        out.add(ChordButton.builder(key).at(0, y).disabledWhen(gated(unavailable)).build());
         y += CONTROL_ROW;
         return this;
     }

@@ -11,6 +11,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
@@ -18,16 +19,16 @@ import java.util.function.Supplier;
  * The gesture, tooltip and tint wiring every mode-carrying button shares,
  * per {@code features/button-modes.md}. A button supplies its mode state,
  * a way to resolve the container it is acting on, and its own
- * {@link PressFeedback}; this returns the three suppliers MenuKit's
+ * {@link PressFeedback}; this returns the suppliers MenuKit's
  * {@code Button} takes.
  *
  * <ul>
- *   <li>Right-click: next stop. Shift+right-click: previous. Middle-click:
- *       pin or release. None of them performs the action.</li>
- *   <li>Tooltip: what the button does, the current mode, "This container"
- *       only when pinned, then one gesture line naming only the gestures
- *       that button supports. A button with a single stop shows neither
- *       the mode line nor the gesture line.</li>
+ *   <li>Right-click: next stop. Shift+right-click: previous (kept, not
+ *       advertised). Middle-click: pin or release, on a button that pins
+ *       here ({@code pinHere}), or to release a pin made before.</li>
+ *   <li>Tooltip (Trev, 2026-10-03): the action with its mode in one line
+ *       ("Sort by Category"), "Right click: cycle", and only on a button
+ *       that pins here, "Middle click: pin to container".</li>
  *   <li>Tint: the press flash while it lasts, else pink when pinned.</li>
  * </ul>
  */
@@ -39,44 +40,37 @@ public final class ModeGestures {
     public static final int PIN_TINT = 0x66FF6EC7;
 
     public static <E extends Enum<E> & ModeStop> Consumer<Click> handler(
-            ModeState<E> state, Supplier<@Nullable ContainerIdentity> identity, PressFeedback feedback) {
+            ModeState<E> state, Supplier<@Nullable ContainerIdentity> identity, boolean pinHere,
+            PressFeedback feedback) {
         return click -> {
             if (!state.hasCycle()) return;
-            feedback.press();
             ContainerIdentity id = identity.get();
             if (click.isMiddle()) {
+                if (!pinHere && !state.isPinned(id)) return;
+                feedback.press();
                 state.togglePin(id);
-            } else if (click.isShiftRight()) {
-                state.cycle(id, -1);
             } else if (click.isRight()) {
-                state.cycle(id, +1);
+                feedback.press();
+                state.cycle(id, click.isShiftRight() ? -1 : +1);
             }
         };
     }
 
-    public static <E extends Enum<E> & ModeStop> Supplier<Component> tooltip(
-            String what, ModeState<E> state, Supplier<@Nullable ContainerIdentity> identity) {
-        return tooltip(() -> what, state, identity);
-    }
-
     /**
-     * As above, for a button whose own first line changes with its state.
-     * The lock toggle is the case: it reads "Edit Locked Slots" or "Finish
-     * Editing" depending on edit mode, and carries a mode underneath either.
+     * {@code action} turns the mode in force into the first line ("Sort by
+     * Category"); the gesture lines follow.
      */
     public static <E extends Enum<E> & ModeStop> Supplier<Component> tooltip(
-            Supplier<String> what, ModeState<E> state, Supplier<@Nullable ContainerIdentity> identity) {
+            Function<E, String> action, ModeState<E> state, Supplier<@Nullable ContainerIdentity> identity,
+            boolean pinHere) {
         return () -> {
-            List<String> lines = new ArrayList<>(4);
-            lines.add(what.get());
+            ContainerIdentity id = identity.get();
+            List<String> lines = new ArrayList<>(3);
+            lines.add(action.apply(state.effective(id)));
             if (state.hasCycle()) {
-                ContainerIdentity id = identity.get();
-                lines.add(state.effective(id).label());
-                if (state.isPinned(id)) lines.add("This container");
-                // button-modes.md: list only the gestures this button supports.
-                lines.add(state.pinnable()
-                        ? "Right-click: change. Middle-click: pin."
-                        : "Right-click: change.");
+                lines.add("Right click: cycle");
+                if (state.isPinned(id)) lines.add("Middle click: unpin");
+                else if (pinHere && state.pinnable() && id != null) lines.add("Middle click: pin to container");
             }
             return Component.literal(String.join("\n", lines));
         };

@@ -42,24 +42,27 @@ public final class MoveMatchingButtons {
     public static final int SIZE = 9;
 
     public static Button toolbarOutButton(int x, int y) {
-        return build(x, y, TEXTURE_OUT, "Move Matching Items Out", Direction.OUT);
+        return build(x, y, TEXTURE_OUT, "out of inventory", Direction.OUT);
     }
 
     public static Button toolbarInButton(int x, int y) {
-        return build(x, y, TEXTURE_IN, "Move Matching Items In", Direction.IN);
+        return build(x, y, TEXTURE_IN, "into inventory", Direction.IN);
     }
 
-    private static Button build(int x, int y, Identifier texture, String what, Direction direction) {
+    private static Button build(int x, int y, Identifier texture, String where, Direction direction) {
         PressFeedback feedback = new PressFeedback();
         ModeState<MoveMatchingMode> state = MoveMatchingModes.state(direction);
-        var gestures = ModeGestures.handler(state, MoveMatchingModes::currentIdentity, feedback);
+        // Only moving out pins to the container (Trev, 2026-10-03).
+        boolean pinHere = direction == Direction.OUT;
+        var gestures = ModeGestures.handler(state, MoveMatchingModes::currentIdentity, pinHere, feedback);
         return Button.builder().sprite(texture).at(x, y).size(SIZE, SIZE)
                 .onClick(() -> {
                     if (SettingsMenu.ctrlClickOpens(SettingsMenu.MOVE_MATCHING)) return;
                     feedback.press();
                     triggerMoveMatching(direction);
                 })
-                .tooltip(ModeGestures.tooltip(what, state, MoveMatchingModes::currentIdentity))
+                .tooltip(SettingsMenu.tooltip("Move Matching", ModeGestures.tooltip(
+                        m -> m.sentence(where), state, MoveMatchingModes::currentIdentity, pinHere)))
                 .onSecondaryClick(gestures::accept)
                 .tint(ModeGestures.tint(state, MoveMatchingModes::currentIdentity, feedback))
                 .visibleWhen(MoveMatchingButtons::shouldShow)

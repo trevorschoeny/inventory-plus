@@ -21,17 +21,27 @@ import org.jetbrains.annotations.Nullable;
  */
 public enum LockKind {
 
-    SLOT("slot", "Slot"),
-    ITEM("item", "Item"),
-    EXACT("exact", "Exact item");
+    SLOT("slot", "Slot", "Locks the slot itself. Whatever sits in it stays put, and moves "
+            + "leave the slot alone even after you swap in something else."),
+    ITEM("item", "Item", "Locks every item of one type, wherever it is. Lock one diamond "
+            + "pickaxe and every diamond pickaxe is locked."),
+    EXACT("exact", "Exact item", "Locks one item as it is, enchantments, name and all, "
+            + "however worn it gets. Another item of the same type isn't locked.");
 
     /** How the kind is written in {@code config.json}. */
     private final String id;
     private final String displayName;
+    /** How the kind works, in a sentence or two: the settings menu's hover text. */
+    private final String description;
 
-    LockKind(String id, String displayName) {
+    LockKind(String id, String displayName, String description) {
         this.id = id;
         this.displayName = displayName;
+        this.description = description;
+    }
+
+    public String description() {
+        return description;
     }
 
     public String id() {

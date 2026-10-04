@@ -58,9 +58,8 @@ public final class SlotGroupDetector {
      * Returns the slot-group partition for the given screen. Works on
      * ANY {@link AbstractContainerScreen} — the partition logic is
      * universal. Screen-class filtering belongs at the registration
-     * site (e.g., {@link MoveMatchingButtons#register} restricts MM
-     * widgets to chest/shulker/hopper/dispenser; {@link
-     * com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsButtons#register}
+     * site (e.g., the Move Matching buttons show only on
+     * chest/shulker/hopper/dispenser screens; the inventory toolbar
      * runs on every screen with a player main inv).
      */
     public static List<SlotGroup> detect(Screen screen) {

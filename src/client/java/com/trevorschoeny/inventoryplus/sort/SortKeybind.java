@@ -31,7 +31,8 @@ import java.util.List;
  *
  * <ol>
  *   <li>S pressed inside a container screen.</li>
- *   <li>Find the slot under the cursor. If none, no-op.</li>
+ *   <li>Find the slot under the cursor. If none, and no container but
+ *       the inventory is open, the inventory; else no-op.</li>
  *   <li>Resolve a {@link ContainerIdentity} from that slot. If
  *       {@code null} (specialized UI, hotbar, armor, etc.), no-op.</li>
  *   <li>Read sort type from {@link SortState}..</li>
@@ -81,28 +82,28 @@ public final class SortKeybind {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.gameMode == null) return;
 
+        AbstractContainerMenu menu = acs.getMenu();
         Slot hovered = slotUnderMouse(acs, mc);
-        if (hovered == null) {
-            InventoryPlusClient.LOGGER.debug(
-                    "[sort] S pressed but no slot under cursor — no-op");
+        ContainerIdentity identity = hovered == null ? null : ContainerIdentity.fromHoveredSlot(hovered, menu);
+        // With nothing sortable open but the inventory (the inventory screen, a
+        // furnace, a crafting table), the key sorts the inventory wherever the
+        // mouse is (Trev, 2026-10-03). With a container open too, it sorts
+        // whichever one the mouse is over, and nothing off them.
+        if (identity == null && !hasSortableContainer(menu)) {
+            hovered = SortButton.findInventoryAnchor(menu);
+            identity = hovered == null ? null : ContainerIdentity.fromHoveredSlot(hovered, menu);
+        }
+        if (identity == null) {
+            InventoryPlusClient.LOGGER.debug("[sort] S pressed; nothing sortable under the cursor — no-op");
             return;
         }
-
         String hoveredDesc = "slot.index=" + hovered.index
                 + " containerSlot=" + hovered.getContainerSlot()
                 + " container=" + hovered.container.getClass().getSimpleName();
 
-        ContainerIdentity identity = ContainerIdentity.fromHoveredSlot(hovered, acs.getMenu());
-        if (identity == null) {
-            InventoryPlusClient.LOGGER.debug(
-                    "[sort] S pressed; {} → no identity (not sortable) — no-op",
-                    hoveredDesc);
-            return;
-        }
-
         SortType type = SortState.getType(identity);
 
-        List<Slot> region = collectRegion(acs.getMenu(), hovered);
+        List<Slot> region = collectRegion(menu, hovered);
         if (region.size() < 2) {
             InventoryPlusClient.LOGGER.debug(
                     "[sort] S pressed; {} identity={} region only {} slot(s) — no-op",
@@ -114,7 +115,13 @@ public final class SortKeybind {
                 "[sort] S pressed; {} identity={} type={} region={} slots — sorting",
                 hoveredDesc, identity.key(), type, region.size());
 
-        Sorter.sort(acs.getMenu(), mc.gameMode, mc.player, region, type);
+        Sorter.sort(menu, mc.gameMode, mc.player, region, type);
+    }
+
+    /** Whether the menu holds a sortable container besides the player's inventory. */
+    private static boolean hasSortableContainer(AbstractContainerMenu menu) {
+        Slot external = SortButton.findExternalAnchor(menu);
+        return external != null && ContainerIdentity.fromHoveredSlot(external, menu) != null;
     }
 
     /**

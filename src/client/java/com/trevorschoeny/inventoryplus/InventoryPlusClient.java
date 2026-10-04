@@ -5,8 +5,6 @@ import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
 import com.trevorschoeny.inventoryplus.autorestock.AutoRestockTicker;
 import com.trevorschoeny.inventoryplus.autotoolswitch.AutoToolSwitch;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
-import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerButtons;
-import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerClickInterceptor;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerCyclable;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerDragController;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerKeybind;
@@ -26,7 +24,6 @@ import com.trevorschoeny.inventoryplus.lockgroups.LockTooltips;
 import com.trevorschoeny.inventoryplus.lockgroups.Locks;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockgroups.Reach;
-import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsButtons;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsDragController;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotKeybind;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingKeybind;
@@ -154,14 +151,12 @@ public class InventoryPlusClient implements ClientModInitializer {
         // Column Cycler (Power Users) — opt-in feature gated by
         // columnCyclerEnabled. Slot membership state is per-world
         // (config/inventoryplus/column-cycler.json). The C keybind toggles
-        // membership outside edit mode; the cycle-edit toolbar toggle
-        // enters edit mode (where clicks become toggles). The cycle slots are
+        // membership; its inventory button turns the feature on and off
+        // (no edit mode since 2026-10-03). The cycle slots are
         // a feature reach group (reach.md, "Feature reach groups"): every
         // move Slot lock stops by default leaves them alone, per move.
         Reach.registerFeature(Reach.COLUMN_CYCLER, "Column Cycler", "inventoryplus:column_cycle",
                 ColumnCycler::inReachGroup);
-        ColumnCyclerButtons.registerLifecycle();
-        ColumnCyclerClickInterceptor.register();
         ColumnCyclerKeybind.register();
         ColumnCyclerRotationKeybind.register();
         ClientTickEvents.END_CLIENT_TICK.register(ColumnCyclerDragController::tick);

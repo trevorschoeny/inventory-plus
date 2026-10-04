@@ -27,6 +27,7 @@ import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * The Inventory Plus and Inventory Max settings menu: full screen, a tab per
@@ -123,6 +124,16 @@ public final class SettingsMenu extends MKScreen {
         if (!Click.of(Click.LEFT).ctrl()) return false;
         openOn(tabId);
         return true;
+    }
+
+    /**
+     * An inventory button's tooltip: {@code tooltip}, or "Open settings for
+     * {@code feature}" while Ctrl (Cmd on a Mac) is held, which is what a
+     * click would then do (Trev, 2026-10-03).
+     */
+    public static Supplier<Component> tooltip(String feature, Supplier<Component> tooltip) {
+        Component open = Component.literal("Open settings for " + feature);
+        return () -> Click.of(Click.LEFT).ctrl() ? open : tooltip.get();
     }
 
     /**

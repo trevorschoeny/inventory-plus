@@ -1,7 +1,6 @@
 package com.trevorschoeny.inventoryplus.mixin;
 
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
-import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerEditMode;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockeditems.LockKind;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
@@ -29,9 +28,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * Renders Locked-Slots + Column-Cycler overlays on top of vanilla slot rendering:
  *
  * <ol>
- *   <li><b>Edit-mode tint</b>, gray, on the slots {@link ColumnCyclerEditMode}
- *       edits. Lock edit mode and its pink tint are gone (Trev, 2026-09-11):
- *       locks are applied with {@code L}.</li>
  *   <li><b>Lock icon</b> on locked player slots — 5×6 PNG at top-right
  *       with 1 px inset from the slot's right edge.</li>
  *   <li><b>Cycle icon</b> on cycle-member slots — 6×6 PNG. When ALSO
@@ -85,9 +81,6 @@ public abstract class AbstractContainerScreenRenderSlotMixin {
             Identifier.fromNamespaceAndPath("inventoryplus", "textures/gui/locked_item_exact.png");
     private static final int INVENTORYPLUS$ITEM_MARK_SIZE = 5;
 
-    /** The Column Cycler's edit-mode overlay: 50%-translucent light gray. */
-    private static final int INVENTORYPLUS$CYCLER_EDIT_TINT = 0x80808080;
-
     /**
      * ARGB tint for the corner indicator sprites — alpha 0xAB (67%),
      * RGB 0xFFFFFF (white = no color modulation). Applied via the
@@ -100,15 +93,6 @@ public abstract class AbstractContainerScreenRenderSlotMixin {
     @Inject(method = "extractSlot", at = @At("TAIL"))   // 26.2 extract/draw rename
     private void inventoryplus$renderOverlays(GuiGraphicsExtractor graphics, Slot slot,
                                               int mouseX, int mouseY, CallbackInfo ci) {
-        // 1. Column Cycler edit-mode gray overlay, on the inv+hotbar slots it edits.
-        int tint = 0;
-        if (ColumnCyclerEditMode.isOn() && LockedSlots.isInvOrHotbarSlot(slot)) {
-            tint = INVENTORYPLUS$CYCLER_EDIT_TINT;
-        }
-        if (tint != 0) {
-            graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, tint);
-        }
-
         // The Lock groups switch pauses every lock: nothing blocked, nothing drawn.
         boolean locksOn = IPConfig.lockGroupsEnabled();
         boolean locked = locksOn && LockedSlots.isLockedSlot(slot);

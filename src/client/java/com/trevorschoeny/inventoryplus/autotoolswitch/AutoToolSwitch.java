@@ -78,7 +78,8 @@ import net.minecraft.world.level.block.state.BlockState;
  *
  * <h3>Auto-return (optional)</h3>
  *
- * When the return mode ({@link IPConfig#autoToolSwitchReturnMode}) isn't OFF, the mod captures
+ * When it switches back at all (automatically, {@link IPConfig#autoToolSwitchReturnAuto},
+ * or on the key to the previous tool, {@link IPConfig#autoToolSwitchReturnKey}), the mod captures
  * pre-switch state (previous selected slot + cycler undo handle or
  * inv-swap reversal info) into {@link #inFlight}, then restores it
  * when the action completes:
@@ -114,8 +115,8 @@ public final class AutoToolSwitch {
     private static InFlight inFlight = null;
 
     /**
-     * Delayed return state for the non-AUTOMATIC return modes (SNEAK /
-     * HOTKEY_*). Kept SEPARATE from {@link #inFlight} on purpose: inFlight stays
+     * Delayed return state, waiting out the window or the key to the
+     * previous tool. Kept SEPARATE from {@link #inFlight} on purpose: inFlight stays
      * exactly as before — short-lived, cleared the moment the action completes,
      * which keeps the anti-thrash commit-at-start guard and re-switching working
      * unchanged. When the action completes in a delayed mode, inFlight's captured
@@ -290,7 +291,7 @@ public final class AutoToolSwitch {
         // prior switch — you keep that earlier tool, and this switch's
         // previous-state becomes the new thing we can return to.
         pendingReturn = null;
-        inFlight = IPConfig.autoToolSwitchReturnMode().returnsAtAll() ? state : null;
+        inFlight = returnsAtAll() ? state : null;
     }
 
     /**
@@ -338,11 +339,13 @@ public final class AutoToolSwitch {
         }
         if (inFlight == null && pendingReturn == null) return;
 
-        AutoSwitchReturnMode mode = IPConfig.autoToolSwitchReturnMode();
+        boolean auto = IPConfig.autoToolSwitchReturnAuto();
+        boolean key = IPConfig.autoToolSwitchReturnKey();
 
-        // HOTKEY_ANYTIME: the keybind returns whatever's active right now —
-        // a still-pending return, or an in-flight switch mid-action — no window.
-        if (mode == AutoSwitchReturnMode.HOTKEY_ANYTIME && keyReturn) {
+        // The key to the previous tool returns whatever is active right now, a
+        // pending return or a switch still mid-action, with no window: with
+        // automatic on it is the early way back, with it off the only one.
+        if (key && keyReturn) {
             if (pendingReturn != null) {
                 doReturn(pendingReturn, mc);
                 pendingReturn = null;
@@ -350,15 +353,13 @@ public final class AutoToolSwitch {
                 doReturn(inFlight, mc);
                 inFlight = null;
             }
-            keyReturn = false; // consumed
         }
 
         // When the triggering action finishes, hand the captured state off to
-        // pendingReturn — for ALL returning modes (AUTOMATIC waits out the window
-        // too now). inFlight clears here, keeping the anti-thrash guard +
-        // re-switching exactly as before.
+        // pendingReturn. inFlight clears here, keeping the anti-thrash guard
+        // and re-switching exactly as before.
         if (inFlight != null && isActionComplete(inFlight, mc, player)) {
-            if (mode != AutoSwitchReturnMode.OFF) {
+            if (auto || key) {
                 // Snapshot the (now-settled) post-switch state as the baseline;
                 // if it later drifts, the player took manual control → void it.
                 inFlight.baselineSlot = player.getInventory().getSelectedSlot();
@@ -377,41 +378,26 @@ public final class AutoToolSwitch {
             pendingReturn = null;
         }
 
-        // Pending return.
         if (pendingReturn != null) {
-            // Windowed modes (AUTOMATIC + HOTKEY_TIMED): hold the window open while
-            // the action has resumed, so it only counts down once you've truly
-            // stopped — the return never fires mid-action.
-            if (mode.isWindowed() && !isActionComplete(pendingReturn, mc, player)) {
-                pendingReturnWindowStart = player.tickCount;
-            }
-            switch (mode) {
-                case AUTOMATIC -> {
-                    // Auto-return once the idle window elapses.
-                    if (windowExpired(player)) {
-                        doReturn(pendingReturn, mc);
-                        pendingReturn = null;
-                    }
+            if (auto) {
+                // Hold the window open while the action has resumed, so it only
+                // counts down once you've truly stopped and the return never
+                // fires mid-action; then return once it has passed.
+                if (!isActionComplete(pendingReturn, mc, player)) {
+                    pendingReturnWindowStart = player.tickCount;
+                } else if (windowExpired(player)) {
+                    doReturn(pendingReturn, mc);
+                    pendingReturn = null;
                 }
-                case HOTKEY_TIMED -> {
-                    // Keybind within the window returns; else the window passes
-                    // and the tool stays (new baseline).
-                    if (keyReturn) {
-                        doReturn(pendingReturn, mc);
-                        pendingReturn = null;
-                    } else if (windowExpired(player)) {
-                        pendingReturn = null;
-                    }
-                }
-                case HOTKEY_ANYTIME -> {
-                    if (keyReturn) {
-                        doReturn(pendingReturn, mc);
-                        pendingReturn = null;
-                    }
-                }
-                default -> pendingReturn = null; // OFF mid-flight → drop
+            } else if (!key) {
+                pendingReturn = null; // both turned off mid-flight → drop
             }
         }
+    }
+
+    /** Whether Auto Tool Switch ever switches back: automatically, or on the key. */
+    private static boolean returnsAtAll() {
+        return IPConfig.autoToolSwitchReturnAuto() || IPConfig.autoToolSwitchReturnKey();
     }
 
     /**
@@ -432,7 +418,8 @@ public final class AutoToolSwitch {
 
     /** Whether the pending-return window has elapsed (config seconds → ticks). */
     private static boolean windowExpired(Player player) {
-        int cooldownTicks = Math.max(1, IPConfig.autoToolSwitchReturnCooldownSeconds()) * 20;
+        // 0 seconds is allowed (Trev, 2026-10-03): back the tick you stop.
+        int cooldownTicks = Math.max(0, IPConfig.autoToolSwitchReturnCooldownSeconds()) * 20;
         return player.tickCount - pendingReturnWindowStart >= cooldownTicks;
     }
 
