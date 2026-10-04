@@ -98,7 +98,7 @@ final class SettingsTabs {
         IPConfig.reset("tooltipsEnabled", "tooltipDurability", "tooltipFood", "tooltipFoodEffects",
                 "tooltipEnchantmentDescriptions", "tooltipSortEnchantments", "tooltipToolStats",
                 "tooltipCompare", "tooltipCondenseTrims", "tooltipModName",
-                "tooltipScrollLong", "tooltipKeepOnScreen");
+                "tooltipScrollLong", "tooltipKeepOnScreen", "tooltipAvoidCover");
     }
 
     private static void resetMoveMatching() {
@@ -510,6 +510,10 @@ final class SettingsTabs {
                 // tooltip wider than the screen and keeps its top on screen.
                 .checkbox("Keep tooltips on screen", Bool.of(IPConfig::tooltipKeepOnScreen,
                         IPConfig::setTooltipKeepOnScreen))
+                // MenuKit 6.1.0's avoidCoverWhen: a tooltip that would land over
+                // the menu opens on whichever side covers less of it instead.
+                .checkbox("Keep tooltips out of the way",
+                        Bool.of(IPConfig::tooltipAvoidCover, IPConfig::setTooltipAvoidCover))
                 .build();
     }
 

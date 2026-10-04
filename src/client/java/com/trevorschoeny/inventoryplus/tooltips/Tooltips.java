@@ -54,6 +54,10 @@ public final class Tooltips {
         // General setting, so Tooltips' own switch doesn't gate it.
         MKTooltip.hideWhen(() -> IPConfig.hideTooltipsOnKey()
                 && IPKeybinds.isHeld(IPKeybinds.HIDE_TOOLTIPS));
+        // Tooltips that would land over the menu flip to whichever side covers
+        // less of it (MenuKit 6.1.0 avoidCoverWhen): IP's wide in-inventory
+        // button tooltips otherwise land on the left over the whole inventory.
+        MKTooltip.avoidCoverWhen(() -> IPConfig.tooltipsEnabled() && IPConfig.tooltipAvoidCover());
         // Scroll long tooltips: the wheel moves the tooltip on screen. MenuKit
         // clamps the offset to the tooltip, so one that fits never moves, and
         // pins the title. Wheel down (negative) moves the tooltip up, bringing
