@@ -48,7 +48,7 @@ public final class ColumnCyclerDragController {
 
     /**
      * True while a C-key drag is in progress. The keybind handler uses this
-     * to ignore GLFW key-repeat events, so only the initial press starts a drag.
+     * to ignore key-repeat events, so only the initial press starts a drag.
      */
     public static boolean isCKeyDragActive() {
         return mode == Mode.C_KEY;
@@ -85,7 +85,7 @@ public final class ColumnCyclerDragController {
     }
 
     private static boolean isKeyHeld(Minecraft mc, int key) {
-        return InputConstants.isKeyDown(mc.getWindow(), key);
+        return InputConstants.isKeyDown(key);
     }
 
     private static @Nullable Slot slotUnderMouse(AbstractContainerScreen<?> acs, Minecraft mc) {

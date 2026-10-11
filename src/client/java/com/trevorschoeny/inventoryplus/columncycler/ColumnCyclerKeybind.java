@@ -40,7 +40,7 @@ public final class ColumnCyclerKeybind {
                     (innerScreen, event) -> {
                         if (!IPConfig.columnCyclerEnabled()) return;
                         if (!IPKeybinds.CYCLE_SLOT.matches(event)) return;
-                        // GLFW auto-repeat: ignore once a C-drag is active.
+                        // key auto-repeat: ignore once a C-drag is active.
                         if (ColumnCyclerDragController.isCKeyDragActive()) return;
                         if (!(innerScreen instanceof AbstractContainerScreen<?> currentAcs)) return;
 

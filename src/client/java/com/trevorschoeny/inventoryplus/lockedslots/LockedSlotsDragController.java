@@ -53,7 +53,7 @@ public final class LockedSlotsDragController {
 
     /**
      * True while an L-key drag is in progress. The keybind handler uses
-     * this to ignore GLFW key-repeat events: only the initial press should
+     * this to ignore key-repeat events: only the initial press should
      * start a drag, and auto-repeats while L is held would otherwise
      * re-toggle the slot under the cursor on every repeat tick.
      */
@@ -93,7 +93,7 @@ public final class LockedSlotsDragController {
     }
 
     private static boolean isKeyHeld(Minecraft mc, int key) {
-        return InputConstants.isKeyDown(mc.getWindow(), key);
+        return InputConstants.isKeyDown(key);
     }
 
     private static @Nullable Slot slotUnderMouse(AbstractContainerScreen<?> acs, Minecraft mc) {

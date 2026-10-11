@@ -9,7 +9,6 @@ import com.trevorschoeny.keybindery.api.KeybinderyAPI;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.resources.Identifier;
 
-import org.lwjgl.glfw.GLFW;
 
 /**
  * Vanilla {@link KeyMapping}s for IP's keybinds, registered so they appear
@@ -50,32 +49,32 @@ public final class IPKeybinds {
 
     public static final KeyMapping LOCK_SLOT = new KeyMapping(
             "key.inventoryplus.lock_slot",
-            InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_L,
+            InputConstants.Type.KEYBOARD,
+            InputConstants.KEY_L,
             CATEGORY);
 
     public static final KeyMapping SORT = new KeyMapping(
             "key.inventoryplus.sort",
-            InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_S,
+            InputConstants.Type.KEYBOARD,
+            InputConstants.KEY_S,
             CATEGORY);
 
     public static final KeyMapping MOVE_MATCHING_IN = new KeyMapping(
             "key.inventoryplus.move_matching_in",
-            InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_I,
+            InputConstants.Type.KEYBOARD,
+            InputConstants.KEY_I,
             CATEGORY);
 
     public static final KeyMapping MOVE_MATCHING_OUT = new KeyMapping(
             "key.inventoryplus.move_matching_out",
-            InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_O,
+            InputConstants.Type.KEYBOARD,
+            InputConstants.KEY_O,
             CATEGORY);
 
     public static final KeyMapping CYCLE_SLOT = new KeyMapping(
             "key.inventoryplus.cycle_slot",
-            InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_C,
+            InputConstants.Type.KEYBOARD,
+            InputConstants.KEY_C,
             CATEGORY);
 
     // Column Cycler moved off the brackets to the arrows so Hotbar Cycler
@@ -85,28 +84,28 @@ public final class IPKeybinds {
     // round reads backwards.
     public static final KeyMapping CYCLE_FORWARD = new KeyMapping(
             "key.inventoryplus.cycle_forward",
-            InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_UP,
+            InputConstants.Type.KEYBOARD,
+            InputConstants.KEY_UP,
             CATEGORY);
 
     public static final KeyMapping CYCLE_BACKWARD = new KeyMapping(
             "key.inventoryplus.cycle_backward",
-            InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_DOWN,
+            InputConstants.Type.KEYBOARD,
+            InputConstants.KEY_DOWN,
             CATEGORY);
 
     /** Hotbar Cycler forward: rows shift down toward the hotbar. */
     public static final KeyMapping HOTBAR_CYCLE_FORWARD = new KeyMapping(
             "key.inventoryplus.hotbar_cycle_forward",
-            InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_RIGHT_BRACKET,
+            InputConstants.Type.KEYBOARD,
+            InputConstants.KEY_RBRACKET,
             CATEGORY);
 
     /** Hotbar Cycler backward: rows shift up, away from the hotbar. */
     public static final KeyMapping HOTBAR_CYCLE_BACKWARD = new KeyMapping(
             "key.inventoryplus.hotbar_cycle_backward",
-            InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_LEFT_BRACKET,
+            InputConstants.Type.KEYBOARD,
+            InputConstants.KEY_LBRACKET,
             CATEGORY);
 
     /**
@@ -119,8 +118,8 @@ public final class IPKeybinds {
      */
     public static final KeyMapping AUTO_SWITCH_RETURN = new KeyMapping(
             "key.inventoryplus.auto_switch_return",
-            InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_LEFT_SHIFT,
+            InputConstants.Type.KEYBOARD,
+            InputConstants.KEY_LSHIFT,
             CATEGORY);
 
     /**
@@ -130,7 +129,7 @@ public final class IPKeybinds {
      */
     public static final KeyMapping OPEN_SETTINGS = new KeyMapping(
             "key.inventoryplus.open_settings",
-            InputConstants.Type.KEYSYM,
+            InputConstants.Type.KEYBOARD,
             InputConstants.UNKNOWN.getValue(),
             CATEGORY);
 
@@ -142,8 +141,8 @@ public final class IPKeybinds {
      */
     public static final KeyMapping HIDE_TOOLTIPS = new KeyMapping(
             "key.inventoryplus.hide_tooltips",
-            InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_SPACE,
+            InputConstants.Type.KEYBOARD,
+            InputConstants.KEY_SPACE,
             CATEGORY);
 
     /**

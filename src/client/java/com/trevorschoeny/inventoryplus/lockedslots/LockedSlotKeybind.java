@@ -54,7 +54,7 @@ public final class LockedSlotKeybind {
 
     /** Registered against {@code ClientTickEvents.END_CLIENT_TICK}. */
     public static void tick(Minecraft mc) {
-        if (itemLockLatch && (mc == null || !InputConstants.isKeyDown(mc.getWindow(), InputConstants.KEY_L))) {
+        if (itemLockLatch && (mc == null || !InputConstants.isKeyDown(InputConstants.KEY_L))) {
             itemLockLatch = false;
         }
     }
@@ -67,7 +67,7 @@ public final class LockedSlotKeybind {
                         if (!IPKeybinds.LOCK_SLOT.matches(event)) return;
                         // Paused locks are paused for L too: nothing applied that cannot be seen.
                         if (!IPConfig.lockGroupsEnabled()) return;
-                        // GLFW auto-repeat fires afterKeyPress every repeat
+                        // key auto-repeat fires afterKeyPress every repeat
                         // tick while L is held; ignore once an L-drag is
                         // active so the same slot isn't re-toggled on
                         // every repeat. The tick handler clears the drag
@@ -81,7 +81,7 @@ public final class LockedSlotKeybind {
                         LockGroup group = Reach.active();
                         if (group.kind().locksItems()) {
                             // The item path starts no drag, so it has no drag to
-                            // suppress GLFW auto-repeat for it. Without this latch
+                            // suppress key auto-repeat for it. Without this latch
                             // a held L would lock and unlock many times a second.
                             if (itemLockLatch) return;
                             ItemStack hoveredStack = hovered.getItem();

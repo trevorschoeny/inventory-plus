@@ -56,7 +56,7 @@ import java.util.List;
  *
  * <h3>Auto-repeat</h3>
  *
- * Holding S would re-fire {@code afterKeyPress} via GLFW auto-repeat,
+ * Holding S would re-fire {@code afterKeyPress} via key auto-repeat,
  * causing repeated sorts. Each re-sort on an already-sorted container
  * is a no-op (the algorithm exits without issuing clicks if no slot
  * mismatches the target), so the worst case is some wasted CPU. Add a
