@@ -38,7 +38,7 @@ Pockets, extra equipment slots, and container locks the whole server shares are 
 
 ## Compatibility
 
-Minecraft 26.2 with Fabric. Install it on your client, and it works on any server with nothing installed there. It also installs on servers, with Keybindery, MenuKit and Fabric API alongside it. On a server it only lets companion mods such as Inventory Max recognise what Inventory Plus does, and what players see does not change.
+Minecraft 26.3 with Fabric. Install it on your client, and it works on any server with nothing installed there. It also installs on servers, with Keybindery, MenuKit and Fabric API alongside it. On a server it only lets companion mods such as Inventory Max recognise what Inventory Plus does, and what players see does not change.
 
 ## License
 
