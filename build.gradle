@@ -99,8 +99,8 @@ dependencies {
     // ModMenu opens the settings menu from the mods list. Optional at runtime:
     // we compile against its API, and localRuntime brings it into the dev
     // launch. This is a beta, the only 26.2 build available.
-    clientCompileOnly "com.terraformersmc:modmenu:20.0.1"
-    localRuntime "com.terraformersmc:modmenu:20.0.1"
+    clientCompileOnly "com.terraformersmc:modmenu:21.0.0"
+    localRuntime "com.terraformersmc:modmenu:21.0.0"
 }
 
 jar {
