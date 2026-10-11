@@ -57,17 +57,18 @@ public final class Tooltips {
         // less of it (MenuKit 6.1.0 avoidCoverWhen): IP's wide in-inventory
         // button tooltips otherwise land on the left over the whole inventory.
         MKTooltip.avoidCoverWhen(() -> IPConfig.tooltipsEnabled() && IPConfig.tooltipAvoidCover());
-        // Scroll long tooltips: the wheel moves the tooltip on screen. MenuKit
-        // clamps the offset to the tooltip, so one that fits never moves, and
-        // pins the title. Wheel down (negative) moves the tooltip up, bringing
-        // its lower lines into view, as a list scrolls. Never consumes the wheel.
-        // Keep tooltips on screen: one predicate for both of MenuKit's halves,
-        // wrapping a tooltip wider than the screen and clamping its top.
-        BooleanSupplier keepOnScreen = () -> IPConfig.tooltipsEnabled() && IPConfig.tooltipKeepOnScreen();
+        // Always on under the Tooltips switch; no longer settings (Trev,
+        // 2026-10-11). Keep on screen: one predicate for both of MenuKit's
+        // halves, wrapping a tooltip wider than the screen and clamping its top.
+        // Scroll: the wheel moves a long tooltip on screen. MenuKit clamps the
+        // offset to the tooltip, so one that fits never moves, and pins the
+        // title. Wheel down (negative) moves the tooltip up, bringing its lower
+        // lines into view, as a list scrolls. Never consumes the wheel.
+        BooleanSupplier keepOnScreen = IPConfig::tooltipsEnabled;
         MKTooltip.wrapWhen(keepOnScreen);
         MKTooltip.clampWhen(keepOnScreen);
         MKTooltip.onWheel((horizontal, vertical) -> {
-            if (!IPConfig.tooltipsEnabled() || !IPConfig.tooltipScrollLong()) return;
+            if (!IPConfig.tooltipsEnabled()) return;
             MKTooltip.scrollBy((int) Math.round(horizontal * SCROLL_STEP),
                     (int) Math.round(vertical * SCROLL_STEP));
         });

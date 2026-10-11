@@ -14,10 +14,10 @@ Auto Tool Switch can now switch back on its own once you stop, after a wait you 
 
 A new Compact tooltips setting on General shortens every inventory button's tooltip to one line.
 
-On the Tooltips tab, Keep long tooltips out of the way opens a tall tooltip on whichever side covers less of your inventory. Hold a key to hide tooltips sits beside it.
+On the Tooltips tab, Keep long tooltips out of the way opens a tall tooltip on whichever side covers less of your inventory. Hold a key to hide tooltips sits beside it. Scroll long tooltips and Keep tooltips on screen are no longer settings: both are always on while Tooltips is on.
 
 Hotbar Cycler has an on and off switch in the column. With Inventory Max's pockets showing, a Hotbar Cycler turn slides the held item in the pocket strip up or down with the hotbar, instead of sliding the whole strip sideways.
 
-On a new install, Column Cycler's Up key cycles forward and Down cycles back. An existing install keeps the keys it has.
+On a new install, Column Cycler's Up key cycles forward and Down cycles back. An existing install keeps the keys it has. To swap them, set Column Cycler's forward and backward keys in Controls.
 
 Fixed: Column Cycler stopped cycling partway when two stacks of the same item met in a column, and cycling could make Restock move your hand to another hotbar slot.

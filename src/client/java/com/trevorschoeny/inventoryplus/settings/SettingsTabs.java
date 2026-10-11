@@ -100,7 +100,7 @@ final class SettingsTabs {
         IPConfig.reset("tooltipsEnabled", "tooltipDurability", "tooltipFood", "tooltipFoodEffects",
                 "tooltipEnchantmentDescriptions", "tooltipSortEnchantments", "tooltipToolStats",
                 "tooltipCompare", "tooltipCondenseTrims", "tooltipModName", "hideTooltipsOnKey",
-                "tooltipScrollLong", "tooltipKeepOnScreen", "tooltipAvoidCover");
+                "tooltipAvoidCover");
         resetKeys(IPKeybinds.HIDE_TOOLTIPS);
     }
 
@@ -511,7 +511,7 @@ final class SettingsTabs {
                         confirmReset("Tooltips", SettingsTabs::resetTooltips))
                 // Display first, then Item Details (Trev, 2026-10-04). Scrolling
                 // a long tooltip and keeping it on screen have no switch here:
-                // they stay at their defaults (on).
+                // they are always on (Trev, 2026-10-11).
                 .heading("Display")
                 // MenuKit 6.1.0's avoidCoverWhen: a tooltip that would land over
                 // the menu opens on whichever side covers less of it instead.

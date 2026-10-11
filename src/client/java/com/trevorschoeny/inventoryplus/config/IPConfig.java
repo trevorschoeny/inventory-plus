@@ -193,19 +193,14 @@ public final class IPConfig {
     // Compact tooltips (Trev, 2026-10-03): the inventory buttons' tooltips
     // keep only their essential lines (what it does, its state), no hints.
     private static boolean compactTooltips = false;
-    // The wheel scrolls a tooltip taller or wider than the screen, title pinned
-    // (MenuKit's MKTooltip.scrollBy). On by default: it only ever moves a
-    // tooltip that runs off the screen.
-    private static boolean tooltipScrollLong = true;
-    // Wrap a tooltip wider than the screen and keep its top on screen
-    // (MenuKit's MKTooltip.wrapWhen / clampWhen). On by default: it only
-    // changes a tooltip that would run off the screen.
-    private static boolean tooltipKeepOnScreen = true;
+    // Scrolling a long tooltip and keeping it on screen are no longer
+    // settings (Trev, 2026-10-11): always on under the Tooltips switch
+    // (tooltips/Tooltips). An old file's tooltipScrollLong and
+    // tooltipKeepOnScreen are never read, and the next save drops them.
     // Tooltips that would otherwise land over the menu flip to whichever side
     // covers less of it (MenuKit 6.1.0 MKTooltip.avoidCoverWhen; Trev,
     // 2026-10-03, asked by MenuKit: IP's wide in-inventory button tooltips
-    // land on the left over the whole inventory). Its own setting, not folded
-    // into "Keep tooltips on screen".
+    // land on the left over the whole inventory).
     private static boolean tooltipAvoidCover = true;
 
     // ─── Settings menu ───────────────────────────────────────────────
@@ -320,8 +315,6 @@ public final class IPConfig {
         hideTooltipsOnKey         = readBool(root, "hideTooltipsOnKey",
                 readBool(root, "hideTooltipsOnCtrl", hideTooltipsOnKey));
         compactTooltips           = readBool(root, "compactTooltips",           compactTooltips);
-        tooltipScrollLong = readBool(root, "tooltipScrollLong", tooltipScrollLong);
-        tooltipKeepOnScreen = readBool(root, "tooltipKeepOnScreen", tooltipKeepOnScreen);
         tooltipAvoidCover = readBool(root, "tooltipAvoidCover", tooltipAvoidCover);
         settingsOptionsLook = readBool(root, "settingsOptionsLook", settingsOptionsLook);
     }
@@ -417,8 +410,6 @@ public final class IPConfig {
         root.addProperty("tooltipModName", tooltipModName);
         root.addProperty("hideTooltipsOnKey",         hideTooltipsOnKey);
         root.addProperty("compactTooltips",           compactTooltips);
-        root.addProperty("tooltipScrollLong", tooltipScrollLong);
-        root.addProperty("tooltipKeepOnScreen", tooltipKeepOnScreen);
         root.addProperty("tooltipAvoidCover", tooltipAvoidCover);
         root.addProperty("settingsOptionsLook", settingsOptionsLook);
         return root;
@@ -485,8 +476,6 @@ public final class IPConfig {
     public static boolean tooltipModName() { return tooltipModName; }
     public static boolean hideTooltipsOnKey()        { return hideTooltipsOnKey; }
     public static boolean compactTooltips()          { return compactTooltips; }
-    public static boolean tooltipScrollLong() { return tooltipScrollLong; }
-    public static boolean tooltipKeepOnScreen() { return tooltipKeepOnScreen; }
     public static boolean tooltipAvoidCover() { return tooltipAvoidCover; }
     public static boolean settingsOptionsLook() { return settingsOptionsLook; }
     public static void setSortEnabled(boolean v)              { sortEnabled = v; save(); }
@@ -508,8 +497,6 @@ public final class IPConfig {
     public static void setTooltipModName(boolean v) { tooltipModName = v; save(); }
     public static void setHideTooltipsOnKey(boolean v)        { hideTooltipsOnKey = v; save(); }
     public static void setCompactTooltips(boolean v)          { compactTooltips = v; save(); }
-    public static void setTooltipScrollLong(boolean v) { tooltipScrollLong = v; save(); }
-    public static void setTooltipKeepOnScreen(boolean v) { tooltipKeepOnScreen = v; save(); }
     public static void setTooltipAvoidCover(boolean v) { tooltipAvoidCover = v; save(); }
     public static void setSettingsOptionsLook(boolean v) { settingsOptionsLook = v; save(); }
 
