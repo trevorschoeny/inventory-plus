@@ -17,6 +17,4 @@ bin/
 # macOS
 .DS_Store
 
-# Claude worktrees / metadata
-.claude/
 run/
