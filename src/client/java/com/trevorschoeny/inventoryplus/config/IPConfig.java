@@ -127,7 +127,9 @@ public final class IPConfig {
     // Cycler's slots are a feature reach group (reach.md), and the global
     // cycleSlotsLocked is gone (read once below, for the upgrade).
     private static boolean columnCyclerEnabled = false;
-    private static boolean columnCyclerShowButton = true;
+    // Off by default (Trev, 2026-10-11 smoke: "too many buttons"); the
+    // feature and its keys are unchanged.
+    private static boolean columnCyclerShowButton = false;
     // Scroll wheel as alternative trigger for forward/backward cycle.
     // Default OFF; opt-in trade-off — scrolling on a cycle-active column
     // rotates the cycle instead of switching the hotbar slot.
@@ -140,8 +142,9 @@ public final class IPConfig {
     private static boolean hotbarCyclerEnabled = false;
     private static boolean hotbarCyclerShowButtons = true;
     // The on/off switch in the inventory's right column (Trev, 2026-10-04);
-    // hotbarCyclerShowButtons is the row buttons beside the grid.
-    private static boolean hotbarCyclerShowButton = true;
+    // hotbarCyclerShowButtons is the row buttons beside the grid. Off by
+    // default (Trev, 2026-10-11 smoke).
+    private static boolean hotbarCyclerShowButton = false;
     private static boolean hotbarCyclerScrollToCycle = false;
     // Column Cycler HUD overlay mode. MINI_HOTBAR is the default per
     // Trev's spec — when Column Cycler is enabled, the HUD strip shows
