@@ -1,6 +1,6 @@
 # Inventory Plus
 
-Inventory Plus takes the small chores out of managing your inventory. Vanilla's inventory works, but you still stop to dig out a spare pickaxe, sort chests by hand, and shift-click around the items you meant to keep. Inventory Plus handles those without changing how the game plays. It works on any server, vanilla or modded, with nothing installed there.
+Inventory Plus takes the small chores out of managing your inventory, like digging out a spare pickaxe, sorting chests by hand, and shift-clicking around the items you meant to keep. It handles those without changing how the game plays. It works on any server, vanilla or modded, with nothing installed there.
 
 ## Features
 

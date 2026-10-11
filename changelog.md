@@ -1,6 +1,6 @@
 Requires MenuKit 6.1.0 or newer, below 7.0.0, and Keybindery 1.1.0 or newer. Your locks, settings and keys carry over when you update.
 
-The settings menu now looks like Minecraft's own Options screens, with the world blurred behind it, the tabs down the left and Done at the bottom. If you prefer the old look, the Look button on the General tab switches between Classic and Panel.
+The settings menu now looks like Minecraft's own Options screens, with the world blurred behind it, the tabs down the left and Done at the bottom. This look is called Classic. If you prefer the grey panel the menu used to have, click the Look button on the General tab to switch to Panel, and click it again to switch back.
 
 Every tab now opens with its title and description, then Reset to Defaults and the feature's On and Off switch. When a feature is off, everything on its tab greys out. Tooltips has moved up to sit right under General.
 
