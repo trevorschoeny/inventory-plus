@@ -1,17 +1,23 @@
-Requires Keybindery 1.1.0 or newer, which is new, and MenuKit 6.0.0 or newer, below 7.0.0. Updating keeps your locks, your settings and your keys.
+Requires MenuKit 6.1.0 or newer, below 7.0.0, and Keybindery 1.1.0 or newer. Updating keeps your locks, your settings and your keys.
 
-A new settings menu replaces the old settings screen. Click the gear at the right end of the toolbar above your inventory, or Inventory Plus's config button in Mod Menu. The menu fills the screen, with a tab for each feature down the left and Back to game above them. Each tab holds that feature's switch, its keys and its settings. Ctrl-click (Cmd on a Mac) any Inventory Plus button in your inventory to open its feature's tab.
+The settings menu now opens in the look of Minecraft's own Options screens, with the world blurred behind it, the tabs down the left and Done at the bottom. The look it had before is one click away. On the General tab, the Look button switches between Classic and Panel.
 
-The toolbar above your inventory now reads Edit cycle slots, Lock edit, Sort, Move Matching out, Move Matching in, then the gear. Restock and Auto Tool Switch each have a button down the right side that turns them on and off.
+Every tab now opens with its title and description, then Reset to Defaults and the feature's On and Off switch. When a feature is off, everything on its tab greys out. Tooltips moved up to sit right under General.
 
-Reach is a new tab where you choose which slots each action may touch. Sort, Restock, Move Matching in and out, Auto Tool Switch and the cyclers each have a list there, and so do vanilla's own moves, such as shift-clicking, dragging and dropping. Clear Hotbar under Sort, for example, and sorting leaves your hotbar alone.
+The buttons around your inventory are reorganised. The row above it is for doing things: Move Matching out, Move Matching in, and Sort. The column on the right is for turning features on and off. The gear sits at the top, with a switch for each feature below it. Left click a switch to turn its feature on or off, and right click the Lock groups switch to pick the group L locks with. Ctrl-click (Cmd on a Mac) any button to open its tab. Holding Ctrl tells you so in the tooltip. When the column reaches the bottom of your inventory it continues in a second column. Each tab can hide its switch.
 
-Locks now come in groups. Click the lock button to pick a group, then press L over a slot or an item to lock it with that group. Slot lock and Exact item are there from the start. On the Lock groups tab you can make your own, each with its own colour, locking slots, a type of item, or one exact item. What each group stops is set in Reach.
+Column Cycler and the lock button no longer have edit modes. Press C over a slot to add it to a column, and L over a slot or an item to lock it.
 
-A locked slot now stops more than sorting and quick-moves. Number-key and offhand swaps, dragging items across it, dropping with Q or Ctrl+Q, double-click collecting and shift-clicking out all leave it alone too. Any of these can be turned back on in Reach.
+Sort and Move Matching now say what they will do in one line, such as "Sort by Category", with right click to change it below. Pinning a mode to one container is offered only where it means something: on a container's own Sort button, and on Move Matching out. With only your inventory open, the Sort key now sorts it wherever your mouse is.
 
-Tooltips moved here from MenuKit and have their own tab. Tools show durability and mining speed, each enchantment gets a line saying what it does, and food shows what it restores. Hold Space to hide every tooltip, the pause menu's included. A tooltip taller than the screen scrolls with the mouse wheel, and one wider than the screen is kept on screen. Each of these is a checkbox on the Tooltips tab, where you can also move the hide key off Space.
+Auto Tool Switch can now switch back on its own once you stop, after a wait you set from 0 to 10 seconds, and it can also give you a key that switches back early. New installs start with switching back on after one second. If you had switching back off, it stays off.
 
-Container locks stay on your computer, as before. On a server running Inventory Max, the new "Also keep container locks on the server" setting on the Lock groups tab shares the container locks you place from then on with the server, which enforces them for everyone. It is off by default.
+A new Compact tooltips setting on General shortens every inventory button's tooltip to one line.
 
-Inventory Plus now installs on servers as well as clients. It still needs nothing on the server to work. On a server it only lets companion mods such as Inventory Max recognise what it does.
+On the Tooltips tab, Keep long tooltips out of the way opens a tall tooltip on whichever side covers less of your inventory. Hold a key to hide tooltips sits beside it.
+
+Hotbar Cycler has an on and off switch in the column. With Inventory Max's pockets showing, a Hotbar Cycler turn slides the held item in the pocket strip up or down with the hotbar, instead of sliding the whole strip sideways.
+
+On a new install, Column Cycler's Up key cycles forward and Down cycles back. An existing install keeps the keys it has.
+
+Fixed: Column Cycler stopped cycling partway when two stacks of the same item met in a column, and cycling could make Restock move your hand to another hotbar slot.
