@@ -5,11 +5,11 @@ package com.trevorschoeny.inventoryplus.autotoolswitch;
  *
  * <p>When the Weapons toggle fires a switch and the player has multiple
  * weapon kinds available, the preferred type wins regardless of
- * material — e.g., a preferred AXE in iron beats a non-preferred SWORD
- * in netherite. Within the preferred type, material/durability decide.
+ * material: a preferred AXE in iron beats a non-preferred SWORD in
+ * netherite. Within the preferred type, material and durability decide.
  *
- * <p>Chosen in the settings menu (Auto Tool Switch tab, Weapons →
- * Preferred weapon). Persisted in {@code config.json} as the enum
+ * <p>Chosen in the settings menu (Auto Tool Switch tab, Weapons, Preferred
+ * weapon). Persisted in {@code config.json} as the enum
  * name string.
  */
 public enum WeaponPreference {
@@ -21,7 +21,7 @@ public enum WeaponPreference {
 
     /**
      * Parse a preference name from JSON config. Returns {@code fallback}
-     * on null / empty / unknown name — tolerates config edits and
+     * on a null, empty or unknown name, which tolerates config edits and
      * future enum additions.
      */
     public static WeaponPreference fromName(String name, WeaponPreference fallback) {

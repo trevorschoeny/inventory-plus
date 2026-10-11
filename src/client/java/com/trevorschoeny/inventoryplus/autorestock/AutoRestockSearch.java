@@ -18,42 +18,40 @@ import net.minecraft.world.item.equipment.Equippable;
 import java.util.List;
 
 /**
- * Source lookup for auto-restock. Scans the player's hotbar (0–8) and
- * main inventory (9–35) — armor and offhand excluded.
+ * Source lookup for auto-restock. Scans the player's hotbar (0-8) and
+ * main inventory (9-35). Armor and offhand are excluded.
  *
- * <p><b>Scan order: hotbar first, then main inv.</b> First-match wins
- * for {@link #findSource} / {@link #findArmorSource}; the higher-durability
+ * <p><b>Scan order: hotbar first, then main inventory.</b> First match wins
+ * for {@link #findSource} and {@link #findArmorSource}. The higher-durability
  * variants iterate the whole range and pick the least-damaged candidate.
  * Hotbar-first ordering means the active-hand restock path can usually
  * resolve via a selected-slot move (cheap, no inventory mutation)
  * rather than a full SWAP click.
  *
- * <p>The {@code excludeSlot} parameter on {@link #findSource} /
+ * <p>The {@code excludeSlot} parameter on {@link #findSource} and
  * {@link #findHigherDurability} lets the caller skip the destination
- * slot itself — important for active-hotbar restock, where the slot
- * being refilled is also in the scan range.
+ * slot itself. Active-hotbar restock needs that, because the slot being
+ * refilled is also in the scan range.
  *
  * <p><b>Two-pass search for on-break refill.</b> {@link #findSource} and
  * {@link #findArmorSource} run a same-Item pass first. If that finds
  * nothing, they fall back to a same-kind pass driven by vanilla item
- * tags ({@code ItemTags.PICKAXES} etc. for tools,
- * {@code ItemTags.HEAD_ARMOR} etc. for armor) and pick the candidate
- * with the highest {@link ItemStack#getMaxDamage()} — effectively
- * "best material" (Netherite > Diamond > Iron > Stone > Wood/Gold in
+ * tags ({@code ItemTags.PICKAXES} and the like for tools,
+ * {@code ItemTags.HEAD_ARMOR} and the like for armor) and pick the candidate
+ * with the highest {@link ItemStack#getMaxDamage()}, which is effectively
+ * "best material" (Netherite > Diamond > Iron > Stone > Wood and Gold in
  * the durability ordering). This lets a broken diamond pickaxe be
  * replaced by an iron pickaxe if no diamond is in inventory, rather
  * than leaving the active hand empty.
  *
  * <p>The before-break searches ({@link #findHigherDurability},
- * {@link #findHigherDurabilityArmor}) ALSO do the same fallback, gated
- * by {@link #FALLBACK_MIN_REMAINING} — the fallback candidate must have
+ * {@link #findHigherDurabilityArmor}) do the same fallback, gated
+ * by {@link #FALLBACK_MIN_REMAINING}: the fallback candidate must have
  * more than that many points of durability remaining, so the swap
  * never pulls another about-to-break tool into the active slot.
  *
- * <p>The "auto-upgrade while still using a lower-tier tool" UX
- * surprise is acknowledged — the deferred Power-Users config can let
- * players disable the fallback if it bothers them. See
- * {@link #FALLBACK_MIN_REMAINING} comment.
+ * <p>The fallback can surprise a player by upgrading a lower-tier tool
+ * they were still using. See the {@link #FALLBACK_MIN_REMAINING} comment.
  */
 public final class AutoRestockSearch {
 
@@ -62,43 +60,40 @@ public final class AutoRestockSearch {
     /** Sentinel returned when no source slot matches, or no exclusion. */
     public static final int NONE = -1;
 
-    /** Hotbar range — inclusive lower bound. */
+    /** Hotbar range, inclusive lower bound. */
     public static final int HOTBAR_START = 0;
 
-    /** Main inventory range — inclusive lower bound (hotbar end + 1). */
+    /** Main inventory range, inclusive lower bound (hotbar end + 1). */
     public static final int MAIN_INV_START = 9;
 
-    /** Main inventory range — exclusive upper bound. */
+    /** Main inventory range, exclusive upper bound. */
     public static final int MAIN_INV_END = 36;
 
     /**
      * Minimum remaining durability a fallback candidate must have during a
      * <i>before-break</i> swap. Without this gate, the swap could pull
-     * another about-to-break tool into the active slot — pointless churn.
-     * Matches {@code AutoRestockTicker.BEFORE_BREAK_THRESHOLD}.
+     * another about-to-break tool into the active slot, which is pointless
+     * churn. Matches the default before-break threshold.
      *
-     * <p><b>Power-Users config (deferred):</b> "Disable best-material
-     * fallback" should let players opt out of the cross-Item fallback
-     * entirely (both on-break and before-break). Surfaced under the
-     * Power Users tab when that tab gets populated. Not built yet — note
-     * only.
+     * <p>A Power Users option, "Disable best-material fallback", would let
+     * players opt out of the cross-Item fallback entirely (both on-break and
+     * before-break). It is not built yet.
      */
     private static final int FALLBACK_MIN_REMAINING = 10;
 
     /**
-     * Finds a source slot for restocking the given broken / depleted stack.
-     * Returns {@link #NONE} if no candidate found.
+     * Finds a source slot for restocking the given broken or depleted stack.
+     * Returns {@link #NONE} if no candidate is found.
      *
-     * <p>Walks slots {@code HOTBAR_START..MAIN_INV_END} (0–35) for an
+     * <p>Walks slots {@code HOTBAR_START..MAIN_INV_END} (0-35) for an
      * exact-item match. Returns the first match. "Exact item" is
-     * {@link ItemStack#is(net.minecraft.world.item.Item)} — same Item
-     * identity; components (enchantments, names, durability) are not
-     * compared because the spec's matching rule is "by item kind, not
-     * name or NBT".
+     * {@link ItemStack#is(net.minecraft.world.item.Item)}, the same Item
+     * identity. Components (enchantments, names, durability) are not
+     * compared, because restock matches by item kind, not name or NBT.
      *
      * @param excludeSlot a slot index in the hotbar that should be
-     *                    skipped (e.g., the active hotbar slot when
-     *                    restocking the active hand — that slot is the
+     *                    skipped (the active hotbar slot when restocking
+     *                    the active hand, since that slot is the
      *                    destination, not a valid source). Pass
      *                    {@link #NONE} for no exclusion.
      */
@@ -108,12 +103,12 @@ public final class AutoRestockSearch {
 
     /**
      * Extra-slots overload of {@link #findSource(Inventory, ItemStack, int)}.
-     * Scans the real inventory (0–35) first exactly as the base method
-     * does, then folds in {@code extras} — searchable slots that live
-     * outside the 0-35 model (e.g., Pocket Cycler's pockets), surfaced via
+     * Scans the real inventory (0-35) first exactly as the base method
+     * does, then folds in {@code extras}: searchable slots that live
+     * outside the 0-35 model (Pocket Cycler's pockets, for example), from
      * {@link com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry#extraSearchSlots}.
-     * A returned value ≥ the extras' encoded-id range is one of those slot
-     * ids, not an inventory index — the caller routes it back through the
+     * A returned value in the extras' encoded-id range is one of those slot
+     * ids, not an inventory index, and the caller routes it back through the
      * cyclable registry. Passing an empty list reproduces the base method
      * byte-for-byte.
      */
@@ -121,9 +116,9 @@ public final class AutoRestockSearch {
                                  List<ExtraSlot> extras) {
         if (brokenStack == null || brokenStack.isEmpty()) return NONE;
 
-        // Pass 1 — exact same-Item match. Locked sources skipped per spec.
-        // Inventory (0–35) first, then extras (pockets) — inventory wins so
-        // we don't disturb a curated pocket when a loose copy exists.
+        // Pass 1: exact same-Item match, skipping protected sources.
+        // Inventory (0-35) first, then extras (pockets). Inventory wins so a
+        // curated pocket isn't disturbed when a loose copy exists.
         for (int i = HOTBAR_START; i < MAIN_INV_END; i++) {
             if (i == excludeSlot) continue;
             if (isProtectedSource(inv, i)) continue;
@@ -140,12 +135,12 @@ public final class AutoRestockSearch {
                 return ex.id();
             }
         }
-        // Pass 2 — best-material fallback within the same tool kind.
-        // Non-tool items (food/blocks/shield/etc.) return null here and
-        // skip the fallback; they only have same-Item refill.
+        // Pass 2: best-material fallback within the same tool kind.
+        // Non-tool items (food, blocks, shield and so on) return null here
+        // and skip the fallback. They only have same-Item refill.
         TagKey<Item> toolTag = toolTagOf(brokenStack);
         if (toolTag == null) return NONE;
-        // On-break path: no minRemaining constraint — any same-kind tool
+        // On-break path: no minRemaining constraint. Any same-kind tool
         // beats an empty hand, even one that's also worn.
         return findBestByMaxDamage(inv, toolTag, excludeSlot, 0, extras);
     }
@@ -157,12 +152,12 @@ public final class AutoRestockSearch {
      *
      * <p>Pass 1: exact-item match (same as {@link #findSource}).
      * <p>Pass 2: best-material fallback within the matching armor tag
-     * ({@code HEAD_ARMOR}, {@code CHEST_ARMOR}, etc.) — no minRemaining
-     * constraint since the original is already gone.
+     * ({@code HEAD_ARMOR}, {@code CHEST_ARMOR} and so on), with no
+     * minRemaining constraint since the original is already gone.
      *
      * <p>The returned slot's stack is suitable for a
      * {@link net.minecraft.world.inventory.ContainerInput#QUICK_MOVE} from main
-     * inventory — vanilla's quick-move on InventoryMenu routes Equippable
+     * inventory: vanilla's quick-move on InventoryMenu routes Equippable
      * items to their matching empty armor slot.
      */
     public static int findArmorSource(Inventory inv, ItemStack brokenArmor) {
@@ -170,9 +165,9 @@ public final class AutoRestockSearch {
     }
 
     /**
-     * Extra-slots overload of {@link #findArmorSource(Inventory, ItemStack)}
-     * — scans the real inventory (0–35) first, then folds in {@code extras}
-     * (e.g., pockets). See {@link #findSource(Inventory, ItemStack, int, List)}
+     * Extra-slots overload of {@link #findArmorSource(Inventory, ItemStack)}.
+     * Scans the real inventory (0-35) first, then folds in {@code extras}
+     * (pockets, for example). See {@link #findSource(Inventory, ItemStack, int, List)}
      * for the id-namespace contract. Passing an empty list reproduces the
      * base method byte-for-byte.
      */
@@ -181,17 +176,17 @@ public final class AutoRestockSearch {
         EquipmentSlot wantedSlot = equippableSlot(brokenArmor);
         if (wantedSlot == null) return NONE;
 
-        // Pass 1 — exact same-Item match (with Equippable-slot guard). No
+        // Pass 1: exact same-Item match (with Equippable-slot guard). No
         // excludeSlot needed because the armor destination isn't in the
-        // hotbar/main-inv scan range. Inventory first, then extras.
+        // hotbar and main inventory scan range. Inventory first, then extras.
         for (int i = HOTBAR_START; i < MAIN_INV_END; i++) {
             if (isProtectedSource(inv, i)) continue;
             ItemStack candidate = inv.getItem(i);
             if (candidate.isEmpty()) continue;
             if (candidate.is(brokenArmor.getItem())) {
-                // Confirm the candidate is equippable to the same slot —
-                // protects against same-id-different-component edge cases
-                // (e.g., re-textured custom helmet whose Equippable was
+                // Confirm the candidate is equippable to the same slot. This
+                // guards against same-id, different-component edge cases
+                // (a re-textured custom helmet whose Equippable was
                 // changed). For vanilla items this is always true.
                 if (isEquippableToSlot(candidate, wantedSlot)) {
                     return i;
@@ -205,7 +200,7 @@ public final class AutoRestockSearch {
                 return ex.id();
             }
         }
-        // Pass 2 — best-material fallback for the matching armor slot.
+        // Pass 2: best-material fallback for the matching armor slot.
         TagKey<Item> armorTag = armorTagOf(wantedSlot);
         if (armorTag == null) return NONE;
         // On-break path: no minRemaining constraint.
@@ -214,14 +209,14 @@ public final class AutoRestockSearch {
 
     /**
      * Finds the best same-Item replacement for a before-break swap. Same
-     * matching rule as {@link #findSource} (exact Item identity, locked
-     * sources skipped) plus: candidate must have strictly more durability
+     * matching rule as {@link #findSource} (exact Item identity, protected
+     * sources skipped), and the candidate must have strictly more durability
      * remaining than {@code current}. "More durability remaining" is
      * equivalent to "lower {@link ItemStack#getDamageValue()}" because same
      * Item implies same max damage.
      *
      * <p>Scans the whole main inventory and returns the slot of the
-     * least-damaged candidate — "any same Item" policy, but biased to the
+     * least-damaged candidate: any same Item, but biased to the
      * freshest available so the player gets maximum mileage before the
      * next swap. Returns {@link #NONE} if no candidate exists.
      */
@@ -231,17 +226,17 @@ public final class AutoRestockSearch {
 
     /**
      * Extra-slots overload of {@link #findHigherDurability(Inventory, ItemStack, int)}.
-     * The least-damaged tracking spans inventory (0–35) then {@code extras}
-     * (e.g., pockets) with a strict {@code <} on damage, so an inventory
-     * copy wins ties over an equally-fresh pocket copy. See
+     * The least-damaged tracking spans inventory (0-35) then {@code extras}
+     * (pockets, for example) with a strict {@code <} on damage, so an
+     * inventory copy wins ties over an equally fresh pocket copy. See
      * {@link #findSource(Inventory, ItemStack, int, List)} for the
-     * id-namespace contract. Empty list → base behavior byte-for-byte.
+     * id-namespace contract. An empty list gives the base behavior exactly.
      */
     public static int findHigherDurability(Inventory inv, ItemStack current, int excludeSlot,
                                            List<ExtraSlot> extras) {
         if (current == null || current.isEmpty()) return NONE;
 
-        // Pass 1 — same-Item with strictly lower damage value than current.
+        // Pass 1: same Item with strictly lower damage value than current.
         int currentDamage = current.getDamageValue();
         int bestSlot = NONE;
         int bestDamage = currentDamage;       // candidate must be strictly < this
@@ -257,7 +252,7 @@ public final class AutoRestockSearch {
                 bestSlot = i;
             }
         }
-        // Extras compete on the same accumulator — strict < means a pocket
+        // Extras compete on the same accumulator. Strict < means a pocket
         // copy must be fresher than the best inventory copy to win.
         for (ExtraSlot ex : extras) {
             ItemStack candidate = ex.stack();
@@ -271,16 +266,16 @@ public final class AutoRestockSearch {
         }
         if (bestSlot != NONE) return bestSlot;
 
-        // Pass 2 — best-material fallback within the same tool kind.
-        // Candidate must have remaining > FALLBACK_MIN_REMAINING so we
-        // don't pull another about-to-break tool into the active slot.
+        // Pass 2: best-material fallback within the same tool kind.
+        // The candidate must have remaining > FALLBACK_MIN_REMAINING so
+        // another about-to-break tool isn't pulled into the active slot.
         TagKey<Item> toolTag = toolTagOf(current);
         if (toolTag == null) return NONE;
         return findBestByMaxDamage(inv, toolTag, excludeSlot, FALLBACK_MIN_REMAINING, extras);
     }
 
     /**
-     * Armor variant of {@link #findHigherDurability} — also enforces that
+     * Armor variant of {@link #findHigherDurability}. Also enforces that
      * the candidate equips to the same slot as {@code currentArmor} (same
      * defensive check as {@link #findArmorSource} against same-id
      * different-component edge cases).
@@ -290,11 +285,11 @@ public final class AutoRestockSearch {
     }
 
     /**
-     * Extra-slots overload of {@link #findHigherDurabilityArmor(Inventory, ItemStack)}
-     * — least-damaged tracking spans inventory (0–35) then {@code extras}
-     * (e.g., pockets), with the equippable-slot guard applied to both. See
-     * {@link #findSource(Inventory, ItemStack, int, List)} for the
-     * id-namespace contract. Empty list → base behavior byte-for-byte.
+     * Extra-slots overload of {@link #findHigherDurabilityArmor(Inventory, ItemStack)}.
+     * Least-damaged tracking spans inventory (0-35) then {@code extras}
+     * (pockets, for example), with the equippable-slot guard applied to both.
+     * See {@link #findSource(Inventory, ItemStack, int, List)} for the
+     * id-namespace contract. An empty list gives the base behavior exactly.
      */
     public static int findHigherDurabilityArmor(Inventory inv, ItemStack currentArmor,
                                                 List<ExtraSlot> extras) {
@@ -302,7 +297,7 @@ public final class AutoRestockSearch {
         EquipmentSlot wantedSlot = equippableSlot(currentArmor);
         if (wantedSlot == null) return NONE;
 
-        // Pass 1 — same-Item with lower damage value than current, in the
+        // Pass 1: same Item with lower damage value than current, in the
         // matching equippable slot.
         int currentDamage = currentArmor.getDamageValue();
         int bestSlot = NONE;
@@ -332,7 +327,7 @@ public final class AutoRestockSearch {
         }
         if (bestSlot != NONE) return bestSlot;
 
-        // Pass 2 — best-material armor fallback for the matching slot.
+        // Pass 2: best-material armor fallback for the matching slot.
         // Candidate must have remaining > FALLBACK_MIN_REMAINING.
         TagKey<Item> armorTag = armorTagOf(wantedSlot);
         if (armorTag == null) return NONE;
@@ -343,7 +338,7 @@ public final class AutoRestockSearch {
      * Returns the vanilla {@link ItemTags} entry the stack belongs to for
      * the five major tool kinds (pickaxes, axes, shovels, hoes, swords),
      * or {@code null} if it's not in any of them. Single-item "tools"
-     * (shield, trident, bow, crossbow, fishing rod, etc.) return null and
+     * (shield, trident, bow, crossbow, fishing rod and so on) return null and
      * fall back to same-Item refill only.
      */
     private static TagKey<Item> toolTagOf(ItemStack stack) {
@@ -370,10 +365,10 @@ public final class AutoRestockSearch {
     }
 
     /**
-     * Scans 0–35 for the candidate in {@code tag} with the highest
-     * {@code maxDamage} — i.e., the best-material item of that kind.
-     * Ties (e.g., two iron pickaxes) go to the hotbar copy first thanks
-     * to the 0→35 scan order plus strict {@code >} comparison.
+     * Scans 0-35 for the candidate in {@code tag} with the highest
+     * {@code maxDamage}, the best-material item of that kind. Ties (two
+     * iron pickaxes, say) go to the hotbar copy first, thanks to the
+     * ascending scan order and the strict {@code >} comparison.
      *
      * @param minRemaining if {@code > 0}, candidates must have remaining
      *                     durability strictly greater than this value.
@@ -401,7 +396,7 @@ public final class AutoRestockSearch {
                 bestSlot = i;
             }
         }
-        // Extras (pockets) compete with strict > — inventory keeps ties.
+        // Extras (pockets) compete with strict >, so inventory keeps ties.
         for (ExtraSlot ex : extras) {
             ItemStack candidate = ex.stack();
             if (candidate.isEmpty()) continue;
@@ -462,7 +457,7 @@ public final class AutoRestockSearch {
     /**
      * Returns the {@link EquipmentSlot} this item equips to, or {@code null}
      * if it isn't equipment. 26.2 routes this through the
-     * {@link DataComponents#EQUIPPABLE} component — there is no
+     * {@link DataComponents#EQUIPPABLE} component. There is no
      * {@code ArmorItem} subclass to instanceof-check against.
      */
     public static EquipmentSlot equippableSlot(ItemStack stack) {

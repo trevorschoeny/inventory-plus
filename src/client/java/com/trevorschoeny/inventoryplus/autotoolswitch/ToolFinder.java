@@ -25,56 +25,52 @@ import java.util.function.ToDoubleFunction;
  * Tool-finding logic for Auto Tool Switch.
  *
  * <p>Given a target (block to break or mob to attack) and the player's
- * inventory, finds the best matching tool/weapon slot — respecting the
+ * inventory, finds the best matching tool or weapon slot, respecting the
  * three-tier resolution priority:
  * <ol>
- *   <li><b>Tier 1</b> — already in hotbar (slots 0-8, excluding the active slot).</li>
- *   <li><b>Tier 2</b> — in a cyclable hotbar position: inv slots 9-35 claimed by any
+ *   <li><b>Tier 1:</b> already in the hotbar (slots 0-8, excluding the active slot).</li>
+ *   <li><b>Tier 2:</b> in a cyclable hotbar position: inventory slots 9-35 claimed by any
  *       {@link com.trevorschoeny.inventoryplus.cyclable.HotbarCyclable} via
  *       {@link HotbarCyclableRegistry#cyclablePosition}, or an extra slot outside
  *       the 0-35 model (Pocket Cycler's pockets) via
  *       {@link HotbarCyclableRegistry#extraSearchSlots}.</li>
- *   <li><b>Tier 3</b> — elsewhere in main inventory (slots 9-35 with no cyclable claim).</li>
+ *   <li><b>Tier 3:</b> elsewhere in main inventory (slots 9-35 with no cyclable claim).</li>
  * </ol>
  *
- * <p><b>Tier-first.</b> Within a tier, picks by score (material/damage,
+ * <p><b>Tier-first.</b> Within a tier, picks by score (material and damage,
  * durability tiebreak). Tier 1 beats tier 2 beats tier 3 even when
- * higher-tier matches have weaker materials — minimal-disruption priority
- * per the spec.
+ * higher-tier matches have weaker materials, because minimal disruption
+ * comes first.
  *
- * <p><b>Ties broken by proximity</b> — within a tier and at the same score,
- * the slot closer to the player's active hotbar slot wins. (Per Trev's
- * 2026-05-25 decision on cyclable tiebreaker, generalized to all tiers.)
+ * <p><b>Ties broken by proximity.</b> Within a tier and at the same score,
+ * the slot closer to the player's active hotbar slot wins.
  *
  * <p><b>Locks answer through the veto.</b> Every candidate slot is asked
- * whether Auto Tool Switch may use it; a lock group that stops Auto Tool
- * Switch, on the slot or on the item, refuses there (`plans/reach.md`).
+ * whether Auto Tool Switch may use it. A lock group that stops Auto Tool
+ * Switch, on the slot or on the item, refuses there.
  */
 public final class ToolFinder {
 
     private ToolFinder() {}
 
-    /** Result of a search — the slot index (0-35) plus its score. */
+    /** Result of a search: the slot index (0-35, or an extra slot id) and its score. */
     public record Match(int slotIndex, double score) {}
-
-    // ─── Public entry points ─────────────────────────────────────────
 
     /**
      * Find the best matching tool for breaking a block. Returns
-     * {@code null} if no switch is needed — either the player's active
+     * {@code null} if no switch is needed: either the player's active
      * slot already holds a matching tool, or no tool in the inventory
      * matches.
      *
-     * <p>"Matching" = either correct-tool-for-drops (when the block
-     * requires a correct tool) or destroy-speed-bonus (when the block
-     * doesn't, e.g., dirt+shovel). Avoids picking arbitrary items just
-     * because they're high-tier (e.g., wouldn't pick a netherite sword
-     * for dirt).
+     * <p>"Matching" means correct-tool-for-drops (when the block requires
+     * a correct tool) or a destroy-speed bonus (when it doesn't, as with
+     * dirt and a shovel). This avoids picking arbitrary items just because
+     * they're high-tier (a netherite sword for dirt, say).
      *
-     * <p><b>Active-slot short-circuit (Trev 2026-05-25):</b> if the
-     * player's active slot already holds a matching tool, returns null
-     * — no disruption. Even if a "better" tool exists elsewhere, the
-     * current one is good enough; switching would surprise the player.
+     * <p><b>Active-slot short-circuit:</b> if the player's active slot
+     * already holds a matching tool, returns null. Even if a "better" tool
+     * exists elsewhere, the current one is good enough, and switching would
+     * surprise the player.
      */
     public static Match findBestForBlock(Inventory inv, BlockState blockState) {
         ItemStack activeStack = inv.getItem(inv.getSelectedSlot());
@@ -89,33 +85,32 @@ public final class ToolFinder {
      * {@code null} if no switch is needed.
      *
      * <p>The {@code entity} parameter is currently unused but kept in
-     * the signature for future mob-type-aware enchantment preference
-     * (e.g., Smite on undead).
+     * the signature for mob-type-aware enchantment preference (Smite on
+     * undead, for example).
      *
-     * <p><b>Preference dominates tier for weapons</b> (Trev 2026-05-25).
-     * Unlike tools — where the closest tier wins for minimal disruption —
-     * a weapon preference is an explicit player choice, so the preferred
-     * type wins even across tiers. A preferred trident in main inventory
-     * (tier 3) beats a non-preferred sword in the hotbar (tier 1). The
-     * earlier "tier-first" approach caused a two-hit switch (sword on
-     * hit 1, trident on hit 2); searching preferred-first fixes it.
+     * <p><b>Preference dominates tier for weapons.</b> Unlike tools, where
+     * the closest tier wins for minimal disruption, a weapon preference is
+     * an explicit player choice, so the preferred type wins even across
+     * tiers. A preferred trident in main inventory (tier 3) beats a
+     * non-preferred sword in the hotbar (tier 1). Tier-first here caused a
+     * two-hit switch (sword on hit 1, trident on hit 2), which searching
+     * preferred-first avoids.
      *
      * <p>Resolution order:
      * <ol>
-     *   <li>Active is already the preferred type → no switch.</li>
+     *   <li>Active is already the preferred type: no switch.</li>
      *   <li>Search for the <b>preferred</b> type across all tiers
      *       (tier-prioritized among preferred candidates). If found,
-     *       switch to it — regardless of where a non-preferred weapon
-     *       might sit.</li>
-     *   <li>No preferred weapon anywhere + active is already a (non-
-     *       preferred) weapon → no switch (don't thrash sword→sword).</li>
-     *   <li>No preferred weapon + active isn't a weapon → fall back to
+     *       switch to it, wherever a non-preferred weapon might sit.</li>
+     *   <li>No preferred weapon anywhere, and active is already a
+     *       (non-preferred) weapon: no switch (don't thrash sword to sword).</li>
+     *   <li>No preferred weapon, and active isn't a weapon: fall back to
      *       the best available non-preferred weapon (tier-prioritized).</li>
      * </ol>
      */
     public static Match findBestForMob(Inventory inv, LivingEntity entity) {
         ItemStack activeStack = inv.getItem(inv.getSelectedSlot());
-        // (1) Already on the preferred weapon — nothing to do.
+        // (1) Already on the preferred weapon.
         if (isPreferredWeapon(activeStack)) return null;
         // (2) Preferred type wins across all tiers. Search it first so a
         // preferred weapon in deep inventory beats a non-preferred one in
@@ -125,28 +120,26 @@ public final class ToolFinder {
                 ToolFinder::scoreWeapon);
         if (preferred != null) return preferred;
         // (3) No preferred weapon available. If the active slot already
-        // holds a (non-preferred) weapon, leave it — don't thrash between
-        // equally-valid non-preferred weapons.
+        // holds a (non-preferred) weapon, leave it rather than thrash between
+        // equally valid non-preferred weapons.
         if (isWeapon(activeStack)) return null;
-        // (4) Active isn't a weapon at all — fall back to the best
+        // (4) Active isn't a weapon at all. Fall back to the best
         // available non-preferred weapon, tier-prioritized.
         return findBestByTier(inv,
                 ToolFinder::isWeapon,
                 ToolFinder::scoreWeapon);
     }
 
-    // ─── Tiered search ───────────────────────────────────────────────
-
     /**
-     * Three-tier search: tier 1 first; if no match, tier 2; if no match,
-     * tier 3. Stops at the first tier with a match — tier-first priority
-     * (minimal disruption beats material upgrade).
+     * Three-tier search: tier 1 first, then tier 2, then tier 3. Stops at the
+     * first tier with a match, since minimal disruption beats a material
+     * upgrade.
      *
-     * <p>Tier 2 spans both cyclable inv slots (9-35) <b>and</b> extra
+     * <p>Tier 2 spans both cyclable inventory slots (9-35) <b>and</b> extra
      * cyclable slots that live outside the 0-35 model (Pocket Cycler's
      * pockets), pulled via {@link HotbarCyclableRegistry#extraSearchSlots}.
-     * Both are reached by a cycler's native action, so they share a tier;
-     * within it, score wins, then proximity, then inventory-over-extra on a
+     * Both are reached by a cycler's native action, so they share a tier.
+     * Within it, score wins, then proximity, then inventory-over-extra on a
      * full tie (consistent with auto-restock's inventory-before-pockets
      * ordering).
      */
@@ -155,7 +148,7 @@ public final class ToolFinder {
         // Tier 1: hotbar slots (0-8), excluding the active slot itself.
         Match t1 = scanRange(inv, 0, 8, activeSlot, isMatch, scorer, slot -> true);
         if (t1 != null) return t1;
-        // Tier 2: cyclable inv slots (9-35) ∪ extra cyclable slots (pockets).
+        // Tier 2: cyclable inventory slots (9-35) and extra cyclable slots (pockets).
         // Both halves ask the owning cycler first. Tier 2 changes the selected
         // slot and then asks the cycler to bring the tool down; a slot whose
         // bring would be refused must never be chosen, or the hand moves and
@@ -169,14 +162,14 @@ public final class ToolFinder {
                 activeSlot, isMatch, scorer);
         Match t2 = pickBetter(t2inv, t2extra, activeSlot);
         if (t2 != null) return t2;
-        // Tier 3: remaining inv slots (not cyclable).
+        // Tier 3: remaining inventory slots (not cyclable).
         return scanRange(inv, 9, 35, activeSlot, isMatch, scorer, slot -> !isCyclable(slot));
     }
 
     /**
-     * Scan extra cyclable slots (pockets etc.) — the out-of-0-35 analogue
-     * of {@link #scanRange}. Each {@link ExtraSlot} carries its own live
-     * stack, so no inventory read is needed; the slot's <i>id</i> becomes
+     * Scan extra cyclable slots (pockets and the like), the out-of-0-35
+     * analogue of {@link #scanRange}. Each {@link ExtraSlot} carries its own
+     * live stack, so no inventory read is needed. The slot's <i>id</i> becomes
      * the {@link Match} slot index, routed back through the cyclable
      * registry by the caller (it resolves to a hotbar position like any
      * Tier-2 slot). Proximity tiebreak uses the slot's hotbar column per
@@ -202,7 +195,7 @@ public final class ToolFinder {
     }
 
     /**
-     * Pick the higher-scoring of two matches; on a score tie the one whose
+     * Pick the higher-scoring of two matches. On a score tie the one whose
      * column is closer to the active slot wins, and on a full tie {@code a}
      * is kept. Tier 2 passes the inventory match as {@code a} so a loose
      * inventory copy beats an equally-good, equally-close pocket copy.
@@ -216,19 +209,17 @@ public final class ToolFinder {
     }
 
     /**
-     * Scan a slot range, applying the tier filter + match predicate +
-     * scorer. Returns the highest-scoring match (with proximity-to-
-     * active tiebreaker). Returns {@code null} if no slot matches.
+     * Scan a slot range, applying the tier filter, match predicate and
+     * scorer. Returns the highest-scoring match (with a proximity-to-active
+     * tiebreaker), or {@code null} if no slot matches.
      */
     private static Match scanRange(Inventory inv, int fromSlot, int toSlot, int activeSlot,
                                     Predicate<ItemStack> isMatch, ToDoubleFunction<ItemStack> scorer,
                                     IntPredicate tierFilter) {
         Match best = null;
         for (int i = fromSlot; i <= toSlot; i++) {
-            // Skip the active slot — auto-switch wouldn't pick the slot
-            // the player is already on (it's the current hand's slot,
-            // and we already determined it's not the right tool by
-            // virtue of being here).
+            // Skip the active slot. The caller only searches once the
+            // current hand is known not to be the right tool.
             if (i == activeSlot) continue;
             if (!tierFilter.test(i)) continue;
             // Auto Tool Switch has to be allowed on the slot it would use, and
@@ -268,8 +259,8 @@ public final class ToolFinder {
 
     /**
      * The hotbar column (0-8) a slot maps to. Hotbar slots (0-8) are their
-     * own column; inv slots (9-35) use {@code slot % 9}; an extra slot id
-     * (pocket etc.) resolves through the cyclable registry to the hotbar
+     * own column, inventory slots (9-35) use {@code slot % 9}, and an extra
+     * slot id (a pocket, say) resolves through the cyclable registry to the hotbar
      * position its native action brings it to. Unknown ids fall back to 0.
      */
     private static int columnOf(int slot) {
@@ -280,21 +271,19 @@ public final class ToolFinder {
     }
 
     /**
-     * True if the inv slot (9-35) is claimed by some registered
-     * HotbarCyclable — i.e., it's tier 2 reachable.
+     * True if the inventory slot (9-35) is claimed by some registered
+     * HotbarCyclable, which makes it reachable in tier 2.
      */
     private static boolean isCyclable(int slot) {
         return HotbarCyclableRegistry.cyclablePosition(slot) != -1;
     }
 
-    // ─── Block tool matching ─────────────────────────────────────────
-
     /**
      * True if this item is the "right" kind of tool for the block.
      * <ul>
-     *   <li>Block requires a correct tool (stone, etc.) → only items
+     *   <li>Block requires a correct tool (stone and so on): only items
      *       that pass {@link ItemStack#isCorrectToolForDrops} match.</li>
-     *   <li>Block doesn't require a correct tool (dirt, etc.) → only
+     *   <li>Block doesn't require a correct tool (dirt and so on): only
      *       items that give a destroy-speed bonus (>1.0) match. This
      *       picks shovels for dirt while rejecting arbitrary items.</li>
      * </ul>
@@ -312,11 +301,11 @@ public final class ToolFinder {
      * Score for a tool against a specific block. Higher is better.
      *
      * <p>Primary signal: destroy speed. Vanilla destroy speed reflects
-     * tier (Netherite > Diamond > Iron > Stone > Wood > Gold) implicitly
-     * — the same proxy auto-restock uses. Sufficient for v1; refine to
-     * proper tier/enchantment matching when use surfaces a problem.
+     * tier (Netherite > Diamond > Iron > Stone > Wood > Gold) implicitly,
+     * the same proxy auto-restock uses. Proper tier and enchantment matching
+     * could replace it if this proves too coarse.
      *
-     * <p>Tiebreaker: remaining durability (higher = better) at a small
+     * <p>Tiebreaker: remaining durability (higher is better) at a small
      * weight, so it doesn't override the speed signal.
      */
     private static double scoreToolForBlock(ItemStack stack, BlockState blockState) {
@@ -325,23 +314,21 @@ public final class ToolFinder {
         return speed * 100.0 + remainingDurability * 0.001;
     }
 
-    // ─── Weapon matching ─────────────────────────────────────────────
-
     /**
      * True if this item is a melee weapon.
      *
      * <p>Uses vanilla 26.2's composite enchantable tags:
-     * {@link ItemTags#WEAPON_ENCHANTABLE} (swords + spears + axes + mace)
-     * union {@link ItemTags#TRIDENT_ENCHANTABLE} (trident — separate from
+     * {@link ItemTags#WEAPON_ENCHANTABLE} (swords, spears, axes, mace)
+     * and {@link ItemTags#TRIDENT_ENCHANTABLE} (the trident, separate from
      * WEAPON_ENCHANTABLE because tridents take a different enchant set).
      *
      * <p>Bows and crossbows are <b>not</b> in either tag (they live in
-     * BOW_ENCHANTABLE / CROSSBOW_ENCHANTABLE), so they're excluded
-     * automatically — per Trev's spec.
+     * BOW_ENCHANTABLE and CROSSBOW_ENCHANTABLE), so they're excluded, as
+     * intended.
      *
-     * <p>Modded melee weapons (spears, glaives, etc.) auto-included as
-     * long as they're properly tagged into one of the sub-tags
-     * (#minecraft:swords, #minecraft:spears, etc.).
+     * <p>Modded melee weapons (spears, glaives and so on) are included as
+     * long as they're tagged into one of the sub-tags (#minecraft:swords,
+     * #minecraft:spears and so on).
      */
     private static boolean isWeapon(ItemStack stack) {
         if (stack.isEmpty()) return false;
@@ -371,19 +358,18 @@ public final class ToolFinder {
      * Score for a weapon. Higher is better.
      *
      * <p>Primary signal: <b>preferred weapon type wins</b> regardless
-     * of other type's material — e.g., a preferred AXE in iron beats a
+     * of other types' material, so a preferred AXE in iron beats a
      * non-preferred SWORD in netherite. Set in the settings menu's
      * "Preferred weapon" dropdown.
      *
-     * <p>Within the same type-tier (all preferred, or all non-
-     * preferred), material via maxDamage proxy (Netherite > Diamond >
-     * Iron > Stone > Wood > Gold; minor Gold mismatch with spec's
-     * ordering — same caveat as auto-restock). Durability as a small
-     * tiebreaker.
+     * <p>Within the same type tier (all preferred, or all non-preferred),
+     * material via the maxDamage proxy (Netherite > Diamond > Iron > Stone >
+     * Wood > Gold, which puts Gold slightly out of the intended order, the
+     * same caveat as auto-restock). Durability is a small tiebreaker.
      *
-     * <p>Mob-type-aware enchantment preference (Smite on undead,
-     * Sharpness elsewhere) is deferred — the {@code entity} parameter
-     * is plumbed through findBestForMob for that future work.
+     * <p>Mob-type-aware enchantment preference (Smite on undead, Sharpness
+     * elsewhere) is not built. The {@code entity} parameter is passed
+     * through findBestForMob for it.
      */
     private static double scoreWeapon(ItemStack stack) {
         WeaponPreference pref = IPConfig.autoToolSwitchWeaponPreference();
@@ -400,7 +386,7 @@ public final class ToolFinder {
             typeScore = (pref == WeaponPreference.TRIDENT) ? 100_000.0 : 6_000.0;
         } else if (stack.is(ItemTags.WEAPON_ENCHANTABLE) || stack.is(ItemTags.TRIDENT_ENCHANTABLE)) {
             // Fallback for modded melee weapons that match the broad tag
-            // but aren't in any of our hard-coded type buckets. Treat as
+            // but aren't in any of the hard-coded type buckets. Treat as
             // a generic low-priority weapon; preference can't apply.
             typeScore = 5_000.0;
         } else {
@@ -411,13 +397,7 @@ public final class ToolFinder {
         return typeScore + materialScore * 0.1 + remainingDurability * 0.001;
     }
 
-    // ─── Shared helpers ──────────────────────────────────────────────
-
-    /**
-     * Remaining durability of the stack — max damage minus current
-     * damage value. Returns 0 for non-damageable items (where max
-     * damage is 0).
-     */
+    /** Max damage minus current damage. 0 for non-damageable items. */
     private static double remainingDurability(ItemStack stack) {
         int max = stack.getMaxDamage();
         if (max <= 0) return 0;

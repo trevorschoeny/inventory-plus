@@ -12,31 +12,29 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Registry of {@link CycleHudSource}s + the shared cycle-animation clock.
+ * Registry of {@link CycleHudSource}s and the shared cycle-animation clock.
  *
- * <p>The single seam {@link CycleHud} reads from. Cyclers register a source
+ * <p>The only thing {@link CycleHud} reads from. Cyclers register a source
  * (for HUD contents) and fire {@link #fireCycleAnimation} after a real
- * rotation (to drive the slide animation). The HUD never references any
- * specific cycler — it asks this registry "what's active on slot N?" and
+ * rotation (to drive the slide animation). The HUD never references a
+ * specific cycler. It asks this registry "what's active on slot N?" and
  * "is an animation in flight for this source?".
  *
  * <p>Reachable cross-mod: IPP's Pocket Cycler registers its own source here
  * exactly as IP's Column Cycler does. Public static, single-threaded client
  * use (registration at init, reads on the render thread).
  *
- * <h3>Stacking (2026-06-04)</h3>
+ * <h3>Stacking</h3>
  *
- * Multiple cyclers can be active on the SAME hotbar slot (e.g. Column Cycler
- * and Pocket Cycler both on the held slot). {@link #activeViews} returns them
- * ALL, ordered bottom→top by {@link CycleHudSource#hudStackOrder()}, so the HUD
- * can stack a strip per cycler. (This replaced an earlier first-match-wins
- * {@code activeView} that assumed cyclers never shared a slot.)
+ * Multiple cyclers can be active on the same hotbar slot (Column Cycler and
+ * Pocket Cycler both on the held slot, for example). {@link #activeViews}
+ * returns them all, ordered bottom to top by
+ * {@link CycleHudSource#hudStackOrder()}, so the HUD can stack a strip per
+ * cycler.
  */
 public final class CycleHudRegistry {
 
     private CycleHudRegistry() {}
-
-    // ─── HUD sources ─────────────────────────────────────────────────
 
     private static final List<CycleHudSource> SOURCES = new ArrayList<>();
 
@@ -54,11 +52,11 @@ public final class CycleHudRegistry {
     public record ActiveCycle(CycleHudSource source, CycleView view) {}
 
     /**
-     * Every cycle active on {@code hotbarSlot}, ordered BOTTOM→TOP for stacking:
-     * ascending {@link CycleHudSource#hudStackOrder()} (lower = nearer the
-     * hotbar / bottom of the stack). Pocket Cycler pins to the bottom; Column
-     * Cycler stacks above it. One element in the common case (a single cycler
-     * claims the slot); empty when none does.
+     * Every cycle active on {@code hotbarSlot}, ordered bottom to top for
+     * stacking: ascending {@link CycleHudSource#hudStackOrder()} (lower is
+     * nearer the hotbar). Pocket Cycler pins to the bottom and Column Cycler
+     * stacks above it. Usually one element. Empty when no cycler claims the
+     * slot.
      */
     public static List<ActiveCycle> activeViews(int hotbarSlot) {
         List<ActiveCycle> out = new ArrayList<>(SOURCES.size());
@@ -70,18 +68,17 @@ public final class CycleHudRegistry {
         return out;
     }
 
-    // ─── Per-source animation clock ──────────────────────────────────
-    // Each cycler animates INDEPENDENTLY. When two strips are stacked, cycling
-    // the pocket must slide only the pocket strip — not the column strip above
-    // it. A single global slot-keyed clock would slide every strip on that slot
+    // Per-source animation clock. Each cycler animates independently: when two
+    // strips are stacked, cycling the pocket must slide only the pocket strip,
+    // not the column strip above it. A single global slot-keyed clock would slide every strip on that slot
     // at once, so state is keyed by source. A cycler fires this after a
     // successful rotation; CycleHud reads it per strip to compute the slide.
 
     /**
      * One in-flight slide for a source. {@code heldOnly}: only the held cell
      * changed, from {@code heldBefore}, because Hotbar Cycler moved the item
-     * in the hand; the HUD slides that cell up or down, as the hotbar's own
-     * slide does, and leaves the rest of the strip still (Trev, 2026-10-04).
+     * in the hand. The HUD slides that cell up or down, as the hotbar's own
+     * slide does, and leaves the rest of the strip still.
      */
     public record Animation(int hotbarSlot, long startMillis, CyclerDirection direction,
                             boolean heldOnly, ItemStack heldBefore) {}
@@ -105,12 +102,11 @@ public final class CycleHudRegistry {
         ANIMATIONS.remove(source);
     }
 
-    // ─── Change-gated slides ─────────────────────────────────────────
-    // Hotbar Cycler rotates whole rows, which may or may not alter what a
-    // given preview shows: a column whose cycle members sit in untouched rows
-    // changes only its held cell; a pocket's own slots never change at all.
-    // The spec says a preview slides only where the rotation actually changed
-    // its contents. That decision is made here, generically, so a cycler that
+    // Change-gated slides. Hotbar Cycler rotates whole rows, which may or may
+    // not alter what a given preview shows: a column whose cycle members sit
+    // in untouched rows changes only its held cell, and a pocket's own slots
+    // never change at all. A preview slides only where the rotation actually
+    // changed its contents. That decision is made here, generically, so a cycler that
     // fires it never needs to know which sources exist (Pocket Cycler lives in
     // another mod) or how each one derives its view.
 

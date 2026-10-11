@@ -24,9 +24,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Physical-rotation engine for Column Cycler. Given a column index +
- * direction, walks the column's cycle members (top inv slots → hotbar)
- * and sends a {@link ContainerInput#SWAP} click sequence that physically
+ * Physical-rotation engine for Column Cycler. Given a column index and a
+ * direction, walks the column's cycle members (top inventory slots down to
+ * the hotbar) and sends a {@link ContainerInput#SWAP} click sequence that physically
  * moves items through the slots.
  *
  * <h3>Cycle list layout</h3>
@@ -34,16 +34,16 @@ import java.util.List;
  * Vanilla {@code Inventory.items[]} layout:
  * <ul>
  *   <li>0-8: hotbar (y=142, visible at bottom of player inv GUI)</li>
- *   <li>9-17: main inv row at y=84 — the TOP row visually</li>
+ *   <li>9-17: main inventory row at y=84, the top row visually</li>
  *   <li>18-26: middle row at y=102</li>
- *   <li>27-35: bottom row at y=120 — JUST ABOVE the hotbar</li>
+ *   <li>27-35: bottom row at y=120, just above the hotbar</li>
  * </ul>
  *
- * <p>The cycle list is sorted top → bottom visually: {@code [9+col,
+ * <p>The cycle list is sorted top to bottom visually: {@code [9+col,
  * 18+col, 27+col, col]}. Only slots that are actually cycle members
- * are included; the hotbar is always the LAST element when the column
- * is active (since any inv slot in the column being a cycle member
- * makes the hotbar slot a derived cycle member).
+ * are included. The hotbar is always the last element when the column
+ * is active, since any inventory slot in the column being a cycle member
+ * makes the hotbar slot a derived cycle member.
  *
  * <h3>Rotation algorithm</h3>
  *
@@ -55,11 +55,11 @@ import java.util.List;
  *   forward  (toward the hotbar, hotbar wraps to the top): swap s0, s1, ..., sN-2
  *   backward (away from the hotbar, top wraps to it):      swap sN-2, ..., s1, s0
  * </pre>
- * Swaps, not PICKUP clicks through the cursor (Trev, 2026-10-04: cycling
- * stopped partway and the hand jumped slots). A PICKUP onto a stack of the
- * same item merges instead of exchanging, which left an item on the cursor,
- * so every later rotation no-oped on the occupied cursor. A swap never
- * merges and never uses the cursor.
+ * Swaps, not PICKUP clicks through the cursor. With PICKUP, cycling stopped
+ * partway and the hand jumped slots: a PICKUP onto a stack of the same item
+ * merges instead of exchanging, which left an item on the cursor, so every
+ * later rotation no-oped on the occupied cursor. A swap never merges and
+ * never uses the cursor.
  *
  * <p>The hotbar slot's contents change wholesale (an empty ring slot can
  * rotate into the hand), so each rotation marks it for
@@ -84,32 +84,22 @@ public final class ColumnCyclerRotator {
     public enum Direction { FORWARD, BACKWARD }
 
     /**
-     * Listener for rotation events. Fired AFTER a successful rotation
-     * sends its click packets — used by the HUD overlay to drive its
-     * slide animation, and by anything else that wants to react to a
-     * cycle advance.
+     * Listener for rotation events, fired after a successful rotation
+     * sends its click packets. The HUD overlay uses it to drive its slide
+     * animation.
      *
-     * <p>NOT fired for no-op cases (cycle has fewer than 2 slots,
-     * cursor is holding an item, slot lookup failed). The listener only
-     * sees real rotations that actually moved items.
+     * <p>Not fired for no-op cases (cycle has fewer than 2 slots, cursor
+     * is holding an item, slot lookup failed), so the listener only sees
+     * rotations that actually moved items.
      */
     @FunctionalInterface
     public interface RotationListener {
         void onRotation(int column, Direction direction);
     }
 
-    /**
-     * Registered listeners. List used (not Set) because listeners are
-     * registered once at mod init and notification order is irrelevant
-     * for the current consumers; the small registration cost over a
-     * Set is fine for a list this short.
-     */
     private static final List<RotationListener> ROTATION_LISTENERS = new ArrayList<>();
 
-    /**
-     * Register a listener. Typically called once per consumer at mod
-     * init. Idempotent guard: the same instance won't register twice.
-     */
+    /** Called once per consumer at mod init. The same instance won't register twice. */
     public static void addRotationListener(RotationListener listener) {
         if (listener == null) return;
         if (ROTATION_LISTENERS.contains(listener)) return;
@@ -118,8 +108,9 @@ public final class ColumnCyclerRotator {
 
     /**
      * Rotate the cycle slots in {@code column} (0-8) in the given direction.
-     * Sends {@code N-1} SWAP clicks to the active container menu. No-op if the cycle has fewer than 2 slots, if the cursor is
-     * holding an item, or if any slot lookup fails.
+     * Sends {@code N-1} SWAP clicks to the active container menu. No-op if the
+     * cycle has fewer than 2 slots, if the cursor is holding an item, or if any
+     * slot lookup fails.
      */
     public static void rotate(int column, Direction direction) {
         rotate(column, direction, COLUMN_CYCLE, COLUMN_CYCLE);
@@ -134,14 +125,8 @@ public final class ColumnCyclerRotator {
                               BehaviorKey<TriBool> take, BehaviorKey<TriBool> put) {
         if (column < 0 || column > 8) return;
 
-        // Build the cycle slot list: visually top → bottom, hotbar last.
-        // Shared with planBringSlotToHotbar so both call sites agree on
-        // index ordering and membership filtering.
         if (!rotateSlots(buildCycleList(column), direction, "column-cycler", take, put)) return;
 
-        // Notify listeners — fired only after a successful rotation
-        // (all early-return paths above skip this). Used by the HUD
-        // overlay's slide animation, among other consumers.
         for (RotationListener listener : ROTATION_LISTENERS) {
             listener.onRotation(column, direction);
         }
@@ -156,11 +141,10 @@ public final class ColumnCyclerRotator {
      * column's cycle members; Hotbar Cycler passes one column's toggled
      * row slots plus that column's hotbar slot, nine times over. The
      * click sequence, the cursor rule, and the wrap semantics are
-     * identical either way — only the choice of slots differs, and that
-     * is the caller's business.
+     * identical either way. Only the choice of slots differs.
      *
-     * <p>{@code containerSlots} is ordered visually top → bottom with
-     * the destination (hotbar) slot LAST, matching {@link #buildCycleList}.
+     * <p>{@code containerSlots} is ordered visually top to bottom with
+     * the destination (hotbar) slot last, matching {@link #buildCycleList}.
      * FORWARD shifts items toward that last slot and wraps it to the
      * front; BACKWARD reverses.
      *
@@ -183,8 +167,8 @@ public final class ColumnCyclerRotator {
         AbstractContainerMenu menu = player.containerMenu;
         if (menu == null) return false;
 
-        // Cursor must be empty — otherwise rotation interleaves the
-        // carried item into the cycle. Player should drop it first.
+        // The cursor must be empty, otherwise the rotation interleaves the
+        // carried item into the cycle.
         if (!menu.getCarried().isEmpty()) {
             InventoryPlusClient.LOGGER.debug(
                     "[{}] rotate skipped — cursor holding {}", feature, menu.getCarried());
@@ -199,7 +183,6 @@ public final class ColumnCyclerRotator {
         int n = containerSlots.size();
         if (n < 2) return false;
 
-        // Resolve menu slot indices.
         int[] menuSlots = new int[n];
         for (int i = 0; i < n; i++) {
             int menuIdx = PlayerMenuSlots.menuIndexOf(menu, player, containerSlots.get(i));
@@ -296,13 +279,11 @@ public final class ColumnCyclerRotator {
     }
 
     /**
-     * Build the cycle slot list for {@code column}: directly-toggled inv
-     * slots in visual top→bottom order, with the hotbar slot appended
-     * last (when the column has at least one active inv member).
-     *
-     * <p>Shared by {@link #rotate} and {@link #planBringSlotToHotbar} so
-     * both agree on index ordering and membership. Returns an empty list
-     * when the column has no active inv cycle members.
+     * The cycle slot list for {@code column}: directly toggled inventory
+     * slots in visual top-to-bottom order, with the hotbar slot appended
+     * last. Empty when the column has no active inventory cycle members.
+     * Shared by {@link #rotate} and {@link #planBringSlotToHotbar} so both
+     * agree on ordering and membership.
      */
     private static List<Integer> buildCycleList(int column) {
         List<Integer> list = new ArrayList<>(4);
@@ -313,9 +294,7 @@ public final class ColumnCyclerRotator {
         if (ColumnCycler.isCycleSlot(top)) list.add(top);
         if (ColumnCycler.isCycleSlot(mid)) list.add(mid);
         if (ColumnCycler.isCycleSlot(bot)) list.add(bot);
-        // Hotbar is implicitly part of the cycle when the column is active.
-        // If no inv slots are toggled, ColumnCycler.isCycleSlot(hotbar)
-        // returns false; list stays empty.
+        // The hotbar is implicitly part of the cycle when the column is active.
         if (list.isEmpty()) return list;
         list.add(hotbar);
         return list;
@@ -333,15 +312,15 @@ public final class ColumnCyclerRotator {
     public record RotationPlan(int steps, Direction direction) {}
 
     /**
-     * Compute the rotation plan to bring the item currently at the inv
+     * Compute the rotation plan to bring the item currently at inventory
      * slot {@code slot} into its column's hotbar position. Returns
      * {@code null} if {@code slot} isn't an active cycle member, isn't
-     * an inv slot, or its column doesn't have enough cycle members to
+     * an inventory slot, or its column doesn't have enough cycle members to
      * rotate.
      *
-     * <p>Picks the cheaper of FORWARD vs BACKWARD by step count — each
-     * rotation sends {@code N-1} SWAP packets, so direction choice
-     * matters for chains.
+     * <p>Picks the cheaper of FORWARD and BACKWARD by step count. Each
+     * rotation sends {@code N-1} SWAP packets, so direction matters for
+     * chains.
      *
      * <h3>Step math</h3>
      *
@@ -357,8 +336,7 @@ public final class ColumnCyclerRotator {
      *       up at hotbar after that many steps).</li>
      * </ul>
      *
-     * <p>On tie (equal step counts), FORWARD wins — matches the
-     * existing rotator default direction convention.
+     * <p>On a tie, FORWARD wins, matching the rotator's default direction.
      */
     public static RotationPlan planBringSlotToHotbar(int slot) {
         if (slot < ColumnCycler.MIN_DIRECT_CYCLE_SLOT) return null;

@@ -31,21 +31,20 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Row membership + rotation for Hotbar Cycler. Rotates whole inventory
- * rows through the hotbar; see
- * {@code mods/inventory-plus/plans/hotbar-cycler.md}.
+ * Row membership and rotation for Hotbar Cycler. Rotates whole inventory
+ * rows through the hotbar.
  *
  * <h3>Rows, not slots</h3>
  *
- * Membership is per ROW, coarse on purpose (there is no per-slot
- * exclusion; Locked Slots covers the one-slot-must-not-move case). Rows
- * are numbered by their vanilla {@code Inventory.items[]} block, which
- * is also visual top → bottom:
+ * Membership is per row, coarse on purpose (there is no per-slot
+ * exclusion, since Locked Slots covers the one-slot-must-not-move case).
+ * Rows are numbered by their vanilla {@code Inventory.items[]} block, which
+ * is also visual top to bottom:
  *
  * <ul>
- *   <li>row 0 — container slots 9-17, the TOP inventory row</li>
- *   <li>row 1 — container slots 18-26, the middle row</li>
- *   <li>row 2 — container slots 27-35, the row just above the hotbar</li>
+ *   <li>row 0: container slots 9-17, the top inventory row</li>
+ *   <li>row 1: container slots 18-26, the middle row</li>
+ *   <li>row 2: container slots 27-35, the row just above the hotbar</li>
  * </ul>
  *
  * The hotbar (0-8) is always in the cycle and is never a toggleable row.
@@ -53,7 +52,7 @@ import java.util.Set;
  *
  * <h3>No cycle position</h3>
  *
- * There is deliberately no stored cycle index. The inventory IS the
+ * There is deliberately no stored cycle index. The inventory is the
  * position: whatever sits in the hotbar is what sits in the hotbar. That
  * is why a rotation needs no state migration when a row is toggled off
  * mid-session, and why toggling off leaves items exactly where they are.
@@ -64,8 +63,7 @@ import java.util.Set;
  * row slot 1). So a row rotation is exactly Column Cycler's rotation run
  * over all nine columns, with row membership choosing the slots instead
  * of per-slot membership. {@link ColumnCyclerRotator#rotateSlots} is
- * that engine, and this class supplies the slot lists; there is no
- * second rotator.
+ * that engine, and this class supplies the slot lists.
  *
  * <h3>Persistence</h3>
  *
@@ -105,8 +103,6 @@ public final class HotbarCycler {
                 .resolve("hotbar-cycler.json");
     }
 
-    // ── Row geometry ────────────────────────────────────────────────────
-
     /** First container slot of {@code row} (0-2). */
     public static int firstSlotOf(int row) {
         return 9 + row * COLUMNS;
@@ -121,12 +117,8 @@ public final class HotbarCycler {
         return (containerSlot - 9) / COLUMNS;
     }
 
-    // ── Membership ──────────────────────────────────────────────────────
-
     /** Toggled rows for the current world, ascending. Never null. */
     public static Set<Integer> toggledRows() {
-        // Genuinely ascending now. The javadoc always promised it, but rows
-        // were held in a LinkedHashSet, which is insertion order.
         return ROWS.get();
     }
 
@@ -163,16 +155,13 @@ public final class HotbarCycler {
         return !toggledRows().isEmpty();
     }
 
-    // ── Reach group ─────────────────────────────────────────────────────
-
     /**
      * Whether player slot {@code containerSlot} is in Hotbar Cycler's reach
      * group now: a slot of a cycling row. Registered with
      * {@code Reach.registerFeature}, which asks per slot at veto time, so the
      * protection belongs to the position, stays put while items rotate
      * through it, and leaves the player's own locks alone. Which moves leave
-     * these slots alone is the player's, per move, in Reach (2026-09-30; it
-     * was two global switches).
+     * these slots alone is the player's choice, per move, in Reach.
      */
     public static boolean inReachGroup(int containerSlot) {
         if (!IPConfig.hotbarCyclerEnabled()) return false;
@@ -192,12 +181,10 @@ public final class HotbarCycler {
         InventoryPlusClient.LOGGER.debug("[hotbar-cycler] row {} {}", row, on ? "on" : "off");
     }
 
-    // ── Rotation ────────────────────────────────────────────────────────
-
     /**
      * Rotate every toggled row one step. FORWARD shifts rows down toward
      * the hotbar and wraps the hotbar's items up to the topmost toggled
-     * row; BACKWARD reverses.
+     * row. BACKWARD reverses.
      *
      * <p>Runs as nine independent column rotations, which is what keeps
      * every item in its own column. Each column's chain leaves the cursor
@@ -211,7 +198,7 @@ public final class HotbarCycler {
         if (!IPConfig.hotbarCyclerEnabled()) return false;
         List<Integer> rows = new ArrayList<>(toggledRows());
         if (rows.isEmpty()) return false;
-        Collections.sort(rows); // visual top → bottom, so the wrap lands on the topmost
+        Collections.sort(rows); // visual top to bottom, so the wrap lands on the topmost
 
         // Listeners that animate need the world as it was, and the clicks
         // below change the client's predicted inventory immediately. So the
@@ -223,7 +210,7 @@ public final class HotbarCycler {
         boolean any = false;
         for (int column = 0; column < COLUMNS; column++) {
             // Cycle list for this column: each toggled row's slot in the
-            // column, top → bottom, then the hotbar slot last. Same shape
+            // column, top to bottom, then the hotbar slot last. Same shape
             // ColumnCyclerRotator expects, so the engine is shared.
             List<Integer> slots = new ArrayList<>(rows.size() + 1);
             for (int row : rows) slots.add(firstSlotOf(row) + column);
@@ -241,16 +228,16 @@ public final class HotbarCycler {
     /**
      * Fired after a row rotation actually moved items. Separate from
      * {@link ColumnCyclerRotator.RotationListener} because that one is
-     * per-column and a row rotation is not a column cycle advance; the
+     * per-column and a row rotation is not a column cycle advance. The
      * hotbar slide and the preview slides listen here.
      */
     public interface RotationListener {
         /**
          * Fired just before the clicks go out, once the rotation is going to
          * be attempted (rows are toggled). The inventory is still in its
-         * pre-rotation state here; anything that wants a "before" snapshot
+         * pre-rotation state here, so anything that wants a "before" snapshot
          * takes it now. May fire without a matching {@link #onRotation} if
-         * the rotation then no-ops (cursor occupied); a stale snapshot is
+         * the rotation then no-ops (cursor occupied). A stale snapshot is
          * harmless and the next call overwrites it.
          */
         default void beforeRotation() {}
@@ -261,13 +248,13 @@ public final class HotbarCycler {
 
     private static final List<RotationListener> ROTATION_LISTENERS = new ArrayList<>();
 
-    /** Register a rotation listener. Idempotent for the same instance. */
+    /** The same instance won't register twice. */
     public static void addRotationListener(RotationListener listener) {
         if (listener == null || ROTATION_LISTENERS.contains(listener)) return;
         ROTATION_LISTENERS.add(listener);
     }
 
-    // ── Persistence ─────────────────────────────────────────────────────
+    // Persistence
 
     public static void load() {
         if (loaded) return;

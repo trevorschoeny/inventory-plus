@@ -15,17 +15,14 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Drag-to-toggle controller for Column Cycler — coerces every slot
- * entered during a drag to the same cycle-membership state set on the
- * FIRST touched slot. Mirrors
- * {@link com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsDragController}.
+ * Drag-to-toggle controller for Column Cycler: coerces every slot entered
+ * during a drag to the cycle-membership state set on the first touched slot.
+ * Mirrors {@link com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsDragController}
+ * (same state semantics, polling cadence and termination conditions).
  *
- * <p>Held C key, inv + hotbar only. Started by {@link ColumnCyclerKeybind}
- * after the initial C-press toggles the first slot. The edit-mode LMB drag
- * went with edit mode (Trev, 2026-10-03: no edit modes).
- *
- * <p>Same state semantics + polling cadence + termination conditions
- * as the locked-slots drag controller.
+ * <p>Held C key, inventory and hotbar only. Started by {@link ColumnCyclerKeybind}
+ * after the initial C press toggles the first slot. There is no LMB drag, since
+ * there is no edit mode.
  */
 public final class ColumnCyclerDragController {
 
@@ -50,9 +47,8 @@ public final class ColumnCyclerDragController {
     }
 
     /**
-     * True while a C-key drag is in progress. The keybind handler
-     * uses this to ignore GLFW key-repeat events — only the initial
-     * press should kick off a drag.
+     * True while a C-key drag is in progress. The keybind handler uses this
+     * to ignore GLFW key-repeat events, so only the initial press starts a drag.
      */
     public static boolean isCKeyDragActive() {
         return mode == Mode.C_KEY;

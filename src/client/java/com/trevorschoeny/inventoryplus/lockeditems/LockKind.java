@@ -3,7 +3,7 @@ package com.trevorschoeny.inventoryplus.lockeditems;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * What a lock group attaches to (`plans/lock-groups.md`, "A group"). Every
+ * What a lock group attaches to. Every
  * group has exactly one kind, fixed for the two defaults and picked when a
  * custom group is made.
  *
@@ -15,9 +15,9 @@ import org.jetbrains.annotations.Nullable;
  * </ul>
  *
  * <p>The kinds are independent and combine freely: one stack can sit in a
- * slot lock and carry an item lock and an exact lock at once. Until the
- * Lock Groups build these were the lock button's three stops; the button
- * now cycles groups, and a group carries its kind.
+ * slot lock and carry an item lock and an exact lock at once. Before lock
+ * groups these were the lock button's three stops. The button now cycles
+ * groups, and a group carries its kind.
  */
 public enum LockKind {
 

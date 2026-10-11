@@ -14,18 +14,18 @@ import net.minecraft.world.inventory.Slot;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Screen-scoped {@code C} keybind — toggles cycle membership on the
+ * Screen-scoped {@code C} keybind: toggles cycle membership on the
  * cycleable player slot currently under the cursor.
  *
  * <p>No-op when:
  * <ul>
  *   <li>{@code columnCyclerEnabled} is off (Power Users feature gate).</li>
- *   <li>The hovered slot is not cycleable (armor / offhand / external
- *       container / non-player inventory).</li>
+ *   <li>The hovered slot is not cycleable (armor, offhand, an external
+ *       container or a non-player inventory).</li>
  * </ul>
  *
  * <p>Holding C sweeps across multiple slots. The key is the only way to
- * add slots now that edit mode is gone (Trev, 2026-10-03).
+ * add slots now that edit mode is gone.
  *
  * <p>Pattern mirrors {@link com.trevorschoeny.inventoryplus.lockedslots.LockedSlotKeybind}.
  */

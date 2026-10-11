@@ -17,17 +17,16 @@ import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
 /**
- * The gesture, tooltip and tint wiring every mode-carrying button shares,
- * per {@code features/button-modes.md}. A button supplies its mode state,
- * a way to resolve the container it is acting on, and its own
- * {@link PressFeedback}; this returns the suppliers MenuKit's
- * {@code Button} takes.
+ * The gesture, tooltip and tint wiring every mode-carrying button shares.
+ * A button supplies its mode state, a way to resolve the container it is
+ * acting on, and its own {@link PressFeedback}. This returns the suppliers
+ * MenuKit's {@code Button} takes.
  *
  * <ul>
  *   <li>Right-click: next stop. Shift+right-click: previous (kept, not
  *       advertised). Middle-click: pin or release, on a button that pins
  *       here ({@code pinHere}), or to release a pin made before.</li>
- *   <li>Tooltip (Trev, 2026-10-03): the action with its mode in one line
+ *   <li>Tooltip: the action with its mode in one line
  *       ("Sort by Category"), "Right click: cycle", and only on a button
  *       that pins here, "Middle click: pin to container". Compact
  *       tooltips (General) show one short line ("Sort: Category").</li>

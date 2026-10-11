@@ -11,7 +11,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 
 /**
- * Forward / backward row-cycle keybinds, defaults {@code ]} and
+ * Forward and backward row-cycle keybinds, defaults {@code ]} and
  * {@code [}. Mirrors {@code ColumnCyclerRotationKeybind}'s two-context
  * shape, with one deliberate difference.
  *
@@ -20,13 +20,13 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
  * Column Cycler fires in a screen only while hovering a slot in the
  * column it would rotate, because "which column" is otherwise ambiguous.
  * Hotbar Cycler operates on whole rows, so there is nothing to
- * disambiguate and the spec says it fires anywhere in the inventory. No
- * hit-testing here.
+ * disambiguate and it fires anywhere in the inventory. No hit-testing
+ * here.
  *
  * <h3>Container screens</h3>
  *
  * The keybinds stay live with a chest open and still act on the player's
- * rows, never the container's. That falls out for free: rotation
+ * rows, never the container's. That needs no extra code: rotation
  * addresses player container-slot indices, which
  * {@code ColumnCyclerRotator.rotateSlots} resolves against whatever menu
  * is open. A chest menu still carries the player's inventory slots, so

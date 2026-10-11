@@ -40,12 +40,11 @@ import java.util.Set;
 import java.util.TreeMap;
 
 /**
- * Locks that belong to the item rather than the slot (`plans/lock-groups.md`):
- * Item locks cover every item of a type, Exact locks one item as it is. Each
- * lock names its lock group, and an item carries at most one lock of each
- * kind (`lock-groups.md`, "One group per kind per target").
+ * Locks that belong to the item rather than the slot: Item locks cover every
+ * item of a type, Exact locks one item as it is. Each lock names its lock
+ * group, and an item carries at most one lock of each kind.
  *
- * <h3>What "exact" ignores, and why that is the whole feature</h3>
+ * <h3>What "exact" ignores</h3>
  *
  * <p>Exact match compares the full component set <b>except durability
  * damage</b>, and never stack count. A lock that included damage would
@@ -55,12 +54,11 @@ import java.util.TreeMap;
  *
  * <h3>Storage: a {@link WorldStore} of the encoded form</h3>
  *
- * <p>Per world or server, like every per-world lock (`plans/reach.md`, "The
- * storage standard"). The store holds what the file holds: item ids as text
+ * <p>Per world or server, like every per-world lock. The store holds what the file holds: item ids as text
  * and exact stacks as their encoded JSON. That form needs no registries, so it
  * loads at client init, and it has value equality, so the store's
  * notify-on-change works. Matching needs real stacks, which need the level's
- * registries; {@link #view} decodes the current world's value on first use and
+ * registries. {@link #view} decodes the current world's value on first use and
  * keeps it until the stored value changes. Ids for items that no longer exist
  * stay in the file and are never matched.
  *
@@ -75,7 +73,7 @@ import java.util.TreeMap;
  * }</pre>
  *
  * <p>Version 1 held a bare {@code byId} array and a bare {@code exact} array.
- * Loading one is the 1.5.x migration (`lock-groups.md`, "Migration"): exact
+ * Loading one is the 1.5.x migration: exact
  * locks become Exact item locks, and item locks move into a custom Item group
  * named "Locked items", made only if any exist, whose reach reproduces 1.5.0.
  */
@@ -109,9 +107,9 @@ public final class LockedItems {
                 .resolve("locked-items.json");
     }
 
-    // ── Loading, and the 1.5.x migration ────────────────────────────────
+    // Loading, and the 1.5.x migration
 
-    /** Reads the file. Registry-free; the decode waits for a world ({@link #view}). */
+    /** Reads the file. Registry-free: the decode waits for a world ({@link #view}). */
     public static void load() {
         Path path = filePath();
         if (!Files.exists(path)) return;
@@ -163,13 +161,13 @@ public final class LockedItems {
     }
 
     /**
-     * The "Locked items" group for 1.5.x item locks (`lock-groups.md`,
-     * "Migration"). 1.5.0 blocked sort, Move Matching and the cyclers, and
-     * restock and Auto Tool Switch only if the player had turned off "use
-     * locked items" for them; nothing else. Its kind's default (Exact item's
-     * table) differs from that, so the differences are written as entries,
-     * once. Restock is one operation here but was three settings then; it is
-     * blocked if any of the three said so, since protection wins.
+     * The "Locked items" group for 1.5.x item locks. 1.5.0 blocked sort, Move
+     * Matching and the cyclers, plus restock and Auto Tool Switch only if the
+     * player had turned off "use locked items" for them, and nothing else. Its
+     * kind's default (Exact item's table) differs from that, so the differences
+     * are written as entries, once. Restock is one operation here but was three
+     * settings then. It is blocked if any of the three said so, since
+     * protection wins.
      */
     private static LockGroup makeLockedItemsGroup() {
         LockGroup group = Reach.createGroup(LockKind.ITEM, "Locked items", "gray");
@@ -188,9 +186,9 @@ public final class LockedItems {
         return group;
     }
 
-    // ── The decoded view of the current world ───────────────────────────
+    // The decoded view of the current world
 
-    /** The current world's locks, decoded; rebuilt when the stored value changes. */
+    /** The current world's locks, decoded. Rebuilt when the stored value changes. */
     private record View(ItemLocks source, Map<Item, String> byId, List<Map.Entry<ItemStack, String>> exact) {}
 
     private static volatile @Nullable View view;
@@ -232,7 +230,7 @@ public final class LockedItems {
                 .map(LockedItems::normalize).orElse(null);
     }
 
-    // ── Matching ────────────────────────────────────────────────────────
+    // Matching
 
     /** The group of the Item lock on {@code stack}'s type, or {@code null}. */
     public static @Nullable String itemGroup(ItemStack stack) {
@@ -256,7 +254,7 @@ public final class LockedItems {
         return itemGroup(stack) != null || exactGroup(stack) != null;
     }
 
-    /** True when this stack is locked exactly; chooses the solid mark over the hollow one. */
+    /** True when this stack is locked exactly. Chooses the solid mark over the hollow one. */
     public static boolean isExactLocked(ItemStack stack) {
         return exactGroup(stack) != null;
     }
@@ -271,13 +269,13 @@ public final class LockedItems {
         return copy;
     }
 
-    // ── Applying locks ──────────────────────────────────────────────────
+    // Applying locks
 
     /**
-     * {@code L} with an Item or Exact group selected (`lock-groups.md`,
-     * "Applying locks"): the same group already on the stack comes off; a
-     * different group of that kind is replaced; none is added. Other kinds
-     * are untouched. Returns true when something changed.
+     * {@code L} with an Item or Exact group selected: the same group already
+     * on the stack comes off, a different group of that kind is replaced, and
+     * with none the group is added. Other kinds are untouched. Returns true
+     * when something changed.
      */
     public static boolean apply(ItemStack stack, LockGroup group) {
         if (stack == null || stack.isEmpty() || !group.kind().locksItems()) return false;
@@ -317,7 +315,7 @@ public final class LockedItems {
         return changed;
     }
 
-    // ── Every world at once (a group's delete, the Lock groups Reset) ─────
+    // Every world at once (a group's delete, the Lock groups Reset)
 
     /** As {@code LockedSlots.count}: item and exact locks of {@code groupId}, or all. */
     public static int count(@Nullable String groupId, Set<String> worlds) {
@@ -347,8 +345,6 @@ public final class LockedItems {
             return new ItemLocks(byId, exact);
         });
     }
-
-    // ── Saving ──────────────────────────────────────────────────────────
 
     private static void save() {
         JsonObject perWorld = new JsonObject();

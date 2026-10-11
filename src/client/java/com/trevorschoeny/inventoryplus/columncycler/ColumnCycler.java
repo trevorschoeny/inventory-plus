@@ -28,33 +28,32 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Central state + persistence for Column Cycler — mirrors the shape of
- * the lock stores (per-world, JSON-backed).
+ * State and persistence for Column Cycler, in the same shape as the lock
+ * stores (per world, JSON-backed).
  *
  * <h3>Scope</h3>
  *
- * <b>Direct cycle membership</b> applies to INV slots only (container-slot
- * 9-35). {@link #isCycleable(Slot)} enforces this — {@code C} can't toggle
- * hotbar slots directly, because a cycle with only a hotbar slot has
- * nothing to cycle to.
+ * <b>Direct cycle membership</b> applies to inventory slots only
+ * (container slots 9-35). {@link #isCycleable(Slot)} enforces this: {@code C}
+ * can't toggle hotbar slots directly, because a cycle with only a hotbar slot
+ * has nothing to cycle to.
  *
  * <p><b>Derived cycle membership</b> applies to hotbar slots (0-8): a
- * hotbar slot is "cycle-active" iff any inv slot in its column is in
+ * hotbar slot is "cycle-active" iff any inventory slot in its column is in
  * the stored cycle set. {@link #isCycleSlot(int)} returns the derived
  * value for hotbar slots.
  *
- * <p>Armor / offhand can't be cycled at all — they're equipment, not
+ * <p>Armor and offhand can't be cycled at all. They're equipment, not
  * inventory positions.
  *
- * <h3>Reach group (Trev 2026-09-30)</h3>
+ * <h3>Reach group</h3>
  *
  * The cycle slots and the hotbar slot of every active column are Column
- * Cycler's feature reach group ({@link #inReachGroup}, `plans/reach.md`):
- * every move Slot lock stops by default leaves them alone, which the
- * player changes per move in Reach. They carry no lock; {@code L} puts a
- * real Slot lock on top, and the cycle mark is what they show. Until
- * 2026-09-30 this was the "Lock the slots the cyclers use" pairing, a
- * derived Slot lock behind one global switch.
+ * Cycler's feature reach group ({@link #inReachGroup}): every move a Slot
+ * lock stops leaves them alone by default, which the player changes per move
+ * in Reach. They carry no lock. {@code L} puts a real Slot lock on top, and
+ * the cycle mark is what they show. This replaced the "Lock the slots the
+ * cyclers use" pairing, a derived Slot lock behind one global switch.
  *
  * <h3>Persistence</h3>
  *
@@ -70,8 +69,8 @@ import java.util.Set;
  * }
  * }</pre>
  *
- * <p>Per-world is correct for the same reason as Locked Slots — players
- * have different layouts per world.
+ * <p>Stored per world for the same reason as Locked Slots: players have
+ * different layouts per world.
  */
 public final class ColumnCycler {
 
@@ -80,9 +79,9 @@ public final class ColumnCycler {
     private static final int CURRENT_VERSION = 1;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    /** Lower bound (inclusive) on directly-cycleable container-slot indices — inv only, no hotbar. */
+    /** Lower bound (inclusive) on directly cycleable container-slot indices: inventory only, no hotbar. */
     public static final int MIN_DIRECT_CYCLE_SLOT = 9;
-    /** Upper bound (inclusive) on cycleable container-slot indices — main inv only, no armor/offhand. */
+    /** Upper bound (inclusive) on cycleable container-slot indices: main inventory only, no armor or offhand. */
     public static final int MAX_CYCLEABLE_CONTAINER_SLOT = 35;
 
     private static Path filePath() {
@@ -144,12 +143,12 @@ public final class ColumnCycler {
 
     /**
      * True if the given container-slot index is part of an active cycle.
-     * Inv slots (9-35) return their direct membership; hotbar slots
-     * (0-8) return the DERIVED value — true iff any inv slot in the
+     * Inventory slots (9-35) return their direct membership. Hotbar slots
+     * (0-8) return the derived value: true iff any inventory slot in the
      * same column is in the stored cycle set.
      *
      * <p>Returns false when the feature is disabled
-     * ({@code !IPConfig.columnCyclerEnabled()}) — the stored cycle data
+     * ({@code !IPConfig.columnCyclerEnabled()}). The stored cycle data
      * stays on disk for when the feature is re-enabled, but no slot is
      * treated as a logical cycle member while disabled (icons hide,
      * keybinds no-op, lock suppression lifts).
@@ -161,7 +160,7 @@ public final class ColumnCycler {
         if (containerSlotIndex >= MIN_DIRECT_CYCLE_SLOT) {
             return cycleSlots.contains(containerSlotIndex);
         }
-        // Hotbar (0-8): derived from column. col == hotbar slot index.
+        // Hotbar (0-8): derived from the column, which is the hotbar slot index.
         int col = containerSlotIndex;
         return cycleSlots.contains(9 + col)
                 || cycleSlots.contains(18 + col)
@@ -174,10 +173,10 @@ public final class ColumnCycler {
     }
 
     /**
-     * True if this slot can be DIRECTLY toggled by C — INV slots only
+     * True if this slot can be directly toggled by C: inventory slots only
      * (9-35). Hotbar slots aren't directly cycleable (their cycle state
-     * is derived from their column; a hotbar-only cycle has nothing to
-     * cycle to). Armor / offhand are excluded entirely.
+     * is derived from their column, and a hotbar-only cycle has nothing to
+     * cycle to). Armor and offhand are excluded entirely.
      */
     public static boolean isCycleable(Slot slot) {
         if (!isLocalPlayerInvOrHotbar(slot)) return false;
@@ -187,8 +186,8 @@ public final class ColumnCycler {
 
     /**
      * UUID-stable check for "is this Slot one of the local player's
-     * inv-or-hotbar (0-35) positions" — the underlying eligibility
-     * filter shared by {@link #isCycleable} and {@link #isCycleSlot}.
+     * inventory or hotbar (0-35) positions", the eligibility filter shared
+     * by {@link #isCycleable} and {@link #isCycleSlot}.
      */
     private static boolean isLocalPlayerInvOrHotbar(Slot slot) {
         if (!(slot.container instanceof Inventory inv)) return false;
@@ -209,7 +208,7 @@ public final class ColumnCycler {
     }
 
     /**
-     * Coerce cycle membership to the given state — used by the drag
+     * Coerce cycle membership to the given state. Used by the drag
      * controller to set every dragged slot to the target state without
      * flipping slots already at that state.
      */

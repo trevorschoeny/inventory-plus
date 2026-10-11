@@ -21,8 +21,7 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * Screen-scoped {@code L} keybind: applies the active lock group, the one the
- * lock button has selected, to whatever is under the cursor
- * (`plans/lock-groups.md`, "Applying locks").
+ * lock button has selected, to whatever is under the cursor.
  *
  * <ul>
  *   <li><b>Slot kind</b> locks the hovered slot, empty or not, with the
@@ -46,7 +45,7 @@ public final class LockedSlotKeybind {
     private LockedSlotKeybind() {}
 
     /**
-     * True while an item lock/unlock press is still being held down. See
+     * True while an item lock or unlock press is still being held down. See
      * the auto-repeat note at the call site; cleared by {@link #tick} on
      * release, the same trigger-released shape
      * {@link LockedSlotsDragController} uses to end an L-drag.
@@ -70,7 +69,7 @@ public final class LockedSlotKeybind {
                         if (!IPConfig.lockGroupsEnabled()) return;
                         // GLFW auto-repeat fires afterKeyPress every repeat
                         // tick while L is held; ignore once an L-drag is
-                        // active so we don't re-toggle the same slot on
+                        // active so the same slot isn't re-toggled on
                         // every repeat. The tick handler clears the drag
                         // on key release.
                         if (LockedSlotsDragController.isLKeyDragActive()) return;
@@ -113,9 +112,9 @@ public final class LockedSlotKeybind {
      * as MenuKit's compositing happened to leave the covered vanilla slot
      * inactive; once MenuKit restored plain paint-over (composited panels
      * inside vanilla's slot pass, "the covered vanilla slot is active
-     * again"), the independent scan found that vanilla slot first again —
+     * again"), the independent scan found that vanilla slot first again, and
      * {@code L} locked the inventory slot under the pocket rather than the
-     * pocket itself (MenuKit, 2026-09-07).
+     * pocket itself.
      *
      * <p>{@link ScreenLayout#hoveredSlot} is vanilla's own per-frame answer,
      * which MenuKit's {@code getHoveredSlot} interception already resolves

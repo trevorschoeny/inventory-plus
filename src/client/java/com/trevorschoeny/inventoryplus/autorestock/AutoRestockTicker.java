@@ -26,42 +26,36 @@ import net.minecraft.world.item.ItemStack;
 import java.util.List;
 
 /**
- * Per-tick auto-restock detection + action loop.
+ * Per-tick auto-restock detection and action loop.
  *
- * <h3>Two restock paths — both run every client tick</h3>
+ * <h3>Three restock paths, all run every client tick</h3>
  *
  * <ol>
- *   <li><b>Durability-delta restock</b> (for damageable items): the core
- *       mechanism. Each tick, we compare every player-owned slot to the
- *       previous-tick snapshot. If a slot's current stack is a damageable
- *       item, sits at or below the configured Before-Break threshold remaining
- *       durability, AND its exact content (Item + components + damage
- *       value) was not present anywhere in the prev snapshot, the item
- *       just took durability damage — fire a swap from main inventory if
- *       a fresher same-Item replacement exists. The "exists in prev?"
- *       check is the migration filter: drag-drops just relocate an
- *       existing stack, so its post-move state matches a prev slot and
- *       suppresses the trigger.</li>
- *   <li><b>Non-damageable item refill</b> (for food / blocks / arrows /
- *       totems / etc. in the active hand or offhand): unchanged
- *       semantics. When the active slot's non-damageable stack runs out
- *       (count → 0), refill from main inventory with a same-Item stack.
- *       Tools and armor are NOT handled by this path — they go through
- *       the durability-delta path above, which means broken tools are
- *       deliberately not auto-refilled (the before-break swap should
- *       have replaced them before they broke; if it didn't, there was no
- *       fresher copy to swap in anyway).</li>
+ *   <li><b>Non-damageable refill</b> (food, blocks, arrows, totems and so on,
+ *       in the active hand or offhand): when the stack runs out (count reaches
+ *       0), refill from the inventory with a same-Item stack.</li>
+ *   <li><b>On-break refill</b> (tools, shields, armor): when a damageable item
+ *       that sat in a watched slot last tick is gone and can't be found
+ *       anywhere in the current inventory, it broke. Refill with a same-Item
+ *       copy, or the best same-kind fallback.</li>
+ *   <li><b>Before-break restock</b>: if a watched slot's damageable stack sits
+ *       at or below the configured Before-Break threshold of remaining
+ *       durability, and its exact content (Item, components and damage value)
+ *       was not present anywhere in the previous snapshot, the item just took
+ *       durability damage. Swap in a fresher replacement if one exists. The
+ *       "exists in previous?" check is the migration filter: a drag-drop just
+ *       relocates an existing stack, so its post-move state matches a previous
+ *       slot and suppresses the trigger.</li>
  * </ol>
  *
- * <h3>Snapshot — all 42 watched stacks, every tick</h3>
+ * <h3>Snapshot: all 42 watched stacks, every tick</h3>
  *
- * The migration check needs visibility into the full player inventory
- * each tick. Snapshot is a flat 42-element {@code ItemStack[]} laid out
- * as:
+ * The migration check needs to see the full player inventory each tick. The
+ * snapshot is a flat 42-element {@code ItemStack[]} laid out as:
  *
  * <pre>
- *   0–8     hotbar              (Inventory.items[0..8])
- *   9–35    main inventory      (Inventory.items[9..35])
+ *   0-8     hotbar              (Inventory.items[0..8])
+ *   9-35    main inventory      (Inventory.items[9..35])
  *   36      helmet              (EquipmentSlot.HEAD)
  *   37      chestplate          (EquipmentSlot.CHEST)
  *   38      leggings            (EquipmentSlot.LEGS)
@@ -70,62 +64,59 @@ import java.util.List;
  *   41      cursor              (player.containerMenu.getCarried())
  * </pre>
  *
- * The cursor entry catches stacks that are in mid-drag — picked up
- * from a slot but not yet dropped — so the migration check still finds
- * them. Copies are mandatory; vanilla mutates ItemStack state in place
- * at many call sites, so bare references wouldn't preserve the prior
- * tick's state.
+ * The cursor entry catches stacks that are mid-drag (picked up from a slot
+ * but not yet dropped), so the migration check still finds them. Copies are
+ * mandatory: vanilla mutates ItemStack state in place at many call sites, so
+ * bare references wouldn't preserve the prior tick's state.
  *
  * <h3>Two gates, for two different questions</h3>
  *
- * <b>Can our clicks land?</b> Only when {@code player.containerMenu ==
+ * <b>Can the clicks land?</b> Only when {@code player.containerMenu ==
  * player.inventoryMenu}. That's the HUD or the player's own E-key
  * inventory screen, which share the same container ID and slot mapping.
- * For chest / anvil / crafting-table screens the active container is
- * something else and our hard-coded slot indices don't apply.
+ * For chest, anvil or crafting-table screens the active container is
+ * something else and the hard-coded slot indices don't apply.
  *
  * <p><b>Is this change consumption, or the player's own hand?</b> Any
  * open {@link AbstractContainerScreen} means the hand: with a screen up
  * the player cannot mine, eat, place, or take durability damage, so a
- * watched slot that changed was dragged, shift-clicked or swapped. We
- * re-baseline the snapshot each such tick and fire nothing.
+ * watched slot that changed was dragged, shift-clicked or swapped. The
+ * snapshot is re-baselined each such tick and nothing fires.
  *
- * <p>These were one gate until 2026-09-06, which is why the E-key
- * inventory screen — passing the first question — had its manual moves
- * treated as depletion. The snapshot also froze rather than
- * re-baselined across external containers, so a chest session's moves
- * all diffed on the close tick and fired restock at a menu that had
- * just closed.
+ * <p>These used to be one gate, which is why the E-key inventory screen
+ * (which passes the first question) had its manual moves treated as
+ * depletion. The snapshot also froze rather than re-baselined across
+ * external containers, so a chest session's moves all diffed on the close
+ * tick and fired restock at a menu that had just closed.
  *
- * <h3>Slot model — 26.2</h3>
+ * <h3>Slot model in 26.2</h3>
  *
- * Vanilla 26.2 keeps equipment off the {@code Inventory.armor} /
+ * Vanilla 26.2 keeps equipment off the {@code Inventory.armor} and
  * {@code Inventory.offhand} lists and on a unified {@code EntityEquipment}
- * accessed via {@link LocalPlayer#getItemBySlot(EquipmentSlot)}. We read
- * those slots through that API and write via {@link ContainerInput} packets
+ * accessed via {@link LocalPlayer#getItemBySlot(EquipmentSlot)}. Those slots
+ * are read through that API and written via {@link ContainerInput} packets
  * keyed off vanilla's InventoryMenu slot mapping (helmet=5, chest=6,
  * legs=7, boots=8, offhand button=40 for SWAP).
  *
- * <h3>Deferred</h3>
+ * <h3>Not built</h3>
  *
- * Shulker / bundle as nested source, direct ammo pull for bows, and
- * highest-tier fallback search — all deferred per spec.
+ * Shulker or bundle as a nested source, and direct ammo pull for bows.
  */
 public final class AutoRestockTicker {
 
     private AutoRestockTicker() {}
 
-    // Durability floor for a before-break swap — was a hardcoded 10 ("per
-    // spec verbatim"); now the IPConfig Advanced slider (default unchanged).
+    // Durability floor for a before-break swap: the IPConfig Advanced slider
+    // (default 10).
     private static int beforeBreakThreshold() {
         return com.trevorschoeny.inventoryplus.config.IPConfig.autoRestockBeforeBreakThreshold();
     }
 
-    // ─── Snapshot slot indices ────────────────────────────────────────────
-    // 0–35  hotbar + main inventory   (via inv.getItem)
-    // 36–39 armor (HEAD/CHEST/LEGS/FEET)
+    // Snapshot slot indices:
+    // 0-35  hotbar and main inventory   (via inv.getItem)
+    // 36-39 armor (HEAD/CHEST/LEGS/FEET)
     // 40    offhand
-    // 41    cursor — included so a stack in cursor-transit (between a
+    // 41    cursor, included so a stack in cursor-transit (between a
     //       pickup tick and a drop tick) is still findable in the prev
     //       snapshot. Without it, cursor-drag drops onto a watched slot
     //       look like brand-new damage values to the migration check.
@@ -137,7 +128,7 @@ public final class AutoRestockTicker {
     private static final int IDX_OFFHAND     = 40;
     private static final int IDX_CURSOR      = 41;
 
-    // ─── InventoryMenu slot mapping (constant; well-known) ────────────────
+    // InventoryMenu slot mapping
     private static final int MENU_ARMOR_HEAD  = 5;
     private static final int MENU_ARMOR_CHEST = 6;
     private static final int MENU_ARMOR_LEGS  = 7;
@@ -146,18 +137,15 @@ public final class AutoRestockTicker {
     /**
      * SWAP click's {@code button} sentinel for routing the swap to the
      * offhand slot. Vanilla's {@code AbstractContainerMenu.doClick} for
-     * SWAP treats {@code button == 40} as "swap into offhand" (vs.
-     * {@code 0-8} for the hotbar slots).
+     * SWAP treats {@code button == 40} as "swap into offhand" (and
+     * {@code 0-8} as the hotbar slots).
      */
     private static final int SWAP_OFFHAND_KEY = 40;
 
     private static final ItemStack[] previousSnapshot = new ItemStack[SNAPSHOT_SIZE];
     private static boolean initialized = false;
 
-    /**
-     * Tick handler — registered against
-     * {@code ClientTickEvents.END_CLIENT_TICK}. Runs at 20Hz.
-     */
+    /** Registered against {@code ClientTickEvents.END_CLIENT_TICK}. Runs at 20Hz. */
     public static void tick(Minecraft mc) {
         if (mc == null) return;
         LocalPlayer player = mc.player;
@@ -177,15 +165,15 @@ public final class AutoRestockTicker {
             return;
         }
 
-        // ─── Is this the player's own hand, or consumption? ─────────────────
-        // Two different questions used to share one gate. "containerMenu ==
-        // inventoryMenu" answers whether our synthesized clicks can land; it
-        // does NOT answer whether a change was the player's doing, because the
-        // E-key inventory screen passes it. So every manual move made there
-        // diffed as depletion and got refilled (Trev 2026-09-06: taking a stack
-        // out of the hotbar made the inventory copy jump into it).
+        // Is this the player's own hand, or consumption? Two different
+        // questions used to share one gate. "containerMenu == inventoryMenu"
+        // answers whether the synthesized clicks can land. It does not answer
+        // whether a change was the player's doing, because the E-key inventory
+        // screen passes it. So every manual move made there diffed as depletion
+        // and got refilled: taking a stack out of the hotbar made the inventory
+        // copy jump into it.
         //
-        // While ANY container screen is open the player cannot mine, eat, place
+        // While any container screen is open the player cannot mine, eat, place
         // or take durability damage, so nothing can be genuinely consumed and
         // every watched-slot change is a manual move. Re-baseline and fire
         // nothing.
@@ -205,19 +193,19 @@ public final class AutoRestockTicker {
         Inventory inv = player.getInventory();
         int selected = inv.getSelectedSlot();
 
-        // ─── 0. Suppress refill for a deliberately-changing slot ────────────
-        // A sibling feature (e.g. IPP's pocket cycler) may swap the held item
-        // wholesale — a wrap can even bring an empty pocket into the hand. That
-        // isn't depletion, but the snapshot diff below can't tell. Re-baseline
-        // the slot to its current contents so none of the refill paths fire for
-        // it this tick; the window re-baselines each tick until the change lands.
+        // 0. Suppress refill for a deliberately changing slot. A sibling feature
+        // (IPP's pocket cycler, for one) may swap the held item wholesale, and a
+        // wrap can even bring an empty pocket into the hand. That isn't
+        // depletion, but the snapshot diff below can't tell. Re-baseline the
+        // slot to its current contents so none of the refill paths fire for it
+        // this tick. The window re-baselines each tick until the change lands.
         if (AutoRestockSuppression.isExternallyChanging(selected)) {
             previousSnapshot[selected] = inv.getItem(selected).copy();
         }
 
-        // ─── 1. Non-damageable item refill (food / blocks / arrows / etc.) ──
-        // Active hand + offhand only. Damageable items are NOT handled here;
-        // they go through the break-refill or durability-delta paths below.
+        // 1. Non-damageable item refill (food, blocks, arrows and so on).
+        // Active hand and offhand only. Damageable items go through the
+        // break-refill or durability-delta paths below.
         if (IPConfig.autoRestockItem()) {
             refillIfNonDamageableRanOut(gameMode, inv, player,
                     previousSnapshot[selected], inv.getItem(selected), selected);
@@ -227,11 +215,11 @@ public final class AutoRestockTicker {
                     SWAP_OFFHAND_KEY);
         }
 
-        // ─── 2. On-break refill for damageable items (tool / shield / armor) ──
-        // Fires when a watched slot's prev was damageable + non-empty and now
-        // is empty, AND the prev stack can't be found anywhere in current
-        // inventory (incl. cursor). That second check distinguishes a real
-        // break from the player manually removing the item via drag/shift/etc.
+        // 2. On-break refill for damageable items (tool, shield, armor).
+        // Fires when a watched slot's previous stack was damageable and
+        // non-empty and is now empty, and the previous stack can't be found
+        // anywhere in the current inventory (cursor included). That second
+        // check tells a real break from the player removing the item by hand.
         if (IPConfig.autoRestockTool()) {
             refillIfDamageableBroke(gameMode, inv, player,
                     previousSnapshot[selected], inv.getItem(selected), selected);
@@ -251,15 +239,14 @@ public final class AutoRestockTicker {
                     previousSnapshot[IDX_ARMOR_FEET]);
         }
 
-        // ─── 3. Durability-delta restock (before-break) ─────────────────────
-        // For each of the six watched slots, fire a swap iff the slot's
-        // current stack just took a point of durability damage AND now sits
-        // at or below the threshold. Gating: parent toggle (Tool/Armor)
-        // AND its matching "Restock Before Break" sub-toggle. See
-        // {@link #tookDamageThisTick} for the precise trigger predicate.
+        // 3. Durability-delta restock (before-break). For each of the six
+        // watched slots, fire a swap iff the slot's current stack just took a
+        // point of durability damage and now sits at or below the threshold.
+        // Gated on the parent toggle (Tool or Armor) and its "Restock Before
+        // Break" sub-toggle. See tookDamageThisTick for the trigger predicate.
 
         if (IPConfig.autoRestockTool() && IPConfig.autoRestockToolBeforeBreak()) {
-            // Mainhand — SWAP click is a true exchange; works whether the
+            // Mainhand: a SWAP click is a true exchange, so it works whether the
             // hotbar slot ends up empty or occupied after the swap.
             tryDurabilitySwapHotbar(gameMode, inv, player, selected);
             tryDurabilitySwapOffhand(gameMode, inv, player);
@@ -275,14 +262,14 @@ public final class AutoRestockTicker {
         snapshot(player);
     }
 
-    // ─── Path 1: non-damageable refill ────────────────────────────────────
+    // Path 1: non-damageable refill
 
     /**
      * Fires when the active slot's stack just ran out and it was a
-     * non-damageable item (food, block, arrow, etc.). Refills with the
+     * non-damageable item (food, block, arrow and so on). Refills with the
      * first same-Item stack found in main inventory.
      *
-     * @param targetClickKey  the SWAP button — 0–8 for a hotbar slot,
+     * @param targetClickKey  the SWAP button: 0-8 for a hotbar slot,
      *                        {@link #SWAP_OFFHAND_KEY} (40) for the
      *                        offhand slot.
      */
@@ -295,8 +282,8 @@ public final class AutoRestockTicker {
         boolean isActiveHotbar = targetClickKey != SWAP_OFFHAND_KEY;
         int excludeSlot = isActiveHotbar ? targetClickKey : AutoRestockSearch.NONE;
         // The active hand can dynamic-switch to a cycler's extra slots
-        // (pockets); the offhand is a non-held move (deferred), so it stays
-        // inventory-only for now. Only extras the cycler would bring down as a
+        // (pockets). The offhand would need a non-held move, which isn't
+        // built, so it stays inventory-only. Only extras the cycler would bring down as a
         // restock are offered, so a refused pocket is passed over, not picked.
         List<ExtraSlot> extras = isActiveHotbar
                 ? HotbarCyclableRegistry.extraSlotsToBring(player, RESTOCK_TAKE, RESTOCK_PUT) : List.of();
@@ -309,12 +296,12 @@ public final class AutoRestockTicker {
         }
     }
 
-    // ─── Path 2: on-break refill for damageable items ─────────────────────
+    // Path 2: on-break refill for damageable items
 
     /**
      * Fires when a damageable item that occupied this slot last tick is now
      * gone. Distinguishes a real break (item destroyed, nowhere to be found)
-     * from a player-driven removal (item migrated to cursor / inv / another
+     * from a player-driven removal (item migrated to the cursor, inventory or another
      * slot) via {@link #existsInCurrentInventory}.
      */
     private static void refillIfDamageableBroke(MultiPlayerGameMode gameMode, Inventory inv,
@@ -331,9 +318,10 @@ public final class AutoRestockTicker {
         }
         boolean isActiveHotbar = targetClickKey != SWAP_OFFHAND_KEY;
         int excludeSlot = isActiveHotbar ? targetClickKey : AutoRestockSearch.NONE;
-        // Active hand can dynamic-switch to a cycler's extra slots (pockets);
-        // offhand stays inventory-only (non-held move, deferred). Only extras
-        // the cycler would bring down as a restock are offered.
+        // The active hand can dynamic-switch to a cycler's extra slots
+        // (pockets). The offhand stays inventory-only (the non-held move isn't
+        // built). Only extras the cycler would bring down as a restock are
+        // offered.
         List<ExtraSlot> extras = isActiveHotbar
                 ? HotbarCyclableRegistry.extraSlotsToBring(player, RESTOCK_TAKE, RESTOCK_PUT) : List.of();
         int source = AutoRestockSearch.findSource(inv, prev, excludeSlot, extras);
@@ -352,8 +340,8 @@ public final class AutoRestockTicker {
 
     /**
      * Armor-slot variant. QUICK_MOVE shift-clicks a same-Item armor piece
-     * from main inventory; vanilla's quick-move routes Equippable items to
-     * the matching empty armor slot, so we don't need the menu slot index.
+     * from main inventory. Vanilla's quick-move routes Equippable items to
+     * the matching empty armor slot, so the menu slot index isn't needed.
      */
     private static void refillIfArmorBroke(MultiPlayerGameMode gameMode, Inventory inv,
                                            LocalPlayer player, EquipmentSlot slot,
@@ -368,8 +356,8 @@ public final class AutoRestockTicker {
                     slot);
             return;
         }
-        // Armor can be restocked from a cycler's extra slots (pockets) too —
-        // it's a non-held move, so it routes via quickMoveOut, not a dynamic
+        // Armor can be restocked from a cycler's extra slots (pockets) too.
+        // It's a non-held move, so it routes via quickMoveOut, not a dynamic
         // switch. Only extras the cycler would quick-move out are offered.
         List<ExtraSlot> extras = HotbarCyclableRegistry.extraSlotsToQuickMove(player, RESTOCK_TAKE, RESTOCK_PUT);
         int source = AutoRestockSearch.findArmorSource(inv, prev, extras);
@@ -379,8 +367,8 @@ public final class AutoRestockTicker {
                     slot, prev.getItem());
             return;
         }
-        // A pocket source moves server-side (inert client-side in-world); an
-        // ordinary 0–35 source falls through to the client quick-move, which
+        // A pocket source moves server-side (inert client-side in-world). An
+        // ordinary 0-35 source falls through to the client quick-move, which
         // vanilla routes to the now-empty armor slot.
         // The armour slot is the one being filled, whichever source fills it.
         if (!IPSlotOperations.allowsMenuSlot(player, menuArmorSlot(slot), RESTOCK_PUT)) {
@@ -408,14 +396,14 @@ public final class AutoRestockTicker {
                 slot, source, prev.getItem());
     }
 
-    // ─── Path 3: durability-delta restock ─────────────────────────────────
+    // Path 3: durability-delta restock
 
     private static void tryDurabilitySwapHotbar(MultiPlayerGameMode gameMode, Inventory inv,
                                                 LocalPlayer player, int selected) {
         ItemStack now = inv.getItem(selected);
         if (!tookDamageThisTick(now)) return;
         // Before-break swap can pull a fresher copy from a cycler's extra slots
-        // (pockets) into the active hand — the dynamic-switch path. Only extras
+        // (pockets) into the active hand, the dynamic-switch path. Only extras
         // the cycler would bring down as a restock are offered.
         List<ExtraSlot> extras = HotbarCyclableRegistry.extraSlotsToBring(player, RESTOCK_TAKE, RESTOCK_PUT);
         int source = AutoRestockSearch.findHigherDurability(inv, now, selected, extras);
@@ -448,11 +436,11 @@ public final class AutoRestockTicker {
      * an armor-slot variant. Sequence:
      *
      * <ol>
-     *   <li>PICKUP source slot — cursor picks up the fresh replacement.</li>
-     *   <li>PICKUP armor slot — armor slot accepts the replacement (same
-     *       Item, same Equippable target); cursor swaps to hold the worn
-     *       piece.</li>
-     *   <li>PICKUP source slot (now empty) — cursor drops the worn piece
+     *   <li>PICKUP source slot: the cursor picks up the fresh replacement.</li>
+     *   <li>PICKUP armor slot: the armor slot accepts the replacement (same
+     *       Item, same Equippable target), and the cursor swaps to hold the
+     *       worn piece.</li>
+     *   <li>PICKUP source slot (now empty): the cursor drops the worn piece
      *       into the freed source slot.</li>
      * </ol>
      */
@@ -493,27 +481,25 @@ public final class AutoRestockTicker {
                 slot, source, now.getItem());
     }
 
-    // ─── Trigger predicate ────────────────────────────────────────────────
-
     /**
-     * The single trigger predicate, per spec verbatim: did this item just
-     * take durability damage AND is it now at or below threshold?
+     * The before-break trigger: did this item just take durability damage,
+     * and is it now at or below the threshold?
      *
      * <p>Conditions:
      *
      * <ol>
      *   <li>{@code now} is a damageable item ({@code maxDamage > 0}) with
      *       a current stack present.</li>
-     *   <li>{@code now}'s remaining durability is ≤
+     *   <li>{@code now}'s remaining durability is at or below
      *       the configured Before-Break threshold.</li>
-     *   <li>{@code now}'s exact content (Item + components + damage value)
+     *   <li>{@code now}'s exact content (Item, components and damage value)
      *       did <b>not</b> exist anywhere in the previous-tick snapshot.
      *       Real damage produces a damage value that didn't exist before;
      *       a drag-drop just relocates an existing stack and so its
      *       post-move state matches a prev slot.</li>
      * </ol>
      *
-     * <p>That third condition is the migration filter — without it, the
+     * <p>That third condition is the migration filter. Without it, the
      * post-move state of a player-driven drag would look indistinguishable
      * from a damage event.
      */
@@ -530,8 +516,8 @@ public final class AutoRestockTicker {
     }
 
     /**
-     * Scans the full 42-slot previous snapshot (41 player-owned slots +
-     * the cursor) for a stack matching {@code stack} by Item AND all
+     * Scans the full 42-slot previous snapshot (41 player-owned slots and
+     * the cursor) for a stack matching {@code stack} by Item and all
      * components (which includes the {@code DAMAGE} component, so the
      * damage value is part of the comparison). Delegates to vanilla
      * {@link ItemStack#isSameItemSameComponents}.
@@ -547,7 +533,7 @@ public final class AutoRestockTicker {
     /**
      * Migration check for the on-break path: does an exact match for
      * {@code stack} exist anywhere in the player's <i>current</i>
-     * inventory (hotbar, main inv, armor, offhand, cursor)? If yes, the
+     * inventory (hotbar, main inventory, armor, offhand, cursor)? If yes, the
      * stack was relocated, not destroyed.
      */
     private static boolean existsInCurrentInventory(ItemStack stack, LocalPlayer player) {
@@ -564,9 +550,7 @@ public final class AutoRestockTicker {
         return false;
     }
 
-    // ─── Helpers ──────────────────────────────────────────────────────────
-
-    /** True iff the stack is a damageable tool / armor / shield / weapon. */
+    /** True iff the stack is a damageable tool, armor piece, shield or weapon. */
     private static boolean isDamageable(ItemStack stack) {
         return stack != null && !stack.isEmpty() && stack.getMaxDamage() > 0;
     }
@@ -575,13 +559,13 @@ public final class AutoRestockTicker {
      * Fills the player's active hotbar slot from {@code source}, in three tiers
      * (mirroring Auto Tool Switch's resolution):
      * <ul>
-     *   <li><b>Hotbar source (0–8):</b> change the selected slot to {@code source}
-     *       — leaves both stacks in place, just shifts the hand.</li>
+     *   <li><b>Hotbar source (0-8):</b> change the selected slot to {@code source}.
+     *       Both stacks stay in place, only the hand moves.</li>
      *   <li><b>Cyclable source:</b> the replacement is reachable into the hotbar
      *       via a registered cycler (Column Cycler, pocket). Change the selection
      *       to the cycler's hotbar position and have the cycler bring it down,
      *       preserving the cycle instead of yanking the item out.</li>
-     *   <li><b>Main-inventory source (9–35):</b> standard SWAP into the active
+     *   <li><b>Main-inventory source (9-35):</b> standard SWAP into the active
      *       hotbar slot.</li>
      * </ul>
      */
@@ -589,7 +573,7 @@ public final class AutoRestockTicker {
                                                int source, int activeSlot,
                                                String logTag, ItemStack itemForLog) {
         if (source >= AutoRestockSearch.HOTBAR_START && source < AutoRestockSearch.MAIN_INV_START) {
-            // Tier 1: hotbar source — move selected. The search excluded activeSlot,
+            // Tier 1: hotbar source, so move the selection. The search excluded activeSlot,
             // so source != activeSlot is guaranteed.
             player.getInventory().setSelectedSlot(source);
             InventoryPlusClient.LOGGER.debug(
@@ -600,7 +584,7 @@ public final class AutoRestockTicker {
         int cyclablePos = HotbarCyclableRegistry.cyclablePosition(source);
         if (cyclablePos != -1) {
             // Tier 2: replacement is in a cyclable slot (Column Cycler, pocket).
-            // Don't yank it out — change the selection to the cycler's hotbar
+            // Don't yank it out. Change the selection to the cycler's hotbar
             // position and have the cycler bring the item down, preserving the
             // cycle. Same dynamic switch Auto Tool Switch performs. No undo handle
             // is kept: a restock is a permanent refill, not a temporary switch.
@@ -611,15 +595,15 @@ public final class AutoRestockTicker {
                     logTag, activeSlot, cyclablePos, source, itemForLog.getItem());
             return;
         }
-        // Tier 3: main inv source — standard SWAP into the active slot, judged as
-        // a restock. The source was already screened for RESTOCK_TAKE by the
-        // search; the slot being refilled is asked here.
+        // Tier 3: main inventory source, a standard SWAP into the active slot,
+        // judged as a restock. The source was already screened for RESTOCK_TAKE
+        // by the search. The slot being refilled is asked here.
         if (!IPSlotOperations.allowsPlayerSlot(player, activeSlot, RESTOCK_PUT)) {
             InventoryPlusClient.LOGGER.debug("[{}] hotbar[{}] refuses restock", logTag, activeSlot);
             return;
         }
         // Tier 1 took every hotbar source, so only 9-35 reach here, where
-        // container and menu indices happen to agree; converted anyway so this
+        // container and menu indices happen to agree. Converted anyway so this
         // stays correct if that ever stops being true.
         int sourceMenu = PlayerMenuSlots.menuIndexOf(player.inventoryMenu, player, source);
         if (sourceMenu < 0) return;
@@ -633,11 +617,11 @@ public final class AutoRestockTicker {
     /**
      * Swaps {@code source} into the offhand as a restock. All three offhand
      * paths (item, break, durability) come through here. The offhand is the
-     * slot being refilled, so it is asked first; the source was screened by
+     * slot being refilled, so it is asked first. The source was screened by
      * the search.
      *
-     * <p>{@code source} is a container index, as the search returns it; the
-     * SWAP names a menu slot. Until 1.6.0 all three paths passed the container
+     * <p>{@code source} is a container index, as the search returns it, and
+     * the SWAP names a menu slot. Until 1.6.0 all three paths passed the container
      * index straight through, so a spare on the hotbar (container 0-8) made
      * the offhand swap with the crafting grid or an armour slot (menu 0-8)
      * instead of the spare. The conversion now happens here, once.
@@ -667,9 +651,9 @@ public final class AutoRestockTicker {
     }
 
     /**
-     * Snapshots all 42 watched stacks (hotbar + main inv + armor + offhand
-     * + cursor) into {@link #previousSnapshot}. Copies are mandatory — see
-     * class javadoc.
+     * Snapshots all 42 watched stacks (hotbar, main inventory, armor, offhand
+     * and cursor) into {@link #previousSnapshot}. Copies are mandatory, see
+     * the class javadoc.
      */
     private static void snapshot(LocalPlayer player) {
         Inventory inv = player.getInventory();

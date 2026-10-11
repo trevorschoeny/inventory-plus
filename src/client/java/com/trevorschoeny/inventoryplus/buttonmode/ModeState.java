@@ -25,9 +25,8 @@ import java.util.Map;
 
 /**
  * A button's mode: one global value every container uses, plus any
- * containers pinned to a value of their own. The shared mechanism behind
- * {@code features/button-modes.md}; Sort and Move Matching each own one
- * instance and differ only in the enum they cycle.
+ * containers pinned to a value of their own. Sort and Move Matching each
+ * own one instance and differ only in the enum they cycle.
  *
  * <h3>Global by default, pinned as the exception</h3>
  *
@@ -36,7 +35,7 @@ import java.util.Map;
  * whichever of those the container is currently following, so
  * right-clicking on a pinned container changes only that container.
  * {@link #togglePin} copies the current global into a pin, or discards
- * the pin; re-pinning starts from the global again, per the spec.
+ * the pin. Re-pinning starts from the global again.
  *
  * <p>A container with no identity (an open path the tracker did not see)
  * cannot be pinned and simply follows the global. Pins on session-only
@@ -46,7 +45,7 @@ import java.util.Map;
  *
  * <p>A mode built with {@link #globalOnly} has no per-container scope at
  * all: middle-click does nothing and the tooltip does not offer it. The
- * lock button is the case (`features/button-modes.md`): its stops choose
+ * lock button is the case: its stops choose
  * what a press of {@code L} locks, which is a granularity choice rather
  * than a scope one, so pinning it to a container would mean nothing.
  *
@@ -57,9 +56,8 @@ import java.util.Map;
  * { "version": 2, "global": "CATEGORY",
  *   "pins": { "singleplayer:World": { "block:overworld:1,64,2": "QUANTITY_DESC" } } }
  * }</pre>
- * A version-1 file (Sort's old per-container map) is discarded on load,
- * by decision: converting it would have pinned every chest the player
- * had ever sorted.
+ * A version-1 file (Sort's old per-container map) is discarded on load:
+ * converting it would have pinned every chest the player had ever sorted.
  */
 public final class ModeState<E extends Enum<E> & ModeStop> {
 
@@ -73,12 +71,11 @@ public final class ModeState<E extends Enum<E> & ModeStop> {
     /** False for a mode with one value everywhere; see {@link #globalOnly}. */
     private final boolean pinnable;
     private E global;
-    /** worldId -> identity key -> pinned value. */
     /**
-     * Pinned stops per world: container identity key -> stop. A
-     * {@link WorldStore}, saved whenever a pin changes. Pins on session-only
-     * identities are held here too and filtered out when saving, exactly as
-     * before; saving on their change just rewrites the same file contents.
+     * Pinned stops per world: container identity key -> stop, saved whenever
+     * a pin changes. Pins on session-only identities are held here too and
+     * filtered out when saving, so saving on their change just rewrites the
+     * same file contents.
      */
     private final WorldStore<Map<String, E>> pins = WorldStore.sortedMap(this::save);
     private boolean loaded;
@@ -181,7 +178,7 @@ public final class ModeState<E extends Enum<E> & ModeStop> {
         }
     }
 
-    // ── Persistence ─────────────────────────────────────────────────────
+    // Persistence
 
     private Path filePath() {
         return FabricLoader.getInstance().getConfigDir()
@@ -198,8 +195,8 @@ public final class ModeState<E extends Enum<E> & ModeStop> {
             JsonObject root = JsonParser.parseString(Files.readString(path)).getAsJsonObject();
             int version = root.has("version") ? root.get("version").getAsInt() : 1;
             if (version < CURRENT_VERSION) {
-                // Decided 2026-09-05: the old per-container entries are dropped,
-                // not converted. Every container follows the new global.
+                // The old per-container entries are dropped, not converted.
+                // Every container follows the new global.
                 InventoryPlusClient.LOGGER.info(
                         "[{}] {} is version {}; discarding its per-container entries (global mode replaces them)",
                         feature, path.getFileName(), version);

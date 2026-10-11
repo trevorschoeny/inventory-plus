@@ -18,9 +18,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Global IP config — toggle state for default-scope features. Loaded
- * once at client init; mutated in-memory by the config screen; persisted
- * on every setter call. Same JSON pattern as
+ * Global IP config: toggle state for the features. Loaded once at client
+ * init, changed in memory by the settings menu, and persisted on every
+ * setter call. Same JSON pattern as
  * {@link com.trevorschoeny.inventoryplus.sort.SortState}.
  *
  * <h3>File layout</h3>
@@ -43,21 +43,20 @@ import java.nio.file.Path;
  *
  * <h3>Defaults</h3>
  *
- * All current toggles default ON (per Trev's spec 2026-05-17). Missing
- * file or missing field = default ON. The config file is only written
- * after a setter changes a value.
+ * A missing file or missing field means the field's default. The config
+ * file is only written after a setter changes a value.
  *
  * <h3>Scope</h3>
  *
  * Default-scope toggles only. Power-user toggles (Pull from Bundles,
  * Pull from Ender Chest, Include Hotbar) and toggles for not-yet-built
  * mechanics (Restock Before Break, Pull from Shulker Boxes, Pull Ammo
- * When Shooting) are deliberately absent — they ship when their
+ * When Shooting) are deliberately absent. They ship when their
  * mechanics ship.
  *
  * <h3>Access</h3>
  *
- * Static getters/setters; no instance handles. Call
+ * Static getters and setters, no instances. Call
  * {@link #load} once at client init.
  */
 public final class IPConfig {
@@ -67,9 +66,8 @@ public final class IPConfig {
     private static final int CURRENT_VERSION = 1;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().serializeNulls().create();   // reach groups write "key": null
 
-    // ─── Auto-Restock ────────────────────────────────────────────────
-    // Offhand restock is unconditionally on per Trev 2026-05-18 — the
-    // offhand is just another active slot; no reason to gate it.
+    // Auto-Restock. Offhand restock is always on: the offhand is just another
+    // active slot, so there is no reason to gate it.
     private static boolean autoRestockArmor = true;
     private static boolean autoRestockArmorBeforeBreak = false; // sub of Armor
     private static boolean autoRestockTool = true;
@@ -77,109 +75,95 @@ public final class IPConfig {
     private static boolean autoRestockItem = true;
     private static boolean autoRestockShulker = false;          // parent
     private static boolean autoRestockShulkerAmmo = false;      // sub of Shulker
-    // The four "use locked items" settings (Trev 2026-09-06) are gone: what a
-    // lock stops is its lock group's choice in the reach record now
-    // (`plans/lock-groups.md`). Their old values are still read from the file
-    // once, for the 1.5.x migration of item locks (LockedItems).
-    // Durability floor for the two Before-Break swaps (armor + tool share it) —
-    // a swap fires when remaining durability sits at or below this. Was the
-    // hardcoded AutoRestockTicker.BEFORE_BREAK_THRESHOLD = 10.
+    // The four "use locked items" settings are gone: what a lock stops is its
+    // lock group's choice in the reach record now. Their old values are still
+    // read from the file once, for the 1.5.x migration of item locks
+    // (LockedItems).
+    // Durability floor for the two Before-Break swaps (armor and tool share
+    // it): a swap fires when remaining durability sits at or below this.
     private static int autoRestockBeforeBreakThreshold = 10;
 
-    // NOTE: the Shulker / ShulkerAmmo flags above are STATE-ONLY today —
-    // the mechanics behind them aren't implemented yet, so toggling them in
-    // the UI persists the choice but no in-game behavior changes until those
-    // mechanics ship. ArmorBeforeBreak / ToolBeforeBreak were state-only
-    // through 2026-05-17 and are now live (AutoRestockTicker section 4).
+    // The Shulker and ShulkerAmmo flags above are state-only: the mechanics
+    // behind them aren't implemented yet, so toggling them persists the choice
+    // but changes nothing in game. ArmorBeforeBreak and ToolBeforeBreak are
+    // live (AutoRestockTicker section 4).
 
-    // ─── Auto Tool Switch (default OFF — opt-in master toggle) ───────
-    // When ON, hitting a block (or attacking a mob, with Weapons sub-
-    // toggle) auto-swaps the right tool into the active hand. See the
-    // Auto Tool Switch spec + AutoToolSwitch class javadoc for the
-    // three-tier resolution and auto-return mechanics.
+    // Auto Tool Switch, off by default. When on, hitting a block (or attacking
+    // a mob, with the Weapons sub-toggle) swaps the right tool into the active
+    // hand. See the AutoToolSwitch class javadoc for the three-tier resolution
+    // and the switch back.
     private static boolean autoToolSwitchEnabled = false;
-    // Switching back (Trev, 2026-10-03): by default the hotbar snaps back on
-    // its own once you have stopped for the window; the key to the previous
-    // tool is opt-in, and returns early (or, with automatic off, any time).
-    // Replace the old four-way autoToolSwitchReturnMode (migrated in load()).
+    // Switching back: by default the hotbar snaps back on its own once the
+    // player has stopped for the window. The key to the previous tool is
+    // opt-in, and returns early (or, with automatic off, any time). These
+    // replace the old four-way autoToolSwitchReturnMode (migrated in load()).
     private static boolean autoToolSwitchReturnAuto = true;
     private static boolean autoToolSwitchReturnKey = false;
     private static int autoToolSwitchReturnCooldownSeconds = 1;  // 0 = back as soon as you stop
     private static boolean autoToolSwitchWeapons = false;    // sub of Enabled
     private static boolean autoToolSwitchAllMobs = false;    // sub of Weapons; false = hostile only
-    // Preferred weapon type — wins regardless of material when the
-    // player has multiple weapon kinds available. Default SWORD.
-    // Persisted as the enum name.
+    // Preferred weapon type: wins regardless of material when the player has
+    // multiple weapon kinds available. Persisted as the enum name.
     private static WeaponPreference autoToolSwitchWeaponPreference = WeaponPreference.SWORD;
 
-    // ─── Show Buttons ────────────────────────────────────────────────
+    // Show Buttons
     private static boolean sortShowButton = true;
     private static boolean moveMatchingShowButtons = true;
     private static boolean lockedSlotsShowButton = true;
 
-    // ─── Column Cycler (Power Users) ─────────────────────────────────
-    // Master toggle defaults OFF (Power Users category opt-in). When OFF,
-    // the PU toolbar button hides and the C keybind is a no-op.
-    // showButton controls whether the PU toolbar button is visible even
-    // when the feature is enabled — power users who prefer keybind-only
-    // can hide the button while keeping C functional.
-    // The cycle slots' protection is Reach's since 2026-09-30: Column
-    // Cycler's slots are a feature reach group (reach.md), and the global
+    // Column Cycler (Power Users). Off by default, like every Power Users
+    // feature. When off, the toolbar button hides and the C keybind is a
+    // no-op. showButton hides the button while the feature stays enabled, for
+    // players who prefer the keybind alone (off by default: the inventory had
+    // too many buttons). The cycle slots' protection belongs to Reach: Column
+    // Cycler's slots are a feature reach group, and the global
     // cycleSlotsLocked is gone (read once below, for the upgrade).
     private static boolean columnCyclerEnabled = false;
-    // Off by default (Trev, 2026-10-11 smoke: "too many buttons"); the
-    // feature and its keys are unchanged.
     private static boolean columnCyclerShowButton = false;
-    // Scroll wheel as alternative trigger for forward/backward cycle.
-    // Default OFF; opt-in trade-off — scrolling on a cycle-active column
-    // rotates the cycle instead of switching the hotbar slot.
+    // Scroll wheel as an alternative trigger for forward and backward cycle.
+    // Off by default because it is a trade-off: scrolling on a cycle-active
+    // column rotates the cycle instead of switching the hotbar slot.
     private static boolean columnCyclerScrollToCycle = false;
 
-    // ── Hotbar Cycler (Power Users) ─────────────────────────────────────
-    // Rotates whole inventory rows through the hotbar. Off by default like
-    // every Power Users feature. Its rows are a feature reach group since
-    // 2026-09-30; lockCycledRows is gone (read once below, for the upgrade).
+    // Hotbar Cycler (Power Users). Rotates whole inventory rows through the
+    // hotbar. Off by default like every Power Users feature. Its rows are a
+    // feature reach group, and lockCycledRows is gone (read once below, for
+    // the upgrade).
     private static boolean hotbarCyclerEnabled = false;
     private static boolean hotbarCyclerShowButtons = true;
-    // The on/off switch in the inventory's right column (Trev, 2026-10-04);
-    // hotbarCyclerShowButtons is the row buttons beside the grid. Off by
-    // default (Trev, 2026-10-11 smoke).
+    // The on/off switch in the inventory's right column, off by default.
+    // hotbarCyclerShowButtons is the row buttons beside the grid.
     private static boolean hotbarCyclerShowButton = false;
     private static boolean hotbarCyclerScrollToCycle = false;
-    // Column Cycler HUD overlay mode. MINI_HOTBAR is the default per
-    // Trev's spec — when Column Cycler is enabled, the HUD strip shows
-    // automatically. NONE disables the HUD without disabling the
-    // feature. Future Diamond Indicators mode will become a third
-    // value (per column-cycler.md). Persisted as the enum name.
+    // Column Cycler HUD overlay mode. MINI_HOTBAR by default, so the HUD strip
+    // shows as soon as Column Cycler is enabled. NONE disables the HUD without
+    // disabling the feature. Persisted as the enum name.
     private static HudMode columnCyclerHudMode = HudMode.MINI_HOTBAR;
 
-    // ─── Master switches and buttons (settings menu, Reach build stage 3) ──
-    // Every feature tab has an on/off and a button toggle (Trev, 2026-09-27).
-    // Sort, Move Matching and Restock had no master switch; Restock and Auto
-    // Tool Switch had no button. lockGroupsEnabled pauses every lock without
-    // deleting any: nothing blocked, nothing drawn (settings-menu.md).
+    // Master switches and buttons. Every feature tab has an on/off and a
+    // button toggle. lockGroupsEnabled pauses every lock without deleting any:
+    // nothing blocked, nothing drawn.
     private static boolean sortEnabled = true;
     private static boolean moveMatchingEnabled = true;
     private static boolean restockEnabled = true;
     private static boolean restockShowButton = true;
     private static boolean autoToolSwitchShowButton = true;
     private static boolean lockGroupsEnabled = true;
-    // "Also keep container locks on the server" (Lock groups tab; Reach build
-    // stage 4, replacing Inventory Max's containerLocksEnabled). Container
-    // locks are always kept on this computer; with this on, each one placed
-    // from now on is also written to Inventory Max's shared channel, where the
-    // server keeps and enforces it as a plain lock. Default off: container
-    // locks are the player's own (Trev 2026-09-07). Needs Inventory Max.
+    // "Also keep container locks on the server" (Lock groups tab; replaces
+    // Inventory Max's containerLocksEnabled). Container locks are always kept
+    // on this computer. With this on, each one placed from now on is also
+    // written to Inventory Max's shared channel, where the server keeps and
+    // enforces it as a plain lock. Off by default, because container locks are
+    // the player's own. Needs Inventory Max.
     private static boolean containerLocksOnServer = false;
-    // Tooltips: everything Inventory Plus does to tooltips (Trev, 2026-09-30).
-    // tooltipsEnabled off means Inventory Plus leaves every tooltip alone.
-    // One boolean per line Inventory Plus adds or changes (tooltips/, one
-    // provider each; Designer's Tooltips brief, 2026-09-30). Durability and
-    // Food were the one Item tips switch (moved from MenuKit in 6.0.0); both
-    // read the old itemTipsEnabled as a fallback. Mod name is off by default:
-    // noise for a vanilla-only player. Holding the hide-tooltips key
-    // (IPKeybinds.HIDE_TOOLTIPS, Space by default) hides every tooltip; on by
-    // default. Saved as hideTooltipsOnKey; was hideTooltipsOnCtrl while the
+    // Tooltips: everything Inventory Plus does to tooltips. tooltipsEnabled off
+    // means Inventory Plus leaves every tooltip alone. One boolean per line
+    // Inventory Plus adds or changes (tooltips/, one provider each). Durability
+    // and Food were the one Item tips switch (moved from MenuKit in 6.0.0), and
+    // both read the old itemTipsEnabled as a fallback. Mod name is off by
+    // default: noise for a vanilla-only player. Holding the hide-tooltips key
+    // (IPKeybinds.HIDE_TOOLTIPS, Space by default) hides every tooltip, on by
+    // default. Saved as hideTooltipsOnKey. It was hideTooltipsOnCtrl while the
     // key was fixed to Ctrl (read as a fallback in load()).
     private static boolean tooltipsEnabled = true;
     private static boolean tooltipDurability = true;
@@ -191,24 +175,23 @@ public final class IPConfig {
     private static boolean tooltipCompare = true;
     private static boolean tooltipCondenseTrims = true;
     private static boolean tooltipModName = false;
-    // On the Tooltips tab, under its switch (Trev, 2026-10-04; on General for a day).
+    // On the Tooltips tab, under its switch.
     private static boolean hideTooltipsOnKey = true;
-    // Compact tooltips (Trev, 2026-10-03): the inventory buttons' tooltips
-    // keep only their essential lines (what it does, its state), no hints.
+    // Compact tooltips: the inventory buttons' tooltips keep only their
+    // essential lines (what it does, its state), no hints.
     private static boolean compactTooltips = false;
     // Scrolling a long tooltip and keeping it on screen are no longer
-    // settings (Trev, 2026-10-11): always on under the Tooltips switch
-    // (tooltips/Tooltips). An old file's tooltipScrollLong and
-    // tooltipKeepOnScreen are never read, and the next save drops them.
+    // settings: always on under the Tooltips switch (tooltips/Tooltips). An
+    // old file's tooltipScrollLong and tooltipKeepOnScreen are never read, and
+    // the next save drops them.
     // Tooltips that would otherwise land over the menu flip to whichever side
-    // covers less of it (MenuKit 6.1.0 MKTooltip.avoidCoverWhen; Trev,
-    // 2026-10-03, asked by MenuKit: IP's wide in-inventory button tooltips
-    // land on the left over the whole inventory).
+    // covers less of it (MenuKit 6.1.0 MKTooltip.avoidCoverWhen). IP's wide
+    // in-inventory button tooltips otherwise land on the left, over the whole
+    // inventory.
     private static boolean tooltipAvoidCover = true;
 
-    // ─── Settings menu ───────────────────────────────────────────────
-    // The menu's look (Trev, 2026-10-03): on, the pause-menu look (MenuKit's
-    // options screen); off, the inventory look it had before.
+    // Settings menu. On, the pause-menu look (MenuKit's options screen). Off,
+    // the inventory look it had before.
     private static boolean settingsOptionsLook = true;
 
     /**
@@ -229,8 +212,8 @@ public final class IPConfig {
     public static void load() {
         if (loaded) return;
         loaded = true;
-        // The reach record rides in this file (`plans/reach.md`, "Where it
-        // lives"); every change to it saves the whole file, like any setting.
+        // The reach record lives in this file, so every change to it saves the
+        // whole file, like any setting.
         Reach.onChange(IPConfig::save);
         Path path = filePath();
         if (!Files.exists(path)) {
@@ -257,7 +240,7 @@ public final class IPConfig {
         }
     }
 
-    /** Reads every setting {@code root} has; the rest keep their values. */
+    /** Reads every setting {@code root} has. The rest keep their values. */
     private static void apply(JsonObject root) {
         autoRestockArmor             = readBool(root, "autoRestockArmor",             autoRestockArmor);
         autoRestockArmorBeforeBreak  = readBool(root, "autoRestockArmorBeforeBreak",  autoRestockArmorBeforeBreak);
@@ -449,7 +432,7 @@ public final class IPConfig {
      * The two removed cycle-lock switches as the file last held them (true
      * when absent, their default): "Lock the slots the cyclers use" and
      * Hotbar Cycler's "Lock cycled rows". Read by the upgrade to feature reach
-     * groups only (Trev, 2026-09-30).
+     * groups only.
      */
     public record LegacyCycleLocks(boolean cycleSlotsLocked, boolean lockCycledRows) {}
 
@@ -503,7 +486,7 @@ public final class IPConfig {
     public static void setTooltipAvoidCover(boolean v) { tooltipAvoidCover = v; save(); }
     public static void setSettingsOptionsLook(boolean v) { settingsOptionsLook = v; save(); }
 
-    // ─── Getters ─────────────────────────────────────────────────────
+    // Getters
     public static boolean autoRestockArmor()            { return autoRestockArmor; }
     public static boolean autoRestockArmorBeforeBreak() { return autoRestockArmorBeforeBreak; }
     public static boolean autoRestockTool()             { return autoRestockTool; }
@@ -531,7 +514,7 @@ public final class IPConfig {
     public static boolean hotbarCyclerScrollToCycle()   { return hotbarCyclerScrollToCycle; }
     public static HudMode columnCyclerHudMode()         { return columnCyclerHudMode; }
 
-    // ─── Setters ─────────────────────────────────────────────────────
+    // Setters
     public static void setAutoRestockArmor(boolean v)            { autoRestockArmor = v; save(); }
     public static void setAutoRestockArmorBeforeBreak(boolean v) { autoRestockArmorBeforeBreak = v; save(); }
     public static void setAutoRestockTool(boolean v)             { autoRestockTool = v; save(); }
@@ -553,7 +536,7 @@ public final class IPConfig {
     public static void setColumnCyclerEnabled(boolean v)         { columnCyclerEnabled = v; save(); }
     public static void setColumnCyclerShowButton(boolean v)      { columnCyclerShowButton = v; save(); }
     // Scroll-to-cycle has a single owner: the wheel is one input, so turning
-    // it on for one cycler turns it off for the other (cycle-modes.md). Both
+    // it on for one cycler turns it off for the other. Both
     // setters enforce it, so the rule holds wherever it's set from.
     public static void setColumnCyclerScrollToCycle(boolean v) {
         columnCyclerScrollToCycle = v;

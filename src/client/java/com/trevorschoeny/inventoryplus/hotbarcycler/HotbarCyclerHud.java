@@ -16,12 +16,12 @@ import java.util.Map;
 /**
  * Bridges Hotbar Cycler's rotation events into the two things that animate:
  * the hotbar slide itself ({@link HotbarSlide}, drawn by the Hud mixin) and
- * the Column / Pocket previews ({@link CycleHudRegistry}'s per-source clock).
+ * the Column and Pocket previews ({@link CycleHudRegistry}'s per-source clock).
  *
  * <p>Mirrors {@code ColumnCyclerHudSource.register()}'s bridge, so
- * {@link HotbarCycler} stays ignorant of the HUD. It is deliberately NOT a
- * {@link CycleHudSource}: Hotbar Cycler has no preview strip of its own by
- * spec. The vanilla hotbar is the preview.
+ * {@link HotbarCycler} stays ignorant of the HUD. It is deliberately not a
+ * {@link CycleHudSource}: Hotbar Cycler has no preview strip of its own. The
+ * vanilla hotbar is the preview.
  *
  * <h3>Before and after</h3>
  *
@@ -34,7 +34,7 @@ import java.util.Map;
  *   <li>Every registered source's view for the selected slot is captured so
  *       the registry can fire a slide only where the contents actually
  *       changed. A column whose members sit in untouched rows moves only
- *       its held cell; a pocket's own slots never move at all. Doing the
+ *       its held cell, and a pocket's own slots never move at all. Doing the
  *       diff in the registry keeps this cycler-agnostic, so Pocket Cycler in
  *       Inventory Max participates without IP referencing it.</li>
  * </ul>

@@ -5,18 +5,17 @@ package com.trevorschoeny.inventoryplus.cyclable;
  *
  * <p>Lifted out of {@link CycleHud} so the hotbar slide (Hotbar Cycler's
  * animation drawn in the vanilla hotbar itself), the mini-hotbar strip, and
- * the column arm all run on the same curve and clock. The spec for Hotbar
- * Cycler asks for "the same duration and spring easing as the mini-hotbar";
- * sharing the code is what makes that true rather than merely intended.
+ * the column arm all run on the same curve and clock. Hotbar Cycler's slide
+ * must match the mini-hotbar's duration and spring, and sharing the code
+ * keeps them from drifting apart.
  *
  * <p>Pure functions of time. Whoever owns an animation stores its start
- * time and asks here for progress; nothing here holds state.
+ * time and asks here for progress.
  */
 public final class CycleSlide {
 
     private CycleSlide() {}
 
-    /** How long a slide runs. */
     public static final long DURATION_MILLIS = 220L;
 
     /**
@@ -34,7 +33,7 @@ public final class CycleSlide {
         return System.currentTimeMillis() - startMillis >= DURATION_MILLIS;
     }
 
-    /** Ease-out-back spring curve: overshoots ~10% then settles to 1.0. */
+    /** Ease-out-back spring curve: overshoots about 10% then settles to 1.0. */
     public static float easeOutBack(float t) {
         if (t <= 0f) return 0f;
         if (t >= 1f) return 1f;

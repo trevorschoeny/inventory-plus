@@ -18,19 +18,18 @@ import java.util.List;
 /**
  * Column Cycler's contribution to the shared cycle HUD ({@link CycleHudSource}).
  *
- * <p>Holds the column-specific bits the old {@code ColumnCyclerHud} mixed into
- * its render: the gating (feature enabled + HUD mode MINI_HOTBAR + the selected
- * slot is a column cycle slot) and the cycle-contents math (which inventory
- * slots form the column's cycle, and the prev/current/next display order). The
+ * <p>Holds the column-specific parts: the gating (feature enabled, HUD mode
+ * MINI_HOTBAR, and the selected slot is a column cycle slot) and the
+ * cycle-contents math (which inventory slots form the column's cycle). The
  * generic render lives in {@link com.trevorschoeny.inventoryplus.cyclable.CycleHud}.
  *
  * <p>Also bridges {@link ColumnCyclerRotator}'s rotation events to the shared
- * animation clock so the HUD slides on a column rotation — leaving the verified
- * rotator code untouched.
+ * animation clock so the HUD slides on a column rotation, without the rotator
+ * knowing about the HUD.
  */
 public final class ColumnCyclerHudSource implements CycleHudSource {
 
-    /** Singleton; registered once with {@link CycleHudRegistry} at client init. */
+    /** Registered once with {@link CycleHudRegistry} at client init. */
     public static final ColumnCyclerHudSource INSTANCE = new ColumnCyclerHudSource();
 
     private ColumnCyclerHudSource() {}
@@ -41,9 +40,8 @@ public final class ColumnCyclerHudSource implements CycleHudSource {
      */
     public static void register() {
         CycleHudRegistry.register(INSTANCE);
-        // Bridge: a real column rotation → the shared animation clock. Maps the
-        // column-internal Direction to the cycler-neutral CyclerDirection. The
-        // column index IS the hotbar slot (0–8).
+        // Maps the column-internal Direction to the cycler-neutral
+        // CyclerDirection. The column index is the hotbar slot (0 to 8).
         ColumnCyclerRotator.addRotationListener((column, dir) ->
                 CycleHudRegistry.fireCycleAnimation(
                         INSTANCE,
@@ -54,7 +52,7 @@ public final class ColumnCyclerHudSource implements CycleHudSource {
     }
 
     /**
-     * Column Cycler stacks ABOVE the bottom-pinned Pocket Cycler when both are
+     * Column Cycler stacks above the bottom-pinned Pocket Cycler when both are
      * active on the same hotbar slot. Uses the interface default rank (100);
      * declared explicitly so the stacking intent is visible here.
      */
@@ -71,7 +69,7 @@ public final class ColumnCyclerHudSource implements CycleHudSource {
 
     @Override
     public CycleView cycleViewForHotbar(int hotbarSlot) {
-        // Gating — all three must hold or this source contributes nothing.
+        // All three must hold or this source contributes nothing.
         if (IPConfig.columnCyclerHudMode() != HudMode.MINI_HOTBAR) return null;
         if (!IPConfig.columnCyclerEnabled()) return null;
         if (!ColumnCycler.isCycleSlot(hotbarSlot)) return null;
@@ -84,8 +82,8 @@ public final class ColumnCyclerHudSource implements CycleHudSource {
         int n = cycleSlots.size();
         if (n < 2) return null;
 
-        // Items in visual top→bottom order (hotbar last); the shared helper
-        // applies the prev/current/next display convention + highlight.
+        // Items in visual top-to-bottom order (hotbar last). The shared helper
+        // applies the prev/current/next display convention and highlight.
         List<ItemStack> visual = new ArrayList<>(n);
         for (int slot : cycleSlots) {
             visual.add(inv.getItem(slot));
@@ -94,7 +92,7 @@ public final class ColumnCyclerHudSource implements CycleHudSource {
     }
 
     /**
-     * The column's cycle members in visual top→bottom order, hotbar last.
+     * The column's cycle members in visual top-to-bottom order, hotbar last.
      * Mirrors {@code ColumnCyclerRotator}'s internal list shape.
      */
     private static List<Integer> buildCycleSlots(int column) {

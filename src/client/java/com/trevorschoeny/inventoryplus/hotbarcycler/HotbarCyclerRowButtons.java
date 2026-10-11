@@ -37,8 +37,8 @@ import java.util.List;
  * Because the trigger zone and the sustain zone are the same rectangle,
  * "the button survives the cursor crossing the gap" needs no sustain
  * timer and no remembered hover target. Inventory Max's {@code
- * PocketHover} carries that machinery because its zones differ in shape;
- * this feature does not need it and deliberately does not copy it.
+ * PocketHover} carries that machinery because its zones differ in shape.
+ * This feature does not need it.
  *
  * <p>A pressed button ignores hover entirely and is always drawn, which
  * is what makes the toggled set readable at a glance without a per-slot
@@ -74,7 +74,7 @@ public final class HotbarCyclerRowButtons {
         registerHotbarIndicator();
     }
 
-    // ── Toggleable rows ─────────────────────────────────────────────────
+    // Toggleable rows
 
     private static void registerRow(int row) {
         final int r = row;
@@ -117,7 +117,7 @@ public final class HotbarCyclerRowButtons {
         return buttonOriginFor(first);
     }
 
-    // ── The hotbar's state-only twin ────────────────────────────────────
+    // The hotbar's state-only twin
 
     /**
      * The hotbar carries the same button in its pressed state whenever any
@@ -153,7 +153,7 @@ public final class HotbarCyclerRowButtons {
         return buttonOriginFor(first);
     }
 
-    // ── Shared geometry ─────────────────────────────────────────────────
+    // Shared geometry
 
     /**
      * Button top-left for a row whose first slot is {@code first}: to the
@@ -169,7 +169,7 @@ public final class HotbarCyclerRowButtons {
     /**
      * The single reveal rectangle: the row's nine slots, the button, and
      * the gap between them, as one span. Trigger and sustain are the same
-     * shape, which is the whole reason no hover state is kept.
+     * shape, which is why no hover state is kept.
      */
     private static boolean cursorInRevealZone(SlotScreenRect first) {
         Minecraft mc = Minecraft.getInstance();

@@ -17,17 +17,17 @@ import net.minecraft.world.inventory.Slot;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Forward / backward cycle keybind handler — fires in two contexts:
+ * Forward and backward cycle keybind handler. Fires in two contexts:
  *
  * <ol>
- *   <li><b>HUD (no screen open)</b> — game-world tick handler polls
+ *   <li><b>HUD (no screen open):</b> the tick handler polls
  *       {@link KeyMapping#consumeClick} for the cycle direction
- *       keybinds. Column = active hotbar slot (the slot the player is
- *       currently holding).</li>
- *   <li><b>In container screen</b> — {@code ScreenKeyboardEvents}
- *       {@code afterKeyPress} handler. Column = hovered slot's column,
- *       provided the hovered slot is itself a cycle slot (i.e. the
- *       column is active). Hovering a non-cycle-slot is a no-op.</li>
+ *       keybinds. The column is the active hotbar slot (the slot the
+ *       player is holding).</li>
+ *   <li><b>In a container screen:</b> a {@code ScreenKeyboardEvents}
+ *       {@code afterKeyPress} handler. The column is the hovered slot's
+ *       column, provided the hovered slot is itself a cycle slot (the
+ *       column is active). Hovering a non-cycle slot is a no-op.</li>
  * </ol>
  *
  * <p>Both paths gate on {@link IPConfig#columnCyclerEnabled} and
@@ -39,21 +39,20 @@ import org.jetbrains.annotations.Nullable;
  * is open (without firing) so presses that occurred while the screen
  * was open don't fire later when the player closes back to HUD. The
  * in-screen path is handled by the {@code afterKeyPress} listener,
- * which doesn't consume via {@code consumeClick} — vanilla's input
+ * which doesn't consume via {@code consumeClick}: vanilla's input
  * dispatcher feeds both the screen handler and the click queue.
  */
 public final class ColumnCyclerRotationKeybind {
 
     private ColumnCyclerRotationKeybind() {}
 
-    /** Registers both the tick (HUD) and screen-key (in-inv) listeners. */
+    /** Registers the screen-key listener. {@link #tick} is called from the client tick. */
     public static void register() {
         registerInScreen();
     }
 
     /** Drains queued clicks and fires rotation in HUD context. */
     public static void tick(Minecraft mc) {
-        // Drain forward queue.
         boolean firedForward = false;
         while (IPKeybinds.CYCLE_FORWARD.consumeClick()) {
             if (canFireHud(mc) && !firedForward) {
@@ -61,7 +60,6 @@ public final class ColumnCyclerRotationKeybind {
                 firedForward = true;
             }
         }
-        // Drain backward queue.
         boolean firedBackward = false;
         while (IPKeybinds.CYCLE_BACKWARD.consumeClick()) {
             if (canFireHud(mc) && !firedBackward) {

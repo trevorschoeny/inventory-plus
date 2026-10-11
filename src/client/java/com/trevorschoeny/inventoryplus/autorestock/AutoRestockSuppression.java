@@ -9,13 +9,13 @@ package com.trevorschoeny.inventoryplus.autorestock;
  *
  * Auto-Restock detects depletion by diffing a per-tick snapshot of the watched
  * slots ({@link AutoRestockTicker}). It can't tell <i>why</i> a slot's contents
- * changed — only that they did. A feature that swaps the hand item wholesale
- * (Inventory Max's pocket cycler brings a pocket item into the hand; a
+ * changed, only that they did. A feature that swaps the hand item wholesale
+ * (Inventory Max's pocket cycler brings a pocket item into the hand, and a
  * wrap can bring an <i>empty</i> pocket in) trips that diff: the hand reads
  * empty, Auto-Restock assumes the item ran out, finds a backup stack, and
- * switches the selected slot to it — a jarring, wrong slot jump.
+ * switches the selected slot to it, a jarring and wrong slot jump.
  *
- * <p>The fix is cooperation, not detection: the feature performing the
+ * <p>So the feature performing the
  * deliberate change marks the slot here, and Auto-Restock re-baselines that
  * slot (accepts the new contents as normal) instead of refilling.
  *
@@ -23,22 +23,23 @@ package com.trevorschoeny.inventoryplus.autorestock;
  *
  * The change is often server-authoritative (the pocket cycler sends a request
  * and the result arrives a round-trip later), so the mark can't be a single
- * instant — it covers a short window long enough for the change to land. Each
+ * instant. It covers a short window long enough for the change to land. Each
  * Auto-Restock tick within the window re-baselines the slot, so the change is
- * absorbed whenever it arrives. The window is deliberately generous; the only
+ * absorbed whenever it arrives. The window is deliberately generous. The only
  * cost of an over-long window is Auto-Restock skipping a genuine depletion that
- * happens within it (rare, and invisible — far better than a wrong slot jump).
+ * happens within it, which is rare and invisible, and far better than a wrong
+ * slot jump.
  *
- * <p>Client-side state — Auto-Restock runs on the client tick.
+ * <p>Client-side state, since Auto-Restock runs on the client tick.
  */
 public final class AutoRestockSuppression {
 
     private AutoRestockSuppression() {}
 
-    /** How long after a mark the slot stays suppressed — covers the change's round-trip. */
+    /** How long after a mark the slot stays suppressed. Covers the change's round-trip. */
     private static final long WINDOW_MILLIS = 500L;
 
-    /** Per-hotbar-slot (0–8) suppression expiry, in {@code currentTimeMillis} epoch. */
+    /** Per-hotbar-slot (0-8) suppression expiry, in {@code currentTimeMillis} epoch. */
     private static final long[] expiryMillis = new long[9];
 
     /**

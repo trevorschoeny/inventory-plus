@@ -7,23 +7,19 @@ import net.minecraft.client.server.IntegratedServer;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Resolves a stable identifier for the player's current world / server,
+ * Resolves a stable identifier for the player's current world or server,
  * so per-world persistence scopes to where they're playing.
  *
  * <ul>
- *   <li><b>Multiplayer</b> — {@code "server:<ip>"} (the configured
+ *   <li><b>Multiplayer:</b> {@code "server:<ip>"} (the configured
  *       server address).</li>
- *   <li><b>Singleplayer</b> — {@code "singleplayer:<level name>"} (the
+ *   <li><b>Singleplayer:</b> {@code "singleplayer:<level name>"} (the
  *       world's save-folder name).</li>
- *   <li><b>No world</b> — null; callers fall back to default behavior
- *       (no read / no-op writes).</li>
+ *   <li><b>No world:</b> null. Callers fall back to default behavior
+ *       (no read, no-op writes).</li>
  * </ul>
  *
- * <p>Used by {@link LockedSlots} to keep lock state per-world per Trev
- * 2026-05-16. A previous incarnation of this helper lived in the
- * Move Matching package; it was deleted with the Move Matching
- * simplification (no per-container persistence anymore). Re-created
- * here for Locked Slots' use.
+ * <p>Used by {@link LockedSlots} to keep lock state per world.
  */
 public final class WorldIdentity {
 

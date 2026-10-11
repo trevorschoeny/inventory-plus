@@ -15,7 +15,7 @@ import net.minecraft.world.item.ItemStack;
 import java.util.List;
 
 /**
- * The shared cycle HUD — drawn just right of the vanilla hotbar, showing the
+ * The shared cycle HUD, drawn just right of the vanilla hotbar, showing the
  * cycle(s) active on the selected hotbar slot, with a spring slide animation
  * when a cycle rotates. Cycler-agnostic: any cycler registers a
  * {@link CycleHudSource} and fires the shared per-source animation clock.
@@ -26,32 +26,31 @@ import java.util.List;
  * it whether alone or sharing the slot.
  *
  * <ul>
- *   <li><b>Solo horizontal</b> — Pocket alone: a horizontal mini-hotbar strip
+ *   <li><b>Solo horizontal</b> (Pocket alone): a horizontal mini-hotbar strip
  *       (vanilla {@code hud/hotbar} sprite), right of the real hotbar at the
  *       same height.</li>
- *   <li><b>Solo vertical</b> — Column alone: a one-cell bar at that same spot
+ *   <li><b>Solo vertical</b> (Column alone): a one-cell bar at that same spot
  *       holding the held item, with the column rising above it. The column
- *       always reads as a column (Trev 2026-09-05; this withdrew the earlier
- *       rule that a lone cycler renders horizontally).</li>
- *   <li><b>Cross</b> — two cyclers on the same slot (Column + Pocket): the
- *       horizontal arm (Pocket) is that mini-hotbar at hotbar height; the
+ *       always reads as a column, even alone.</li>
+ *   <li><b>Cross</b>, two cyclers on the same slot (Column and Pocket): the
+ *       horizontal arm (Pocket) is that mini-hotbar at hotbar height, and the
  *       vertical arm (Column) floats straight up from the held item. The held
- *       cell (bottom of the column = the highlighted cell of the row) is shared,
- *       so exactly ONE arm draws the held item — whichever is <em>animating</em>
- *       (it draws last, on top): a column cycle slides it vertically, a pocket
+ *       cell (bottom of the column, which is the highlighted cell of the row) is
+ *       shared, so exactly one arm draws the held item, whichever is
+ *       <em>animating</em> (it draws last, on top): a column cycle slides it vertically, a pocket
  *       cycle slides it horizontally. The selected slot animates in both
  *       directions, with no duplicate of the held item.</li>
  * </ul>
  *
  * <p>All cells use vanilla textures: {@code hud/hotbar} for slot backgrounds and
  * {@code hud/hotbar_selection} for the held-item highlight. Slot frames stay
- * fixed; only items slide.
+ * fixed. Only items slide.
  */
 public final class CycleHud {
 
     private CycleHud() {}
 
-    // ─── Layout constants (gui-scaled pixels) ────────────────────────
+    // Layout constants (gui-scaled pixels)
 
     private static final int SLOT_PX = 20;
     private static final int OUTER_BORDER_PX = 1;
@@ -59,15 +58,13 @@ public final class CycleHud {
     private static final int STRIP_GAP_FROM_HOTBAR_PX = 4;
     private static final int HOTBAR_HALF_WIDTH_PX = 91;
     private static final int ITEM_OFFSET_PX = 3;
-    /** Item X inset is 1px less than Y — the icons were sitting a pixel right of
-     *  center in their cell (Trev 2026-06-25). */
+    /** Item X inset is 1px less than Y. Otherwise the icons sit a pixel right of
+     *  center in their cell. */
     private static final int ITEM_OFFSET_X_PX = ITEM_OFFSET_PX - 1;
     /** The floating vertical stack clears the shared hotbar cell by this many px. */
     private static final int COLUMN_RISE_PX = 1;
     /** The floating vertical stack sits this many px right of the shared held cell. */
     private static final int COLUMN_NUDGE_X_PX = 1;
-
-    // ─── Vanilla sprites ─────────────────────────────────────────────
 
     private static final Identifier HOTBAR_SPRITE = Identifier.withDefaultNamespace("hud/hotbar");
     private static final int HOTBAR_SPRITE_W = 182;
@@ -76,11 +73,8 @@ public final class CycleHud {
     private static final int SELECTION_SPRITE_W = 24;
     private static final int SELECTION_SPRITE_H = 23;
 
-    // ─── Animation ───────────────────────────────────────────────────
     // Duration and easing live in CycleSlide, shared with the hotbar slide so
     // every cycler animation runs on one curve and one clock.
-
-    // ─── Registration ────────────────────────────────────────────────
 
     public static void register() {
         HudPanel.builder("inventoryplus-cycle-mini-hotbar")
@@ -93,8 +87,6 @@ public final class CycleHud {
                 .build();
     }
 
-    // ─── Visibility ──────────────────────────────────────────────────
-
     private static boolean shouldShow() {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null) return false;
@@ -102,8 +94,6 @@ public final class CycleHud {
         if (selectedSlot < 0 || selectedSlot > 8) return false;
         return !CycleHudRegistry.activeViews(selectedSlot).isEmpty();
     }
-
-    // ─── Dispatch ────────────────────────────────────────────────────
 
     private static void render(GuiGraphicsExtractor graphics) {
         Minecraft mc = Minecraft.getInstance();
@@ -121,9 +111,7 @@ public final class CycleHud {
 
         // Partition by axis first. Each source declares which way its strip
         // runs, and that holds whether it is alone or sharing the slot: Column
-        // Cycler is vertical always (Trev 2026-09-05, withdrawing the earlier
-        // rule that a lone cycler renders as the horizontal mini-hotbar);
-        // Pocket Cycler is horizontal.
+        // Cycler is always vertical, Pocket Cycler is horizontal.
         CycleHudRegistry.ActiveCycle horizontal = null, vertical = null;
         for (CycleHudRegistry.ActiveCycle ac : cycles) {
             if (ac.source().vertical()) {
@@ -145,15 +133,15 @@ public final class CycleHud {
                 : 0;
         int heldCellX = stripX + OUTER_BORDER_PX + heldHi * SLOT_PX;
 
-        // The arm that's animating draws LAST (on top) AND owns the shared held
-        // cell's item, so only ONE copy of the held item is ever drawn: a column
+        // The arm that's animating draws last (on top) and owns the shared held
+        // cell's item, so only one copy of the held item is ever drawn: a column
         // cycle slides it vertically, a pocket cycle slides it horizontally. The
-        // non-owning arm skips the held item (otherwise it draws a static second
-        // copy the moving one slides over — a brief duplicate near the end).
+        // non-owning arm skips the held item. Otherwise it draws a static second
+        // copy the moving one slides over, a brief duplicate near the end.
         boolean pocketAnim = horizontal != null && animDirection(horizontal.source(), activeSlot) != null;
         boolean columnAnim = animDirection(vertical.source(), activeSlot) != null;
         // With no horizontal arm there is no one to hand the held cell to, so
-        // the column owns it unconditionally; the cross rule applies only when
+        // the column owns it unconditionally. The cross rule applies only when
         // both arms are present.
         boolean columnOwnsHeld = horizontal == null || (columnAnim && !pocketAnim);
 
@@ -176,12 +164,12 @@ public final class CycleHud {
         renderHighlight(graphics, heldCellX, stripY);
     }
 
-    // ─── Horizontal strip (solo, and the cross's Pocket arm) ─────────
+    // Horizontal strip (solo, and the cross's Pocket arm)
 
     /**
      * The held cell's vertical slide, as the hotbar's (HudHotbarSlideMixin):
      * FORWARD drops the new item in from a cell above while the old one
-     * leaves below; BACKWARD is the mirror. Clipped to the cell.
+     * leaves below. BACKWARD is the mirror. Clipped to the cell.
      */
     private static void renderHeldVertical(GuiGraphicsExtractor graphics, Minecraft mc,
                                            CycleHudRegistry.Animation anim, ItemStack now, int cellX, int stripY) {
@@ -222,7 +210,7 @@ public final class CycleHud {
         try {
             for (int k = 0; k < n; k++) {
                 // The column arm owns the held cell's item when it's the one
-                // animating — skip it here so the two don't both draw it.
+                // animating. Skip it here so the two don't both draw it.
                 if (k == hi && (!includeHeld || heldOnly)) continue;
                 renderItem(graphics, mc, displayItems.get(k), slotAreaLeft + k * SLOT_PX + slide, stripY);
             }
@@ -240,29 +228,30 @@ public final class CycleHud {
         renderHighlight(graphics, slotAreaLeft + hi * SLOT_PX, stripY);
     }
 
-    // ─── Vertical strip (the cross's Column arm) ─────────────────────
+    // Vertical strip (the Column arm)
 
     /**
      * Draw the column rising from the held cell at {@code heldTop}. Static slot
-     * frames for the cells ABOVE the held; the held cell's frame is the
+     * frames for the cells above the held. The held cell's frame is the
      * caller's (the horizontal arm's bar in the cross, a one-cell bar when the
      * column is alone). The floating stack is lifted
      * {@link #COLUMN_RISE_PX} so it clears the bar.
      *
-     * <p>Animation is a per-cell interpolation: each item slides FROM the cell it
-     * occupied one rotation step ago TO its current cell, and the wrapped item
+     * <p>Animation is a per-cell interpolation: each item slides from the cell it
+     * occupied one rotation step ago to its current cell, and the wrapped item
      * ghosts out the opposite end. Because every position is a real cell, the
-     * lift "just works" — the held↔first-floating gap is wider than the gaps
-     * between floating cells, and the slide spans whichever gap it crosses with
-     * no discontinuity. The held cell always rests exactly at {@code heldTop}, so
+     * lift needs no special case: the gap between the held cell and the first
+     * floating cell is wider than the gaps between floating cells, and the slide
+     * spans whichever gap it crosses with no discontinuity. The held cell always rests exactly at {@code heldTop}, so
      * handing it back to the horizontal arm when the cycle ends never snaps.
      *
-     * <p>Direction: the column's FORWARD ({@code ]}) means "items shift toward
-     * the hand" — <b>down</b>; BACKWARD ({@code [}) shifts them <b>up</b>, away.
+     * <p>Direction: the column's FORWARD ({@code ]}) shifts items toward the
+     * hand, <b>down</b>. BACKWARD ({@code [}) shifts them <b>up</b>, away.
      *
-     * @param includeHeld draw the held (bottom) item + its exit ghost. False when
-     *                    the horizontal arm owns the held cell (it's animating, or
-     *                    nothing is) — avoids a duplicate of the held item.
+     * @param includeHeld draw the held (bottom) item and its exit ghost. False
+     *                    when the horizontal arm owns the held cell (it's
+     *                    animating, or nothing is), to avoid a duplicate of the
+     *                    held item.
      */
     private static void renderColumnStrip(GuiGraphicsExtractor graphics, Minecraft mc,
                                           CycleHudRegistry.ActiveCycle cycle, int activeSlot,
@@ -272,9 +261,9 @@ public final class CycleHud {
         if (n < 2) return;
 
         CyclerDirection direction = animDirection(cycle.source(), activeSlot);
-        float p = animProgress(cycle.source(), activeSlot); // eased 0→1 (→1 at rest)
+        float p = animProgress(cycle.source(), activeSlot); // eased 0 to 1 (1 at rest)
         int topY = columnCellY(heldTop, 0, n);
-        // The floating stack sits a hair right of the shared held cell; the held
+        // The floating stack sits a hair right of the shared held cell. The held
         // item itself stays aligned to the bar (so handing it back never snaps).
         int floatX = cellX + COLUMN_NUDGE_X_PX;
 
@@ -284,12 +273,12 @@ public final class CycleHud {
             drawHotbarCellBackground(graphics, floatX, columnCellY(heldTop, j, n));
         }
 
-        // Items animate cell→cell; clip to the column (+ one cell below the hand,
-        // so a FORWARD exit ghost can slide out the bottom).
+        // Items animate cell to cell. Clip to the column plus one cell below the
+        // hand, so a FORWARD exit ghost can slide out the bottom.
         graphics.enableScissor(cellX, topY, floatX + SLOT_PX, heldTop + SLOT_PX);
         try {
-            // visual[0]=topmost … visual[n-1]=held (bottom). Floating cells draw
-            // at floatX; the held item draws at cellX (aligned to the bar).
+            // visual[0] is topmost, visual[n-1] is held (bottom). Floating cells
+            // draw at floatX, the held item at cellX (aligned to the bar).
             for (int i = 0; i < n; i++) {
                 if (i == n - 1 && !includeHeld) continue; // horizontal arm owns the held item
                 int toY = columnCellY(heldTop, i, n);
@@ -316,7 +305,7 @@ public final class CycleHud {
     }
 
     /**
-     * Y of the column's grid cell {@code j} (0 = topmost … n-1 = held). The held
+     * Y of the column's grid cell {@code j} (0 is topmost, n-1 is held). The held
      * cell sits on the hotbar bar ({@code heldTop}); every cell above it is
      * lifted {@link #COLUMN_RISE_PX} so the floating stack clears the bar.
      */
@@ -325,10 +314,10 @@ public final class CycleHud {
     }
 
     /**
-     * Where item {@code i} animates FROM this rotation step. FORWARD (down) pulls
-     * each item out of the cell above (the topmost wraps in from off the top);
+     * Where item {@code i} animates from this rotation step. FORWARD (down) pulls
+     * each item out of the cell above (the topmost wraps in from off the top).
      * BACKWARD (up) pulls each out of the cell below (the held wraps in from below
-     * the hand). With no animation, from == its rest cell.
+     * the hand). With no animation, it starts at its rest cell.
      */
     private static int columnItemFromY(int heldTop, int i, int n, CyclerDirection direction) {
         if (direction == null) return columnCellY(heldTop, i, n);
@@ -337,8 +326,6 @@ public final class CycleHud {
         }
         return (i == n - 1) ? heldTop + SLOT_PX : columnCellY(heldTop, i + 1, n);
     }
-
-    // ─── Animation helpers (per-source) ──────────────────────────────
 
     private static int slideOffset(CycleHudSource source, int activeSlot) {
         CyclerDirection dir = animDirection(source, activeSlot);
@@ -360,10 +347,10 @@ public final class CycleHud {
     }
 
     /**
-     * Eased animation progress 0→1 for a source's active cycle on {@code
-     * activeSlot} (returns 1 — fully settled — when there's no animation). The
-     * column's cell→cell interpolation uses this directly; easeOutBack lets it
-     * overshoot ~10% past 1 for the spring before settling.
+     * Eased animation progress, 0 to 1, for a source's active cycle on {@code
+     * activeSlot}. Returns 1 (fully settled) when there's no animation. The
+     * column's cell-to-cell interpolation uses this directly. easeOutBack lets it
+     * overshoot about 10% past 1 for the spring before settling.
      */
     private static float animProgress(CycleHudSource source, int activeSlot) {
         CycleHudRegistry.Animation anim = CycleHudRegistry.animationFor(source);
@@ -371,16 +358,16 @@ public final class CycleHud {
         return CycleSlide.progress(anim.startMillis());
     }
 
-    // ─── Vanilla-texture drawing ─────────────────────────────────────
+    // Vanilla-texture drawing
 
-    /** One vanilla hotbar slot background (20×20 slice of the hud/hotbar sprite) — vertical cells. */
+    /** One vanilla hotbar slot background (20x20 slice of the hud/hotbar sprite), for vertical cells. */
     private static void drawHotbarCellBackground(GuiGraphicsExtractor graphics, int x, int y) {
         graphics.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR_SPRITE,
                 HOTBAR_SPRITE_W, HOTBAR_SPRITE_H, OUTER_BORDER_PX, 0,
                 x, y, SLOT_PX, SLOT_PX);
     }
 
-    /** A horizontal hotbar bar of {@code width} px: left cap + tiled slots + right cap. */
+    /** A horizontal hotbar bar of {@code width} px: left cap, tiled slots, right cap. */
     private static void renderStripBackground(GuiGraphicsExtractor graphics, int x, int y, int width) {
         int slotsCount = (width - 2 * OUTER_BORDER_PX) / SLOT_PX;
         int slotsLeftX = x + OUTER_BORDER_PX;

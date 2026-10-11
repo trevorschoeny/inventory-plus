@@ -12,35 +12,32 @@ import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * Vanilla {@link KeyMapping}s for IP's four screen-scoped keybinds —
- * registered so they appear in the vanilla Controls menu and are
- * user-rebindable.
+ * Vanilla {@link KeyMapping}s for IP's keybinds, registered so they appear
+ * in the vanilla Controls menu and can be rebound.
  *
  * <h3>Why KeyMapping despite screen-scoped use</h3>
  *
- * Each of these keybinds fires from {@code ScreenKeyboardEvents.afterKeyPress}
+ * The screen-scoped keybinds fire from {@code ScreenKeyboardEvents.afterKeyPress}
  * (in-screen input), not from {@code KeyMapping.consumeClick} (game-world
- * input). The KeyMapping registration is for *bind discovery and
- * remapping* — the Controls menu reads the registered mappings to show
- * them. The actual key match at runtime uses
- * {@link KeyMapping#matches(int, int)} against the current key + scancode
- * from {@code afterKeyPress}.
+ * input). The KeyMapping registration is for bind discovery and remapping:
+ * the Controls menu reads the registered mappings to show them. The actual
+ * key match at runtime uses {@link KeyMapping#matches(int, int)} against the
+ * current key and scancode from {@code afterKeyPress}.
  *
  * <h3>Defaults</h3>
  *
- * Per Trev 2026-05-17 the defaults preserve current behavior:
  * <ul>
- *   <li>{@code L} — Lock Slot toggle (LockedSlots feature)</li>
- *   <li>{@code I} — Move Matching IN</li>
- *   <li>{@code O} — Move Matching OUT</li>
- *   <li>{@code S} — Sort</li>
- *   <li>{@code C} — Toggle Cycle Slot (Column Cycler feature)</li>
- *   <li>Down / Up — Cycle Forward / Backward (Column Cycler)</li>
- *   <li>{@code ]} / {@code [} — Cycle Forward / Backward (Hotbar Cycler)</li>
+ *   <li>{@code L}: Lock Slot toggle (Locked Slots)</li>
+ *   <li>{@code I}: Move Matching in</li>
+ *   <li>{@code O}: Move Matching out</li>
+ *   <li>{@code S}: Sort</li>
+ *   <li>{@code C}: Toggle Cycle Slot (Column Cycler)</li>
+ *   <li>Up and Down: Cycle Forward and Backward (Column Cycler)</li>
+ *   <li>{@code ]} and {@code [}: Cycle Forward and Backward (Hotbar Cycler)</li>
  * </ul>
  *
  * <p>Translation keys follow the convention
- * {@code key.inventoryplus.<action>}; categories live under the
+ * {@code key.inventoryplus.<action>}. Categories live under the
  * vanilla Controls menu's "Inventory Plus" section
  * ({@code category.inventoryplus.controls}).
  */
@@ -81,12 +78,11 @@ public final class IPKeybinds {
             GLFW.GLFW_KEY_C,
             CATEGORY);
 
-    // Column Cycler moved off the brackets to the arrows on 2026-09-04 so
-    // Hotbar Cycler could take them; see cycle-modes.md for the six-keybind
-    // table. Minecraft stores bindings in options.txt, so existing installs
-    // keep the brackets and get Hotbar Cycler double-bound until rebound.
-    // Up cycles forward, Down backward (Trev, 2026-10-04: the other way
-    // round read backwards).
+    // Column Cycler moved off the brackets to the arrows so Hotbar Cycler
+    // could take them. Minecraft stores bindings in options.txt, so existing
+    // installs keep the brackets and get Hotbar Cycler double-bound until
+    // rebound. Up cycles forward and Down backward, because the other way
+    // round reads backwards.
     public static final KeyMapping CYCLE_FORWARD = new KeyMapping(
             "key.inventoryplus.cycle_forward",
             InputConstants.Type.KEYSYM,
@@ -99,14 +95,14 @@ public final class IPKeybinds {
             GLFW.GLFW_KEY_DOWN,
             CATEGORY);
 
-    /** Hotbar Cycler forward — rows shift down toward the hotbar. */
+    /** Hotbar Cycler forward: rows shift down toward the hotbar. */
     public static final KeyMapping HOTBAR_CYCLE_FORWARD = new KeyMapping(
             "key.inventoryplus.hotbar_cycle_forward",
             InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_RIGHT_BRACKET,
             CATEGORY);
 
-    /** Hotbar Cycler backward — rows shift up away from the hotbar. */
+    /** Hotbar Cycler backward: rows shift up, away from the hotbar. */
     public static final KeyMapping HOTBAR_CYCLE_BACKWARD = new KeyMapping(
             "key.inventoryplus.hotbar_cycle_backward",
             InputConstants.Type.KEYSYM,
@@ -114,12 +110,12 @@ public final class IPKeybinds {
             CATEGORY);
 
     /**
-     * Auto Tool Switch "return to previous tool" — defaults to <b>Left Shift
-     * (Sneak)</b> so "sneak to return" works out of the box (rebindable; it
-     * shares the key with vanilla Sneak, which is fine — both fire). Unlike the
-     * others (screen-scoped via {@code afterKeyPress}), this one is game-world
-     * input, polled via {@link KeyMapping#consumeClick()} on the client tick.
-     * Used by the HOTKEY_TIMED / HOTKEY_ANYTIME return modes.
+     * Auto Tool Switch "return to previous tool". Defaults to <b>Left Shift
+     * (Sneak)</b> so "sneak to return" works out of the box. It shares the key
+     * with vanilla Sneak, and both fire. Unlike the screen-scoped keys, this
+     * one is game-world input, polled via {@link KeyMapping#consumeClick()} on
+     * the client tick. Used when the return key is on
+     * ({@code IPConfig.autoToolSwitchReturnKey}).
      */
     public static final KeyMapping AUTO_SWITCH_RETURN = new KeyMapping(
             "key.inventoryplus.auto_switch_return",
@@ -139,7 +135,7 @@ public final class IPKeybinds {
             CATEGORY);
 
     /**
-     * Hides every tooltip while held (Trev, 2026-09-30). Space by default,
+     * Hides every tooltip while held. Space by default,
      * which Jump shares: 26.2 maps a key to a list of mappings, so both fire.
      * Read as a raw held state ({@link #isHeld}), never consumed, so it works
      * on every screen and a focused button or text field still gets Space.
