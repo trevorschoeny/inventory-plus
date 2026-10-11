@@ -25,16 +25,12 @@ import org.jetbrains.annotations.Nullable;
  * Those are different questions, so they get different answers, and a
  * gesture on one button no longer touches the other.
  *
- * <p>Both are global by default and both can be pinned. An earlier cut of
- * this made OUT global-only, reasoning that its remainder sits on the
- * player and so cannot vary by chest. Trev reversed that the same day: it
- * reads as an arbitrary hole in the gesture, and "this is the chest I dump
- * everything into" is still a fact about a chest. Two buttons that answer
- * the same gestures beats a rule that has to be explained.
+ * <p>Both are global by default and both can hold pins. OUT's remainder
+ * sits on the player, but "this is the chest I dump everything into" is
+ * still a fact about a chest.
  *
- * <p>This reverses `features/move-matching.md` ("IN and OUT share one
- * mode") and `features/button-modes.md`, on Trev's call 2026-09-06, after
- * pinning one button was found to pin both.
+ * <p>The two directions once shared one mode, and pinning one button pinned
+ * both.
  *
  * <p>Beware the naming: {@code IN} and {@code OUT} are relative to the
  * player inventory, not to the chest, so {@code IN} is the button a

@@ -8,23 +8,24 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 
 /**
  * Accessor mixin for {@link AbstractContainerScreen}'s protected
- * {@code leftPos}/{@code topPos} — the screen frame's top-left, needed by
- * move-matching's slot-anchored button placement every frame.
+ * {@code leftPos} and {@code topPos}, the screen frame's top-left, which
+ * Move Matching's slot-anchored button placement needs every frame.
  *
- * <h3>Why an accessor mixin (the production-crash lesson, 1.2.0)</h3>
+ * <h3>Why an accessor mixin</h3>
  *
  * These field references are <b>compile-time remapped</b> by the mixin
  * annotation processor, so they survive a real (intermediary-mapped) install.
- * The two prior attempts both failed structurally:
+ * The two earlier attempts both failed:
  * <ul>
- *   <li><b>Access widener</b> — wouldn't remap in this workspace's Loom 1.14 +
- *       Mojmap setup ({@code Failed to remap 2 mods} at runClient).</li>
+ *   <li><b>Access widener</b>: wouldn't remap in this workspace's Loom 1.14
+ *       and Mojmap setup ({@code Failed to remap 2 mods} at runClient).</li>
  *   <li><b>Runtime reflection by field name</b> ({@code getDeclaredField("leftPos")})
- *       — "sidesteps the remap pipeline", which means the Mojmap names are
- *       looked up verbatim in production where they don't exist:
+ *       sidesteps the remap pipeline, so the Mojmap names are looked up
+ *       verbatim in production, where they don't exist. The result was
  *       {@code NoSuchFieldException}, broken button placement, and a crash on
- *       the cycler-keybind path. Shipped as 1.2.0, pulled same day. Reflection
- *       by mapped name can NEVER work outside the dev runtime.</li>
+ *       the cycler-keybind path. It shipped as 1.2.0 and was pulled the same
+ *       day. Reflection by mapped name can never work outside the dev
+ *       runtime.</li>
  * </ul>
  *
  * Accessor names carry the {@code inventoryPlus$} prefix so they can't collide
@@ -34,15 +35,14 @@ import org.spongepowered.asm.mixin.gen.Accessor;
  *
  * Vanilla's own answer to "what slot is under the cursor", written once per
  * frame in {@code extractContents} by walking {@code menu.slots} and
- * checking {@code isActive()} then {@code isHovering()} — the same
+ * checking {@code isActive()} then {@code isHovering()}. It is the same
  * resolution vanilla's click handling trusts, and the one MenuKit's
  * {@code getHoveredSlot} interception overwrites so a created slot wins
- * over the vanilla slot it covers (MenuKit, 2026-09-07: composited panels
- * paint over vanilla slots without touching their {@code isActive()}, so
- * a scan re-deriving hover independently finds the covered vanilla slot
- * again; reading vanilla's own field agrees with whichever resolution
- * MenuKit installs). Read it instead of re-deriving hover with a manual
- * bounds scan.
+ * over the vanilla slot it covers. Read it instead of re-deriving hover
+ * with a manual bounds scan: composited panels paint over vanilla slots
+ * without touching their {@code isActive()}, so an independent scan finds
+ * the covered vanilla slot again, while vanilla's own field agrees with
+ * whichever resolution MenuKit installs.
  */
 @Mixin(AbstractContainerScreen.class)
 public interface AbstractContainerScreenAccessor {

@@ -28,8 +28,8 @@ import java.util.Map;
  * tooltip.
  *
  * <p>Stats are the stack's flat attribute modifiers for that slot, summed per
- * attribute (multipliers are left out: they don't add to a number a player
- * reads), and for tools the mining speed. Nothing shows when nothing differs,
+ * attribute (multipliers are left out, since they don't add to a number a
+ * player reads), and for tools the mining speed. Nothing shows when nothing differs,
  * or when the hovered stack is the very one being compared with.
  */
 final class Compare {
@@ -67,7 +67,7 @@ final class Compare {
         return out;
     }
 
-    /** Translation key of each stat -> its value on {@code stack} in {@code slot}. */
+    /** Translation key of each stat, mapped to its value on {@code stack} in {@code slot}. */
     private static Map<String, Double> stats(ItemStack stack, EquipmentSlot slot) {
         Map<String, Double> out = new LinkedHashMap<>();
         if (stack.isEmpty()) return out;

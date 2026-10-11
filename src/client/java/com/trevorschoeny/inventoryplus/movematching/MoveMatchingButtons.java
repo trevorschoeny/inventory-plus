@@ -18,8 +18,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 /**
- * Move Matching toolbar buttons. Each carries its own Move Matching mode
- * ({@code features/button-modes.md}): left-click runs the operation in the
+ * Move Matching toolbar buttons. Each carries its own Move Matching mode:
+ * left-click runs the operation in the
  * mode in force, right-click changes the mode, shift+right-click goes
  * back, middle-click pins it to the open container.
  *
@@ -53,7 +53,7 @@ public final class MoveMatchingButtons {
                                 Direction direction) {
         PressFeedback feedback = new PressFeedback();
         ModeState<MoveMatchingMode> state = MoveMatchingModes.state(direction);
-        // Only moving out pins to the container (Trev, 2026-10-03).
+        // Only moving out pins to the container.
         boolean pinHere = direction == Direction.OUT;
         var gestures = ModeGestures.handler(state, MoveMatchingModes::currentIdentity, pinHere, feedback);
         return Button.builder().sprite(texture).at(x, y).size(SIZE, SIZE)

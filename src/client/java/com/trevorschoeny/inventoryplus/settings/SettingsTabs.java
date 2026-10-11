@@ -42,16 +42,15 @@ import java.util.function.Supplier;
 
 
 /**
- * The body of every settings tab (plan: Leadership drive,
- * {@code mods/inventory-plus/plans/settings-menu.md}).
+ * The body of every settings tab.
  *
- * <p>Every tab has one frame (Trev, 2026-09-27): the title, a description,
+ * <p>Every tab has one frame: the title, a description,
  * Reset to Defaults, the feature's on/off checkbox (not on General or
  * Reach), a line, then its settings one per line, every one of them greyed
  * while the feature is off. Done sits below the menu panel, not in
- * a tab. Every reach lives in the Reach tab; feature tabs have none.
+ * a tab. Every reach lives in the Reach tab, and feature tabs have none.
  *
- * <p>Controls with a real setting behind them read and write it live; the
+ * <p>Controls with a real setting behind them read and write it live. The
  * rest are greyed placeholders showing their planned default (see
  * {@link SettingsBody}).
  *
@@ -64,10 +63,9 @@ final class SettingsTabs {
 
     private SettingsTabs() {}
 
-    // ── Resets ──────────────────────────────────────────────────────────
+    // Resets
     //
-    // Every tab's Reset to Defaults asks first (settings-menu.md, "Every tab"),
-    // then puts that tab's settings and keys back. General's Reset everything
+    // Every tab's Reset to Defaults asks first, then puts that tab's settings and keys back. General's Reset everything
     // runs every tab's, and Inventory Max's through the hook it registers.
 
     /** Opens a confirm for resetting tab {@code title}, then runs {@code reset}. */
@@ -83,11 +81,11 @@ final class SettingsTabs {
         }
     }
 
-    /** General's own settings back to default; only Reset everything runs it now. */
+    /** General's own settings back to default. Only Reset everything runs it. */
     private static void resetGeneral() {
         IPConfig.reset("settingsOptionsLook", "compactTooltips");
         resetKeys(IPKeybinds.OPEN_SETTINGS);
-        // The look may have just gone back to the options look: reopen in it.
+        // The look may have just gone back to the options look, so reopen in it.
         SettingsMenu.reopen();
     }
 
@@ -136,7 +134,7 @@ final class SettingsTabs {
     }
 
     /**
-     * The Lock groups tab's Reset (settings-menu.md, "Every tab"): the two
+     * The Lock groups tab's Reset: the two
      * default groups as a fresh install has them, every custom group gone, and
      * every lock kept on this computer removed, in every world. What each
      * group stops is the Reach tab's and stays.
@@ -157,23 +155,23 @@ final class SettingsTabs {
         return n + (n == 1 ? " lock" : " locks") + " in " + worlds.size() + (worlds.size() == 1 ? " world" : " worlds");
     }
 
-    // ── General ─────────────────────────────────────────────────────────
+    // General
 
     static List<PanelElement> general(boolean maxInstalled) {
         SettingsBody b = new SettingsBody()
                 .frame("General", "Settings for the whole menu. Greyed settings aren't built yet.");
-        // No category header on the first settings (Trev, 2026-10-03).
+        // No category header on the first settings.
         b.key(IPKeybinds.OPEN_SETTINGS)
                 // The inventory buttons' tooltips in one short line each, to
-                // take less room (Trev, 2026-10-03). Off by default.
+                // take less room. Off by default.
                 .checkbox("Compact tooltips: short, one line on inventory buttons",
                         Bool.of(IPConfig::compactTooltips, IPConfig::setCompactTooltips));
-        // The advert for Inventory Max's tabs; with Inventory Max installed the
+        // The advert for Inventory Max's tabs. With Inventory Max installed the
         // stand-ins are gone, so there is nothing for this to hide.
         if (!maxInstalled) b.checkbox("Show Inventory Max tabs", true);
         // A button that flips between the two looks, named for the one in use:
         // Classic (Minecraft's options screens) or Panel (a container-style
-        // panel) (Trev, 2026-10-03). The menu is made as one kind of screen or
+        // panel). The menu is made as one kind of screen or
         // the other, so a click reopens it on General in the new look, which
         // also rebuilds this button with the new name.
         b.actions("Look", new SettingsBody.Action(IPConfig.settingsOptionsLook() ? "Classic" : "Panel", () -> {
@@ -206,14 +204,14 @@ final class SettingsTabs {
         SettingsMenu.runExternalResets();
     }
 
-    // ── Reach ───────────────────────────────────────────────────────────
+    // Reach
 
     /**
      * Every operation MenuKit knows, under three headings (Vanilla, Inventory
-     * Plus and Inventory Max, Other mods; an empty heading is left out), one
+     * Plus and Inventory Max, Other mods, leaving out an empty heading), one
      * collapsible section each, every box read from and written to the reach
      * record. A slot is reached only if every group it is in is checked, so a
-     * lock group's cleared box is the lock (settings-menu.md, "Reach").
+     * lock group's cleared box is the lock.
      */
     static List<PanelElement> reach() {
         SettingsBody b = new SettingsBody().frame("Reach",
@@ -248,11 +246,10 @@ final class SettingsTabs {
     }
 
     /**
-     * One operation's section. Only what applies is offered (Trev,
-     * 2026-09-27): the slot groups MenuKit says the operation can act on
+     * One operation's section. Only what applies is offered: the slot groups MenuKit says the operation can act on
      * ({@code SlotOperations.groups}), the lock groups whose kind fits its
-     * role, and the places Inventory Plus declares for it. Closed, a live count
-     * and what stops it; open, its blocks.
+     * role, and the places Inventory Plus declares for it. Closed, it shows a
+     * live count and what stops it. Open, it shows its blocks.
      */
     private static void operationSection(SettingsBody b, BehaviorKey<?> op) {
         String id = op.id().toString();
@@ -275,8 +272,7 @@ final class SettingsTabs {
             else if (isOurs(namespaceOf(e))) ourGroups.add(box);
             else otherGroups.add(box);
         }
-        // The cyclers' slots, as reach options (reach.md, "Feature reach
-        // groups"): offered by every group that applies to the player's
+        // The cyclers' slots, as reach options. They are offered by every group that applies to the player's
         // inventory or hotbar, since they are subsets of those, first in the
         // Inventory Plus and Inventory Max row. A cycler's own group keeps its
         // own option checked and fixed: it must rotate its own slots.
@@ -315,15 +311,15 @@ final class SettingsTabs {
             List<String> stoppedBy = new ArrayList<>();
             for (LockGroup g : offered) if (Reach.lockDenies(g.id(), id)) stoppedBy.add(g.name());
             String text = stoppedBy.isEmpty() ? count : count + " · stopped by " + String.join(", ", stoppedBy);
-            // No "changed" marker (Trev, 2026-10-03).
+            // No "changed" marker.
             return Component.literal((isNew ? "new · " : "") + text);
         };
 
         b.section(SlotOperations.name(op).getString(), summary, null, c -> {
             c.line(0, SlotOperations.description(op));
-            // The move's own settings sit above its checkboxes (Trev, 2026-09-27).
+            // The move's own settings sit above its checkboxes.
             c.actions(new SettingsBody.Action("Revert to default", () -> Reach.revert(id)));
-            // Shift-click in's fill order waits on MenuKit (reach.md); greyed.
+            // Shift-click in's fill order waits on MenuKit, so it is greyed.
             if (op == BehaviorKeys.SHIFT_CLICK_IN) c.buttons("Priority…");
             block(c, "Slot groups", slotGroups);
             block(c, "Lock groups", lockGroups);
@@ -334,11 +330,11 @@ final class SettingsTabs {
     }
 
     /**
-     * Mend Anywhere's reach (Trev, 2026-10-04): which items it repairs from
+     * Mend Anywhere's reach: which items it repairs from
      * XP, so it can take in the containers carried in the inventory too. Not
      * a move, so not one of MenuKit's operations, and not wired yet: mending
      * runs on the server, which can't read this reach record (kept on the
-     * client) until Inventory Max carries it there. Greyed at today's
+     * client) until Inventory Max carries it there. Greyed at the current
      * behaviour: the inventory and hotbar mend, carried containers don't.
      */
     private static void mendAnywhereSection(SettingsBody b) {
@@ -359,13 +355,13 @@ final class SettingsTabs {
 
     /**
      * The places Inventory Plus declares for an operation: things carried
-     * that aren't slots (`plans/reach.md`, "Places"). Only Restock's takes from
+     * that aren't slots. Only Restock's takes from
      * reaches into: Shulker Boxes, Bundles and the Ender Chest carried in the
      * inventory. None of those mechanics is built yet, so the boxes are greyed.
      */
     private static List<Place> placesOf(String operation) {
-        // Bundles and the Ender Chest beside Shulker Boxes (Trev, 2026-10-04),
-        // at the Restock tab's planned defaults.
+        // Bundles and the Ender Chest beside Shulker Boxes, at the Restock
+        // tab's planned defaults.
         return operation.equals("inventoryplus:restock_take")
                 ? carriedPlaces(IPConfig.autoRestockShulker(), true, false)
                 : List.of();
@@ -376,11 +372,11 @@ final class SettingsTabs {
         if (!places.isEmpty()) c.reach(label, places);
     }
 
-    // ── Lock groups ─────────────────────────────────────────────────────
+    // Lock groups
 
     /**
-     * The lock groups themselves: the switch that pauses every lock, the button and server settings,
-     * then one section per group and + New group. What a group stops is set in
+     * The lock groups themselves: the switch that pauses every lock, the
+     * button and server settings, then one section per group and + New group. What a group stops is set in
      * each operation's section in Reach; this tab manages the groups.
      */
     static List<PanelElement> lockGroups(boolean maxInstalled) {
@@ -393,21 +389,20 @@ final class SettingsTabs {
                                 "Every custom group goes, and " + lockCount(null) + " kept on this computer are removed.",
                                 SettingsTabs::resetLockGroups));
         b
-                // What the cyclers' slots are protected from is Reach's, per move
-                // (reach.md, "Feature reach groups"); no switch here since 2026-09-30.
+                // What the cyclers' slots are protected from is set per move in
+                // Reach, so there is no switch for it here.
                 .checkbox("Show the lock button", Bool.of(IPConfig::lockedSlotsShowButton, IPConfig::setLockedSlotsShowButton));
         // Container locks are kept on this computer always; the server copy
         // goes through Inventory Max's shared channel, so it needs Inventory Max.
-        // The checkbox's own text says it needs Inventory Max; greyed without it.
+        // The checkbox's own text says so, and it is greyed without it.
         b.checkbox("Keep container locks on the server. This means locks are honored in multiplayer, "
                 + "hopper automations, etc. (Requires Inventory Max.)",
                 new Bool(IPConfig::containerLocksOnServer, IPConfig::setContainerLocksOnServer, () -> !maxInstalled));
-        // The groups go last (Trev, 2026-09-27).
+        // The groups go last.
         b.heading("Groups");
         for (LockGroup g : Reach.groups()) lockGroupSection(b, g);
         // A new group picks its kind up front and starts with its kind's
-        // default's choices (reach.md); Item (every item of a type) is only
-        // ever custom (lock-groups.md).
+        // default's choices. Item (every item of a type) is only ever custom.
         // Each says on hover how its kind works.
         b.actions(newGroupAction("+ Slot group", LockKind.SLOT, "New slot group"),
                 newGroupAction("+ Item group", LockKind.ITEM, "New item group"),
@@ -457,9 +452,8 @@ final class SettingsTabs {
     }
 
     /**
-     * Deleting a group moves its locks to the default of its kind
-     * (lock-groups.md). An Item group has no default of its kind, so its locks
-     * are removed; the confirm says which.
+     * Deleting a group moves its locks to the default of its kind. An Item group has no default of its kind, so its locks
+     * are removed, and the confirm says which.
      */
     private static void confirmDelete(LockGroup g) {
         String count = lockCount(g.id());
@@ -481,7 +475,7 @@ final class SettingsTabs {
         return null;
     }
 
-    // ── Feature tabs ────────────────────────────────────────────────────
+    // Feature tabs
     //
     // The frame, the on/off switch, then one setting per line: the button
     // toggle, each key, each option.
@@ -500,7 +494,7 @@ final class SettingsTabs {
     }
 
     /**
-     * Tooltips (was Item Tips; Trev, 2026-09-30): everything Inventory Plus
+     * Tooltips (formerly Item Tips): everything Inventory Plus
      * does to tooltips. Off, Inventory Plus leaves every tooltip alone.
      */
     static List<PanelElement> tooltips() {
@@ -509,9 +503,9 @@ final class SettingsTabs {
                         + "and where they sit on screen.",
                         Bool.of(IPConfig::tooltipsEnabled, IPConfig::setTooltipsEnabled),
                         confirmReset("Tooltips", SettingsTabs::resetTooltips))
-                // Display first, then Item Details (Trev, 2026-10-04). Scrolling
-                // a long tooltip and keeping it on screen have no switch here:
-                // they are always on (Trev, 2026-10-11).
+                // Display first, then Item Details. Scrolling a long tooltip and
+                // keeping it on screen have no switch here, because they are
+                // always on.
                 .heading("Display")
                 // MenuKit 6.1.0's avoidCoverWhen: a tooltip that would land over
                 // the menu opens on whichever side covers less of it instead.
@@ -548,7 +542,7 @@ final class SettingsTabs {
                         + "but only items the other side already has. One button moves them in, the other out.",
                         Bool.of(IPConfig::moveMatchingEnabled, IPConfig::setMoveMatchingEnabled),
                         confirmReset("Move Matching", SettingsTabs::resetMoveMatching))
-                // Where Move Matching puts items first waits on MenuKit (reach.md); greyed.
+                // Where Move Matching puts items first waits on MenuKit, so it is greyed.
                 .actions("Fill order", "Priority…")
                 .checkbox("Show the Move Matching buttons",
                         Bool.of(IPConfig::moveMatchingShowButtons, IPConfig::setMoveMatchingShowButtons))
@@ -574,7 +568,7 @@ final class SettingsTabs {
                         IPConfig::autoRestockBeforeBreakThreshold, IPConfig::setAutoRestockBeforeBreakThreshold,
                         () -> !((IPConfig.autoRestockArmor() && IPConfig.autoRestockArmorBeforeBreak())
                                 || (IPConfig.autoRestockTool() && IPConfig.autoRestockToolBeforeBreak())));
-        // Items, Tools, Armor, Ammo (Trev, 2026-10-03).
+        // Items, Tools, Armor, Ammo.
         b.heading("Items").checkbox("Restock items", item);
         pullFrom(b);
         b.heading("Tools")
@@ -587,7 +581,7 @@ final class SettingsTabs {
                 .subCheckbox("Swap before it breaks", Bool.of(IPConfig::autoRestockArmorBeforeBreak,
                         IPConfig::setAutoRestockArmorBeforeBreak).onlyWhen(armor.get()));
         pullFrom(b);
-        // Arrows and rockets refilled as you shoot: not built yet, greyed.
+        // Arrows and rockets refilled as you shoot. Not built yet, so greyed.
         b.heading("Ammo").checkbox("Restock ammo", true);
         pullFrom(b);
         return b.build();
@@ -613,8 +607,8 @@ final class SettingsTabs {
                         confirmReset("Auto Tool Switch", SettingsTabs::resetAutoToolSwitch))
                 .checkbox("Show the Auto Tool Switch button",
                         Bool.of(IPConfig::autoToolSwitchShowButton, IPConfig::setAutoToolSwitchShowButton))
-                // By default it switches back on its own a second after you stop
-                // (Trev, 2026-10-03); the key is opt-in and returns early.
+                // By default it switches back on its own a second after you
+                // stop. The key is opt-in and returns early.
                 .heading("Switching back")
                 .checkbox("Switch back automatically", Bool.of(IPConfig::autoToolSwitchReturnAuto,
                         IPConfig::setAutoToolSwitchReturnAuto))
@@ -651,8 +645,8 @@ final class SettingsTabs {
                 .heading("Cycling")
                 .key(IPKeybinds.CYCLE_FORWARD)
                 .key(IPKeybinds.CYCLE_BACKWARD)
-                // Turning this on turns Hotbar Cycler's off (one wheel); the
-                // setter enforces it and both checkboxes read live.
+                // Turning this on turns Hotbar Cycler's off, since there is one
+                // wheel. The setter enforces it and both checkboxes read live.
                 .checkbox("Scroll to cycle", Bool.of(IPConfig::columnCyclerScrollToCycle,
                         IPConfig::setColumnCyclerScrollToCycle))
                 .build();
@@ -676,7 +670,7 @@ final class SettingsTabs {
                 .build();
     }
 
-    // ── Inventory Max stand-ins (greyed; Inventory Max replaces them) ─────
+    // Inventory Max stand-ins (greyed until Inventory Max replaces them)
 
     private static SettingsBody standIn(String title, String description) {
         return new SettingsBody(true)
@@ -708,7 +702,7 @@ final class SettingsTabs {
                 .build();
     }
 
-    // ── Shared ──────────────────────────────────────────────────────────
+    // Shared
 
     /** Inventory Plus's and Inventory Max's namespaces: "ours" in Reach's headings and blocks. */
     private static boolean isOurs(String namespace) {

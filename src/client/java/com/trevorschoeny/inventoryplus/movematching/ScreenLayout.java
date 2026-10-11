@@ -9,15 +9,15 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * Access to {@link AbstractContainerScreen}'s protected fields with no
- * public getter — {@code leftPos}/{@code topPos} for move-matching's
+ * public getter: {@code leftPos} and {@code topPos} for Move Matching's
  * slot-group-anchored button placement, and {@code hoveredSlot} for
  * agreeing with vanilla's own answer to "what's under the cursor".
  *
  * <p>Backed by the {@link AbstractContainerScreenAccessor} mixin, whose field
  * references are compile-time remapped. The previous implementation reflected
- * by the Mojmap field names, which "sidesteps the remap pipeline" — i.e. looks
- * up dev-only names verbatim in a production (intermediary) runtime:
- * {@code NoSuchFieldException}, origin-rendered buttons, and the 1.2.0
+ * by the Mojmap field names, which sidesteps the remap pipeline and looks up
+ * dev-only names verbatim in a production (intermediary) runtime. That gave
+ * {@code NoSuchFieldException}, buttons drawn at the origin, and the 1.2.0
  * production crash. Never reflect on Minecraft names by string.
  */
 public final class ScreenLayout {
@@ -36,11 +36,11 @@ public final class ScreenLayout {
 
     /**
      * Vanilla's own hover resolution for this frame, written by
-     * {@code extractContents} — a created slot wins over the vanilla slot
-     * it covers, and a point over a panel's empty space resolves to
+     * {@code extractContents}. A created slot wins over the vanilla slot it
+     * covers, and a point over a panel's empty space resolves to
      * {@code null}. Prefer this to re-deriving hover with a manual bounds
-     * scan, which can only re-discover what vanilla already decided and,
-     * on a covered slot, can disagree with it (MenuKit, 2026-09-07).
+     * scan, which can only re-discover what vanilla already decided and, on
+     * a covered slot, can disagree with it.
      */
     public static @Nullable Slot hoveredSlot(AbstractContainerScreen<?> screen) {
         return ((AbstractContainerScreenAccessor) screen).inventoryPlus$getHoveredSlot();

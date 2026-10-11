@@ -19,22 +19,22 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * input to whichever cycler owns the wheel. Column Cycler's conditions:
  *
  * <ul>
- *   <li>Column Cycler is enabled (master flag).</li>
- *   <li>Scroll-to-Cycle is enabled (sub-flag).</li>
- *   <li>No screen is open ({@code mc.gui.screen() == null}) — we don't
- *       intercept scroll inside chests/inventories.</li>
+ *   <li>Column Cycler is enabled.</li>
+ *   <li>Scroll to cycle is enabled.</li>
+ *   <li>No screen is open ({@code mc.gui.screen() == null}), so scrolling
+ *       inside chests and inventories is left alone.</li>
  *   <li>The active hotbar slot's column has cycle members (the slot
  *       is itself a cycle slot, direct or derived).</li>
  * </ul>
  *
  * <p>When all conditions hold, we rotate the cycle and cancel vanilla's
  * hotbar-switch path. Otherwise the call passes through and vanilla
- * scrolls the hotbar slot as usual — so a player can still navigate
+ * scrolls the hotbar slot as usual, so a player can still navigate
  * to non-cycle columns by scrolling past them.
  *
- * <p>Direction: positive {@code dy} (wheel scrolled UP, away from the
- * user) maps to BACKWARD (items shift visually upward), matching
- * vanilla's "scroll up = previous slot" convention. Negative {@code dy}
+ * <p>Positive {@code dy} (wheel scrolled up, away from the player) maps to
+ * BACKWARD (items shift visually upward), matching vanilla's convention that
+ * scrolling up selects the previous slot. Negative {@code dy}
  * maps to FORWARD.
  */
 @Mixin(MouseHandler.class)
@@ -47,16 +47,14 @@ public abstract class MouseHandlerScrollMixin {
         LocalPlayer player = mc.player;
         if (player == null) return;
 
-        // Only intercept when there's something to cycle. dy == 0
-        // shouldn't normally happen, but guard against horizontal
-        // scroll wheels passing dx with no dy.
+        // A horizontal scroll wheel can pass dx with no dy.
         if (dy == 0) return;
 
         ColumnCyclerRotator.Direction direction = dy > 0
                 ? ColumnCyclerRotator.Direction.BACKWARD
                 : ColumnCyclerRotator.Direction.FORWARD;
 
-        // Column Cycler first, preserving the pre-existing behaviour. The two
+        // Column Cycler first, as it always was. The two
         // branches can't both be live: IPConfig enforces a single scroll owner.
         if (IPConfig.columnCyclerEnabled() && IPConfig.columnCyclerScrollToCycle()) {
             int activeHotbar = player.getInventory().getSelectedSlot(); // 0-8

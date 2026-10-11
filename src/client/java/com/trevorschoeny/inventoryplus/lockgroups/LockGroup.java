@@ -5,7 +5,7 @@ import com.trevorschoeny.inventoryplus.lockeditems.LockKind;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * One lock group (`plans/lock-groups.md`): what it attaches to, what it is
+ * One lock group: what it attaches to, what it is
  * called, and how it looks. What a group stops is not here; it lives in the
  * reach record with every other reach choice ({@link Reach}).
  *

@@ -24,20 +24,17 @@ import net.minecraft.resources.Identifier;
 import java.util.List;
 
 /**
- * Power Users toolbar — a right-of-grid vertical stack for opt-in
- * Power Users feature buttons. Separate panel from {@link Toolbar}
- * (which holds Default-feature buttons above the grid) per the
- * {@code IP features/power-users.md} button-placement convention:
- * "off the inventory grid, stacked to the right (in vanilla's
- * dead-space region)."
+ * The right column: a vertical stack beside the inventory grid, in
+ * vanilla's dead space, holding Settings and the feature switches. A
+ * separate panel from {@link Toolbar}, which holds the action buttons above
+ * the grid.
  *
  * <h3>Layout</h3>
  *
- * {@link OutsideRegion#RIGHT_ALIGN_TOP} + {@link PanelStyle#NONE} —
+ * {@link OutsideRegion#RIGHT_ALIGN_TOP} with {@link PanelStyle#NONE}: the
  * panel sits flush to the right of the player inventory's slot group,
- * top-aligned. Children stack vertically downward at explicit
- * panel-local y offsets (1 px button gap, same as the horizontal
- * toolbar).
+ * top-aligned. Children stack downward with a 1 px gap, the same as the
+ * horizontal toolbar.
  *
  * <h3>Dynamic stacking</h3>
  *
@@ -48,14 +45,13 @@ import java.util.List;
  * <h3>Per-screen scope</h3>
  *
  * Anchored to {@link SlotGroupCategory#PLAYER_INVENTORY} like the
- * default inventory toolbar. Panel-level {@code .showWhen} excludes
- * Creative (the creative item picker isn't a real inventory).
+ * inventory toolbar. The panel's {@code visibleWhen} excludes Creative,
+ * because the creative item picker isn't a real inventory.
  */
 public final class PowerUsersToolbar {
 
     private PowerUsersToolbar() {}
 
-    /** 1-px gap between adjacent buttons in the vertical stack. */
     public static final int BUTTON_GAP = 1;
 
     /**
@@ -79,13 +75,12 @@ public final class PowerUsersToolbar {
     }
 
     /**
-     * Top to bottom (Trev, 2026-10-03): Settings, then one on/off switch per
+     * Top to bottom: Settings, then one on/off switch per
      * feature in the settings menu's tab order (Lock groups, Restock, Auto
      * Tool Switch, Column Cycler, Hotbar Cycler), then companions' (Inventory
-     * Max: Pockets, Equipment Slots, Mend Anywhere). One vertical Flow
-     * (MenuKit 956188a): a hidden button is skipped, and at the bottom of the
-     * inventory's frame the column wraps into a second one to the right
-     * (Trev, 2026-10-04).
+     * Max: Pockets, Equipment Slots, Mend Anywhere). In one vertical Flow a
+     * hidden button is skipped, and at the bottom of the inventory's frame
+     * the column wraps into a second one to the right.
      */
     private static List<PanelElement> buildChildren() {
         Flow.Builder column = Flow.builder().vertical().gap(BUTTON_GAP, BUTTON_GAP)

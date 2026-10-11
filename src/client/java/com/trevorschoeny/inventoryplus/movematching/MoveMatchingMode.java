@@ -3,8 +3,8 @@ package com.trevorschoeny.inventoryplus.movematching;
 import com.trevorschoeny.inventoryplus.buttonmode.ModeStop;
 
 /**
- * Move Matching's four modes, in cycle order (`features/move-matching.md`).
- * Exclusive, not combinable, by decision. Each direction carries its own
+ * Move Matching's four modes, in cycle order. They are exclusive, not
+ * combinable. Each direction carries its own
  * value; see {@link MoveMatchingModes}.
  */
 public enum MoveMatchingMode implements ModeStop {

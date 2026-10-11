@@ -8,9 +8,8 @@ package com.trevorschoeny.inventoryplus.api;
  * own direction enum. Column Cycler's internal {@code ColumnCyclerRotator.Direction}
  * maps to this when it bridges rotation events to the registry.
  *
- * <p><b>FORWARD</b> = items shift toward the hotbar / in-hand position (the
- * HUD slides items right-to-left, per Trev's 2026-05-25 call). <b>BACKWARD</b>
- * = the mirror.
+ * <p>{@code FORWARD} moves items toward the hotbar, the in-hand position, and
+ * the HUD slides them right to left. {@code BACKWARD} is the mirror.
  */
 public enum CyclerDirection {
     FORWARD,

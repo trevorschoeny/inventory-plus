@@ -22,7 +22,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * Dedicated servers: re-routes a shift-click that vanilla's server would land
  * in a slot refusing it, so it lands elsewhere instead.
  *
- * <h3>Why this survives the Reach build</h3>
+ * <h3>Why this is still needed</h3>
  *
  * Every lock and reach choice is one MenuKit veto now ({@code Locks}), and
  * MenuKit asks it at every seam it has, on the client before a click is sent
@@ -31,8 +31,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * decided there without it. This mixin keeps that one case working: when
  * vanilla's routing would put items into a slot that refuses shift-click in,
  * it cancels the click and sends the move as PICKUP clicks, which any server
- * respects, into slots that allow it. It goes when MenuKit routes shift-clicks
- * itself (`plans/reach.md`, "Priority").
+ * respects, into slots that allow it. It can go once MenuKit routes
+ * shift-clicks itself.
  *
  * <p>The source side needs nothing here: a shift-click out of, or a drop from,
  * a slot that refuses it is refused by MenuKit's own client seam before any
@@ -40,11 +40,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *
  * <h3>Iteration order</h3>
  *
- * Per Trev 2026-05-16: from the first main-inventory slot (player
- * container-slot 9) forward through hotbar, armor, offhand, skipping the
- * source's own half and slots that cannot take the stack. Simpler than
- * vanilla's per-screen preference, so the slot picked may differ by a few
- * positions; only dedicated servers see it.
+ * From the first main-inventory slot (player container slot 9) forward
+ * through hotbar, armor and offhand, skipping the source's own half and
+ * slots that cannot take the stack. This is simpler than vanilla's
+ * per-screen preference, so the slot picked may differ by a few positions.
+ * Only dedicated servers see it.
  */
 @Mixin(MultiPlayerGameMode.class)
 public abstract class MultiPlayerGameModeShiftClickMixin {
@@ -69,8 +69,8 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
         // Single player: the integrated server asks MenuKit, and so the veto,
         // at its own moveItemStackTo seam. Let the click go through.
         //
-        // TRAP, and it cost a released defect (1.5.0): that server-side answer
-        // runs on the SERVER thread, so a lock store that only answers on the
+        // Trap, and it cost a released defect in 1.5.0: that server-side answer
+        // runs on the server thread, so a lock store that only answers on the
         // render thread is invisible there. Every store Locks.on reads must
         // answer on both threads before it counts as enforced.
         if (Minecraft.getInstance().hasSingleplayerServer()) return;
@@ -87,48 +87,41 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
     }
 
     /**
-     * Dedicated-MP synthesis: pick up the source onto the cursor,
-     * iterate destinations from the main-inventory start, and send
-     * PICKUPs for each eligible slot until the cursor is empty. Any
-     * leftover goes back on the source.
+     * Picks up the source onto the cursor, walks destinations from the start
+     * of the main inventory, and sends PICKUPs for each eligible slot until
+     * the cursor is empty. Any leftover goes back on the source.
      */
     private void synthesizeShiftClick(MultiPlayerGameMode self, int containerId,
                                        int sourceSlotId, Slot source,
                                        AbstractContainerMenu menu, Player player) {
         if (source.getItem().isEmpty()) return;
 
-        // Phase 1: pick up source onto cursor.
-        // These PICKUPs stand in for the player's shift-click, so they are sent
-        // under vanilla's own shift-click keys and judged as what the player
-        // did, not as plain clicks (plans/slot-operations.md). Lock Groups will
-        // likely retire this synthesis.
+        // Pick up the source onto the cursor. These PICKUPs stand in for the
+        // player's shift-click, so they are sent under vanilla's own
+        // shift-click keys and judged as what the player did, not as plain
+        // clicks.
         SlotOperations.as(BehaviorKeys.SHIFT_CLICK_OUT, BehaviorKeys.SHIFT_CLICK_IN,
                 () -> self.handleContainerInput(containerId, sourceSlotId, 0, ContainerInput.PICKUP, player));
         if (menu.getCarried().isEmpty()) return;
 
-        // Source classification for same-half filtering.
         boolean sourceIsPlayer = LockedSlots.isLockable(source);
         int sourceCS = sourceIsPlayer ? source.getContainerSlot() : -1;
         boolean sourceInMain = sourceIsPlayer && sourceCS >= 9 && sourceCS <= 35;
         boolean sourceInHotbar = sourceIsPlayer && sourceCS >= 0 && sourceCS <= 8;
 
-        // Find the menu-slot index that corresponds to player
-        // container-slot 9 (start of the 3×9 main inv grid). Starting
-        // iteration there skips crafting input / result / armor /
-        // chest-slots, which vanilla shift-click doesn't target anyway.
+        // Start at player container slot 9, the start of the 3x9 main grid.
+        // That skips crafting input and result, armor and chest slots, which
+        // vanilla shift-click doesn't target anyway.
         int mainInvStartIdx = findMainInvStartIndex(menu);
 
-        // Phase 2: iterate forward through menu.slots from main inv,
-        // PICKUP-place into the first eligible non-locked slot, repeat
-        // until cursor empty.
+        // Place into each eligible slot in turn until the cursor is empty.
         for (int i = mainInvStartIdx; i < menu.slots.size(); i++) {
             if (menu.getCarried().isEmpty()) break;
             Slot dest = menu.slots.get(i);
             if (dest == source) continue;
             if (!SlotOperations.allows(menu, dest, player, BehaviorKeys.SHIFT_CLICK_IN)) continue;
 
-            // Same-half filter — vanilla doesn't shift-click within a
-            // half. Skip dest if it's in the same half as the source.
+            // Vanilla doesn't shift-click within a half.
             if (LockedSlots.isLockable(dest)) {
                 int destCS = dest.getContainerSlot();
                 boolean destInMain = destCS >= 9 && destCS <= 35;
@@ -143,8 +136,7 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
                     () -> self.handleContainerInput(containerId, destSlotId, 0, ContainerInput.PICKUP, player));
         }
 
-        // Phase 3: leftover goes back on the source.
-        // Putting the remainder back is part of the shift-click taking from the
+        // Leftover goes back on the source. Putting the remainder back is part of the shift-click taking from the
         // source, so the source's own shift-click-in rule cannot strand it on
         // the cursor.
         if (!menu.getCarried().isEmpty()) {
@@ -154,10 +146,8 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
     }
 
     /**
-     * Returns the menu-slot index whose backing slot is the player's
-     * main-inv slot 9 — the start of the 3×9 grid. Falls back to 0
-     * if no main-inv slot is found in the menu (shouldn't happen for
-     * any vanilla screen, but safe default).
+     * The menu index of the player's main-inventory slot 9, the start of the
+     * 3x9 grid, or 0 if the menu has none (no vanilla screen lacks one).
      */
     private int findMainInvStartIndex(AbstractContainerMenu menu) {
         for (int i = 0; i < menu.slots.size(); i++) {
@@ -198,8 +188,8 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
     }
 
     /**
-     * Vanilla-equivalent prediction for "could moveItemStackTo place
-     * this stack into this slot?" — doesn't mutate.
+     * Whether vanilla's moveItemStackTo could place this stack into this
+     * slot, without changing anything.
      */
     private boolean canMergeOrPlace(Slot slot, ItemStack stack) {
         ItemStack inSlot = slot.getItem();

@@ -24,43 +24,40 @@ import java.util.Objects;
  * <h3>Why role-based partitioning</h3>
  *
  * Vanilla 1.21+ unified equipment access through {@link Inventory}'s
- * wrapper — armor and offhand slots share the SAME container reference
- * as the main inventory and hotbar. The distinguishing detail is
+ * wrapper, so armor and offhand slots share the same container reference
+ * as the main inventory and hotbar. What tells them apart is
  * {@link Slot#getContainerSlot}:
  *
  * <ul>
- *   <li>{@code [0, 9)} — hotbar</li>
- *   <li>{@code [9, 36)} — main inventory 3×9</li>
- *   <li>{@code [36, ∞)} — armor / offhand / body / saddle equipment</li>
+ *   <li>{@code [0, 9)}: hotbar</li>
+ *   <li>{@code [9, 36)}: main inventory 3x9</li>
+ *   <li>{@code 36} and up: armor, offhand, body and saddle equipment</li>
  * </ul>
  *
- * <p>An earlier version of this detector partitioned only on container
- * reference + a hotbar/non-hotbar split (boolean: containerSlot &lt; 9).
- * That bucketed armor + main inv + offhand together as one "non-hotbar"
- * group, which made the targetable bounds span from the armor row down
- * to slot 35 — buttons appeared above the helmet row instead of above
- * the main inventory. The role enum + range check is the load-bearing
- * fix.
+ * <p>An earlier version partitioned only on container reference plus a
+ * hotbar or non-hotbar split (containerSlot &lt; 9). That put armor, main
+ * inventory and offhand together in one non-hotbar group, so the
+ * targetable bounds ran from the armor row down to slot 35 and the buttons
+ * appeared above the helmet row instead of above the main inventory. The
+ * role enum and range check fix that.
  *
- * <h3>EXTERNAL targetability</h3>
+ * <h3>External targetability</h3>
  *
- * Post-2026-05-16 simplification, ContainerKey-based persistence was
- * dropped — slot groups no longer carry a persistence key. Targetability
- * for EXTERNAL groups (used purely as the "is this a real
- * simplecontainer?" gate now) lives on {@link SlotGroup#targetable}
- * via a container blacklist (crafting input / result are non-targetable).
+ * Slot groups carry no persistence key. Targetability for external groups,
+ * which only answers "is this a real simple container?", lives on
+ * {@link SlotGroup#targetable} as a container exclusion list (crafting
+ * input and result are not targetable).
  */
 public final class SlotGroupDetector {
 
     private SlotGroupDetector() {}
 
     /**
-     * Returns the slot-group partition for the given screen. Works on
-     * ANY {@link AbstractContainerScreen} — the partition logic is
-     * universal. Screen-class filtering belongs at the registration
-     * site (e.g., the Move Matching buttons show only on
-     * chest/shulker/hopper/dispenser screens; the inventory toolbar
-     * runs on every screen with a player main inv).
+     * Returns the slot-group partition for the given screen. Works on any
+     * {@link AbstractContainerScreen}. Screen-class filtering belongs at the
+     * registration site: the Move Matching buttons show only on chest,
+     * shulker, hopper and dispenser screens, while the inventory toolbar runs
+     * on every screen with a player main inventory.
      */
     public static List<SlotGroup> detect(Screen screen) {
         if (!(screen instanceof AbstractContainerScreen<?> acs)) return List.of();
@@ -80,10 +77,9 @@ public final class SlotGroupDetector {
             SlotRole role = roleOf(slot, playerInv);
             Object container = slot.container;
 
-            // Group boundary when (role, container) tuple changes. Using
-            // identity equality for the container reference is the right
-            // test — vanilla reuses container instances across the slot
-            // list within a group.
+            // A new group starts when the role or container changes. Identity
+            // equality on the container is right, because vanilla reuses one
+            // container instance across a group's slots.
             boolean boundary = currentRole != null
                     && (currentRole != role || currentContainer != container);
 
@@ -105,14 +101,12 @@ public final class SlotGroupDetector {
     }
 
     /**
-     * Screens that host Move Matching buttons. Per Trev 2026-05-16
-     * (post-simplification): the buttons only show on screens that
-     * pair the player inventory with an external simplecontainer.
-     * InventoryScreen (standalone survival inventory) is excluded —
-     * no dynamic "is a container present?" gate; just don't register
-     * here. If a future feature (Shulker Peek, etc.) wants buttons
-     * inside the standalone inventory, that feature will add its own
-     * widgets with their own positioning.
+     * Screens that host Move Matching buttons: those that pair the player
+     * inventory with an external simple container. InventoryScreen (the
+     * standalone survival inventory) is excluded by not being listed, with
+     * no dynamic "is a container present?" check. A feature that wants
+     * buttons inside the standalone inventory adds its own widgets with
+     * their own positioning.
      *
      * <p>CreativeModeInventoryScreen is also excluded.
      */

@@ -3,15 +3,14 @@ package com.trevorschoeny.inventoryplus.lockgroups;
 import net.minecraft.world.item.DyeColor;
 
 /**
- * A lock group's colour as drawn (`plans/lock-groups.md`, "Colours"): one of
- * the 16 dye colours, semi-transparent, so a padlock or item mark tints but
+ * A lock group's colour as drawn: one of the 16 dye colours, semi-transparent, so a padlock or item mark tints but
  * never hides what is under it.
  */
 public final class LockColours {
 
     private LockColours() {}
 
-    /** How opaque a lock's mark is: the indicators' existing alpha (Trev 2026-05-19). */
+    /** How opaque a lock's mark is, matching the alpha the other indicators use. */
     private static final int ALPHA = 0xAB;
 
     /** {@code group}'s colour as ARGB at the marks' alpha. */

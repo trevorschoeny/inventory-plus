@@ -13,20 +13,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Fires Auto Tool Switch's combat-path logic at the very start of
- * {@code MultiPlayerGameMode.attack(Player, Entity)} — BEFORE vanilla
+ * {@code MultiPlayerGameMode.attack(Player, Entity)}, before vanilla
  * computes attack damage or sends the attack packet.
  *
- * <p>Why this exists instead of using Fabric's {@code AttackEntityCallback}:
- * the callback fires too late in the attack-processing flow, so the
- * switched weapon doesn't take effect until after the first hit is
- * already applied (Trev's report 2026-05-25). Injecting at HEAD of the
- * attack method guarantees the slot change happens before vanilla reads
- * {@code player.getMainHandItem()} for damage computation.
+ * <p>Fabric's {@code AttackEntityCallback} fires too late in the attack
+ * flow, so the switched weapon didn't take effect until after the first hit
+ * landed. Injecting at HEAD of the attack method makes the slot change
+ * happen before vanilla reads {@code player.getMainHandItem()} for damage.
  *
- * <p>Uses precise injection per the project's §0030 mixin policy — no
- * {@code @Overwrite}, no {@code @Inject(cancellable=true)}. The HEAD
- * injection is observation-only; it does not alter the attack flow
- * itself, just preconditions the player's hand.
+ * <p>No {@code @Overwrite} and no {@code @Inject(cancellable=true)}. The
+ * HEAD injection doesn't alter the attack flow, it only sets up the
+ * player's hand.
  */
 @Mixin(MultiPlayerGameMode.class)
 public class MultiPlayerGameModeAttackMixin {

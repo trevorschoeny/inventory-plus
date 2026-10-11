@@ -4,35 +4,34 @@ package com.trevorschoeny.inventoryplus.api;
  * A source the shared cycle HUD can ask: "is there an active cycle on this
  * hotbar slot, and if so, what should I draw?"
  *
- * <p>Each cycler (Column Cycler in IP, Pocket Cycler in IPP, future Hotbar
- * Swap) registers one implementation with {@link CycleHudRegistry}. The HUD
+ * <p>Each cycler (Column Cycler here, Pocket Cycler in Inventory Max)
+ * registers one implementation with {@link CycleHudRegistry}. The HUD
  * iterates sources and renders the first non-null {@link CycleView} for the
- * player's currently-selected hotbar slot. This keeps the HUD render code
- * fully cycler-agnostic — the architecture seam that lets one HUD serve all
- * cyclers (the generalization Trev approved 2026-06-02).
+ * player's selected hotbar slot, so the HUD render code never depends on a
+ * particular cycler and one HUD serves them all.
  *
  * <p>Each source owns its own gating: a source returns {@code null} unless
- * its feature is enabled, its HUD mode is on, AND the given hotbar slot
+ * its feature is enabled, its HUD mode is on, and the given hotbar slot
  * actually has an active cycle for that cycler. So the HUD shows nothing
  * until some cycler claims the slot.
  */
 public interface CycleHudSource {
 
     /**
-     * Returns the {@link CycleView} to draw for {@code hotbarSlot} (0–8), or
+     * Returns the {@link CycleView} to draw for {@code hotbarSlot} (0 to 8), or
      * {@code null} if this source has no active, HUD-enabled cycle there.
      *
-     * <p>Called once per frame while an inventory screen is closed; keep it
-     * cheap (O(small)).
+     * <p>Called once per frame while no inventory screen is open, so keep it
+     * cheap.
      */
     CycleView cycleViewForHotbar(int hotbarSlot);
 
     /**
      * Stack position when several cyclers are active on the same hotbar slot.
-     * The HUD stacks strips bottom→top by ASCENDING value — a LOWER value sits
-     * nearer the hotbar (the bottom of the stack). Pocket Cycler returns the
-     * lowest so it's ALWAYS on the bottom (Trev 2026-06-04); Column Cycler sits
-     * above it. Ties fall back to registration order.
+     * The HUD stacks strips from the bottom up by ascending value, so a lower
+     * value sits nearer the hotbar. Pocket Cycler returns the lowest so it is
+     * always on the bottom, and Column Cycler sits above it. Ties fall back to
+     * registration order.
      *
      * <p>Default {@code 100} leaves room for future cyclers to slot in above
      * the bottom-pinned Pocket Cycler without colliding.
@@ -49,9 +48,9 @@ public interface CycleHudSource {
      * cell at the centre; alone, a vertical cycler gets a one-cell bar under
      * its held item and a horizontal one is the plain mini-hotbar strip.
      *
-     * <p>Was {@code verticalInCross} until 2026-09-05, when Trev withdrew the
-     * rule that a lone cycler always renders horizontally. Renamed because the
-     * flag now decides the solo layout too, and the old name said otherwise.
+     * <p>Formerly {@code verticalInCross}, from when a lone cycler always
+     * rendered horizontally. Renamed because the flag now decides the solo
+     * layout too.
      */
     default boolean vertical() {
         return false;

@@ -15,7 +15,7 @@ import java.util.List;
  * pattern, the material) with one: "Trim: Silence, Gold". Vanilla's pattern
  * line is rebuilt exactly as {@code ArmorTrim.addToTooltip} builds it and
  * found by equality, so the header just above it and the material line just
- * below are the ones removed; if the lines aren't where vanilla puts them,
+ * below are the ones removed. If the lines aren't where vanilla puts them,
  * nothing changes.
  */
 final class CondenseTrims {

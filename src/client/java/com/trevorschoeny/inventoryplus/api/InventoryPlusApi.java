@@ -52,19 +52,18 @@ import java.util.function.Consumer;
  * real types: {@link HotbarCyclable}, {@link CycleHudSource},
  * {@link SlotLockProvider}, {@link CycleView}, {@link CyclerDirection},
  * {@link CyclerOperation}. The registries behind them stay internal, and this
- * class exposes only the operations a companion actually needs. That is
- * deliberate: a registry's other public methods are Inventory Plus talking to
+ * class exposes only the operations a companion actually needs. A registry's
+ * other public methods are Inventory Plus talking to
  * itself, and promising them would freeze internals that have no business
  * being frozen.
  *
  * <p>Signatures here name only vanilla types, API types, and MenuKit's public
  * types, which a companion already depends on. A caller never has to name an
- * Inventory Plus internal to use this, which is what keeps the boundary honest
- * rather than nominal. The slot operation keys Inventory Plus performs are in
+ * Inventory Plus internal to use this. The slot operation keys Inventory Plus performs are in
  * {@link InventoryPlusOperations}.
  *
- * <p>Client-side. Inventory Plus is a client-only mod; every method here is
- * safe to call from the render thread and meaningless off it.
+ * <p>Client-side. Every method here is safe to call from the render thread
+ * and meaningless off it.
  */
 public final class InventoryPlusApi {
 
@@ -73,7 +72,7 @@ public final class InventoryPlusApi {
     /** No source slot found. Returned by {@link #findRestockSource}. */
     public static final int NO_SOURCE = AutoRestockSearch.NONE;
 
-    // ── Cyclers ─────────────────────────────────────────────────────────
+    // Cyclers
 
     /**
      * Registers a cycler that contributes slots to the hotbar cycle, so
@@ -131,7 +130,7 @@ public final class InventoryPlusApi {
         CycleHudRegistry.fireCycleAnimation(source, hotbarSlot, direction);
     }
 
-    // ── Locks ───────────────────────────────────────────────────────────
+    // Locks
 
     /**
      * Registers a provider that answers lock state for slot kinds Inventory
@@ -141,7 +140,7 @@ public final class InventoryPlusApi {
         LockedSlots.registerProvider(provider);
     }
 
-    // ── Auto-Restock ────────────────────────────────────────────────────
+    // Restock
 
     /**
      * Finds a slot holding a stack that could restock {@code probe}, honouring
@@ -152,11 +151,11 @@ public final class InventoryPlusApi {
      * <p>A returned index at or beyond the ordinary inventory range belongs to
      * a registered cycler; pass it to {@link #quickMoveOut}.
      *
-     * <p>This is deliberately one method rather than a mirror of Inventory
+     * <p>This is one method rather than a mirror of Inventory
      * Plus's internal search. The internal one takes a parameter naming which
      * of Inventory Plus's own features is asking, which is not a question a
-     * companion can answer or should have to; adding that parameter in 1.4.0
-     * is precisely what broke Inventory Max.
+     * companion can answer or should have to. Adding that parameter in 1.4.0
+     * is what broke Inventory Max.
      */
     public static int findRestockSource(Inventory inventory, ItemStack probe,
                                         List<HotbarCyclable.ExtraSlot> extras) {
@@ -164,7 +163,7 @@ public final class InventoryPlusApi {
     }
 
     /**
-     * Tells Auto-Restock that a hotbar slot is being changed deliberately, so
+     * Tells Restock that a hotbar slot is being changed deliberately, so
      * the change is not mistaken for the held item running out. Call it
      * immediately before a swap you perform yourself.
      */
@@ -172,7 +171,7 @@ public final class InventoryPlusApi {
         AutoRestockSuppression.markExternalChange(hotbarSlot);
     }
 
-    // ── Settings a companion should follow ──────────────────────────────
+    // Settings a companion should follow
 
     /** Whether the player has Inventory Plus's item restock switched on. */
     public static boolean isItemRestockEnabled() {
@@ -184,15 +183,15 @@ public final class InventoryPlusApi {
         return IPConfig.columnCyclerEnabled();
     }
 
-    // ── Shared client state ─────────────────────────────────────────────
+    // Shared client state
 
     /**
      * The block whose container the player currently has open, or null when
      * none is open or it cannot be identified.
      *
-     * <p>Phrased as the question rather than the mechanism on purpose. It is
-     * currently answered by watching the click that opened the container,
-     * which has known gaps; if that is replaced by authoritative state from
+     * <p>Phrased as the question rather than the mechanism. It is currently
+     * answered by watching the click that opened the container, which has
+     * known gaps. If that is replaced by authoritative state from
      * the server, this signature does not change.
      */
     public static @Nullable Block openContainerBlock() {
@@ -202,7 +201,7 @@ public final class InventoryPlusApi {
     /**
      * Opens Inventory Plus's settings menu on the tab {@code tabId}, over the
      * screen that is open now. For a companion's inventory button to open its
-     * own tab on Ctrl+click, as Inventory Plus's buttons do.
+     * own tab on Ctrl-click, as Inventory Plus's buttons do.
      */
     public static void openSettings(String tabId) {
         SettingsMenu.openOn(tabId);
@@ -211,12 +210,12 @@ public final class InventoryPlusApi {
     /**
      * Adds a feature's on/off switch to the inventory's right column, after
      * Inventory Plus's own, in the order companions call this (Inventory Max:
-     * its tab order). It behaves as Inventory Plus's switches do: left click
-     * toggles {@code on} through {@code set}, Ctrl/Cmd+click opens
+     * its tab order). It behaves as Inventory Plus's switches do. Left click
+     * toggles {@code on} through {@code set}, Ctrl-click (Cmd on a Mac) opens
      * {@code tabId}, the tooltip reads "{@code name}: On" with {@code hint}
      * under it (left out by Compact tooltips), and it shows while
-     * {@code shown}. {@code sprite} is a 9×9 GUI sprite. Call during client
-     * init: the column is built when the client starts.
+     * {@code shown}. {@code sprite} is a 9x9 GUI sprite. Call during client
+     * init, because the column is built when the client starts.
      */
     public static void addFeatureSwitch(String tabId, String name, Identifier sprite, BooleanSupplier on,
                                         Consumer<Boolean> set, BooleanSupplier shown, @Nullable String hint) {
@@ -232,7 +231,7 @@ public final class InventoryPlusApi {
         return WorldIdentity.current(Minecraft.getInstance());
     }
 
-    // ── The settings menu (companions add tabs with MenuKit's Tabs.addTo) ─
+    // The settings menu (companions add tabs with MenuKit's Tabs.addTo)
 
     /**
      * Asks before {@code action} in Inventory Plus's settings menu: a title, a
@@ -244,8 +243,8 @@ public final class InventoryPlusApi {
     }
 
     /**
-     * A reset the settings menu's Reset everything also runs: a companion
-     * resets its own settings and keys through this. Call once at client init.
+     * A reset that the settings menu's Reset everything also runs, so a
+     * companion resets its own settings and keys with it. Call once at client init.
      */
     public static void registerSettingsReset(Runnable reset) {
         com.trevorschoeny.inventoryplus.settings.SettingsMenu.registerReset(reset);

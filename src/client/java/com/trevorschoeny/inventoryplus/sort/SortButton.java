@@ -23,14 +23,13 @@ import java.util.function.Supplier;
 
 /**
  * Sort toolbar-button factories, one per container toolbar: the inventory
- * toolbar's sorts the player's 3×9, the external toolbar's sorts the
+ * toolbar's sorts the player's 3x9, the external toolbar's sorts the
  * container it sits above.
  *
- * <p>The button carries Sort's mode ({@code features/button-modes.md}):
- * left-click sorts in the order in force, right-click changes the order,
+ * <p>The button carries Sort's mode: left-click sorts in the order in force, right-click changes the order,
  * shift+right-click goes back, middle-click pins the order to this
- * container (on a container's toolbar only). Which container is resolved the same way the click resolves
- * it, by walking the menu for the toolbar's anchor slot, so the tooltip,
+ * container (on a container's toolbar only). Which container is resolved the
+ * same way the click resolves it, by walking the menu for the toolbar's anchor slot, so the tooltip,
  * the tint and the action all agree on what "this container" is.
  */
 public final class SortButton {
@@ -55,7 +54,7 @@ public final class SortButton {
     private static Button build(int x, int y, Target target) {
         PressFeedback feedback = new PressFeedback();
         Supplier<@Nullable ContainerIdentity> identity = () -> currentIdentity(target);
-        // Only a container's own Sort pins (Trev, 2026-10-03), not the inventory's.
+        // Only a container's own Sort pins, not the inventory's.
         boolean pinHere = target == Target.EXTERNAL;
         var gestures = ModeGestures.handler(SortState.MODE, identity, pinHere, feedback);
         return Button.builder().sprite(TEXTURE).at(x, y).size(SIZE, SIZE)
@@ -106,7 +105,7 @@ public final class SortButton {
         Sorter.sort(menu, mc.gameMode, mc.player, region, type);
     }
 
-    /** First slot of the player's 3×9 main inventory (container slots 9–35). */
+    /** First slot of the player's 3x9 main inventory (container slots 9 to 35). */
     public static @Nullable Slot findInventoryAnchor(AbstractContainerMenu menu) {
         for (Slot s : menu.slots) {
             if (s.container instanceof Inventory) {

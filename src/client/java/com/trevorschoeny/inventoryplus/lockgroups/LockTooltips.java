@@ -10,8 +10,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 
 /**
- * Item locks in the item's own tooltip (`plans/lock-groups.md`, "Tooltips"):
- * a line "Locked: <group>" per group on it, in the group's colour. Slot locks
+ * Item locks in the item's own tooltip: a line "Locked: <group>" per group on it, in the group's colour. Slot locks
  * name their group from the padlock instead, since an empty slot has no item
  * tooltip. Nothing while locks are paused.
  */

@@ -9,115 +9,109 @@ import net.minecraft.world.item.ItemStack;
 import java.util.List;
 
 /**
- * Contract for anything that can "extend the player's hotbar reach" via
- * cycling — Column Cycler is the first implementer, Pocket Cycler (IPP)
- * and a future Hotbar Swap will follow.
+ * Contract for anything that extends the player's hotbar reach by cycling.
+ * Column Cycler implements it here, and Pocket Cycler in Inventory Max.
  *
  * <h3>Why this exists</h3>
  *
- * Auto Tool Switch needs to fetch the right tool into the active hand. Its
- * three-tier resolution priority is:
+ * Auto Tool Switch needs to fetch the right tool into the active hand. It
+ * resolves in three tiers:
  * <ol>
- *   <li>Right tool already in another hotbar slot → just change the
- *       selected slot.</li>
- *   <li>Right tool in a <b>cyclable hotbar position</b> — a slot reachable
- *       into the hotbar via a cycler's native action → change selected
- *       slot + ask the cycler to bring the item down.</li>
- *   <li>Right tool elsewhere in main inventory → swap with the active
- *       hotbar slot via a vanilla inventory click.</li>
+ *   <li>The right tool is already in another hotbar slot: change the selected
+ *       slot.</li>
+ *   <li>The right tool is in a <b>cyclable hotbar position</b>, a slot a
+ *       cycler's native action can bring into the hotbar: change the selected
+ *       slot and ask the cycler to bring the item down.</li>
+ *   <li>The right tool is elsewhere in the main inventory: swap it with the
+ *       active hotbar slot by a vanilla inventory click.</li>
  * </ol>
  *
- * <p>Tier 2 is what this interface abstracts. Each cycler answers two
- * questions for any given slot:
+ * <p>This interface abstracts tier 2. Each cycler answers two questions for
+ * any slot:
  * <ul>
- *   <li>"Do you claim this slot, and if so, which hotbar position does
- *       it resolve to?" — {@link #hotbarPositionOf(int)}.</li>
- *   <li>"Bring this slot's item down to the hotbar via your native action,
- *       and give me a handle to reverse what you just did." —
- *       {@link #bringToHotbar(int)}.</li>
+ *   <li>Do you claim this slot, and which hotbar position does it resolve to?
+ *       {@link #hotbarPositionOf(int)}</li>
+ *   <li>Bring this slot's item down to the hotbar by your native action, and
+ *       give me a handle to reverse it. {@link #bringToHotbar(int)}</li>
  * </ul>
  *
- * <p>Auto Tool Switch consumes the cyclers through
- * {@link HotbarCyclableRegistry} — it never knows about Column Cycler /
- * Pocket Cycler specifically. New cyclers slot in by registering at mod
- * init; consumers stay cycler-agnostic forever.
+ * <p>Auto Tool Switch reaches the cyclers through
+ * {@link HotbarCyclableRegistry} and never knows about Column Cycler or
+ * Pocket Cycler specifically. A new cycler registers at mod init and
+ * consumers don't change.
  *
- * <h3>State model — bidirectional via undo handles</h3>
+ * <h3>Undo handles</h3>
  *
  * {@link #bringToHotbar(int)} returns a {@link CyclerOperation} that the
- * caller holds onto. When the caller wants to reverse the action
- * (e.g., Auto Tool Switch's "auto-return after action" path), it calls
- * {@link CyclerOperation#undo()}.
+ * caller holds onto. To reverse the action (Auto Tool Switch's return after
+ * the action, for example), it calls {@link CyclerOperation#undo()}.
  *
- * <p>The cycler is stateless w.r.t. ephemeral memory — each call returns
- * a fresh handle that closes over whatever state is needed to reverse
- * just that call. Multiple callers can interleave bring-to-hotbar
- * operations without interfering, each holding its own undo handle.
- * (Caller ordering still matters for correctness; the cycler doesn't
- * coordinate across consumers.)
+ * <p>The cycler keeps no memory between calls. Each call returns a fresh
+ * handle that closes over the state needed to reverse just that call, so
+ * several callers can interleave bring-to-hotbar operations, each with its
+ * own handle. Caller ordering still matters, since the cycler doesn't
+ * coordinate across consumers.
  *
  * <h3>Slot indexing</h3>
  *
  * The {@code slot} parameter throughout is a <b>container-slot index</b>
  * into the player's inventory (the 0-35 layout used by
- * {@code Slot.getContainerSlot()}): 0-8 hotbar, 9-35 main inv. Cyclers
- * decide which subset of those indices they claim.
+ * {@code Slot.getContainerSlot()}): 0-8 hotbar, 9-35 main inventory. Cyclers
+ * decide which of those indices they claim.
  *
- * <h3>Extra slots — reaching past the vanilla inventory</h3>
+ * <h3>Extra slots beyond the vanilla inventory</h3>
  *
- * Some cyclers source items from storage that lives <b>outside</b> the
- * 0-35 model entirely — Pocket Cycler's pockets are backed by a separate
- * attachment, not the player's {@code Inventory}. Those slots still want
- * to participate in tool search (Auto Tool Switch, Auto-Restock) and
- * still resolve to a hotbar position via the cycler's native action.
+ * Some cyclers source items from storage outside the 0-35 model entirely.
+ * Pocket Cycler's pockets are backed by a separate attachment, not the
+ * player's {@code Inventory}. Those slots still take part in tool search
+ * (Auto Tool Switch, Restock) and still resolve to a hotbar position through
+ * the cycler's native action.
  *
- * <p>{@link #extraSearchSlots(Player)} surfaces them. Each carries an
+ * <p>{@link #extraSearchSlots(Player)} lists them. Each carries an
  * <b>encoded id</b> the cycler invents for itself, plus the live
- * {@link ItemStack} (read straight from the cycler's own backing, so the
- * caller never needs to know where the content actually lives). The id:
+ * {@link ItemStack}, read straight from the cycler's own backing so the
+ * caller never needs to know where the content lives. The id:
  * <ul>
- *   <li>must be <b>disjoint from 0-35</b> (so callers can keep reading
- *       real inventory slots via {@code inv.getItem(i)} and never confuse
- *       the two namespaces), and</li>
- *   <li>must be <b>disjoint across cyclers</b> — the same disjointness
- *       contract the 0-35 claims already follow, so a returned id routes
- *       to exactly one cycler.</li>
+ *   <li>must be <b>disjoint from 0-35</b>, so callers can keep reading real
+ *       inventory slots with {@code inv.getItem(i)} and never confuse the two
+ *       namespaces, and</li>
+ *   <li>must be <b>disjoint across cyclers</b>, the same rule the 0-35 claims
+ *       follow, so a returned id routes to exactly one cycler.</li>
  * </ul>
  *
  * <p>{@link #hotbarPositionOf(int)} and {@link #bringToHotbar(int)} accept
- * these encoded ids too — a claimed extra id resolves to its hotbar
- * position and brings down via the cycler's native action, exactly like a
- * claimed 0-35 slot. Callers therefore treat extra slots as just more
- * Tier-2 candidates; they never special-case "is this a pocket".
+ * these encoded ids too. A claimed extra id resolves to its hotbar position
+ * and comes down by the cycler's native action, exactly like a claimed 0-35
+ * slot, so callers treat extra slots as more tier 2 candidates and never
+ * special-case pockets.
  */
 public interface HotbarCyclable {
 
     /**
-     * One searchable slot that lives outside the 0-35 inventory model —
-     * an encoded {@code id} (see the "Extra slots" contract on the type)
-     * paired with the live {@link ItemStack} currently in it.
+     * One searchable slot outside the 0-35 inventory model: an encoded
+     * {@code id} (see "Extra slots" on the type) paired with the live
+     * {@link ItemStack} in it.
      *
-     * <p>The stack is the cycler's own live content, so callers score /
-     * match against it directly without reaching into the cycler's
-     * backing. The id is opaque to callers — they only hand it back to
-     * {@link #hotbarPositionOf(int)} / {@link #bringToHotbar(int)} (and
-     * any future extra-slot op) to act on the slot.
+     * <p>The stack is the cycler's own live content, so callers score and
+     * match against it without reaching into the cycler's backing. The id is
+     * opaque to callers. They only hand it back to
+     * {@link #hotbarPositionOf(int)} or {@link #bringToHotbar(int)} to act on
+     * the slot.
      */
     record ExtraSlot(int id, ItemStack stack) {}
 
     /**
      * Searchable slots this cycler reaches that are <b>not</b> in the 0-35
-     * inventory model (e.g., Pocket Cycler's attachment-backed pockets).
-     * Returns an empty list by default — cyclers whose slots all live in
-     * 0-35 (Column Cycler) have nothing extra to contribute.
+     * inventory model, such as Pocket Cycler's attachment-backed pockets.
+     * Empty by default, since a cycler whose slots all live in 0-35 (Column
+     * Cycler) has nothing extra.
      *
-     * <p>Only slots that are currently <b>reachable</b> should be returned
-     * — e.g., a pocket that exists server-side but isn't revealed in the
-     * current world contributes nothing. Empty stacks may be included or
-     * skipped at the cycler's discretion; callers skip empties anyway.
+     * <p>Return only slots that are currently <b>reachable</b>. A pocket that
+     * exists server-side but isn't revealed in the current world contributes
+     * nothing. Empty stacks may be included or skipped, since callers skip
+     * empties anyway.
      *
-     * <p>Read client-side and called on the client tick path, so keep it
-     * cheap (O(small)).
+     * <p>Read client-side on the client tick path, so keep it cheap.
      */
     default List<ExtraSlot> extraSearchSlots(Player player) {
         return List.of();
@@ -125,70 +119,64 @@ public interface HotbarCyclable {
 
     /**
      * Returns the hotbar position (0-8) this slot would resolve to if
-     * brought down via this cycler's native action, or {@code -1} if
-     * this cycler doesn't claim the slot.
+     * brought down by this cycler's native action, or {@code -1} if this
+     * cycler doesn't claim the slot.
      *
-     * <p>Callers can use this to (a) classify a slot as "Tier 2
-     * cyclable" before deciding to call {@link #bringToHotbar(int)},
-     * and (b) know which hotbar position to change the selected-slot
-     * to ahead of the bring-down.
+     * <p>Callers use this to classify a slot as tier 2 cyclable before
+     * calling {@link #bringToHotbar(int)}, and to know which hotbar position
+     * to select ahead of the bring-down.
      */
     int hotbarPositionOf(int slot);
 
     /**
      * Bring the item currently at {@code slot} into its associated
-     * hotbar position via this cycler's native action (rotation, pocket
-     * cycle, row swap, etc.). Returns an undo handle the caller holds
-     * onto.
+     * hotbar position by this cycler's native action (rotation, pocket cycle,
+     * row swap). Returns an undo handle the caller holds onto.
      *
-     * <p>If this cycler doesn't claim the slot (i.e.,
-     * {@link #hotbarPositionOf(int)} returns -1), returns
-     * {@link CyclerOperation#NO_OP}.
+     * <p>Returns {@link CyclerOperation#NO_OP} if this cycler doesn't claim
+     * the slot ({@link #hotbarPositionOf(int)} returns -1), or if the item is
+     * already at the hotbar position.
      *
-     * <p>If the requested item is already at the hotbar position (no
-     * cycling needed), returns {@link CyclerOperation#NO_OP}.
-     *
-     * <p>The returned operation closes over whatever state is needed
-     * to reverse just this call. Calling {@code undo()} multiple times
-     * is undefined — callers should call it at most once.
+     * <p>The returned operation closes over the state needed to reverse just
+     * this call. Call {@code undo()} at most once; calling it again is
+     * undefined.
      */
     CyclerOperation bringToHotbar(int slot);
 
     /**
      * Move the content of an extra slot (see {@link #extraSearchSlots})
-     * <b>out</b> toward its natural quick-move destination — the non-held
-     * restock path, where the item should relocate (a totem refilling the
-     * equipment slot, armor equipping after a break) rather than rotate
-     * into the hand the way {@link #bringToHotbar} does.
+     * <b>out</b> toward its natural quick-move destination. This is the
+     * non-held restock path, where the item relocates (a totem refilling the
+     * equipment slot, armor equipping after a break) rather than rotating into
+     * the hand the way {@link #bringToHotbar} does.
      *
-     * <p>Returns {@code true} if this cycler owns {@code slot} and
-     * initiated the move; {@code false} otherwise — in which case the
-     * caller treats {@code slot} as an ordinary inventory slot and moves it
-     * with a normal client-side click. The default never claims a slot:
-     * cyclers whose slots live in the real 0-35 inventory don't need this,
-     * because those slots are directly clickable.
+     * <p>Returns {@code true} if this cycler owns {@code slot} and started the
+     * move. On {@code false} the caller treats {@code slot} as an ordinary
+     * inventory slot and moves it with a normal client-side click. The
+     * default never claims a slot, because slots in the real 0-35 inventory
+     * are directly clickable.
      *
      * <p>For a cycler whose backing is inert in-world (Pocket Cycler), the
-     * move is server-authoritative — same reason {@link #bringToHotbar} is.
-     * This is fire-and-forget: a restock move is permanent, so there's no
-     * undo handle.
+     * move is server-authoritative, for the same reason
+     * {@link #bringToHotbar} is. There is no undo handle, because a restock
+     * move is permanent.
      */
     default boolean quickMoveOut(int slot) {
         return false;
     }
 
-    // ── Moves that serve another operation ──────────────────────────────
+    // Moves that serve another operation.
     //
     // Restock and Auto Tool Switch reach a cycler's slot through
     // bringToHotbar and quickMoveOut, but what the player sees is a restock
     // or a tool switch, not a rotation. These overloads carry that operation
-    // (plans/slot-operations.md), as a MenuKit take/put pair: take for the
+    // as a MenuKit take/put pair: take for the
     // slots the move empties, put for the slots it fills. A cycler that
     // performs the move with clicks sends them under
     // SlotOperations.as(take, put, ...); one that moves items server-side
     // names the operation to its server and asks SlotOperations.allows there.
     //
-    // Additive by design: the defaults fall back to the plain methods, so an
+    // The defaults fall back to the plain methods, so an
     // implementer that does not override them keeps compiling and its moves
     // are judged as its own rotation, exactly as before.
 
@@ -211,7 +199,7 @@ public interface HotbarCyclable {
         return quickMoveOut(slot);
     }
 
-    // ── Asking before choosing ──────────────────────────────────────────
+    // Asking before choosing.
     //
     // The two moves above can turn out to do nothing: a cycler that finds the
     // move refused returns NO_OP or claims the slot and stops. By then a caller

@@ -30,28 +30,26 @@ import org.jetbrains.annotations.Nullable;
  * <h3>Identity schemes</h3>
  *
  * <ul>
- *   <li><b>{@code playerinv}</b> — the player's 3×9 main inventory.
- *       Stable per-world.</li>
- *   <li><b>{@code enderchest}</b> — the player's ender chest. Stable
- *       per-world; same identity wherever the player opens it.</li>
- *   <li><b>{@code block:&lt;dim&gt;:&lt;x&gt;,&lt;y&gt;,&lt;z&gt;}</b> — any
+ *   <li><b>{@code playerinv}</b>: the player's 3x9 main inventory. Stable
+ *       per world.</li>
+ *   <li><b>{@code enderchest}</b>: the player's ender chest. Stable per
+ *       world, and the same wherever the player opens it.</li>
+ *   <li><b>{@code block:&lt;dim&gt;:&lt;x&gt;,&lt;y&gt;,&lt;z&gt;}</b>: any
  *       block-anchored simple container (chest, barrel, hopper,
  *       dispenser, dropper, placed shulker box).</li>
  * </ul>
  *
  * <h3>Shulker limitation</h3>
  *
- * Shulker boxes that get broken and replaced get a new block-position
- * identity at the new location → sort state effectively resets on
- * move. The closed-state-ID scheme described in
- * {@code IP features/shulker-portability.md} would fix this; not
- * implemented yet.
+ * A shulker box that is broken and placed again gets a new block-position
+ * identity at the new location, so its sort state resets when it moves. An
+ * identity stored on the closed box would fix this, and isn't implemented.
  *
  * <h3>Unsupported containers</h3>
  *
- * Returns {@code null} for specialized UIs (furnace, anvil, crafting
- * input/result, enchanting table, etc.). Caller treats null as "not
- * sortable; keybind no-ops."
+ * Returns {@code null} for specialized UIs (furnace, anvil, crafting input
+ * and result, enchanting table). The caller treats null as not sortable,
+ * and the key does nothing.
  */
 public final class ContainerIdentity {
 
@@ -73,7 +71,7 @@ public final class ContainerIdentity {
     /**
      * Resolves the identity for the sortable region that contains the
      * given slot, or {@code null} if the slot isn't part of a sortable
-     * region (specialized UI, hotbar, armor, etc.).
+     * region (specialized UI, hotbar, armor).
      *
      * <p>The {@code slot} is the one the player's cursor is over when
      * they press the sort keybind. {@code menu} is the open menu (only
@@ -83,9 +81,9 @@ public final class ContainerIdentity {
         Container container = slot.container;
         int containerSlot = slot.getContainerSlot();
 
-        // Player's own inventory — only the 3×9 main inv (container-slot
-        // 9-35) is sortable. Hotbar (0-8), armor (36-39), offhand (40)
-        // are excluded by spec.
+        // In the player's own inventory only the 3x9 main grid (container
+        // slots 9-35) is sortable, never the hotbar (0-8), armor (36-39) or
+        // offhand (40).
         if (container instanceof Inventory) {
             if (containerSlot >= 9 && containerSlot <= 35) {
                 return new ContainerIdentity("playerinv");
@@ -93,8 +91,8 @@ public final class ContainerIdentity {
             return null;
         }
 
-        // Ender chest — vanilla uses PlayerEnderChestContainer for the
-        // open menu's container. Same identity wherever it's opened.
+        // Vanilla uses PlayerEnderChestContainer for an open ender chest.
+        // Same identity wherever it's opened.
         if (container instanceof PlayerEnderChestContainer) {
             return new ContainerIdentity("enderchest");
         }
@@ -102,7 +100,7 @@ public final class ContainerIdentity {
         // For external (non-player-inv) containers, only sort if the
         // menu is a recognized simple-container type. This excludes
         // specialized UIs (furnace, anvil, enchanting, crafting,
-        // beacon, brewing, loom, stonecutter, etc.) whose slots carry
+        // beacon, brewing, loom, stonecutter and so on) whose slots carry
         // semantic meaning that sorting would scramble.
         if (!isSortableContainerMenu(menu)) return null;
 
@@ -123,19 +121,18 @@ public final class ContainerIdentity {
             return blockIdentity(trackedPos);
         }
 
-        // Sortable menu type but no BlockPos available — opened via a
-        // non-click path (other mods, commands). Use a session-only
-        // identity so sort can still run; persistence skipped.
+        // A sortable menu type with no BlockPos was opened some other way
+        // (other mods, commands). A session-only identity lets sort still
+        // run without persisting anything.
         return new ContainerIdentity("session:" + menu.containerId);
     }
 
     /**
-     * True if the given menu is a vanilla simple-container UI that this
-     * mod sorts. Hardcoded list per the IP spec's sortable scope —
-     * additions go here when more menus warrant.
+     * True if the given menu is a vanilla simple-container UI that this mod
+     * sorts. A fixed list, so a new sortable menu is added here.
      *
-     * <p>Public so the Sort toolbar button (which has no cursor target)
-     * can use it to gate its showWhen / click behavior.
+     * <p>Public so the Sort toolbar button, which has no cursor target, can
+     * use it to gate its visibility and click.
      */
     public static boolean isSortableContainerMenu(AbstractContainerMenu menu) {
         return menu instanceof ChestMenu      // chest, barrel, ender chest
@@ -145,9 +142,8 @@ public final class ContainerIdentity {
     }
 
     /**
-     * True if this identity is persistent (survives game restart and
-     * world reload). Session identities won't be written by
-     * {@link SortState#setType}.
+     * True if this identity is persistent (survives game restart and world
+     * reload). Session identities are never written to disk.
      */
     public boolean isPersistent() {
         return !key.startsWith("session:");
@@ -163,17 +159,15 @@ public final class ContainerIdentity {
             return be.getBlockPos();
         }
         if (container instanceof CompoundContainer compound) {
-            // Double chest — wraps two ChestBlockEntity halves. Use
-            // container1's position for a stable, half-agnostic identity
-            // (both halves of the same double chest resolve to the same
-            // key regardless of which side the player clicked).
+            // A double chest wraps two ChestBlockEntity halves. Use
+            // container1's position so both halves resolve to the same key,
+            // whichever side the player clicked.
             CompoundContainerAccessor accessor = (CompoundContainerAccessor) compound;
             Container half1 = accessor.inventoryplus$getContainer1();
             if (half1 instanceof BlockEntity halfBE) {
                 return halfBE.getBlockPos();
             }
-            // Fallback: try the other half (shouldn't be needed for vanilla
-            // double chests but defensive).
+            // Try the other half. Vanilla double chests shouldn't need this.
             Container half2 = accessor.inventoryplus$getContainer2();
             if (half2 instanceof BlockEntity halfBE) {
                 return halfBE.getBlockPos();
@@ -202,8 +196,8 @@ public final class ContainerIdentity {
      * chest is two block positions and one inventory; without this, a pin
      * or a lock set from the left half vanished when the right half was
      * opened. The canonical half is the lexicographically smaller
-     * position, which is stable under joining and splitting (Trev
-     * 2026-09-07, for Locked Slots; Sort's pins get it for free).
+     * position, which is stable under joining and splitting. Locked slots
+     * and Sort's pins both rely on it.
      */
     static BlockPos canonical(BlockState state, BlockPos pos) {
         if (!(state.getBlock() instanceof ChestBlock)) return pos;
@@ -237,7 +231,7 @@ public final class ContainerIdentity {
      * rather than the client's open-click tracker, or null if it is not
      * block-anchored.
      *
-     * <p><b>Thread-agnostic, and that is the point.</b> On the integrated
+     * <p><b>This works on either thread.</b> On the integrated
      * server thread {@code slot.container} is the real {@link BlockEntity} (or
      * the {@link CompoundContainer} wrapping two of them), so position and
      * dimension are both readable without touching {@link Minecraft}. The

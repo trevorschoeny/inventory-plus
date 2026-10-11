@@ -4,14 +4,13 @@ package com.trevorschoeny.inventoryplus.movematching;
  * Direction of a Move Matching operation.
  *
  * <ul>
- *   <li><b>{@link #IN}</b> — items flow INTO the clicked slot group from
- *       elsewhere. The match-set is built from the clicked group's
- *       existing items (per spec §"What — Move Matching IN": "matches
- *       on item types already in the target").</li>
- *   <li><b>{@link #OUT}</b> — items flow OUT of the clicked slot group
- *       to elsewhere. The match-set is built from all OTHER visible
- *       slot groups (excluding hotbar) — the items that have a "home"
- *       elsewhere get pushed out.</li>
+ *   <li><b>{@link #IN}</b>: items flow into the clicked slot group from
+ *       elsewhere. The match set is built from the item types already in
+ *       the clicked group.</li>
+ *   <li><b>{@link #OUT}</b>: items flow out of the clicked slot group to
+ *       elsewhere. The match set is built from all other visible slot
+ *       groups (excluding the hotbar), so items that have a home elsewhere
+ *       get pushed out.</li>
  * </ul>
  *
  * <p>Each direction has its own keybind ({@code I} for IN, {@code O} for
@@ -32,7 +31,7 @@ public enum Direction {
         this.label = label;
     }
 
-    /** Display label — "IN" or "OUT" — used in tooltip text. */
+    /** Display label, "IN" or "OUT", used in tooltip text. */
     public String label() {
         return label;
     }

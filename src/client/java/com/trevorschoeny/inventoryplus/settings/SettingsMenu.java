@@ -33,15 +33,16 @@ import java.util.function.Supplier;
 
 /**
  * The Inventory Plus and Inventory Max settings menu: full screen, a tab per
- * feature (plan: Leadership drive, {@code mods/inventory-plus/plans/settings-menu.md}).
+ * feature.
  *
- * <p><b>Two looks, one menu</b> (Trev, 2026-10-03). The player picks the look on
+ * <p><b>Two looks, one menu.</b> The player picks the look on
  * General ({@code IPConfig.settingsOptionsLook}), and the menu is made as that
  * kind of MenuKit screen, fixed for its life:
  * <ul>
  *   <li>{@link ScreenKind#OPTIONS}, the default: the pause-menu look. The name is
- *       the screen's title, centred in white; the tabs run across the top; the
- *       page sits in the list band over the blurred world; Done at the bottom.</li>
+ *       the screen's title, centred in white. The tabs run down a sidebar, the
+ *       page sits in the list band over the blurred world, and Done is at the
+ *       bottom.</li>
  *   <li>{@link ScreenKind#CONTAINER}: the inventory look the menu had before. A
  *       grey panel from the top of the screen with the name bar, the tabs down
  *       a sidebar, Done below it.</li>
@@ -56,18 +57,18 @@ import java.util.function.Supplier;
  * replaces when it is installed.
  *
  * <p>Opened from the dot button on the inventory toolbar, the Open settings
- * key, Mod Menu, and Ctrl+click on any feature's inventory button. Closing
+ * key, Mod Menu, and Ctrl-click on any feature's inventory button. Closing
  * returns to the screen it was opened from.
  *
- * <p>Half wired: controls with a real setting behind them work; the rest are
- * greyed placeholders ({@link SettingsBody}).
+ * <p>Controls with a real setting behind them work, and the rest are greyed
+ * placeholders ({@link SettingsBody}).
  */
 public final class SettingsMenu extends MKScreen {
 
     /** The menu's name, for other mods' {@code Tabs.addTo}. */
     public static final Identifier MENU = Identifier.fromNamespaceAndPath("inventoryplus", "settings");
 
-    // Tab ids. The inventory buttons open their feature's tab on Ctrl+click
+    // Tab ids. The inventory buttons open their feature's tab on Ctrl-click
     // (Cmd on a Mac), so the ids they need are public. Inventory Max's tabs are
     // "inventorymax:pockets", "inventorymax:equipment_slots" and
     // "inventorymax:mend_anywhere".
@@ -91,8 +92,8 @@ public final class SettingsMenu extends MKScreen {
     private static String selectedTab = GENERAL;
 
     /**
-     * Each tab's body scroll, by tab id, for the session (MenuKit 8aa2151's
-     * Tabs.bodyScroll): a rebuild (a lock group added or recoloured) opens
+     * Each tab's body scroll, by tab id, for the session (MenuKit's
+     * Tabs.bodyScroll). A rebuild (a lock group added or recoloured) opens
      * the body where the player was, not at the top.
      */
     private static final Map<String, Double> bodyScroll = new HashMap<>();
@@ -104,11 +105,11 @@ public final class SettingsMenu extends MKScreen {
         super(title(), kind, panels(kind));
         this.parent = parent;
         // The inventory look has its own name bar inside the panel, so no title
-        // band; the options look's title is the name.
+        // band. The options look's title is the name.
         if (kind == ScreenKind.CONTAINER) hideTitle();
         // Escape goes back to wherever the menu was opened from: the inventory,
         // Mod Menu, or the game. A container stays open underneath, because
-        // swapping screens does not close it; returning reuses the same screen.
+        // swapping screens does not close it, and returning reuses the same screen.
         setReturnAction(() -> Minecraft.getInstance().gui.setScreen(parent));
     }
 
@@ -124,8 +125,8 @@ public final class SettingsMenu extends MKScreen {
     }
 
     /**
-     * For an inventory button's click handler: on Ctrl+click (Cmd on a Mac,
-     * where a real Ctrl+click arrives as a right-click) opens the menu on
+     * For an inventory button's click handler: on Ctrl-click (Cmd on a Mac,
+     * where a real Ctrl-click arrives as a right-click) opens the menu on
      * {@code tabId} and answers true, and the button does nothing else.
      * Otherwise answers false and the click is the button's.
      */
@@ -138,8 +139,7 @@ public final class SettingsMenu extends MKScreen {
     /**
      * An inventory button's tooltip: {@code tooltip}, or "Open settings for
      * {@code feature}" while Ctrl (Cmd on a Mac) is held, which is what a
-     * click would then do (Trev, 2026-10-03); "Settings" with Compact
-     * tooltips on.
+     * click would then do. "Settings" with Compact tooltips on.
      */
     public static Supplier<Component> tooltip(String feature, Supplier<Component> tooltip) {
         Component open = Component.literal("Open settings for " + feature);
@@ -179,12 +179,12 @@ public final class SettingsMenu extends MKScreen {
 
     /** The menu's panels for {@code kind}: the confirm panel is the same on both. */
     private static List<Panel> panels(ScreenKind kind) {
-        // Both looks end in Done at the bottom; the Panel look's Back to game
-        // went (Trev, 2026-10-03), so its menu panel runs to the top.
+        // Both looks end in Done at the bottom. The Panel look has no Back to
+        // game button, so its menu panel runs to the top.
         return List.of(main(kind), donePanel(), confirmPanel());
     }
 
-    // ── Resets other mods add (Inventory Max) ───────────────────────────
+    // Resets other mods add (Inventory Max)
 
     private static final List<Runnable> EXTERNAL_RESETS = new java.util.concurrent.CopyOnWriteArrayList<>();
 
@@ -200,7 +200,7 @@ public final class SettingsMenu extends MKScreen {
         for (Runnable r : EXTERNAL_RESETS) r.run();
     }
 
-    // ── Confirms ────────────────────────────────────────────────────────
+    // Confirms
     //
     // One modal panel for every confirm the menu asks (the resets, deleting a
     // group). Its text reads the pending confirm every frame, so a count it
@@ -258,7 +258,7 @@ public final class SettingsMenu extends MKScreen {
 
     /**
      * The menu's name: "Inventory Plus Max" with Inventory Max installed,
-     * "Inventory Plus" without (Trev, 2026-09-30).
+     * "Inventory Plus" without.
      */
     static String modName() {
         return maxInstalled() ? "Inventory Plus Max" : "Inventory Plus";
@@ -266,7 +266,7 @@ public final class SettingsMenu extends MKScreen {
 
     /**
      * The inventory look's name: one bar across the whole menu panel, above the sidebar and
-     * the body, centred on the panel (Trev, 2026-09-30): the name at twice
+     * the body, centred on the panel: the name at twice
      * size, bold, between two spacers that share the row's leftover evenly.
      * The menu panel's first row; the Tabs are the second (see {@link #main}).
      */
@@ -291,7 +291,7 @@ public final class SettingsMenu extends MKScreen {
 
     /**
      * Done, at the bottom centre at vanilla's width, the way every Options
-     * screen ends; on both looks. {@code onClose} runs the return action, so Done
+     * screen ends, on both looks. {@code onClose} runs the return action, so Done
      * and Escape agree.
      */
     private static Panel donePanel() {
@@ -322,15 +322,15 @@ public final class SettingsMenu extends MKScreen {
         boolean max = maxInstalled();
         boolean options = kind == ScreenKind.OPTIONS;
         Tabs.Builder builder = Tabs.builder().menu(MENU);
-        // Both looks put the tabs in a sidebar (Trev, 2026-10-03); on the
-        // options screen MenuKit draws it as Create World's tab bar on its side.
+        // Both looks put the tabs in a sidebar. On the options screen MenuKit
+        // draws it as Create World's tab bar on its side.
         builder.mode(Tabs.Mode.SIDEBAR).align(Tabs.Align.LEFT);
         if (!options) builder.at(0, NAME_BAR_HEIGHT + NAME_BAR_GAP);
         Tabs tabs = builder
                 .state(() -> selectedTab, id -> selectedTab = id)
                 .bodyScroll(bodyScroll::get, bodyScroll::put)
                 .tab(tab(GENERAL, "General").body(() -> SettingsTabs.general(max)))
-                // Tooltips right under General (Trev, 2026-10-04).
+                // Tooltips right under General.
                 .tab(tab(TOOLTIPS, "Tooltips").body(SettingsTabs::tooltips))
                 .tab(tab(REACH, "Reach").body(SettingsTabs::reach))
                 .tab(tab(LOCK_GROUPS, "Lock groups").body(() -> SettingsTabs.lockGroups(max)))
@@ -341,7 +341,7 @@ public final class SettingsMenu extends MKScreen {
                 .tab(tab(COLUMN_CYCLER, "Column Cycler").body(SettingsTabs::columnCycler))
                 .tab(tab(HOTBAR_CYCLER, "Hotbar Cycler").body(SettingsTabs::hotbarCycler))
                 // Inventory Max's places. Its real tabs, added under these ids,
-                // take them over; without it these show dimmed, greyed bodies.
+                // take them over. Without it these show dimmed, greyed bodies.
                 .tab(tab("inventorymax:pockets", "Pockets").standIn()
                         .body(SettingsTabs::pocketsStandIn))
                 .tab(tab("inventorymax:equipment_slots", "Equipment Slots").standIn()

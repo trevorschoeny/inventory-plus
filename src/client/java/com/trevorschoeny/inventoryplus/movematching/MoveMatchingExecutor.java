@@ -32,23 +32,23 @@ import java.util.Set;
  * <h3>Direction</h3>
  *
  * Inventory-centric: {@code clickedGroup} is always the player main
- * inventory. IN makes it the destination (match-set = types already in
- * it, sources = every other non-hotbar slot); OUT makes it the source
- * (match-set and destinations = the other slots). The match-set always
- * comes from the receiving side.
+ * inventory. IN makes it the destination (the match set is the types
+ * already in it, and the sources are every other non-hotbar slot). OUT makes
+ * it the source (the match set and destinations are the other slots). The
+ * match set always comes from the receiving side.
  *
  * <h3>Modes, decided per item type</h3>
  *
  * Sources are grouped by item type and each type is handled whole:
  * <ul>
  *   <li><b>All</b>: every stack moves.</li>
- *   <li><b>But-one</b>: each stack leaves one item behind; a stack of 1
+ *   <li><b>But-one</b>: each stack leaves one item behind, and a stack of 1
  *       is left as it is.</li>
  *   <li><b>But-one-stack</b>: one full stack's worth of the type stays.
  *       The largest stacks are kept first, so at most one stack is
  *       split, and a type with no more than a stack does not move.</li>
  *   <li><b>No-overflow</b>: the type moves only if the destination has
- *       room for all of it at the moment it is processed; otherwise none
+ *       room for all of it at the moment it is processed, otherwise none
  *       of it moves. Checked per type against current room, so a type
  *       that fits still moves even when another does not.</li>
  * </ul>
@@ -132,7 +132,7 @@ public final class MoveMatchingExecutor {
             }
             case BUT_ONE -> {
                 for (Slot s : stacks) {
-                    if (s.getItem().getCount() <= 1) continue; // already at the minimum; untouched
+                    if (s.getItem().getCount() <= 1) continue; // already at the minimum, untouched
                     if (moveSourceIntoSlots(gameMode, player, menu, s, destinations, 1) > 0) moved++;
                 }
             }
@@ -188,7 +188,7 @@ public final class MoveMatchingExecutor {
         if (leaveInSource >= initialCount) return 0;
 
         // Lifting the stack and putting the kept items back both belong to
-        // TAKING from the source, so both go under the out key on each side. If
+        // taking from the source, so both go under the out key on each side. If
         // the put-back were judged by the source's own "in" rule, a lock that
         // refused Move Matching in could strand the kept items on the cursor.
         SlotOperations.as(MOVE_MATCHING_OUT, MOVE_MATCHING_OUT, () -> {

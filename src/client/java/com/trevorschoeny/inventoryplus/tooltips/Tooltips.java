@@ -18,9 +18,8 @@ import java.util.Locale;
 import java.util.function.BooleanSupplier;
 
 /**
- * Everything Inventory Plus does to tooltips, one checkbox each (the Tooltips
- * tab; design in the Leadership drive, {@code plans/settings-menu.md},
- * "Tooltips"). One Fabric {@code ItemTooltipCallback}, and one provider class
+ * Everything Inventory Plus does to tooltips, one checkbox each on the
+ * Tooltips tab. One Fabric {@code ItemTooltipCallback}, and one provider class
  * per checkbox, applied here in the tab's order, each behind its own
  * setting:
  *
@@ -33,8 +32,8 @@ import java.util.function.BooleanSupplier;
  *   <li>The mod name, last.</li>
  * </ol>
  *
- * <p>The hide key is the other side of the firewall: MenuKit owns the one
- * seam every tooltip is drawn through, and Inventory Plus registers its
+ * <p>The hide key works differently. MenuKit owns the one seam every tooltip
+ * is drawn through, and Inventory Plus registers its
  * condition there. Turning the tab off turns all of it off.
  */
 public final class Tooltips {
@@ -54,11 +53,10 @@ public final class Tooltips {
         MKTooltip.hideWhen(() -> IPConfig.tooltipsEnabled() && IPConfig.hideTooltipsOnKey()
                 && IPKeybinds.isHeld(IPKeybinds.HIDE_TOOLTIPS));
         // Tooltips that would land over the menu flip to whichever side covers
-        // less of it (MenuKit 6.1.0 avoidCoverWhen): IP's wide in-inventory
-        // button tooltips otherwise land on the left over the whole inventory.
+        // less of it (MenuKit 6.1.0 avoidCoverWhen). Otherwise the wide
+        // in-inventory button tooltips land on the left over the whole inventory.
         MKTooltip.avoidCoverWhen(() -> IPConfig.tooltipsEnabled() && IPConfig.tooltipAvoidCover());
-        // Always on under the Tooltips switch; no longer settings (Trev,
-        // 2026-10-11). Keep on screen: one predicate for both of MenuKit's
+        // Always on under the Tooltips switch, no longer settings. Keep on screen: one predicate for both of MenuKit's
         // halves, wrapping a tooltip wider than the screen and clamping its top.
         // Scroll: the wheel moves a long tooltip on screen. MenuKit clamps the
         // offset to the tooltip, so one that fits never moves, and pins the
@@ -74,7 +72,7 @@ public final class Tooltips {
         });
     }
 
-    // ponytail: two tooltip lines (10 px each) per wheel notch; the knob if it
+    // Two tooltip lines (10 px each) per wheel notch. Tune this if scrolling
     // feels slow or jumpy.
     private static final int SCROLL_STEP = 20;
 
@@ -99,7 +97,7 @@ public final class Tooltips {
         lines.addAll(added);
     }
 
-    // ── Shared by the providers ─────────────────────────────────────────
+    // Shared by the providers
 
     /** A grey label from the lang file followed by a gold value: "Nutrition: 5". */
     static Component labelled(String key, String value) {

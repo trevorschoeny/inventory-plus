@@ -1,22 +1,13 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// Inventory Plus (IP) — pure client-only Fabric mod, depends only on MK 1.0.0
-// (the widgets artifact). Phase 18b fresh-build per Lead @ Inventory Plus'
-// brief (2026-05-15): three zero-gap features — Auto-restock, Move-matching,
-// Sorting — built against MK 1.0.0 as the only library dep. No MKC.
+// Inventory Plus. Works on any server with nothing installed there, and depends
+// on MenuKit only, never MenuKit: Containers. Those types are not on this
+// classpath, so the dependency list alone keeps the two apart.
 //
-// Per §0005: IP is pure client-only; installs on any vanilla server. The
-// fabric.mod.json declares "environment": "client" — §0042's compile-time
-// partition is satisfied by the dependency declaration alone (we never reach
-// MKC types because they're not on this classpath).
-//
-// Workspace integration: included from the root settings.gradle as
-// `:inventory-plus`. Build with `./gradlew :inventory-plus:build` from the
-// workspace root.
-// ═══════════════════════════════════════════════════════════════════════════
+// Included from the root settings.gradle as `:inventory-plus`. Build with
+// `./gradlew :inventory-plus:build` from the workspace root.
 
 plugins {
-    // 26.x migration (2026-07-02): Loom plugin id is namespaced at 1.15+;
-    // 1.17 is the 26.2-era line. Version pinned at the workspace root.
+    // The Loom plugin id is namespaced from 1.15 on, and 1.17 is the line for
+    // 26.2. The version is pinned at the workspace root.
     id 'net.fabricmc.fabric-loom' version '1.17-SNAPSHOT'
     id 'java'
     id 'com.modrinth.minotaur' version '2.+'
@@ -35,39 +26,38 @@ java {
 
 repositories {
     maven { url 'https://maven.fabricmc.net/' }
-    // ModMenu — Terraformers' Maven; used for the per-mod config entry
-    // point on the mods list.
+    // Terraformers' Maven, for ModMenu's config entry point on the mods list.
     maven { url 'https://maven.terraformersmc.com/releases/' }
-    // Modrinth maven: not for this mod. Keybindery (a project dependency)
-    // depends on YACL, whose 26.2 builds ship only here, so Gradle needs it
+    // Not for this mod. Keybindery (a project dependency) depends on YACL,
+    // whose 26.2 builds are only on this Maven repository, so Gradle needs it
     // to resolve Keybindery's runtime classpath. This mod neither compiles
     // against YACL nor bundles it.
     maven { url 'https://api.modrinth.com/maven' }
 }
 
-// MenuKit 6.0.0 splits into main and client source sets (§0062). A project
+// MenuKit 6.0.0 splits into main and client source sets. A project
 // dependency sees only main, so its client half is added by output (in the
 // client dependencies after loom {}), which needs MenuKit evaluated first. A
 // published jar holds both halves.
 evaluationDependsOn(':menukit')
-// Keybindery is split the same way (universal, §0062); its client half comes by output too.
+// Keybindery is split the same way, so its client half comes by output too.
 evaluationDependsOn(':keybindery')
 
 dependencies {
-    // 26.x: the game is unobfuscated — no mappings line, and mod deps use the
-    // standard java configurations (modImplementation → implementation etc.).
+    // 26.x is unobfuscated, so there is no mappings line, and mod dependencies
+    // use the standard Java configurations (implementation, not modImplementation).
     minecraft "com.mojang:minecraft:${property('minecraft_version')}"
     implementation "net.fabricmc:fabric-loader:${property('loader_version')}"
     implementation "net.fabricmc.fabric-api:fabric-api:${property('fabric_version')}"
 
-    // §0042 / §0005: depend on MenuKit and ONLY MenuKit. Adding
-    // :menukit-containers here would put its types on the classpath and break
-    // the partition test. (26.x: a plain project dep is the artifact now.)
+    // MenuKit and only MenuKit. Adding :menukit-containers here would put its
+    // types on the classpath and break the partition test. On 26.x a plain
+    // project dependency is the artifact.
     implementation project(':menukit')
 }
 
 loom {
-    // §0062: Inventory Plus is universal. src/main holds what a server may
+    // Inventory Plus is universal. src/main holds what a server may
     // load (the operation keys and the api types that name no client class);
     // src/client holds every feature, mixin, screen and keybind. The compiler
     // refuses a main class that reaches a client one.
@@ -97,19 +87,18 @@ dependencies {
     // MenuKit's client half (UI, screens), which the project dep above leaves out.
     clientImplementation rootProject.project(':menukit').sourceSets.client.output
 
-    // Keybindery — required (Trev, 2026-09-27): the settings menu binds keys
-    // with its MenuKit ChordButton, the same chord capture and conflict view
-    // as Keybindery's own screens. Client-only, like Keybindery itself.
-    // Keybindery is universal now (§0062): the project dep's default variant
-    // is its empty common entrypoint, but keybindery-api still comes along
-    // transitively (Keybindery declares it `api`); the real client code
-    // (ChordButton) comes separately by output, same as MenuKit's above.
+    // Keybindery is required: the settings menu binds keys with its MenuKit
+    // ChordButton, the same chord capture and conflict view as Keybindery's
+    // own screens. Keybindery is universal, so the project dependency's default
+    // variant is its empty common entrypoint. keybindery-api still comes along
+    // transitively (Keybindery declares it `api`), and the client code
+    // (ChordButton) comes separately by output, like MenuKit's above.
     clientImplementation project(':keybindery')
     clientImplementation rootProject.project(':keybindery').sourceSets.client.output
 
-    // ModMenu — surfaces the settings menu from the mods list. Optional at
-    // runtime; compileOnly means we compile against its API, localRuntime
-    // brings it into the dev launch. (⚠️ beta — only 26.2 build available.)
+    // ModMenu opens the settings menu from the mods list. Optional at runtime:
+    // we compile against its API, and localRuntime brings it into the dev
+    // launch. This is a beta, the only 26.2 build available.
     clientCompileOnly "com.terraformersmc:modmenu:20.0.1"
     localRuntime "com.terraformersmc:modmenu:20.0.1"
 }
@@ -118,9 +107,9 @@ jar {
     from('LICENSE') { rename { "${it}_${project.name}" } }
 }
 
-// Stamp the real project version into fabric.mod.json at build — the manifest
-// declares "version": "${version}"; a hardcoded manifest version silently
-// breaks every dependency gate against this mod (the 2026-07-01 incident).
+// Stamp the real project version into fabric.mod.json at build. The manifest
+// declares "version": "${version}", because a hardcoded manifest version
+// silently breaks every dependency gate against this mod.
 processResources {
     inputs.property "version", project.version
     filesMatching("fabric.mod.json") {
@@ -153,7 +142,7 @@ modrinth {
     }
 }
 
-// ci-cd.md stage 2: the shipped jar must self-report the bumped version. A jar that
+// The shipped jar must self-report the bumped version. A jar that
 // says the wrong version silently breaks every dependency gate against it, so this
 // fails the build instead of relying on someone remembering to unzip and look.
 tasks.register('verifyJarVersion') {
@@ -170,7 +159,7 @@ tasks.register('verifyJarVersion') {
 }
 build.dependsOn verifyJarVersion
 
-// ci-cd.md stage 2: this mod must pin MenuKit to the major it was built against.
+// This mod must pin MenuKit to the major it was built against.
 // The floor guarantees every MenuKit call it makes exists at load time; the ceiling stops a
 // future breaking major from loading against code that never saw it. Both halves matter:
 // a floor alone lets MenuKit 6.0.0 rename an API out from under a shipped jar, and the

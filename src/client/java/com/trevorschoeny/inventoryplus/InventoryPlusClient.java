@@ -42,29 +42,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Client entrypoint for Inventory Plus.
- *
- * <p>IP is a pure client-only Fabric mod per §0005 (IP scope) — installs on
- * any vanilla server. The {@code environment: "client"} declaration in
- * {@code fabric.mod.json} matches; depending only on MK (not MKC) keeps
- * MKC types off the classpath by construction, satisfying §0042's partition
- * test from the consumer side.
- *
- * <p>Phase 18b feature wireup happens here as each feature lands:
- * <ol>
- *   <li>Auto-restock — tick-driven detection + slot-click action; no MK
- *       widgets on the runtime path (config UI is a later concern).</li>
- *   <li>Move-matching — MK Button + keybind, riding the toolbar's
- *       slot-group-anchored panels (explicit {@code SlotGroupCategory}
- *       targeting; see {@code Toolbar}).</li>
- *   <li>Sorting — same shape as move-matching; second button stacked
- *       below at {@code OutsideRegion.RIGHT_ALIGN_TOP}.</li>
- * </ol>
- *
- * <p>Out of scope for 18b: locked-slots, pockets, IPP — deferred per the
- * brief. Code paths that would consult lock state currently treat all
- * slots as unlocked; pocket-slot exclusion is N/A because pockets aren't
- * here yet.
+ * Client entrypoint for Inventory Plus. It works on any vanilla server.
+ * Depending only on MenuKit, never MenuKit: Containers, keeps the containers
+ * types off the classpath, which is what the partition test checks.
  */
 public class InventoryPlusClient implements ClientModInitializer {
 
@@ -73,55 +53,46 @@ public class InventoryPlusClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        // Config — loaded once at startup; toggles persist immediately on
-        // change via IPConfig setters. Must load before any feature reads
-        // a toggle. See the IPConfig javadoc.
+        // Loaded once at startup; toggles persist on change through the
+        // IPConfig setters. Must load before any feature reads a toggle.
         IPConfig.load();
 
         // Slot operations are defined by the common initializer (InventoryPlus),
         // so a server knows them too. Every feature asks SlotOperations.allows
         // before it picks a slot and sends its clicks under SlotOperations.as.
 
-        // Keybinds — vanilla KeyMapping registration so L / I / O / S
-        // show up in the Controls menu and are user-rebindable. The
-        // mappings are referenced by the per-feature keybind classes via
-        // KeyMapping.matches(key, scancode) from inside their
+        // Vanilla KeyMapping registration, so L, I, O and S show up in the
+        // Controls menu and can be rebound. The per-feature keybind classes
+        // check them with KeyMapping.matches(key, scancode) in their
         // ScreenKeyboardEvents.afterKeyPress handlers.
         IPKeybinds.register();
 
-        // Auto-restock — tick-driven detection of empty active hotbar /
-        // offhand / armor slots, with refill from main inventory. Pure
-        // client-side; sends vanilla slot-click packets so any vanilla
-        // server accepts the operation. See AutoRestockTicker class
-        // javadoc for the watch + refill model.
+        // Restock watches the active hotbar, offhand and armor slots each tick
+        // and refills them from the main inventory. It sends vanilla
+        // slot-click packets, so any vanilla server accepts the move.
         ClientTickEvents.END_CLIENT_TICK.register(AutoRestockTicker::tick);
 
-        // Auto Tool Switch — on-hit auto-swap of the right tool/weapon
-        // for the target, composing the HotbarCyclableRegistry for
-        // cyclable-tier resolution. Default OFF (opt-in via the master
-        // toggle in the IP config tab). See AutoToolSwitch javadoc for
-        // the three-tier resolution + auto-return mechanics.
+        // Auto Tool Switch swaps in the right tool or weapon on hit, using the
+        // HotbarCyclableRegistry for the cyclable tier. Off by default.
         AutoToolSwitch.register();
 
-        // Move Matching — inventory-centric, IN + OUT buttons live in
-        // the IP toolbar. Screen-scoped I / O keybinds register
-        // separately. Per-button visibility (.showWhen on the buttons)
-        // hides MM IN/OUT on screens without an external container.
+        // Move Matching's in and out buttons live in the toolbar, and its
+        // screen-scoped I and O keys register separately. Each button's
+        // showWhen hides it on screens without an external container.
         MoveMatchingModes.load();
         MoveMatchingKeybind.register();
 
-        // Locks (`plans/lock-groups.md`, `plans/reach.md`). A lock is a lock
-        // group on a slot (LockedSlots, per world) or on an item (LockedItems,
+        // A lock is a lock group on a slot (LockedSlots, per world) or on an item (LockedItems,
         // per world); what each group stops is its choice in the reach record
         // (Reach, in config.json, loaded with the config above). The lock
-        // button selects a group and L applies it; the button lives in the IP
+        // button selects a group and L applies it. The button lives in the
         // toolbar (Toolbar.register below).
         //
         // Enforcement is one MenuKit veto (Locks): every operation MenuKit asks
         // about, vanilla's or a mod's, is refused on a slot whose group the
         // operation may not use, or whose lock groups stop it. Inventory Plus's
         // own features ask MenuKit before they act, so they get the same
-        // answer. Manual cursor moves are operations too (click take / put),
+        // answer. Manual cursor moves are operations too (click take and put),
         // allowed by both default groups.
         // Column Cycler's membership loads first: upgrading a 1.5.x lock file
         // drops the locks its old pairing wrote (LockedSlots.load).
@@ -138,23 +109,20 @@ public class InventoryPlusClient implements ClientModInitializer {
         Tooltips.register();
         ClientTickEvents.END_CLIENT_TICK.register(LockedSlotKeybind::tick);
 
-        // IP toolbar — one right-aligned MK panel above the player 3×9
-        // grid, holding the lock button + MM IN/OUT (and future
-        // feature buttons). Per-button .showWhen gates per-feature
-        // visibility within the same panel.
+        // One right-aligned MenuKit panel above the player's 3x9 grid, holding
+        // the action buttons. Each button's showWhen decides its own
+        // visibility within the panel.
         Toolbar.register();
 
         // Settings menu: the dot button lives in the toolbar above; the Open
         // settings key (unbound by default) is registered here.
         SettingsKeybind.register();
 
-        // Column Cycler (Power Users) — opt-in feature gated by
-        // columnCyclerEnabled. Slot membership state is per-world
-        // (config/inventoryplus/column-cycler.json). The C keybind toggles
-        // membership; its inventory button turns the feature on and off
-        // (no edit mode since 2026-10-03). The cycle slots are
-        // a feature reach group (reach.md, "Feature reach groups"): every
-        // move Slot lock stops by default leaves them alone, per move.
+        // Column Cycler is off by default (columnCyclerEnabled). Slot
+        // membership is per world (config/inventoryplus/column-cycler.json).
+        // The C key toggles membership, and its inventory button turns the
+        // feature on and off. The cycle slots are a feature reach group:
+        // every move Slot lock stops by default leaves them alone, per move.
         Reach.registerFeature(Reach.COLUMN_CYCLER, "Column Cycler", "inventoryplus:column_cycle",
                 ColumnCycler::inReachGroup);
         ColumnCyclerKeybind.register();
@@ -162,7 +130,7 @@ public class InventoryPlusClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(ColumnCyclerDragController::tick);
         ClientTickEvents.END_CLIENT_TICK.register(ColumnCyclerRotationKeybind::tick);
 
-        // Hotbar Cycler — rotates whole inventory rows through the hotbar.
+        // Hotbar Cycler rotates whole inventory rows through the hotbar.
         // Membership is per row (buttons, not a per-slot overlay), and the
         // rotation reuses ColumnCyclerRotator's engine across all nine
         // columns, which is what keeps items in their own column.
@@ -174,7 +142,7 @@ public class InventoryPlusClient implements ClientModInitializer {
         Reach.registerFeature(Reach.HOTBAR_CYCLER, "Hotbar Cycler", "inventoryplus:hotbar_cycle",
                 HotbarCycler::inReachGroup);
         // A player who had either old cycle-lock switch off keeps that answer
-        // as explicit reach entries, once (Trev, 2026-09-30).
+        // as explicit reach entries, once.
         IPConfig.LegacyCycleLocks legacyCycleLocks = IPConfig.legacyCycleLocks();
         if (!legacyCycleLocks.cycleSlotsLocked()) Reach.allowEverywhere(Reach.COLUMN_CYCLER, Reach.HOTBAR_CYCLER);
         else if (!legacyCycleLocks.lockCycledRows()) Reach.allowEverywhere(Reach.HOTBAR_CYCLER);
@@ -185,24 +153,20 @@ public class InventoryPlusClient implements ClientModInitializer {
         // relative to the HUD sources below is irrelevant: this only adds a
         // rotation listener now, and consults the source registry at rotation
         // time. That is also what lets Pocket Cycler's source, registered by
-        // Inventory Max at its own init, take part without IP referencing it.
+        // Inventory Max at its own init, take part without this mod referencing it.
         HotbarCyclerHud.register();
 
-        // HotbarCyclable registration — Column Cycler is the first
-        // implementer of the cycler-agnostic "bring this slot's item to
-        // the hotbar" contract that Auto Tool Switch (and future
-        // Pocket Cycler / Hotbar Swap) consume. The registry is the
-        // architectural seam that keeps downstream consumers cycler-
-        // agnostic. See the cyclable/ package for the interfaces and
-        // the registry's javadoc.
+        // Column Cycler implements the "bring this slot's item to the hotbar"
+        // contract that Auto Tool Switch uses. Going through the registry
+        // keeps consumers independent of any one cycler.
         HotbarCyclableRegistry.register(ColumnCyclerCyclable.INSTANCE);
 
-        // Shared cycle HUD — Mini-hotbar strip to the right of the vanilla
+        // The shared cycle HUD: a mini-hotbar strip right of the vanilla
         // hotbar, showing whichever cycler is active on the selected hotbar
-        // slot (Column Cycler here; Pocket Cycler in IPP registers its own
-        // source into the same registry). Generalized 2026-06-02: the render
-        // is cycler-agnostic (CycleHud reads CycleHudRegistry); Column
-        // Cycler's contents + animation bridge live in ColumnCyclerHudSource.
+        // slot. Pocket Cycler in Inventory Max registers its own source into
+        // the same registry. CycleHud reads CycleHudRegistry and knows no
+        // particular cycler. Column Cycler's contents and animation bridge
+        // live in ColumnCyclerHudSource.
         ColumnCyclerHudSource.register();
         CycleHud.register();
 
@@ -210,12 +174,8 @@ public class InventoryPlusClient implements ClientModInitializer {
         // companions' after ours (built at client start).
         PowerUsersToolbar.register();
 
-        // Sort — S keybind sorts the simplecontainer under the cursor.
-        // QUANTITY_DESC only for MVP; per-container sort-type persistence
-        // wired end-to-end (storage in sort-state.json) but unused until
-        // the type-cycle power-user feature lands. No button — gated on
-        // MenuKit's render-integration fix (see DEFERRED.md /
-        // surface-library-gaps memory).
+        // Sort: the S key sorts the container under the cursor, and the sort
+        // type per container is stored in sort-state.json.
         //
         // ContainerOpenTracker captures the BlockPos via UseBlockCallback
         // when the player right-clicks to open a container, then

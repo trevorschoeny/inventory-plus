@@ -21,9 +21,9 @@ import java.util.regex.Pattern;
  * the blocks it is for) and its tier. For anything enchantable: its
  * enchantability.
  *
- * <p>26.2 has no tier objects; tools are data. A tool's tier shows in the rule
+ * <p>26.2 has no tier objects, because tools are data. A tool's tier shows in the rule
  * that refuses drops from blocks it is too weak for, whose block tag is
- * {@code incorrect_for_<tier>_tool}. That tag names the tier; a tool with no
+ * {@code incorrect_for_<tier>_tool}. That tag names the tier. A tool with no
  * such rule shows speed alone.
  */
 final class ToolStats {

@@ -11,8 +11,8 @@ import org.jetbrains.annotations.Nullable;
  *
  * <p>The file is still {@code config/inventoryplus/sort-state.json}. Its
  * version-1 form (a per-container map from the earlier per-container
- * design) is discarded on load, per the 2026-09-05 decision, and the
- * global default becomes Category for upgrading players too.
+ * design) is discarded on load, and the global default becomes Category for
+ * upgrading players too.
  */
 public final class SortState {
 

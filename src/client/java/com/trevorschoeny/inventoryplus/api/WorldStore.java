@@ -57,7 +57,7 @@ import java.util.function.UnaryOperator;
  *       owner's file.</li>
  *   <li><b>No world, no-op.</b> Outside a world, reads return the empty
  *       value and writes do nothing, the way MenuKit's {@code NoServerTier}
- *       null object behaves: deliberately, not by accident.</li>
+ *       null object behaves.</li>
  * </ul>
  *
  * <h2>Precedent</h2>
@@ -72,12 +72,12 @@ import java.util.function.UnaryOperator;
  * the failure above. Vanilla's {@code SavedDataStorage} splits reads that do
  * not create from writes that do in the same way.
  *
- * <p>Two deliberate departures from Fabric, both following from "empty and
+ * <p>Two departures from Fabric, both following from "empty and
  * absent are the same state": an empty value is not stored, and
  * {@link #modify}'s modifier receives the empty value, never {@code null},
  * so no call site needs a null check.
  *
- * <p>One deliberate departure from vanilla: vanilla's storage owns its file,
+ * <p>One departure from vanilla: vanilla's storage owns its file,
  * and this store does not. Each owner keeps its existing file format through
  * {@link #load} and {@link #forEachWorld}, so saved locks, pins and pockets
  * load exactly as they did before this class existed. A new feature with no
@@ -115,7 +115,7 @@ public final class WorldStore<V> {
     /** Told after a write changes the current world's value. */
     private final Runnable onChange;
 
-    /** Which world is current. Null outside one. */
+    /** Null outside a world. */
     private final Supplier<@Nullable String> currentWorld;
 
     private WorldStore(V empty, UnaryOperator<V> freeze, Runnable onChange,
@@ -126,13 +126,11 @@ public final class WorldStore<V> {
         this.currentWorld = Objects.requireNonNull(currentWorld, "currentWorld");
     }
 
-    // ── Construction ────────────────────────────────────────────────────
-
     /**
      * A store whose "current world" is the world or server the client is in,
      * as named by Inventory Plus's world identity.
      *
-     * @param empty    the value that means nothing is stored (e.g. {@code Set.of()})
+     * @param empty    the value that means nothing is stored, such as {@code Set.of()}
      * @param freeze   turns any value of this type into its immutable form
      * @param onChange run after a write changes the current world's value;
      *                 normally the owner's {@code save}
@@ -165,7 +163,7 @@ public final class WorldStore<V> {
         return of(Collections.emptySortedMap(), WorldStore::freezeSortedMap, onChange);
     }
 
-    // ── Reads (never create) ────────────────────────────────────────────
+    // Reads never create anything.
 
     /** The current world's value, or the empty value. Never null, never mutable. */
     public V get() {
@@ -180,7 +178,7 @@ public final class WorldStore<V> {
         return world != null && byWorld.containsKey(world);
     }
 
-    // ── Writes (notify on change) ───────────────────────────────────────
+    // Writes notify on change.
 
     /**
      * Replaces the current world's value. The empty value, or {@code null},
@@ -214,7 +212,7 @@ public final class WorldStore<V> {
         return set(empty);
     }
 
-    // ── Persistence hooks (the owner keeps its own file format) ─────────
+    // Persistence hooks. The owner keeps its own file format.
 
     /** Visits every world that has a value, for the owner's {@code save}. */
     public void forEachWorld(BiConsumer<String, V> action) {
@@ -252,7 +250,7 @@ public final class WorldStore<V> {
         if (!empty.equals(frozen)) byWorld.put(worldId, frozen);
     }
 
-    // ── Building new values (values are immutable, so writes make new ones) ─
+    // Building new values. Values are immutable, so writes make new ones.
 
     /** {@code set} with {@code element} present or absent. The input is not modified. */
     public static <T> Set<T> withElement(Set<T> set, T element, boolean present) {

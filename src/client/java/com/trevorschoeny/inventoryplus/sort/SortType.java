@@ -8,9 +8,8 @@ import net.minecraft.world.item.ItemStack;
 import java.util.Comparator;
 
 /**
- * The four sort orders, in cycle order (`features/sorting.md`). Right-click
- * on the Sort button walks this list; `features/button-modes.md` has the
- * gesture and scope rules.
+ * The four sort orders, in cycle order. Right-click on the Sort button walks
+ * this list.
  *
  * <h3>Each stop carries its own ordering</h3>
  *
@@ -26,10 +25,10 @@ import java.util.Comparator;
  * stack of an item adjacent. Category and Rarity look the item up once per
  * type for the same reason. Empty slots are padded on afterwards and trail.
  *
- * <p>Three stops from the earlier seven (Quantity ↑, ID ↓, Rarity ↑) were
- * cut on 2026-09-05: with a right-click cycle every stop costs presses, so
- * symmetry stopped being free. Disabled went the same day (Trev): a stop
- * that does nothing still costs a press on every lap of the cycle.
+ * <p>There were seven stops once. Quantity ascending, ID descending and
+ * Rarity ascending were cut, because with a right-click cycle every stop
+ * costs presses and symmetry stopped being free. Disabled went too, since a
+ * stop that does nothing still costs a press on every lap of the cycle.
  */
 public enum SortType implements ModeStop {
 
@@ -42,7 +41,7 @@ public enum SortType implements ModeStop {
             .<ItemStack>comparingInt(CategoryOrder::rankOf)
             .thenComparing(SortType::idOf)),
 
-    /** Most of an item first; ties alphabetical. */
+    /** Most of an item first, ties alphabetical. */
     QUANTITY_DESC("Quantity ↓", Comparator
             .<ItemStack>comparingInt(s -> -s.getCount())
             .thenComparing(SortType::idOf)),
@@ -52,7 +51,7 @@ public enum SortType implements ModeStop {
             .<ItemStack, String>comparing(SortType::idOf)
             .thenComparingInt(s -> -s.getCount())),
 
-    /** Highest rarity first (Epic → Rare → Uncommon → Common); ties alphabetical. */
+    /** Highest rarity first (Epic, Rare, Uncommon, Common), ties alphabetical. */
     RARITY_DESC("Rarity ↓", Comparator
             .<ItemStack>comparingInt(s -> -s.getRarity().ordinal())
             .thenComparing(SortType::idOf));
@@ -75,11 +74,11 @@ public enum SortType implements ModeStop {
         return comparator;
     }
 
-    /** Registry id: the key for ID ↑, the tiebreaker for the rest. */
+    /** Registry id: the key for ID_ASC, the tiebreaker for the rest. */
     private static String idOf(ItemStack stack) {
         return BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
     }
 
-    /** Global default. Category is the order that reads as tidy (`sorting.md`). */
+    /** Global default. Category is the order that reads as tidy. */
     public static final SortType DEFAULT = CATEGORY;
 }

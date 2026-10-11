@@ -23,9 +23,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Screen-scoped {@code S} keybind — sorts the simplecontainer
- * containing the slot under the cursor, per the spec at
- * {@code IP features/sorting.md}.
+ * Screen-scoped {@code S} keybind. Sorts the simple container holding the
+ * slot under the cursor.
  *
  * <h3>Trigger flow</h3>
  *
@@ -35,32 +34,33 @@ import java.util.List;
  *       the inventory is open, the inventory; else no-op.</li>
  *   <li>Resolve a {@link ContainerIdentity} from that slot. If
  *       {@code null} (specialized UI, hotbar, armor, etc.), no-op.</li>
- *   <li>Read sort type from {@link SortState}..</li>
+ *   <li>Read the sort type from {@link SortState}.</li>
  *   <li>Collect the sortable region (slots in the same container,
- *       with player-inv main-only filter), call {@link Sorter}.</li>
+ *       with only the main grid for the player inventory) and call
+ *       {@link Sorter}.</li>
  * </ol>
  *
  * <h3>Scope</h3>
  *
- * Sortable regions per spec:
+ * Sortable regions:
  * <ul>
- *   <li>Player main inv (container-slot 9-35) — regardless of which
- *       screen is open.</li>
- *   <li>External simple containers — chest, shulker block, ender
- *       chest, barrel, hopper, dispenser, dropper.</li>
+ *   <li>The player main inventory (container slots 9-35), whichever screen
+ *       is open.</li>
+ *   <li>External simple containers: chest, shulker box, ender chest,
+ *       barrel, hopper, dispenser, dropper.</li>
  * </ul>
  *
- * Excluded (S no-op): hotbar (0-8), armor (36-39), offhand (40),
- * crafting input/result, anvil/furnace/enchanting/etc. specialized
- * slots.
+ * S does nothing over the hotbar (0-8), armor (36-39), offhand (40),
+ * crafting input and result, or specialized slots such as the anvil,
+ * furnace and enchanting table.
  *
  * <h3>Auto-repeat</h3>
  *
  * Holding S would re-fire {@code afterKeyPress} via GLFW auto-repeat,
  * causing repeated sorts. Each re-sort on an already-sorted container
  * is a no-op (the algorithm exits without issuing clicks if no slot
- * mismatches the target), so the worst case is harmless wasted CPU.
- * If users hammer S enough to notice, add a debounce.
+ * mismatches the target), so the worst case is some wasted CPU. Add a
+ * debounce if holding S ever becomes noticeable.
  */
 public final class SortKeybind {
 
@@ -87,7 +87,7 @@ public final class SortKeybind {
         ContainerIdentity identity = hovered == null ? null : ContainerIdentity.fromHoveredSlot(hovered, menu);
         // With nothing sortable open but the inventory (the inventory screen, a
         // furnace, a crafting table), the key sorts the inventory wherever the
-        // mouse is (Trev, 2026-10-03). With a container open too, it sorts
+        // mouse is. With a container open too, it sorts
         // whichever one the mouse is over, and nothing off them.
         if (identity == null && !hasSortableContainer(menu)) {
             hovered = SortButton.findInventoryAnchor(menu);
@@ -128,18 +128,16 @@ public final class SortKeybind {
      * Collects the slots that belong to the same sortable region as
      * the hovered slot.
      *
-     * <p>For player-inv hover: all slots where container is the
-     * player {@link Inventory} AND container-slot is in main-inv range
-     * (9-35). Hotbar and armor are excluded by the identity layer
-     * upstream; this collector still filters in case the menu mixes
-     * them in arbitrary order.
+     * <p>Over the player inventory: every slot whose container is the player
+     * {@link Inventory} and whose container slot is in the main range
+     * (9-35). The identity layer already excludes hotbar and armor, but this
+     * still filters in case the menu mixes them in any order.
      *
-     * <p>For block-anchored / ender-chest hover: all slots whose
-     * {@code container} reference equals the hovered slot's container.
+     * <p>Over a block container or ender chest: every slot whose
+     * {@code container} reference equals the hovered slot's.
      *
-     * <p>Package-visible so the Sort toolbar button can reuse this
-     * collector by passing a synthetic "anchor" slot (any external
-     * sortable slot or any main-inv slot).
+     * <p>Package-visible so the Sort toolbar button can reuse it by passing an
+     * anchor slot (any external sortable slot or any main inventory slot).
      */
     static List<Slot> collectRegion(AbstractContainerMenu menu, Slot hovered) {
         List<Slot> region = new ArrayList<>();

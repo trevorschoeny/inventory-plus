@@ -19,8 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The one lock question and the one veto (`plans/reach.md`, "Enforcement:
- * one veto").
+ * The one lock question and the one veto.
  *
  * <h2>{@link #on}: which lock groups are on this slot</h2>
  *
@@ -28,7 +27,7 @@ import java.util.List;
  * container store, or a companion's shared container lock, judged as Slot
  * lock), the Item and Exact locks matching the stack in it, and the feature
  * reach groups the slot is in now (a cycle slot reports Column Cycler by
- * name, not an implicit Slot lock; Trev, 2026-09-30). It replaces {@code isLocked(int)}, {@code isLockedSlot(Slot)},
+ * name, not an implicit Slot lock). It replaces {@code isLocked(int)}, {@code isLockedSlot(Slot)},
  * {@code LockedItems.isLocked} and {@code LockedItems.blocks(user)}, which
  * disagreed with each other, so every feature now gets the same answer.
  *
@@ -40,7 +39,7 @@ import java.util.List;
  * only subtract from what the slot's author allows; deny wins
  * (deny-overrides).
  *
- * <p>Client first (Trev, 2026-09-27): the veto judges only the local player,
+ * <p>The veto judges only the local player,
  * matched by UUID so the integrated server's copy of that player counts too.
  * With no acting player (a hopper), or another player (a LAN guest of this
  * host), it has no opinion, since this record is this player's alone.
@@ -53,7 +52,7 @@ public final class Locks {
 
     private Locks() {}
 
-    /** Registers the veto. Once, at client init. */
+    /** Once, at client init. */
     public static void registerVeto() {
         SlotOperations.veto((ref, group, operation) -> {
             boolean denied = denies(ref, group, operation);
@@ -62,8 +61,8 @@ public final class Locks {
         });
     }
 
-    // ponytail: [reach-probe] diagnostic for the rare "can't place, reopening
-    // fixes it" report (Designer brief 2026-09-30). Logs every player gesture
+    // [reach-probe] diagnostic for the rare "can't place, reopening fixes it"
+    // report. Logs every player gesture
     // this veto refuses, on whichever thread asks, so a client refusal the
     // server would allow (or the reverse) shows as a line on one side only.
     // Remove once the cause is found.

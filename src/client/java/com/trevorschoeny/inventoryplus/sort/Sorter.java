@@ -23,49 +23,49 @@ import java.util.Map;
 /**
  * Applies a sort to a list of slots in a container, using
  * {@link ContainerInput#PICKUP} clicks routed through
- * {@link MultiPlayerGameMode#handleContainerInput} so the server
- * universally respects them — same mechanism as the locked-slot
- * shift-click synthesis.
+ * {@link MultiPlayerGameMode#handleContainerInput} so any server respects
+ * them. The locked-slot shift-click synthesis works the same way.
  *
  * <h3>Algorithm</h3>
  *
  * <ol>
- *   <li><b>Filter.</b> Locked slots stay where they are; sort operates
+ *   <li><b>Filter.</b> Locked slots stay where they are, and sort operates
  *       only on unlocked slots in the region.</li>
- *   <li><b>Group.</b> Collect (item, components) → total count across
- *       all unlocked slots, preserving same-item-same-components
- *       equality via {@link ItemStack#isSameItemSameComponents}.</li>
+ *   <li><b>Group.</b> Total the count per item and components across all
+ *       unlocked slots, using {@link ItemStack#isSameItemSameComponents}
+ *       for equality.</li>
  *   <li><b>Distribute.</b> For each group, split its total into
  *       max-stack-size chunks (full stacks + one partial remainder).
  *       Each chunk becomes one target stack.</li>
- *   <li><b>Sort the chunks.</b> Using the comparator the {@link
- *       SortType} carries. Empty slots trail.</li>
+ *   <li><b>Sort the chunks</b> with the comparator the {@link SortType}
+ *       carries. Empty slots trail.</li>
  *   <li><b>Apply.</b> Walk the target list slot-by-slot. For each
- *       target position, ensure the underlying inventory matches by
+ *       target position, make the underlying inventory match by
  *       issuing PICKUP swaps and merges from later slots.</li>
  * </ol>
  *
  * <h3>Why three PICKUPs per swap</h3>
  *
- * Vanilla has no "swap arbitrary slots" click — only hotbar SWAP, and
- * that's keyboard-keyed. To swap slots A and B with different items:
+ * Vanilla has no click that swaps two arbitrary slots, only the hotbar
+ * SWAP, which is keyed to the keyboard. To swap slots A and B holding
+ * different items:
  *
  * <ol>
- *   <li>PICKUP A → cursor takes A's items; A empty.</li>
- *   <li>PICKUP B → cursor swaps with B (different items rule). Cursor
- *       has B's items; B has A's items.</li>
- *   <li>PICKUP A → cursor places at A (now empty). A has B's items;
- *       cursor empty.</li>
+ *   <li>PICKUP A: the cursor takes A's items and A is empty.</li>
+ *   <li>PICKUP B: the cursor swaps with B (the different-items rule). The
+ *       cursor has B's items and B has A's.</li>
+ *   <li>PICKUP A: the cursor places into the empty A. A has B's items and
+ *       the cursor is empty.</li>
  * </ol>
  *
- * <p>For same-item consolidation (e.g., 32 dirt + 32 dirt → 64 dirt at
- * the primary slot), the second PICKUP merges instead of swaps, and
- * the order matters — see {@link #consolidateInto}.
+ * <p>For same-item consolidation (32 dirt and 32 dirt into 64 dirt at the
+ * primary slot), the second PICKUP merges instead of swapping, and the
+ * order matters. See {@link #consolidateInto}.
  *
  * <h3>Sort types</h3>
  *
  * Every {@link SortType} carries its own comparator, so this class never
- * branches on the type: it groups, hands the groups to the comparator,
+ * branches on the type. It groups, hands the groups to the comparator,
  * and splits the result into stacks. Adding a stop is a one-line
  * comparator on the enum with no change here.
  */
@@ -74,9 +74,9 @@ public final class Sorter {
     private Sorter() {}
 
     /**
-     * Sorts the given region. Caller resolves the region (sortable
-     * slots in the menu) and the type (from {@link SortState} or
-     * caller-driven). No-ops if the region has nothing to sort.
+     * Sorts the given region. The caller resolves the region (sortable
+     * slots in the menu) and the type (usually from {@link SortState}).
+     * Does nothing if the region has nothing to sort.
      */
     public static void sort(AbstractContainerMenu menu, MultiPlayerGameMode gameMode,
                             Player player, List<Slot> region, SortType type) {
@@ -94,11 +94,9 @@ public final class Sorter {
         }
         if (unlocked.size() < 2) return;
 
-        // Compute target layout.
         List<ItemStack> target = computeTarget(unlocked, order);
         if (target.isEmpty()) return;
 
-        // Apply by issuing PICKUP click sequences.
         // Every click the sort sends is judged as sorting, not as a plain click.
         SlotOperations.as(SORT, () -> applyTarget(menu, gameMode, player, unlocked, target));
 
@@ -106,10 +104,10 @@ public final class Sorter {
                 "[sort] sorted {} unlocked slots with {}", unlocked.size(), type);
     }
 
-    /** Step 2-4: group → distribute → sort with the type's comparator. */
+    /** Steps 2 to 4: group, distribute, and sort with the type's comparator. */
     private static List<ItemStack> computeTarget(List<Slot> unlocked, Comparator<ItemStack> order) {
-        // Group total count per (item, components). LinkedHashMap keeps insertion
-        // order for stability, though we re-sort below.
+        // Total count per item and components. LinkedHashMap keeps insertion
+        // order for stability, though the groups are re-sorted below.
         Map<ItemStack, Integer> totals = new LinkedHashMap<>();
         for (Slot s : unlocked) {
             ItemStack stack = s.getItem();
@@ -122,7 +120,7 @@ public final class Sorter {
             }
         }
 
-        // Order the GROUPS, not the individual stacks. Ranking loose stacks
+        // Order the groups, not the individual stacks. Ranking loose stacks
         // strands an item's leftover partial away from its full stacks (a
         // 51-coal sorting next to a 53-iron rather than beside the 64-coal it
         // came from), which reads in-game as "it didn't sort". Sorting one
@@ -130,7 +128,7 @@ public final class Sorter {
         // chunk of an item adjacent, whatever the sort type.
         //
         // Each entry is a representative stack whose count is the group's
-        // TOTAL, so a comparator's getCount() means "how much of this item you
+        // total, so a comparator's getCount() means "how much of this item you
         // have". That total may exceed the item's max stack size; these stacks
         // are only ever compared and then discarded, never handed to the game.
         List<ItemStack> groups = new ArrayList<>();
@@ -156,7 +154,7 @@ public final class Sorter {
             chunks.add(ItemStack.EMPTY);
         }
         // If chunks > unlocked.size(), the algorithm input was inconsistent;
-        // trim and log (shouldn't happen since chunks come from the same items).
+        // trim and log. It shouldn't happen, since chunks come from the same items.
         if (chunks.size() > unlocked.size()) {
             InventoryPlusClient.LOGGER.warn(
                     "[sort] target chunks ({}) exceed unlocked slots ({}) — trimming",
@@ -174,25 +172,24 @@ public final class Sorter {
         return null;
     }
 
-    /** Step 5: apply by walking target slots in order, fixing each. */
+    /** Step 5: walk the target slots in order, fixing each. */
     private static void applyTarget(AbstractContainerMenu menu, MultiPlayerGameMode gameMode,
                                      Player player, List<Slot> unlocked, List<ItemStack> target) {
         int n = unlocked.size();
-        // Working model — updated after each click sequence to stay in sync
-        // with what we expect the server to do.
+        // Working model, updated after each click sequence to match what the
+        // server is expected to do.
         ItemStack[] current = new ItemStack[n];
         for (int i = 0; i < n; i++) current[i] = unlocked.get(i).getItem().copy();
 
         for (int i = 0; i < n; i++) {
             ItemStack desired = target.get(i);
 
-            // Already correct?
             if (matchesFull(current[i], desired)) continue;
 
             if (desired.isEmpty()) {
-                // Need slot i empty. Find a later slot to absorb current[i]'s
-                // items — prefer same-item slots (consolidation), fall back to
-                // empty slots.
+                // Slot i must end up empty. Find a later slot to absorb
+                // current[i]'s items, preferring same-item slots
+                // (consolidation) over empty ones.
                 if (current[i].isEmpty()) continue;
                 int dest = findCompatibleLater(current, i + 1, current[i]);
                 if (dest == -1) dest = findEmptyLater(current, i + 1);
@@ -201,14 +198,14 @@ public final class Sorter {
                 continue;
             }
 
-            // Desired non-empty: make sure slot i has the desired item type.
+            // Slot i should hold something: get the desired item type there.
             if (!ItemStack.isSameItemSameComponents(current[i], desired)) {
                 int source = findSameItemLater(current, i + 1, desired);
                 if (source == -1) continue; // unreachable
                 doSwap(menu, gameMode, player, unlocked, current, i, source);
             }
 
-            // Right item type now. Fix count if low — pull from later same-item slots.
+            // Right item type now. If the count is low, pull from later same-item slots.
             // Excess (count too high) will be processed naturally at the next target
             // position where this item type appears.
             int needed = desired.getCount() - current[i].getCount();
@@ -251,13 +248,13 @@ public final class Sorter {
     }
 
     /**
-     * Standard 3-PICKUP swap of two slots — works for both
-     * different-item swap (cursor swaps via vanilla's PICKUP rules)
-     * and same-item consolidation (cursor merges).
+     * The usual three-PICKUP swap of two slots. It works for a different-item
+     * swap (the cursor swaps under vanilla's PICKUP rules) and for same-item
+     * consolidation (the cursor merges).
      *
-     * <p>End state: contents of slot {@code a} and slot {@code b} are
-     * exchanged (or merged into one if same item type, with the other
-     * left empty).
+     * <p>Afterwards the contents of slots {@code a} and {@code b} are
+     * exchanged, or merged into one with the other left empty if they are the
+     * same item type.
      */
     private static void doSwap(AbstractContainerMenu menu, MultiPlayerGameMode gameMode,
                                 Player player, List<Slot> unlocked, ItemStack[] current,
@@ -269,9 +266,8 @@ public final class Sorter {
         gameMode.handleContainerInput(menu.containerId, slotB.index, 0, ContainerInput.PICKUP, player);
         gameMode.handleContainerInput(menu.containerId, slotA.index, 0, ContainerInput.PICKUP, player);
 
-        // Update working model based on what actually happened.
-        // For different items: pure swap.
-        // For same item: merge into slotB (the second PICKUP target), with
+        // Update the working model. Different items swap. The same item
+        // merges into slotB (the second PICKUP target), with
         // any cursor remainder returning to slotA on the third PICKUP.
         if (ItemStack.isSameItemSameComponents(current[a], current[b]) && !current[a].isEmpty()) {
             int total = current[a].getCount() + current[b].getCount();
@@ -289,13 +285,12 @@ public final class Sorter {
 
     /**
      * Merge items from {@code source} into {@code dest} (same item type).
-     * After: {@code dest} is filled up to its max stack size from
-     * {@code source}; remainder (if any) stays at {@code source}.
+     * Afterwards {@code dest} is filled up to its max stack size from
+     * {@code source}, and any remainder stays at {@code source}.
      *
-     * <p>Sequence: PICKUP source → cursor takes source's items. PICKUP
-     * dest → cursor merges into dest (same item rule, fills to max,
-     * cursor keeps remainder). PICKUP source → if cursor has leftover,
-     * place back at source.
+     * <p>PICKUP source takes its items onto the cursor. PICKUP dest merges
+     * into dest (the same-item rule fills it to max and the cursor keeps the
+     * remainder). PICKUP source puts any leftover back.
      */
     private static void consolidateInto(AbstractContainerMenu menu, MultiPlayerGameMode gameMode,
                                          Player player, List<Slot> unlocked, ItemStack[] current,
@@ -313,11 +308,10 @@ public final class Sorter {
         Slot slotDst = unlocked.get(dest);
         gameMode.handleContainerInput(menu.containerId, slotSrc.index, 0, ContainerInput.PICKUP, player);
         gameMode.handleContainerInput(menu.containerId, slotDst.index, 0, ContainerInput.PICKUP, player);
-        // Third PICKUP returns leftover (if any) to source. Safe even if cursor
-        // is empty — empty PICKUP on empty slot is a no-op.
+        // The third PICKUP returns any leftover to the source. Safe even with
+        // an empty cursor, since an empty PICKUP on an empty slot does nothing.
         gameMode.handleContainerInput(menu.containerId, slotSrc.index, 0, ContainerInput.PICKUP, player);
 
-        // Update model.
         int total = current[source].getCount() + current[dest].getCount();
         int max = current[source].getMaxStackSize();
         int intoDest = Math.min(total, max);

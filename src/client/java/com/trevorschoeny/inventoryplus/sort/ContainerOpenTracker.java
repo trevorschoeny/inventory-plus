@@ -18,7 +18,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Tracks the block position the player most-recently right-clicked,
+ * Tracks the block position the player most recently right-clicked,
  * and associates it with the {@link
  * net.minecraft.world.inventory.AbstractContainerMenu#containerId} of
  * the container screen that opens immediately after.
@@ -28,31 +28,28 @@ import java.util.Map;
  * On the client, {@code AbstractContainerMenu.slots[i].container} for
  * chests, barrels, hoppers, dispensers, droppers, and shulker boxes
  * resolves to a {@link net.minecraft.world.SimpleContainer} (a
- * synthesized client-side mirror), NOT the underlying
+ * synthesized client-side mirror), not the underlying
  * {@code BlockEntity}. Block-position info isn't carried in the
  * {@code ClientboundOpenScreenPacket}, so there's no in-menu path from
  * the client to "which block opened this menu."
  *
- * <p>This tracker bridges that gap with the standard mod-side
- * heuristic: capture the {@code BlockPos} from the
+ * <p>This tracker bridges that gap with the usual mod-side heuristic: capture the {@code BlockPos} from the
  * {@link UseBlockCallback} event (which fires when the player
  * right-clicks a block), and on the next {@code AFTER_INIT} for a
  * container screen, associate the captured pos with the menu's
  * {@code containerId}. Cleared when the screen closes.
  *
- * <h3>Edge cases (acceptable)</h3>
+ * <h3>Accepted edge cases</h3>
  *
  * <ul>
- *   <li>Right-click that doesn't open a container (e.g., on dirt) →
- *       capture is stored but never associated (the next AFTER_INIT
- *       won't fire). The stale capture would attach to the next
- *       genuinely-opened menu — bounded TTL (1 second) limits the
- *       blast radius.</li>
- *   <li>Container opens via non-click path (e.g., another mod's
- *       command, vehicle, etc.) → no capture available; {@link
- *       #getBlockPos} returns null. Sort still runs for those
- *       containers (per {@link ContainerIdentity}) but uses a
- *       session-only identity that doesn't persist.</li>
+ *   <li>A right-click that doesn't open a container (on dirt, say) stores a
+ *       capture that is never associated, because no AFTER_INIT follows.
+ *       The stale capture could attach to the next menu that does open, so
+ *       a 1 second TTL limits the damage.</li>
+ *   <li>A container opened some other way (another mod's command, a
+ *       vehicle) has no capture, so {@link #getBlockPos} returns null.
+ *       Sort still runs for those containers (see {@link ContainerIdentity})
+ *       but uses a session-only identity that doesn't persist.</li>
  * </ul>
  */
 public final class ContainerOpenTracker {
@@ -65,7 +62,7 @@ public final class ContainerOpenTracker {
     private static @Nullable BlockPos lastClickedBlockPos = null;
     private static long lastClickedAtMs = 0;
 
-    /** containerId → BlockPos for the currently-open menu (cleared on close). */
+    /** containerId to BlockPos for the open menu, cleared on close. */
     private static final Map<Integer, BlockPos> openMenuBlockPos = new HashMap<>();
 
     public static void register() {
@@ -84,14 +81,12 @@ public final class ContainerOpenTracker {
             InventoryPlusClient.LOGGER.debug(
                     "[sort] associated containerId={} with blockPos={}",
                     containerId, lastClickedBlockPos);
-            // Consume the capture so a single right-click doesn't attach to
-            // multiple menus (defensive against weird timing).
+            // Consume the capture so one right-click can't attach to several menus.
             lastClickedBlockPos = null;
         });
 
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
-            // Hook the screen's remove callback to drop the association
-            // when the menu closes.
+            // Drop the association when the menu closes.
             if (!(screen instanceof AbstractContainerScreen<?> acs)) return;
             int containerId = acs.getMenu().containerId;
             ScreenEvents.remove(screen).register(closing -> {
@@ -100,7 +95,6 @@ public final class ContainerOpenTracker {
         });
     }
 
-    /** Returns the BlockPos associated with the given menu's containerId, or null. */
     public static @Nullable BlockPos getBlockPos(int containerId) {
         return openMenuBlockPos.get(containerId);
     }
@@ -110,16 +104,16 @@ public final class ContainerOpenTracker {
      * container is open, none was opened via a tracked right-click, or the
      * position is unloaded.
      *
-     * <p>This is the cross-feature primitive for "what container am I actually
-     * in" on the client — where the open menu's slots wrap a generic
-     * {@code SimpleContainer}, not the real BlockEntity, so the slot itself
-     * can't tell you it's a chest vs. an ender chest vs. a furnace. Container
-     * Locks uses it to route ender → IP's client store and placed simple
-     * containers → the shared channel; Sort uses the position form above.
+     * <p>The shared answer to "what container am I actually in" on the client,
+     * where the open menu's slots wrap a generic {@code SimpleContainer}, not
+     * the real BlockEntity, so the slot can't tell a chest from an ender chest
+     * or a furnace. Container locks use it to send the ender chest to the
+     * client store and placed simple containers to the shared channel. Sort
+     * uses the position form above.
      *
-     * <p>Client-only (reads {@link Minecraft}); callers on the integrated-server
-     * thread must guard against calling it (the real container is visible there
-     * directly). Returns whatever block is at the tracked position, so callers
+     * <p>Client-only (reads {@link Minecraft}). Callers on the integrated-server
+     * thread must not call it, and don't need to, since the real container is
+     * visible there directly. Returns whatever block is at the tracked position, so callers
      * decide which block types they accept.
      */
     public static @Nullable Block openContainerBlock() {

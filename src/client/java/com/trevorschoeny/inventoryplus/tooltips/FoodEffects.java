@@ -19,7 +19,7 @@ import java.util.List;
  * it (name, level, duration, coloured by whether it helps), with its chance
  * when under 100%. Read from the {@code CONSUMABLE} component's apply-effects
  * entries only, so suspicious stew's effects, kept in their own component,
- * stay hidden as vanilla intends; and a potion, which vanilla already lists,
+ * stay hidden as vanilla intends, and a potion, which vanilla already lists,
  * gets nothing from here because its effects are not consume effects.
  */
 final class FoodEffects {

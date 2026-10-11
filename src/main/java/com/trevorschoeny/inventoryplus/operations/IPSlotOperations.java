@@ -45,8 +45,7 @@ public final class IPSlotOperations {
      */
     public static void define() {
         // Which vanilla groups each can act on (MenuKit's AppliesTo), so the
-        // Reach tab offers only boxes that mean something (Trev, 2026-09-27:
-        // "only what applies is offered"). Groups a mod adds apply too unless
+        // Reach tab offers only boxes that mean something. Groups a mod adds apply too unless
         // excepted; one that declared a vanilla category follows that category.
         AppliesTo storage = AppliesTo.vanilla(PLAYER_INVENTORY, CHEST_STORAGE, SHULKER_STORAGE,
                 DISPENSER_STORAGE, HOPPER_STORAGE, MOUNT_STORAGE);

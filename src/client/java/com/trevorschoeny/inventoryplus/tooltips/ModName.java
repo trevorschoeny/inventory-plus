@@ -11,7 +11,7 @@ import java.util.List;
 
 /**
  * The item's mod, blue italic, as the tooltip's last line: the display name
- * of the mod whose id is the item id's namespace, from Fabric's metadata;
+ * of the mod whose id is the item id's namespace, from Fabric's metadata.
  * "Minecraft" for vanilla items, and the bare namespace if no mod claims it.
  */
 final class ModName {

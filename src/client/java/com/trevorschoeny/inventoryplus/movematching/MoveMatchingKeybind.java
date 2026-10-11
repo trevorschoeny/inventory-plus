@@ -14,27 +14,23 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 /**
- * Screen-scoped {@code I} / {@code O} keybinds for Move Matching IN /
- * OUT.
- *
- * <p>Behavior per Trev / Lead 2026-05-16:
+ * Screen-scoped {@code I} and {@code O} keybinds for Move Matching in and
+ * out.
  *
  * <ul>
  *   <li>{@code I} pressed anywhere in a supported screen
- *       ({@code ContainerScreen} / shulker / hopper / dispenser) →
- *       trigger Move Matching IN.</li>
- *   <li>{@code O} pressed in the same scope → trigger Move Matching OUT.</li>
- *   <li>Outside those screens (standalone inventory, specialized UI,
- *       no UI) → no-op (the handler isn't registered).</li>
+ *       ({@code ContainerScreen}, shulker, hopper, dispenser) runs Move
+ *       Matching in.</li>
+ *   <li>{@code O} in the same screens runs Move Matching out.</li>
+ *   <li>Outside those screens (the standalone inventory, specialized UI,
+ *       no UI) nothing happens, because the handler isn't registered.</li>
  * </ul>
  *
  * <p>No slot-hover requirement. The keys fire anywhere in the open
  * screen.
  *
  * <p>Scoped via {@link ScreenKeyboardEvents} so a global keybind doesn't
- * steal {@code I} / {@code O} during normal gameplay. Promoting to
- * rebindable {@link net.minecraft.client.KeyMapping}s is filed in
- * DEFERRED.md.
+ * steal {@code I} and {@code O} during normal gameplay.
  */
 public final class MoveMatchingKeybind {
 

@@ -24,12 +24,12 @@ import java.util.function.Supplier;
 
 /**
  * The right column's buttons: one per feature, each the feature's on/off
- * switch (Trev, 2026-10-03). The same three gestures on every one:
+ * switch. The same three gestures on every one:
  * <ul>
  *   <li><b>Left click</b> turns the feature on or off. The icon inverts while on.</li>
  *   <li><b>Right click</b> cycles, where the feature has something to cycle
- *       (the lock group a key press applies). Shift+right click goes back.</li>
- *   <li><b>Ctrl+click</b> (Cmd on a Mac) opens the feature's tab, and holding
+ *       (the lock group a key press applies). Shift-right click goes back.</li>
+ *   <li><b>Ctrl-click</b> (Cmd on a Mac) opens the feature's tab, and holding
  *       Ctrl says so in the tooltip.</li>
  * </ul>
  * No button holds an edit mode: a feature that acts on slots names its key in
@@ -53,7 +53,7 @@ public final class FeatureToggleButtons {
                 () -> keyHint("Hover over a slot or item", IPKeybinds.LOCK_SLOT) + "\nRight click: cycle")
                 .onSecondaryClick(click -> {
                     if (!click.isRight()) return;
-                    // A Mac's Ctrl+click arrives as a right click: still opens the tab.
+                    // A Mac's Ctrl-click arrives as a right click, and still opens the tab.
                     if (SettingsMenu.ctrlClickOpens(SettingsMenu.LOCK_GROUPS)) return;
                     feedback.press();
                     Reach.cycleActive(click.isShiftRight() ? -1 : 1);

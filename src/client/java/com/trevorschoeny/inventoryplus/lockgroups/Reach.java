@@ -26,13 +26,13 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.IntPredicate;
 
 /**
- * The reach record (`plans/reach.md`): one record, kept by the player, that
+ * The reach record: one record, kept by the player, that
  * answers "may this operation touch this group?" for every operation, and
  * the lock groups whose keys it holds.
  *
  * <h2>What is stored</h2>
  *
- * <p>Only what the player changed (Designer and Imp, 2026-09-27):
+ * <p>Only what the player changed:
  * <ul>
  *   <li><b>denied</b>: operation id to the exact set of group keys that
  *       operation may not use. An operation with no entry uses the default;
@@ -71,7 +71,7 @@ public final class Reach {
 
     private Reach() {}
 
-    // ── Ids and keys ────────────────────────────────────────────────────
+    // Ids and keys
 
     public static final String SLOT_LOCK = "slot_lock";
     public static final String EXACT_ITEM = "exact_item";
@@ -96,18 +96,18 @@ public final class Reach {
         return key.startsWith(FEATURE_PREFIX);
     }
 
-    /** The cyclers' slots, as reach groups of their own (`plans/reach.md`, "Feature reach groups"). */
+    /** The cyclers' slots, as reach groups of their own. */
     public static final String COLUMN_CYCLER = featureKey("column_cycler");
     public static final String HOTBAR_CYCLER = featureKey("hotbar_cycler");
 
-    /** The three places Inventory Plus declares (`plans/reach.md`, "Places"). */
+    /** The three places Inventory Plus declares. */
     public static final String SHULKER_BOXES = placeKey("shulker_boxes");
     public static final String BUNDLES = placeKey("bundles");
     public static final String ENDER_CHEST = placeKey("ender_chest");
 
-    // ── The two defaults' tables (`plans/lock-groups.md`) ───────────────
+    // The two defaults' tables
 
-    /** What Slot lock stops by default (Trev, 2026-09-11). */
+    /** What Slot lock stops by default. */
     public static final Set<String> SLOT_LOCK_DENIES = Set.of(
             "inventoryplus:sort", "inventoryplus:move_matching_out", "inventoryplus:move_matching_in",
             "menukit:shift_click_in", "menukit:shift_click_out", "menukit:collect",
@@ -115,15 +115,15 @@ public final class Reach {
             "menukit:hotbar_swap", "menukit:offhand_swap", "inventoryplus:restock_take");
 
     /**
-     * What Exact item stops by default (Trev, 2026-09-11). Item groups copy it.
-     * Pocket Cycler rotation joins the other two cyclers (Designer, 2026-09-27).
+     * What Exact item stops by default. Item groups copy it. Pocket Cycler
+     * rotation is stopped along with the other two cyclers.
      */
     public static final Set<String> EXACT_ITEM_DENIES = Set.of(
             "menukit:drop", "menukit:drop_stack", "menukit:shift_click_out", "menukit:collect",
             "inventoryplus:sort", "inventoryplus:move_matching_out", "inventoryplus:move_matching_in",
             "inventoryplus:column_cycle", "inventoryplus:hotbar_cycle", "inventorymax:pocket_cycle");
 
-    // ── Feature reach groups (`plans/reach.md`, "Feature reach groups") ──
+    // Feature reach groups
 
     /**
      * A feature's slots as a reach group: the slots in the current column
@@ -173,7 +173,7 @@ public final class Reach {
     /**
      * The upgrade for a player who had a cycle-lock switch off: every
      * operation that denies one of {@code keys} stops denying it, written as
-     * explicit entries, so the old answer survives the defaults (2026-09-30).
+     * explicit entries, so the old answer survives the defaults.
      */
     public static void allowEverywhere(String... keys) {
         Set<String> ops = new TreeSet<>(SLOT_LOCK_DENIES);
@@ -200,7 +200,7 @@ public final class Reach {
                 new LockGroup(EXACT_ITEM, LockKind.EXACT, "Exact item", "gray", null));
     }
 
-    // ── The record ──────────────────────────────────────────────────────
+    // The record
 
     /**
      * One immutable snapshot of the record, with its flattened lookups.
@@ -267,7 +267,7 @@ public final class Reach {
         onChange.run();
     }
 
-    // ── Reads ───────────────────────────────────────────────────────────
+    // Reads
 
     /** Every group, the two defaults first. */
     public static List<LockGroup> groups() {
@@ -281,7 +281,7 @@ public final class Reach {
     /**
      * The group a stored lock belongs to: the one named, or the default of
      * its kind when that group is gone or has a different kind (a swapped
-     * config, say). `plans/lock-groups.md`, "Storage".
+     * config, say).
      */
     public static LockGroup resolve(@Nullable String id, LockKind kind) {
         LockGroup g = id == null ? null : state.byId().get(id);
@@ -320,7 +320,7 @@ public final class Reach {
             "gray", "red", "orange", "yellow", "lime", "green", "cyan", "light_blue",
             "blue", "purple", "magenta", "pink", "brown", "black", "white", "light_gray");
 
-    // ── Writes ──────────────────────────────────────────────────────────
+    // Writes
 
     /** Selects the next group ({@code step} 1) or the previous one ({@code -1}), wrapping. */
     public static LockGroup cycleActive(int step) {
@@ -362,7 +362,7 @@ public final class Reach {
     /**
      * Sets whether lock group {@code groupId} stops {@code operation}, writing
      * the operation's entry from its current effective set if it had none.
-     * Used by the upgrade from 1.5.x; the menu's own writes come in stage 3.
+     * Used by the upgrade from 1.5.x.
      */
     public static void setLockDenies(String groupId, String operation, boolean deny) {
         State s = state;
@@ -447,8 +447,7 @@ public final class Reach {
     /**
      * Deletes custom group {@code id} and scrubs its key from every entry, so
      * a later group can never inherit its choices. The defaults cannot be
-     * deleted. The caller moves or removes its locks first (lock-groups.md,
-     * "Deleting a group").
+     * deleted. The caller moves or removes its locks first.
      */
     public static void deleteGroup(String id) {
         State s = state;
@@ -501,11 +500,10 @@ public final class Reach {
         return Collections.unmodifiableSet(out);
     }
 
-    // ── Persistence (the "reach" object in config.json) ─────────────────
+    // Persistence (the "reach" object in config.json)
 
     private static final int VERSION = 1;
 
-    /** Replaces the record with {@code json}'s; {@code null} means a fresh install. Does not save. */
     /**
      * A saved key as this MenuKit writes it. MenuKit 6.0.0 renamed a category
      * group's text from {@code vanilla|ns|path} to {@code category|ns|path};
@@ -521,6 +519,7 @@ public final class Reach {
         }
     }
 
+    /** Replaces the record with {@code json}'s; {@code null} means a fresh install. Does not save. */
     public static void read(@Nullable JsonObject json) {
         if (json == null) {
             state = State.of(Map.of(), defaultGroups(), Set.of(), SLOT_LOCK);

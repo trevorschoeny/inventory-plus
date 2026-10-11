@@ -8,35 +8,31 @@ import net.minecraft.world.inventory.Slot;
 import java.util.List;
 
 /**
- * A "slot group" within an open container menu — a contiguous block of
- * slots sharing a {@link SlotRole} and backing {@link Container}.
+ * A slot group within an open container menu: a contiguous block of slots
+ * sharing a {@link SlotRole} and backing {@link Container}.
  *
- * <h3>Targetability decision</h3>
+ * <h3>Targetability</h3>
  *
- * A group is "targetable" — meaning it counts toward the visibility
- * gate in {@link MoveMatchingButtons} — when {@link #targetable}
- * returns true:
+ * A group is targetable, meaning it counts toward the visibility gate in
+ * {@link MoveMatchingButtons}, when {@link #targetable} returns true:
  *
  * <ul>
- *   <li>{@link SlotRole#PLAYER_MAIN_INV} → always targetable. (The
- *       Move Matching widgets always render on the player main inv
- *       group when an external simplecontainer is present.)</li>
- *   <li>{@link SlotRole#EXTERNAL} → targetable iff the backing container
- *       is NOT in {@link #isNonTraditionalContainer}'s blacklist
- *       (crafting input / result are non-targetable).</li>
- *   <li>{@link SlotRole#PLAYER_HOTBAR} / {@link SlotRole#PLAYER_EQUIPMENT}
- *       → never targetable.</li>
+ *   <li>{@link SlotRole#PLAYER_MAIN_INV}: always.</li>
+ *   <li>{@link SlotRole#EXTERNAL}: when the backing container is not one of
+ *       {@link #isNonTraditionalContainer}'s exclusions (crafting input and
+ *       result).</li>
+ *   <li>{@link SlotRole#PLAYER_HOTBAR} and {@link SlotRole#PLAYER_EQUIPMENT}:
+ *       never.</li>
  * </ul>
  *
- * <p>Post-2026-05-16 simplification, the widgets only render on the
- * player main inv group (and only when at least one EXTERNAL
- * targetable group is present alongside). The targetable flag on
- * EXTERNAL groups is now used purely as the "is this a real
- * simplecontainer?" gate.
+ * <p>The buttons only render on the player main inventory group, and only
+ * when at least one targetable external group is present alongside. On
+ * external groups the flag only answers "is this a real simple
+ * container?"
  *
  * <h3>Bounds</h3>
  *
- * Slot positions are local to the screen's {@code leftPos}/{@code topPos}.
+ * Slot positions are local to the screen's {@code leftPos} and {@code topPos}.
  * {@link #localTopY} / {@link #localRightX} recompute live each render.
  */
 public record SlotGroup(
@@ -58,8 +54,7 @@ public record SlotGroup(
     /**
      * Vanilla "non-traditional" container types that may appear in
      * InventoryScreen alongside the player inventory: the crafting
-     * result and the crafting input. Add new entries here as edge
-     * cases surface.
+     * result and the crafting input.
      */
     public static boolean isNonTraditionalContainer(Container container) {
         return container instanceof ResultContainer

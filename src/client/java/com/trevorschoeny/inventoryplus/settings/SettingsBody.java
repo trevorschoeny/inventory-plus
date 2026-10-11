@@ -40,8 +40,7 @@ import java.util.function.Supplier;
  * elements positioned from the body's top-left, so this class only keeps a
  * running {@code y} and hands out rows.
  *
- * <p><b>Half wired.</b> A control with a real setting behind it reads that
- * setting every frame and saves on change ({@link Bool}, choices, sliders,
+ * <p>A control with a real setting behind it reads that setting every frame and saves on change ({@link Bool}, choices, sliders,
  * and keys, which are Keybindery's). A control whose setting does not exist
  * yet is a {@link Bool#placeholder}: it shows its planned default, greyed.
  *
@@ -74,9 +73,9 @@ final class SettingsBody {
     private static final int LINE_COLOR = 0xFF8B8B8B;
 
     /**
-     * Which sections are open, by title, for the session. ponytail: keyed by
-     * title, so two sections with one title share a state; key by id if that
-     * ever shows.
+     * Which sections are open, by title, for the session. Keyed by title, so
+     * two sections with one title share a state. Key by id if that ever
+     * shows.
      */
     private static final Map<String, Boolean> OPEN = new HashMap<>();
 
@@ -86,8 +85,8 @@ final class SettingsBody {
 
     /**
      * Whether the tab's feature is on. Set by the frame's on/off checkbox;
-     * every control made after it greys and disables while this reads false
-     * (Trev, 2026-09-27: when a feature is off, every setting in its tab is).
+     * every control made after it greys and disables while this reads false,
+     * since when a feature is off, every setting in its tab is too.
      * Captured per control when it is made, so the frame above the line is
      * never gated.
      */
@@ -101,11 +100,11 @@ final class SettingsBody {
         this(false);
     }
 
-    // ── Text ────────────────────────────────────────────────────────────
+    // Text
 
     /**
      * The heading alone, with no Reset or On/Off row: for General, small
-     * enough to need no reset of its own (Trev, 2026-10-03). Reset everything
+     * enough to need no reset of its own. Reset everything
      * still lives in its settings.
      */
     SettingsBody frame(String title, String description) {
@@ -116,8 +115,8 @@ final class SettingsBody {
     /**
      * The top of every tab: the tab's title, its description, one row at the
      * left with Reset to Defaults and (on a feature tab) the On/Off switch
-     * after it, then the line (Trev, 2026-10-03: the row sits above the line,
-     * right under the description); the settings follow. For a tab with no feature to turn off (Reach),
+     * after it, then the line, so the row sits right under the description.
+     * The settings follow. For a tab with no feature to turn off (Reach),
      * Reset stands alone. {@code onReset} runs on the button,
      * normally a confirm ({@link SettingsMenu#confirm}); {@code null} leaves
      * it greyed.
@@ -204,10 +203,10 @@ final class SettingsBody {
     }
 
     /**
-     * A category: its title and a short line under it, with a gap above
-     * (Trev, 2026-09-27). Every setting in a tab sits in one; settings that
-     * would each be a category of one go headerless at the top of the tab,
-     * straight under the line (Trev, 2026-10-03: no "Misc." header).
+     * A category: its title and a short line under it, with a gap above.
+     * Every setting in a tab sits in one. Settings that would each be a
+     * category of one go headerless at the top of the tab, straight under the
+     * line, rather than under a "Misc." header.
      */
     SettingsBody heading(String text) {
         if (y > 0) y += SECTION_GAP;
@@ -242,7 +241,7 @@ final class SettingsBody {
                 .content(inner.build());
         if (swatch != null) section.swatch(swatch);
         // A section takes the kind's heading and muted colours itself, and the
-        // disabled colour while disabled: a stand-in's sections are.
+        // disabled colour while disabled, as a stand-in's sections are.
         if (greyed) section.disabledWhen(DISABLED);
         out.add(section.build());
         y += Section.HEADER_HEIGHT + 2;
@@ -265,7 +264,7 @@ final class SettingsBody {
         return this;
     }
 
-    // ── Placeholder controls (all disabled) ─────────────────────────────
+    // Placeholder controls (all disabled)
 
     /**
      * A boolean setting as a control sees it: where it reads, where it
@@ -291,9 +290,9 @@ final class SettingsBody {
         }
     }
 
-    // A setting is its text on one line and its control below it (Trev,
-    // 2026-09-27), except a checkbox, which is small enough to sit inline
-    // with its text to the right. A sub-setting indents.
+    // A setting is its text on one line and its control below it, except a
+    // checkbox, which is small enough to sit inline with its text to the
+    // right. A sub-setting indents.
 
     /** A setting's text, on its own line, greying while the feature is off. */
     private void label(int x, Component text) {
@@ -452,8 +451,8 @@ final class SettingsBody {
     /**
      * A whole-number setting on a slider, bound to its config the same way.
      *
-     * <p>ponytail: every drag step calls {@code set}, and so saves the config
-     * file; fine for a small JSON file. Save on release if it ever shows.
+     * <p>Every drag step calls {@code set}, and so saves the config file. That
+     * is fine for a small JSON file. Save on release if it ever shows.
      */
     SettingsBody slider(String label, int min, int max, IntSupplier get, IntConsumer set, BooleanSupplier unavailable) {
         label(0, Component.literal(label));

@@ -13,25 +13,23 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Fires Auto Tool Switch's block-attack logic at the very start of
- * vanilla's block-attack methods — BEFORE vanilla reads the player's
+ * vanilla's block-attack methods, before vanilla reads the player's
  * main-hand item to compute destroy speed or apply creative-mode
  * one-shot break logic.
  *
- * <p>Why this exists instead of Fabric's {@code AttackBlockCallback}:
- * Trev's 2026-05-25 report — tools were sometimes switching AFTER the
- * first hit's destroy speed was already computed. Injecting at HEAD of
- * the game-mode methods guarantees our slot change happens first.
+ * <p>With Fabric's {@code AttackBlockCallback}, tools sometimes switched
+ * after the first hit's destroy speed was already computed. Injecting at
+ * HEAD of the game-mode methods makes the slot change happen first.
  *
- * <p>Two methods to cover both gamemodes:
+ * <p>Two methods cover both game modes, and each fires once per left-button
+ * press:
  * <ul>
- *   <li>{@code startDestroyBlock(BlockPos, Direction)} — survival
- *       sustained mining. Fires once per LMB press.</li>
- *   <li>{@code destroyBlock(BlockPos)} — creative single-hit break.
- *       Fires once per LMB press.</li>
+ *   <li>{@code startDestroyBlock(BlockPos, Direction)}: survival sustained
+ *       mining.</li>
+ *   <li>{@code destroyBlock(BlockPos)}: creative single-hit break.</li>
  * </ul>
  *
- * <p>Uses precise injection per §0030 — no {@code @Overwrite}, HEAD
- * injection is observation-only.
+ * <p>No {@code @Overwrite}, and the HEAD injection doesn't alter the flow.
  */
 @Mixin(MultiPlayerGameMode.class)
 public class MultiPlayerGameModeBlockAttackMixin {

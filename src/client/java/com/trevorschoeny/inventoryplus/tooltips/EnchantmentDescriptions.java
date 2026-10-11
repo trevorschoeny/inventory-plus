@@ -12,8 +12,8 @@ import java.util.Set;
 /**
  * Under each enchantment line, one grey line saying what it does, from
  * {@code enchantment.<namespace>.<path>.desc} in the lang file. Every vanilla
- * enchantment has one; an enchantment whose key has no translation (a modded
- * one we know nothing about) gets no line rather than a raw key.
+ * enchantment has one. An enchantment whose key has no translation (an
+ * unknown modded one) gets no line rather than a raw key.
  */
 final class EnchantmentDescriptions {
 

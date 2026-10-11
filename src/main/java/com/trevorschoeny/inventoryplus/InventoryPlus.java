@@ -5,7 +5,7 @@ import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
 import net.fabricmc.api.ModInitializer;
 
 /**
- * Inventory Plus on both sides (§0062). Everything a player sees and does is
+ * Inventory Plus on both sides. Everything a player sees and does is
  * the client's ({@link InventoryPlusClient}, in the client source set); what
  * runs here is only what a server needs to know about Inventory Plus: its slot
  * operations, so a server can answer "may Sort take from this slot?" for a

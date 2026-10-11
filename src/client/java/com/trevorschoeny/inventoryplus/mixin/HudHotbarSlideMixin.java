@@ -25,9 +25,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * The HUD is built by render-state extraction, not draw calls. Hotbar items
  * come out of {@code Hud.extractSlot(graphics, x, y, delta, player, stack,
  * seed)}, one stack per cell, called from {@code extractItemHotbar} in a
- * loop over slots 0-8 and then twice more for the offhand. So the slide is
- * not "suppress the draw and paint over it"; it is: cancel vanilla's one
- * emission for a cell mid-slide and emit two of our own through
+ * loop over slots 0-8 and then twice more for the offhand. So the slide
+ * can't suppress the draw and paint over it. Instead it cancels vanilla's
+ * one emission for a cell mid-slide and emits two of its own through
  * {@link HudAccessor}, at interpolated positions.
  *
  * <p>The {@code seed} parameter is an incrementing counter for the item pop
@@ -41,7 +41,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *
  * The offhand calls land at {@code guiWidth/2 - 91 - 26} and
  * {@code guiWidth/2 + 91 + 10}, neither of which is on that 20 px grid, so
- * the inversion excludes them by itself; the {@code y} check is a second
+ * the inversion excludes them by itself. The {@code y} check is a second
  * guard for anything else that might route through the same method.
  *
  * <h3>Re-entrancy</h3>
@@ -56,7 +56,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * FORWARD ({@code ]}) shifts rows down toward the hotbar: the new item drops
  * in from one cell above, the old one continues down and out below. BACKWARD
  * is the mirror. Both are clipped to the cell's 20 px band so nothing draws
- * over the hotbar frame; the same clip the column arm uses.
+ * over the hotbar frame, the same clip the column arm uses.
  */
 @Mixin(Hud.class)
 public abstract class HudHotbarSlideMixin {
@@ -64,7 +64,7 @@ public abstract class HudHotbarSlideMixin {
     /** Vanilla's hotbar cell pitch; one cell is also the slide distance. */
     private static final int CELL_PX = 20;
 
-    /** Set while we are inside our own re-emissions; see the class doc. */
+    /** Set while inside our own re-emissions. See the class doc. */
     private static boolean inventoryPlus$reemitting = false;
 
     @Inject(

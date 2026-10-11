@@ -8,8 +8,7 @@ import com.trevlar.menukit.api.window.TriBool;
 import net.minecraft.resources.Identifier;
 
 /**
- * The slot operations Inventory Plus performs, as MenuKit keys
- * ({@code plans/slot-operations.md}).
+ * The slot operations Inventory Plus performs, as MenuKit keys.
  *
  * <p>Each one is something Inventory Plus can do to a slot. MenuKit lists them
  * in {@code SlotOperations.all()} so a settings screen can name them, and a
@@ -62,8 +61,7 @@ public final class InventoryPlusOperations {
 
     /**
      * Column Cycler may rotate items through a slot. Role BOTH. Separate from
-     * {@link #HOTBAR_CYCLE} so a lock can block one cycler and not the other
-     * (Trev, 2026-09-11).
+     * {@link #HOTBAR_CYCLE} so a lock can block one cycler and not the other.
      */
     public static final BehaviorKey<TriBool> COLUMN_CYCLE = operation("column_cycle");
 
