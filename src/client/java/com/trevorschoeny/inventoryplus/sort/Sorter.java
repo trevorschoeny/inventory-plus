@@ -157,7 +157,7 @@ public final class Sorter {
         // trim and log. It shouldn't happen, since chunks come from the same items.
         if (chunks.size() > unlocked.size()) {
             InventoryPlusClient.LOGGER.warn(
-                    "[sort] target chunks ({}) exceed unlocked slots ({}) — trimming",
+                    "[sort] target chunks ({}) exceed unlocked slots ({}), trimming",
                     chunks.size(), unlocked.size());
             chunks = chunks.subList(0, unlocked.size());
         }

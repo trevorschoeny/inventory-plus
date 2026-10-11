@@ -263,7 +263,7 @@ public final class LockedSlots {
             }
         } catch (IOException | JsonSyntaxException | IllegalStateException | NumberFormatException e) {
             InventoryPlusClient.LOGGER.error(
-                    "[locked-slots] failed to parse {} — starting with empty prefs",
+                    "[locked-slots] failed to parse {}, starting with empty prefs",
                     path, e);
         }
     }
@@ -731,7 +731,7 @@ public final class LockedSlots {
             Files.writeString(path, GSON.toJson(root));
         } catch (IOException e) {
             InventoryPlusClient.LOGGER.error(
-                    "[locked-slots] failed to write {} — change won't survive a restart",
+                    "[locked-slots] failed to write {}, change won't survive a restart",
                     path, e);
         }
     }

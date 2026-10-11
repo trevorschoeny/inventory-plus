@@ -148,7 +148,7 @@ public final class LockedItems {
             }
         } catch (IOException | JsonSyntaxException | IllegalStateException | NullPointerException e) {
             InventoryPlusClient.LOGGER.error(
-                    "[locked-items] failed to parse {} — starting with an empty list", path, e);
+                    "[locked-items] failed to parse {}, starting with an empty list", path, e);
         }
     }
 
@@ -372,7 +372,7 @@ public final class LockedItems {
             Files.writeString(path, GSON.toJson(root));
         } catch (IOException e) {
             InventoryPlusClient.LOGGER.error(
-                    "[locked-items] failed to write {} — the change won't survive a restart", path, e);
+                    "[locked-items] failed to write {}, the change won't survive a restart", path, e);
         }
     }
 }

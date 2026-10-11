@@ -94,7 +94,7 @@ public final class SortKeybind {
             identity = hovered == null ? null : ContainerIdentity.fromHoveredSlot(hovered, menu);
         }
         if (identity == null) {
-            InventoryPlusClient.LOGGER.debug("[sort] S pressed; nothing sortable under the cursor — no-op");
+            InventoryPlusClient.LOGGER.debug("[sort] S pressed; nothing sortable under the cursor, no-op");
             return;
         }
         String hoveredDesc = "slot.index=" + hovered.index
@@ -106,13 +106,13 @@ public final class SortKeybind {
         List<Slot> region = collectRegion(menu, hovered);
         if (region.size() < 2) {
             InventoryPlusClient.LOGGER.debug(
-                    "[sort] S pressed; {} identity={} region only {} slot(s) — no-op",
+                    "[sort] S pressed; {} identity={} region only {} slot(s), no-op",
                     hoveredDesc, identity.key(), region.size());
             return;
         }
 
         InventoryPlusClient.LOGGER.debug(
-                "[sort] S pressed; {} identity={} type={} region={} slots — sorting",
+                "[sort] S pressed; {} identity={} type={} region={} slots, sorting",
                 hoveredDesc, identity.key(), type, region.size());
 
         Sorter.sort(menu, mc.gameMode, mc.player, region, type);

@@ -171,7 +171,7 @@ public final class ColumnCyclerRotator {
         // carried item into the cycle.
         if (!menu.getCarried().isEmpty()) {
             InventoryPlusClient.LOGGER.debug(
-                    "[{}] rotate skipped — cursor holding {}", feature, menu.getCarried());
+                    "[{}] rotate skipped, cursor holding {}", feature, menu.getCarried());
             return false;
         }
 
@@ -188,7 +188,7 @@ public final class ColumnCyclerRotator {
             int menuIdx = PlayerMenuSlots.menuIndexOf(menu, player, containerSlots.get(i));
             if (menuIdx < 0) {
                 InventoryPlusClient.LOGGER.debug(
-                        "[{}] rotate skipped — container slot {} not in current menu",
+                        "[{}] rotate skipped, container slot {} not in current menu",
                         feature, containerSlots.get(i));
                 return false;
             }
@@ -198,7 +198,7 @@ public final class ColumnCyclerRotator {
         // The destination is the hotbar slot a SWAP names by its index.
         int hotbar = containerSlots.get(n - 1);
         if (hotbar < 0 || hotbar > 8) {
-            InventoryPlusClient.LOGGER.debug("[{}] rotate skipped — last slot {} is not a hotbar slot",
+            InventoryPlusClient.LOGGER.debug("[{}] rotate skipped, last slot {} is not a hotbar slot",
                     feature, hotbar);
             return false;
         }

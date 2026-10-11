@@ -218,7 +218,7 @@ public final class IPConfig {
         Path path = filePath();
         if (!Files.exists(path)) {
             InventoryPlusClient.LOGGER.info(
-                    "[config] no config file at {} — using defaults", path);
+                    "[config] no config file at {}, using defaults", path);
             return;
         }
         try {
@@ -236,7 +236,7 @@ public final class IPConfig {
             InventoryPlusClient.LOGGER.info("[config] loaded from {}", path);
         } catch (IOException | JsonSyntaxException | IllegalStateException e) {
             InventoryPlusClient.LOGGER.error(
-                    "[config] failed to read {} — using defaults", path, e);
+                    "[config] failed to read {}, using defaults", path, e);
         }
     }
 
@@ -412,7 +412,7 @@ public final class IPConfig {
             Files.writeString(path, GSON.toJson(root));
         } catch (IOException e) {
             InventoryPlusClient.LOGGER.error(
-                    "[config] failed to write {} — changes won't survive restart",
+                    "[config] failed to write {}, changes won't survive restart",
                     path, e);
         }
     }

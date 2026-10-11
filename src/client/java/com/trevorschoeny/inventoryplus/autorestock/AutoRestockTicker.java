@@ -312,7 +312,7 @@ public final class AutoRestockTicker {
         if (!isDamageable(prev)) return;
         if (existsInCurrentInventory(prev, player)) {
             InventoryPlusClient.LOGGER.debug(
-                    "[break-restock] suppress target={} — prev item still in inv (migration)",
+                    "[break-restock] suppress target={}, prev item still in inv (migration)",
                     targetClickKey);
             return;
         }
@@ -352,7 +352,7 @@ public final class AutoRestockTicker {
         if (!isDamageable(prev)) return;
         if (existsInCurrentInventory(prev, player)) {
             InventoryPlusClient.LOGGER.debug(
-                    "[break-restock] suppress armor[{}] — prev item still in inv (migration)",
+                    "[break-restock] suppress armor[{}], prev item still in inv (migration)",
                     slot);
             return;
         }

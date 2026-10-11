@@ -289,7 +289,7 @@ public final class HotbarCycler {
         } catch (IOException | JsonSyntaxException | IllegalStateException
                  | NumberFormatException | UnsupportedOperationException e) {
             InventoryPlusClient.LOGGER.error(
-                    "[hotbar-cycler] failed to read {} — starting empty", path, e);
+                    "[hotbar-cycler] failed to read {}, starting empty", path, e);
         }
     }
 
@@ -311,7 +311,7 @@ public final class HotbarCycler {
             Files.writeString(path, GSON.toJson(root));
         } catch (IOException e) {
             InventoryPlusClient.LOGGER.error(
-                    "[hotbar-cycler] failed to write {} — change won't survive a restart", path, e);
+                    "[hotbar-cycler] failed to write {}, change won't survive a restart", path, e);
         }
     }
 }

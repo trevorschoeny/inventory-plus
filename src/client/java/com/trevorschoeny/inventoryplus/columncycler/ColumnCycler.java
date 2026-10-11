@@ -132,7 +132,7 @@ public final class ColumnCycler {
                     total, worlds, path);
         } catch (IOException | JsonSyntaxException | IllegalStateException e) {
             InventoryPlusClient.LOGGER.error(
-                    "[column-cycler] failed to parse {} — starting with empty prefs",
+                    "[column-cycler] failed to parse {}, starting with empty prefs",
                     path, e);
         }
     }
@@ -275,7 +275,7 @@ public final class ColumnCycler {
             Files.writeString(path, GSON.toJson(root));
         } catch (IOException e) {
             InventoryPlusClient.LOGGER.error(
-                    "[column-cycler] failed to write {} — change won't survive a restart",
+                    "[column-cycler] failed to write {}, change won't survive a restart",
                     path, e);
         }
     }
