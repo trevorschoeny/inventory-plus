@@ -98,7 +98,7 @@ final class SettingsTabs {
         IPConfig.reset("tooltipsEnabled", "tooltipDurability", "tooltipFood", "tooltipFoodEffects",
                 "tooltipEnchantmentDescriptions", "tooltipSortEnchantments", "tooltipToolStats",
                 "tooltipCompare", "tooltipCondenseTrims", "tooltipModName", "hideTooltipsOnKey",
-                "tooltipAvoidCover");
+                "tooltipDock");
         resetKeys(IPKeybinds.HIDE_TOOLTIPS);
     }
 
@@ -511,7 +511,7 @@ final class SettingsTabs {
                 // beside the cursor docks at the bottom centre of the screen, or
                 // the top centre when the cursor would be inside it there.
                 .checkbox("Dock tooltips at top or bottom",
-                        Bool.of(IPConfig::tooltipAvoidCover, IPConfig::setTooltipAvoidCover))
+                        Bool.of(IPConfig::tooltipDock, IPConfig::setTooltipDock))
                 // Hidden by MenuKit's tooltip seam, through a predicate Inventory
                 // Plus registers at client init (tooltips/Tooltips).
                 .checkbox("Hold a key to hide tooltips",

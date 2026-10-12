@@ -55,7 +55,7 @@ public final class Tooltips {
         // Dock tooltips: every tooltip vanilla would place beside the cursor sits
         // at the bottom centre of the screen, or the top centre when the cursor
         // would be inside it there (MenuKit 6.2.0 avoidCoverWhen).
-        MKTooltip.avoidCoverWhen(() -> IPConfig.tooltipsEnabled() && IPConfig.tooltipAvoidCover());
+        MKTooltip.avoidCoverWhen(() -> IPConfig.tooltipsEnabled() && IPConfig.tooltipDock());
         // Always on under the Tooltips switch, no longer settings. Keep on screen: one predicate for both of MenuKit's
         // halves, wrapping a tooltip wider than the screen and clamping its top.
         // Scroll: the wheel moves a long tooltip on screen. MenuKit clamps the
