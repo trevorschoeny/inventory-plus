@@ -1,6 +1,6 @@
-// Inventory Plus. Works on any server with nothing installed there, and depends
-// on MenuKit only, never MenuKit: Containers. Those types are not on this
-// classpath, so the dependency list alone keeps the two apart.
+// Inventory Plus. Works on any server with nothing installed there. Depends on
+// MenuKit and on SlotKit's client tier only (Amethyst spec 2.3): it builds no
+// slots or menus, so it never needs SlotKit on the server and never kicks.
 //
 // Included from the root settings.gradle as `:inventory-plus`. Build with
 // `./gradlew :inventory-plus:build` from the workspace root.
@@ -40,7 +40,8 @@ repositories {
 // client dependencies after loom {}), which needs MenuKit evaluated first. A
 // published jar holds both halves.
 evaluationDependsOn(':menukit')
-// Keybindery is split the same way, so its client half comes by output too.
+// SlotKit and Keybindery are split the same way, so their client halves come by output too.
+evaluationDependsOn(':slotkit')
 evaluationDependsOn(':keybindery')
 
 dependencies {
@@ -50,10 +51,11 @@ dependencies {
     implementation "net.fabricmc:fabric-loader:${property('loader_version')}"
     implementation "net.fabricmc.fabric-api:fabric-api:${property('fabric_version')}"
 
-    // MenuKit and only MenuKit. Adding :menukit-containers here would put its
-    // types on the classpath and break the partition test. On 26.x a plain
-    // project dependency is the artifact.
+    // MenuKit, and SlotKit for finding and acting on slots (its client tier:
+    // slot groups, operations, vetoes). On 26.x a plain project dependency is
+    // the artifact.
     implementation project(':menukit')
+    implementation project(':slotkit')
 }
 
 loom {
@@ -86,6 +88,8 @@ loom {
 dependencies {
     // MenuKit's client half (UI, screens), which the project dep above leaves out.
     clientImplementation rootProject.project(':menukit').sourceSets.client.output
+    // SlotKit's client half, the same way.
+    clientImplementation rootProject.project(':slotkit').sourceSets.client.output
 
     // Keybindery is required: the settings menu binds keys with its MenuKit
     // ChordButton, the same chord capture and conflict view as Keybindery's
@@ -138,6 +142,7 @@ modrinth {
     dependencies {
         required.project "fabric-api"
         required.project "menukit"
+        required.project "slotkit"
         required.project "keybindery"
     }
 }
@@ -159,44 +164,53 @@ tasks.register('verifyJarVersion') {
 }
 build.dependsOn verifyJarVersion
 
-// This mod must pin MenuKit to the major it was built against.
-// The floor guarantees every MenuKit call it makes exists at load time; the ceiling stops a
+// This mod must pin each Kit to the major it was built against (Amethyst spec 4.1).
+// The floor guarantees every Kit call it makes exists at load time; the ceiling stops a
 // future breaking major from loading against code that never saw it. Both halves matter:
-// a floor alone lets MenuKit 6.0.0 rename an API out from under a shipped jar, and the
+// a floor alone lets a new major rename an API out from under a shipped jar, and the
 // player gets a NoSuchMethodError hours into a session instead of a refusal at launch.
 // Commas are rejected outright: Fabric parses ">=5.0.0,<6.0.0" without complaint and the
 // resulting predicate then matches NO version at all, which silently disables the mod.
-tasks.register('verifyMenuKitRange') {
+tasks.register('verifyKitRanges') {
     def src = file('src/main/resources/fabric.mod.json')
-    def mkVersion = (project.findProperty('menukit_version') ?: '').toString()
+    // Each Kit id in `depends`, checked against its own version property. MenuKit and
+    // SlotKit each keep their own version; neither re-versions the other.
+    def kits = [menukit: 'menukit_version', slotkit: 'slotkit_version']
+    def versions = kits.collectEntries { id, prop -> [(id): (project.findProperty(prop) ?: '').toString()] }
     inputs.file src
-    inputs.property 'menukit_version', mkVersion
+    inputs.property 'kit_versions', versions
     doLast {
-        // Floor at major.minor, not just major: a minor can add API (MenuKit 5.1.0 added
-        // SlotOperations/SlotGroups) that a consumer built against it calls. Flooring at the
-        // major alone would let that jar load on the unrelated 5.0.0 and die with
-        // NoSuchMethodError, which is exactly the failure this check exists to prevent.
-        def parts = mkVersion.replaceAll(/\+.*$/, '').tokenize('.')
-        def major = Integer.parseInt(parts[0])
-        def minor = Integer.parseInt(parts[1])
-        def expected = ">=${major}.${minor}.0 <${major + 1}.0.0".toString()
         def depends = new groovy.json.JsonSlurper().parse(src).depends ?: [:]
-        ['menukit', 'menukit-containers'].each { id ->
+        if (depends['menukit-containers'] != null) {
+            throw new GradleException(
+                "fabric.mod.json: depends on 'menukit-containers'. Containers is SlotKit now: " +
+                "depend on 'slotkit' instead (Amethyst spec 4.1).")
+        }
+        kits.each { id, prop ->
             def declared = depends[id]?.toString()
             if (declared == null) return
+            def version = versions[id]
+            if (!version) throw new GradleException("verifyKitRanges: '${id}' is declared but ${prop} is not set")
             if (declared.contains(',')) {
                 throw new GradleException(
                     "fabric.mod.json: '${id}' is '${declared}'. Fabric accepts a comma here and the " +
                     "predicate then matches no version at all. Separate the bounds with a space.")
             }
+            // Floor at major.minor, not just major: a minor can add API that a consumer
+            // built against it calls, and flooring at the major alone would let that jar
+            // load on an older minor and die with NoSuchMethodError.
+            def parts = version.replaceAll(/\+.*$/, '').tokenize('.')
+            def major = Integer.parseInt(parts[0])
+            def minor = Integer.parseInt(parts[1])
+            def expected = ">=${major}.${minor}.0 <${major + 1}.0.0".toString()
             if (declared != expected) {
                 throw new GradleException(
                     "fabric.mod.json: '${id}' is '${declared}', expected '${expected}'. This mod is " +
-                    "built against MenuKit ${mkVersion}, so it floors at that major.minor and stops " +
+                    "built against ${id} ${version}, so it floors at that major.minor and stops " +
                     "below the next major. See guidelines/ci-cd.md, 'MenuKit version pinning'.")
             }
+            println "verifyKitRanges: ${id} '${expected}' (built against ${version})"
         }
-        println "verifyMenuKitRange: menukit '${expected}' (built against ${mkVersion})"
     }
 }
-build.dependsOn verifyMenuKitRange
+build.dependsOn verifyKitRanges

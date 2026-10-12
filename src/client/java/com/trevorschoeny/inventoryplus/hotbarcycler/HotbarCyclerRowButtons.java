@@ -10,8 +10,8 @@ import com.trevlar.menukit.api.panel.PanelStyle;
 import com.trevlar.menukit.api.element.Toggle;
 import com.trevlar.menukit.api.panel.ScreenOrigin;
 import com.trevlar.menukit.api.panel.ScreenPanelAdapter;
-import com.trevlar.menukit.api.slot.SlotScreenRect;
-import com.trevlar.menukit.api.slot.VanillaSlotResolver;
+import com.trevlar.slotkit.api.group.SlotScreenRect;
+import com.trevlar.slotkit.api.group.VanillaSlotResolver;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;

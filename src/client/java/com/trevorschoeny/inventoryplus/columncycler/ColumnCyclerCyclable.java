@@ -5,8 +5,8 @@ import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
 
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.COLUMN_CYCLE;
 
-import com.trevlar.menukit.api.window.BehaviorKey;
-import com.trevlar.menukit.api.window.TriBool;
+import com.trevlar.slotkit.api.window.BehaviorKey;
+import com.trevlar.slotkit.api.window.TriBool;
 
 
 /**

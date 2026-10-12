@@ -14,12 +14,12 @@ import com.trevorschoeny.inventoryplus.settings.SettingsBody.Bool;
 import com.trevorschoeny.inventoryplus.settings.SettingsBody.Place;
 
 import com.trevlar.menukit.api.element.PanelElement;
-import com.trevlar.menukit.api.slot.SlotGroupCategory;
-import com.trevlar.menukit.api.slot.SlotGroupId;
-import com.trevlar.menukit.api.slot.SlotGroups;
-import com.trevlar.menukit.api.window.BehaviorKey;
-import com.trevlar.menukit.api.window.BehaviorKeys;
-import com.trevlar.menukit.api.window.SlotOperations;
+import com.trevlar.slotkit.api.group.SlotGroupCategory;
+import com.trevlar.slotkit.api.group.SlotGroupId;
+import com.trevlar.slotkit.api.group.SlotGroups;
+import com.trevlar.slotkit.api.window.BehaviorKey;
+import com.trevlar.slotkit.api.window.BehaviorKeys;
+import com.trevlar.slotkit.api.window.SlotOperations;
 
 import com.trevorschoeny.keybindery.api.KeybinderyAPI;
 import com.trevorschoeny.keybindery.chord.IChordKeyMapping;

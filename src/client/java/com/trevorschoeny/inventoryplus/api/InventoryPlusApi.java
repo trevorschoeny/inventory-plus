@@ -1,16 +1,15 @@
 package com.trevorschoeny.inventoryplus.api;
 
 import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
-import com.trevlar.menukit.api.slot.SlotGroupId;
-import com.trevlar.menukit.api.window.BehaviorKey;
-import com.trevlar.menukit.api.window.TriBool;
+import com.trevlar.slotkit.api.group.SlotGroupId;
+import com.trevlar.slotkit.api.window.BehaviorKey;
+import com.trevlar.slotkit.api.window.TriBool;
 
 import com.trevorschoeny.inventoryplus.autorestock.AutoRestockSearch;
 import com.trevorschoeny.inventoryplus.autorestock.AutoRestockSuppression;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.cyclable.CycleHudRegistry;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
-import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockedslots.WorldIdentity;
 import com.trevorschoeny.inventoryplus.sort.ContainerOpenTracker;
 import com.trevorschoeny.inventoryplus.toolbar.FeatureToggleButtons;
@@ -50,7 +49,7 @@ import java.util.function.Consumer;
  *
  * <p>The types a companion <em>implements</em> or <em>passes</em> live here as
  * real types: {@link HotbarCyclable}, {@link CycleHudSource},
- * {@link SlotLockProvider}, {@link CycleView}, {@link CyclerDirection},
+ * {@link CycleView}, {@link CyclerDirection},
  * {@link CyclerOperation}. The registries behind them stay internal, and this
  * class exposes only the operations a companion actually needs. A registry's
  * other public methods are Inventory Plus talking to
@@ -128,16 +127,6 @@ public final class InventoryPlusApi {
     /** Plays the shared cycler HUD's slide animation for one of your cycles. */
     public static void playCycleAnimation(CycleHudSource source, int hotbarSlot, CyclerDirection direction) {
         CycleHudRegistry.fireCycleAnimation(source, hotbarSlot, direction);
-    }
-
-    // Locks
-
-    /**
-     * Registers a provider that answers lock state for slot kinds Inventory
-     * Plus cannot reach on its own.
-     */
-    public static void registerSlotLockProvider(SlotLockProvider provider) {
-        LockedSlots.registerProvider(provider);
     }
 
     // Restock

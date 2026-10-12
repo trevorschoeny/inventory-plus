@@ -1,7 +1,7 @@
 package com.trevorschoeny.inventoryplus.lockgroups;
 
-import com.trevlar.menukit.api.window.SlotOperations;
-import com.trevlar.menukit.api.window.SlotRef;
+import com.trevlar.slotkit.api.window.SlotOperations;
+import com.trevlar.slotkit.api.window.SlotRef;
 
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockeditems.LockKind;
@@ -70,8 +70,8 @@ public final class Locks {
             "menukit:click_put", "menukit:click_take", "menukit:drag_fill",
             "menukit:hotbar_swap", "menukit:offhand_swap", "menukit:shift_click_out");
 
-    private static void probe(SlotRef ref, @Nullable com.trevlar.menukit.api.slot.SlotGroupId group,
-                              com.trevlar.menukit.api.window.BehaviorKey<?> operation) {
+    private static void probe(SlotRef ref, @Nullable com.trevlar.slotkit.api.group.SlotGroupId group,
+                              com.trevlar.slotkit.api.window.BehaviorKey<?> operation) {
         com.trevorschoeny.inventoryplus.InventoryPlusClient.LOGGER.info(
                 "[reach-probe] DENY thread={} op={} menu={} slot={} containerSlot={} container={} group={} on={} key={}",
                 Thread.currentThread().getName(), operation.id(),
@@ -81,8 +81,8 @@ public final class Locks {
                 ref.slot() == null ? "-" : LockedSlots.probeContainerKey(ref.slot()));
     }
 
-    private static boolean denies(SlotRef ref, @Nullable com.trevlar.menukit.api.slot.SlotGroupId group,
-                                  com.trevlar.menukit.api.window.BehaviorKey<?> operation) {
+    private static boolean denies(SlotRef ref, @Nullable com.trevlar.slotkit.api.group.SlotGroupId group,
+                                  com.trevlar.slotkit.api.window.BehaviorKey<?> operation) {
         {
             if (!isLocalPlayer(ref.player())) return false;
             String op = operation.id().toString();
@@ -111,14 +111,11 @@ public final class Locks {
      */
     public static List<String> on(SlotRef ref) {
         List<String> groups = new ArrayList<>(3);
-        // The Slot-kind lock: stored, or a companion's shared one (Slot lock).
-        // Deny-overrides, so both count when they sit on one slot.
+        // The Slot-kind lock stored on the slot.
         String stored = null;
-        boolean implicit = false;
         List<String> features = List.of();
         if (ref.slot() != null) {
             stored = LockedSlots.storedGroup(ref.slot());
-            implicit = LockedSlots.isImplicitlyLocked(ref.slot());
             if (LockedSlots.isLockable(ref.slot())) features = Reach.featuresOf(ref.slot().getContainerSlot());
         } else if (ref.container() instanceof Inventory inv && isLocalPlayer(inv.player)) {
             // Off-menu (world pickup, no screen): the player's own slot by index.
@@ -126,7 +123,6 @@ public final class Locks {
             features = Reach.featuresOf(ref.containerSlot());
         }
         if (stored != null) groups.add(Reach.resolve(stored, LockKind.SLOT).id());
-        if (implicit && !groups.contains(Reach.SLOT_LOCK)) groups.add(Reach.SLOT_LOCK);
 
         ItemStack stack = ref.container().getItem(ref.containerSlot());
         if (!stack.isEmpty()) {

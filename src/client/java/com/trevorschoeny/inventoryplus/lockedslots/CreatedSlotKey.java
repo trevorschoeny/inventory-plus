@@ -2,10 +2,10 @@ package com.trevorschoeny.inventoryplus.lockedslots;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 
-import com.trevlar.menukit.api.slot.SlotGroupId;
-import com.trevlar.menukit.api.window.Address;
-import com.trevlar.menukit.api.window.SlotRef;
-import com.trevlar.menukit.api.window.KindTag;
+import com.trevlar.slotkit.api.group.SlotGroupId;
+import com.trevlar.slotkit.api.window.Address;
+import com.trevlar.slotkit.api.window.SlotRef;
+import com.trevlar.slotkit.api.window.KindTag;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
@@ -14,7 +14,7 @@ import net.minecraft.world.inventory.Slot;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * A persistable identity for a <b>created</b> slot (a MenuKit: Containers slot
+ * A persistable identity for a <b>created</b> slot (a SlotKit slot
  * such as an Inventory Max pocket or equipment slot): its MenuKit
  * {@link Address}, saved as {@link Address#asString()}.
  *
@@ -36,7 +36,7 @@ import org.jetbrains.annotations.Nullable;
  *
  * <h3>Thread</h3>
  *
- * <p>MenuKit: Containers' address rule dispatches a created slot by type and
+ * <p>SlotKit's address rule dispatches a created slot by type and
  * never reads the menu on that branch, so a null menu is safe for the only case
  * this acts on, including on the integrated server thread.
  */

@@ -1,9 +1,9 @@
 package com.trevorschoeny.inventoryplus.api;
 
-import com.trevlar.menukit.api.window.BehaviorKey;
-import com.trevlar.menukit.api.window.KindTag;
-import com.trevlar.menukit.api.window.Tier;
-import com.trevlar.menukit.api.window.TriBool;
+import com.trevlar.slotkit.api.window.BehaviorKey;
+import com.trevlar.slotkit.api.window.KindTag;
+import com.trevlar.slotkit.api.window.Tier;
+import com.trevlar.slotkit.api.window.TriBool;
 
 import net.minecraft.resources.Identifier;
 

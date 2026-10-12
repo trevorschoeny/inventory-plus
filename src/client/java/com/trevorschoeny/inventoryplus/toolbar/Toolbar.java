@@ -8,9 +8,9 @@ import com.trevlar.menukit.api.panel.Panel;
 import com.trevlar.menukit.api.element.PanelElement;
 import com.trevlar.menukit.api.panel.PanelPosition;
 import com.trevlar.menukit.api.panel.PanelStyle;
-import com.trevlar.menukit.api.slot.SlotGroupCategory;
+import com.trevlar.slotkit.api.group.SlotGroupCategory;
 import com.trevlar.menukit.api.panel.OutsideRegion;
-import com.trevlar.menukit.api.panel.SlotGroupPanelAdapter;
+import com.trevlar.slotkit.api.group.SlotGroupPanelAdapter;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;

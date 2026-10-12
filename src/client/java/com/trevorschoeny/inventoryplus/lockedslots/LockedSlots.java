@@ -1,6 +1,5 @@
 package com.trevorschoeny.inventoryplus.lockedslots;
 
-import com.trevorschoeny.inventoryplus.api.SlotLockProvider;
 import com.trevorschoeny.inventoryplus.api.WorldStore;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -44,7 +43,7 @@ import java.util.Set;
  * <h3>Scope</h3>
  *
  * Player slots: hotbar (container-slot 0-8), main inventory (9-35), armor
- * (36-39), offhand (40). Also the ender chest, MenuKit: Containers created
+ * (36-39), offhand (40). Also the ender chest, SlotKit created
  * slots and placed containers, each in its own namespace. Ephemeral slots
  * (crafting input and result, anvil inputs and so on) are not lockable.
  *
@@ -119,7 +118,7 @@ public final class LockedSlots {
      */
     private static final WorldStore<Map<Integer, String>> ENDER = WorldStore.sortedMap(LockedSlots::save);
     /**
-     * worldId -> created-slot keys ({@link CreatedSlotKey}). MenuKit: Containers
+     * worldId -> created-slot keys ({@link CreatedSlotKey}). SlotKit
      * slots (pockets, equipment) locked by the player. Own namespace, like ender,
      * because a created slot's container index collides with vanilla's.
      * Created slots are treated exactly like vanilla slots for every lock
@@ -156,29 +155,6 @@ public final class LockedSlots {
     // it is done once per containerId and reused until the menu changes.
     private static int cachedContainerId = Integer.MIN_VALUE;
     private static @Nullable String cachedContainerKey;
-
-    // Downstream lock providers. IP locks its own client-side slots directly.
-    // Shared placed-container locks live in MenuKit's server-authoritative
-    // channel, which IP (client-only) can't reach, so IPP registers a provider
-    // here at its init and the predicates below dispatch container slots it
-    // can't name to it. IP itself registers nothing.
-    private static final List<SlotLockProvider> PROVIDERS = new ArrayList<>();
-
-    /** Registers a downstream provider (called by IPP at mod init). */
-    public static void registerProvider(SlotLockProvider provider) {
-        PROVIDERS.add(provider);
-        InventoryPlusClient.LOGGER.info(
-                "[locked-slots] registered slot-lock provider {} ({} total)",
-                provider.getClass().getSimpleName(), PROVIDERS.size());
-    }
-
-    /** First registered provider that owns this slot, or null if none does. */
-    private static @Nullable SlotLockProvider providerFor(Slot slot) {
-        for (SlotLockProvider p : PROVIDERS) {
-            if (p.handles(slot)) return p;
-        }
-        return null;
-    }
 
     private static boolean loaded = false;
 
@@ -226,7 +202,7 @@ public final class LockedSlots {
             // Ender locks live under a separate "enderPerWorld" section so their
             // 0-based slot indices don't collide with player slot indices.
             int enderTotal = loadIndexed(root, "enderPerWorld", ENDER, worlds, v1);
-            // Created-slot locks (MenuKit: Containers) keyed by address text.
+            // Created-slot locks (SlotKit) keyed by address text.
             // A key saved before MenuKit 6.0.0 is converted as it is read.
             int createdTotal = 0;
             for (var worldEntry : section(root, "createdPerWorld").entrySet()) {
@@ -367,9 +343,10 @@ public final class LockedSlots {
      *   <li>ender chest slot: IP's ender namespace</li>
      *   <li>created slot: IP's created namespace</li>
      *   <li>placed container IP can identify: IP's container namespace</li>
-     *   <li>anything else: the first downstream provider that
-     *       {@link SlotLockProvider#handles} it, if any</li>
      * </ul>
+     *
+     * <p>Inventory Max's lock provider hook is gone (Amethyst, IP 2.0.0); shared
+     * container locks move into Inventory Plus in the next wave.
      *
      * <p>Returns false for unlockable slots and for slots nothing owns.
      */
@@ -380,20 +357,8 @@ public final class LockedSlots {
         }
         if (isEnderSlot(slot)) return isEnderLocked(slot.getContainerSlot());
         if (isCreatedSlot(slot)) return isCreatedLocked(slot);
-        // IP's own client-side container locks come first: a placed container
-        // IP can identify is IP's, per player, and any downstream provider is
-        // only consulted for containers IP cannot name.
         if (isPlacedContainerSlot(slot)) return isContainerLocked(slot);
-        // The provider drives client prediction, the feature skip-paths (sort,
-        // Move Matching) and the lock icon, all on the render thread. It is
-        // deliberately not consulted on the integrated-server thread:
-        // server-side container enforcement is the companion's mixin alone,
-        // because that's where the non-modded-player bypass (capability gate)
-        // is applied. Consulting it here too would double-block and would
-        // ignore the bypass.
-        if (!isRenderThread()) return false;
-        SlotLockProvider p = providerFor(slot);
-        return p != null && p.isLocked(slot);
+        return false;
     }
 
     /** True on the client render thread (where the open-screen UI and prediction run). */
@@ -408,13 +373,13 @@ public final class LockedSlots {
      */
     public static boolean isLockableHere(Slot slot) {
         return isLockable(slot) || isEnderSlot(slot) || isCreatedSlot(slot)
-                || isPlacedContainerSlot(slot) || providerFor(slot) != null;
+                || isPlacedContainerSlot(slot);
     }
 
     /**
      * The id of the lock group stored on {@code slot}, or {@code null} when
-     * nothing is stored there. Derived locks (a cycler's) and a downstream
-     * provider's shared locks are not stored here and answer {@code null}.
+     * nothing is stored there. Derived locks (a cycler's) are not stored here
+     * and answer {@code null}.
      */
     public static @Nullable String storedGroup(Slot slot) {
         if (isLockable(slot)) return PLAYER.get().get(slot.getContainerSlot());
@@ -437,9 +402,7 @@ public final class LockedSlots {
      * or {@code null} if it came off.
      */
     public static @Nullable String applyGroup(Slot slot, String groupId) {
-        // A downstream provider's shared lock carries no group, so there any
-        // group takes it off.
-        String current = isInOwnStore(slot) ? storedGroup(slot) : (isLockedSlot(slot) ? groupId : null);
+        String current = storedGroup(slot);
         String next = groupId.equals(current) ? null : groupId;
         setLockedSlot(slot, next);
         return next;
@@ -451,26 +414,8 @@ public final class LockedSlots {
     }
 
     /**
-     * True when {@code slot} carries a lock nobody stored here: a companion's
-     * shared container lock, judged as Slot lock. A cycle slot is not one: it
-     * is in its cycler's feature reach group ({@code Reach.featuresOf}). The
-     * provider is asked on the render thread only.
-     */
-    public static boolean isImplicitlyLocked(Slot slot) {
-        if (isInOwnStore(slot) || !isRenderThread()) return false;
-        SlotLockProvider p = providerFor(slot);
-        return p != null && p.isLocked(slot);
-    }
-
-    /** True when {@code slot}'s lock lives in one of Inventory Plus's own stores, not a provider's. */
-    private static boolean isInOwnStore(Slot slot) {
-        return isLockable(slot) || isEnderSlot(slot) || isCreatedSlot(slot) || isPlacedContainerSlot(slot);
-    }
-
-    /**
      * Puts lock group {@code groupId} on {@code slot}, or takes its lock off
-     * when {@code null}, routing to the right namespace. A downstream
-     * provider's shared locks carry no group: any group locks them.
+     * when {@code null}, routing to the right namespace.
      */
     public static void setLockedSlot(Slot slot, @Nullable String groupId) {
         if (isLockable(slot)) {
@@ -486,17 +431,6 @@ public final class LockedSlots {
             int index = slot.getContainerSlot();
             CONTAINERS.modify(byKey -> WorldStore.withEntry(byKey, key,
                     withLock(byKey.getOrDefault(key, Map.of()), index, groupId)));
-            // The server copy (Also keep container locks on the server): a lock
-            // is written there too while the setting is on; an unlock clears a
-            // copy the server holds even with it off, so turning it off never
-            // strands a lock the player can no longer see to remove.
-            SlotLockProvider p = providerFor(slot);
-            if (p != null && (groupId != null ? IPConfig.containerLocksOnServer() : p.isLocked(slot))) {
-                p.setLocked(slot, groupId != null);
-            }
-        } else {
-            SlotLockProvider p = providerFor(slot);
-            if (p != null) p.setLocked(slot, groupId != null);
         }
     }
 
@@ -510,10 +444,10 @@ public final class LockedSlots {
         return groupId == null ? WorldStore.withoutKey(map, target) : WorldStore.withEntry(map, target, groupId);
     }
 
-    // Created slots (MenuKit: Containers; client-side, own namespace)
+    // Created slots (SlotKit; client-side, own namespace)
 
     /**
-     * True if {@code slot} is a MenuKit: Containers created slot (a pocket, an
+     * True if {@code slot} is a SlotKit created slot (a pocket, an
      * equipment slot). Render-thread-gated like the ender check: the identity
      * comes from MenuKit's client addressing, and the server thread has no
      * business consulting a client lock store.
