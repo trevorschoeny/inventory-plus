@@ -18,7 +18,7 @@ Container locks belong to you and stay on your computer, so they work on any ser
 
 Reach decides where each move may go. Every Inventory Plus feature, and every vanilla move such as shift-clicking, dragging and dropping, has a list of slot groups and lock groups, and clearing a box keeps that move out of it. Clear Hotbar under Sort and sorting leaves your hotbar alone. Clear Exact item under Restock and Restock stops using locked items.
 
-Tooltips show more. Tools show durability and mining speed, each enchantment gets a line saying what it does, and food shows what it restores. Each of those lines has its own checkbox. Hold Space to hide every tooltip and see what is behind it, or change the key if Space is in your way. A tall tooltip opens on whichever side covers less of your inventory, scrolls with the mouse wheel when it is taller than the screen, and wraps when it is wider.
+Tooltips show more. Tools show durability and mining speed, each enchantment gets a line saying what it does, and food shows what it restores. Each of those lines has its own checkbox. Hold Space to hide every tooltip and see what is behind it, or change the key if Space is in your way. A tooltip taller than the screen scrolls with the mouse wheel, and one wider than the screen wraps. Turn on Dock tooltips at top or bottom and a tooltip that would open beside your mouse sits at the bottom centre of the screen instead, or at the top centre when your mouse is down there.
 
 Column Cycler turns a column of inventory slots into a cycle that you rotate through a hotbar slot with the Up and Down arrows. Press C over a slot to add it, and the cycle shows beside the hotbar. It is off by default.
 
@@ -33,7 +33,7 @@ Pockets, extra equipment slots, and container locks the whole server shares are 
 ## Requirements
 
 - [Keybindery](https://modrinth.com/mod/keybindery) 1.1.0 or newer
-- [MenuKit](https://modrinth.com/mod/menukit) 6.1.0 or newer, below 7.0.0
+- [MenuKit](https://modrinth.com/mod/menukit) 6.2.0 or newer, below 7.0.0
 - [Fabric API](https://modrinth.com/mod/fabric-api)
 
 ## Compatibility
