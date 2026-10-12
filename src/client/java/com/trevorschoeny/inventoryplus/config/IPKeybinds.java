@@ -38,7 +38,8 @@ import net.minecraft.resources.Identifier;
  * <p>Translation keys follow the convention
  * {@code key.inventoryplus.<action>}. Categories live under the
  * vanilla Controls menu's "Inventory Plus" section
- * ({@code category.inventoryplus.controls}).
+ * ({@code key.category.inventoryplus.controls}: 26.x looks a category's
+ * name up as {@code key.category.<namespace>.<path>}).
  */
 public final class IPKeybinds {
 
