@@ -188,9 +188,8 @@ public final class IPConfig {
     // of the screen, or the top centre when the cursor would be inside them
     // there (MenuKit 6.2.0 MKTooltip.avoidCoverWhen). A new key: the old
     // tooltipAvoidCover meant "keep out of the way", a different behaviour,
-    // so an upgrader's saved true there must not turn this on (Designer,
-    // 2026-10-11). Everyone starts at off; the old key is read by nobody and
-    // the next save drops it.
+    // so an upgrader's saved true there must not turn this on. Everyone starts
+    // at off; the old key is read by nobody and the next save drops it.
     private static boolean tooltipDock = false;
 
     // Settings menu. On, the pause-menu look (MenuKit's options screen). Off,

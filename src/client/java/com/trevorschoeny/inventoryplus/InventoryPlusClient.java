@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Client entrypoint for Inventory Plus. It works on any vanilla server.
- * It uses only SlotKit's client tier (Amethyst spec 2.3): it builds no slots
+ * It uses only SlotKit's client tier: it builds no slots
  * or menus, so it needs nothing on the server and never kicks anyone.
  */
 public class InventoryPlusClient implements ClientModInitializer {

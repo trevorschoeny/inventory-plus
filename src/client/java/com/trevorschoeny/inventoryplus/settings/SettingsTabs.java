@@ -392,11 +392,11 @@ final class SettingsTabs {
                 // What the cyclers' slots are protected from is set per move in
                 // Reach, so there is no switch for it here.
                 .checkbox("Show the lock button", Bool.of(IPConfig::lockedSlotsShowButton, IPConfig::setLockedSlotsShowButton));
-        // The "keep container locks on the server" row is hidden in Amethyst
-        // (IP 2.0.0): Inventory Max can't load next to MenuKit 7, so a greyed
-        // row pointing at it would only confuse. containerLocksOnServer is
-        // still read and written below so the player's choice carries over;
-        // the next wave's lock move brings the row back with new text.
+        // The "keep container locks on the server" row is hidden since IP 2.0.0:
+        // Inventory Max can't load next to MenuKit 7, so a greyed row pointing
+        // at it would only confuse. containerLocksOnServer is still read and
+        // written below so the player's choice carries over, and the row comes
+        // back with new text once container locks move into Inventory Plus.
         // The groups go last.
         b.heading("Groups");
         for (LockGroup g : Reach.groups()) lockGroupSection(b, g);

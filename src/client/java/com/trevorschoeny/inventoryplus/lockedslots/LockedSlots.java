@@ -345,8 +345,8 @@ public final class LockedSlots {
      *   <li>placed container IP can identify: IP's container namespace</li>
      * </ul>
      *
-     * <p>Inventory Max's lock provider hook is gone (Amethyst, IP 2.0.0); shared
-     * container locks move into Inventory Plus in the next wave.
+     * <p>Inventory Max's lock provider hook is gone since IP 2.0.0. Shared
+     * container locks are planned to move into Inventory Plus later.
      *
      * <p>Returns false for unlockable slots and for slots nothing owns.
      */

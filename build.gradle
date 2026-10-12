@@ -1,5 +1,5 @@
 // Inventory Plus. Works on any server with nothing installed there. Depends on
-// MenuKit and on SlotKit's client tier only (Amethyst spec 2.3): it builds no
+// MenuKit and on SlotKit's client tier only: it builds no
 // slots or menus, so it never needs SlotKit on the server and never kicks.
 //
 // Included from the root settings.gradle as `:inventory-plus`. Build with
@@ -164,7 +164,7 @@ tasks.register('verifyJarVersion') {
 }
 build.dependsOn verifyJarVersion
 
-// This mod must pin each Kit to the major it was built against (Amethyst spec 4.1).
+// This mod must pin each Kit to the major it was built against.
 // The floor guarantees every Kit call it makes exists at load time; the ceiling stops a
 // future breaking major from loading against code that never saw it. Both halves matter:
 // a floor alone lets a new major rename an API out from under a shipped jar, and the
