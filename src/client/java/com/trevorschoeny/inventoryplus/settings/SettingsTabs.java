@@ -507,9 +507,10 @@ final class SettingsTabs {
                 // keeping it on screen have no switch here, because they are
                 // always on.
                 .heading("Display")
-                // MenuKit 6.1.0's avoidCoverWhen: a tooltip that would land over
-                // the menu opens on whichever side covers less of it instead.
-                .checkbox("Keep long tooltips out of the way",
+                // MenuKit 6.2.0's avoidCoverWhen: a tooltip vanilla would place
+                // beside the cursor docks at the bottom centre of the screen, or
+                // the top centre when the cursor would be inside it there.
+                .checkbox("Dock tooltips at top or bottom",
                         Bool.of(IPConfig::tooltipAvoidCover, IPConfig::setTooltipAvoidCover))
                 // Hidden by MenuKit's tooltip seam, through a predicate Inventory
                 // Plus registers at client init (tooltips/Tooltips).

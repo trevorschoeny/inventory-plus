@@ -52,9 +52,9 @@ public final class Tooltips {
         // screen. Read raw, so it works where vanilla releases key states.
         MKTooltip.hideWhen(() -> IPConfig.tooltipsEnabled() && IPConfig.hideTooltipsOnKey()
                 && IPKeybinds.isHeld(IPKeybinds.HIDE_TOOLTIPS));
-        // Tooltips that would land over the menu flip to whichever side covers
-        // less of it (MenuKit 6.1.0 avoidCoverWhen). Otherwise the wide
-        // in-inventory button tooltips land on the left over the whole inventory.
+        // Dock tooltips: every tooltip vanilla would place beside the cursor sits
+        // at the bottom centre of the screen, or the top centre when the cursor
+        // would be inside it there (MenuKit 6.2.0 avoidCoverWhen).
         MKTooltip.avoidCoverWhen(() -> IPConfig.tooltipsEnabled() && IPConfig.tooltipAvoidCover());
         // Always on under the Tooltips switch, no longer settings. Keep on screen: one predicate for both of MenuKit's
         // halves, wrapping a tooltip wider than the screen and clamping its top.

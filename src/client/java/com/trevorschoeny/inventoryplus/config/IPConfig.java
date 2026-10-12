@@ -184,10 +184,10 @@ public final class IPConfig {
     // settings: always on under the Tooltips switch (tooltips/Tooltips). An
     // old file's tooltipScrollLong and tooltipKeepOnScreen are never read, and
     // the next save drops them.
-    // Tooltips that would otherwise land over the menu flip to whichever side
-    // covers less of it (MenuKit 6.1.0 MKTooltip.avoidCoverWhen). IP's wide
-    // in-inventory button tooltips otherwise land on the left, over the whole
-    // inventory.
+    // Tooltips vanilla would place beside the cursor dock at the bottom centre
+    // of the screen, or the top centre when the cursor would be inside them
+    // there (MenuKit 6.2.0 MKTooltip.avoidCoverWhen). Saved under its old key,
+    // so a player's choice carries over.
     private static boolean tooltipAvoidCover = true;
 
     // Settings menu. On, the pause-menu look (MenuKit's options screen). Off,
