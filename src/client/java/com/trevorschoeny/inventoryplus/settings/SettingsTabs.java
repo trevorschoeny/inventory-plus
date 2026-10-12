@@ -392,12 +392,11 @@ final class SettingsTabs {
                 // What the cyclers' slots are protected from is set per move in
                 // Reach, so there is no switch for it here.
                 .checkbox("Show the lock button", Bool.of(IPConfig::lockedSlotsShowButton, IPConfig::setLockedSlotsShowButton));
-        // Container locks are kept on this computer always; the server copy
-        // goes through Inventory Max's shared channel, so it needs Inventory Max.
-        // The checkbox's own text says so, and it is greyed without it.
-        b.checkbox("Keep container locks on the server. This means locks are honored in multiplayer, "
-                + "hopper automations, etc. (Requires Inventory Max.)",
-                new Bool(IPConfig::containerLocksOnServer, IPConfig::setContainerLocksOnServer, () -> !maxInstalled));
+        // The "keep container locks on the server" row is hidden in Amethyst
+        // (IP 2.0.0): Inventory Max can't load next to MenuKit 7, so a greyed
+        // row pointing at it would only confuse. containerLocksOnServer is
+        // still read and written below so the player's choice carries over;
+        // the next wave's lock move brings the row back with new text.
         // The groups go last.
         b.heading("Groups");
         for (LockGroup g : Reach.groups()) lockGroupSection(b, g);
