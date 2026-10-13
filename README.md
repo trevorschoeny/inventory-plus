@@ -6,7 +6,7 @@ Inventory Plus takes the small chores out of managing your inventory, like diggi
 
 ### Restock
 
-Restock refills your held stack from your inventory when it runs out, and replaces a tool or armor piece when it breaks. Turn on "swap before it breaks" and it puts in a fresh piece before the current one shatters. With Inventory Max installed, Restock can also take from its pockets.
+Restock refills your held stack from your inventory when it runs out, and replaces a tool or armor piece when it breaks. Turn on "swap before it breaks" and it puts in a fresh piece before the current one shatters.
 
 ### Auto Tool Switch
 
@@ -22,9 +22,9 @@ Move Matching moves every matching item between your inventory and a container i
 
 ### Lock groups
 
-Lock groups keep the slots and items you care about where they are. Press L over a slot or an item to lock it with the current group, and right-click the Lock groups switch beside your inventory to pick another group. A slot lock holds a slot in place, so sorting, shift-clicks, drags, drops and number-key swaps leave it alone. It works in your inventory, your ender chest, and any chest, barrel, shulker box, hopper or dispenser you open, and Inventory Max's pockets and equipment slots lock the same way. An exact item lock protects one particular item, with its enchantments and name, wherever it ends up and however worn it gets. Restock and Auto Tool Switch still use a locked item, because the tool you bothered to lock is usually the one you want in your hand. On the Lock groups tab you can make your own groups, each with its own colour, that lock slots, a type of item, or one exact item.
+Lock groups keep the slots and items you care about where they are. Press L over a slot or an item to lock it with the current group, and right-click the Lock groups switch beside your inventory to pick another group. A slot lock holds a slot in place, so sorting, shift-clicks, drags, drops and number-key swaps leave it alone. It works in your inventory, your ender chest, and any chest, barrel, shulker box, hopper or dispenser you open. An exact item lock protects one particular item, with its enchantments and name, wherever it ends up and however worn it gets. Restock and Auto Tool Switch still use a locked item, because the tool you bothered to lock is usually the one you want in your hand. On the Lock groups tab you can make your own groups, each with its own colour, that lock slots, a type of item, or one exact item.
 
-Container locks belong to you and stay on your computer, so they work on any server. On a server running Inventory Max, turn on "Keep container locks on the server" and the container locks you place from then on are shared with the server, which enforces them for every player. It is off by default.
+Container locks belong to you and stay on your computer, so they work on any server.
 
 ### Reach
 
@@ -48,19 +48,16 @@ The row of buttons above your inventory is for acting: Move Matching out, Move M
 
 Every feature has a tab in the settings menu, with its on and off switch, its keys and its settings. Open it with the gear, or with Inventory Plus's config button in Mod Menu. Ctrl-click (Cmd on a Mac) any Inventory Plus button to open that feature's tab. The menu looks like Minecraft's own Options screens, and the Look button on the General tab switches it to a panel like a container's.
 
-### More with Inventory Max
-
-Pockets, extra equipment slots, and container locks the whole server shares are in [Inventory Max](https://modrinth.com/mod/inventory-max), the companion mod.
-
 ## Requirements
 
 - [Keybindery](https://modrinth.com/mod/keybindery) 1.1.0 or newer
-- [MenuKit](https://modrinth.com/mod/menukit) 6.2.0 or newer, below 7.0.0
+- [MenuKit](https://modrinth.com/mod/menukit) 7.0.0 or newer, below 8.0.0
+- [SlotKit](https://modrinth.com/mod/slotkit) 1.0.0 or newer, below 2.0.0
 - [Fabric API](https://modrinth.com/mod/fabric-api)
 
 ## Compatibility
 
-Minecraft 26.3 with Fabric. Install it on your client, and it works on any server with nothing installed there. It also installs on servers, with Keybindery, MenuKit and Fabric API alongside it. On a server it only lets companion mods such as Inventory Max recognise what Inventory Plus does, and what players see does not change.
+Minecraft 26.3 with Fabric. Install it on your client, and it works on any server with nothing installed there. It also installs on servers, with Keybindery, MenuKit, SlotKit and Fabric API alongside it, and what players see does not change. It cannot be installed together with Inventory Max.
 
 ## License
 
