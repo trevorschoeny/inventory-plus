@@ -1,7 +1,8 @@
 package com.trevorschoeny.inventoryplus.mixin;
 
-import com.trevorschoeny.inventoryplus.api.CyclerDirection;
 import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarSlide;
+
+import com.trevlar.menukit.api.hud.HudCycleStrip;
 
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -87,7 +88,7 @@ public abstract class HudHotbarSlideMixin {
         float p = HotbarSlide.progress();
         int travelled = Math.round(CELL_PX * p);          // how far the slide has come
         int remaining = Math.round(CELL_PX * (1f - p));   // how far the incoming still has to go
-        boolean down = HotbarSlide.direction() == CyclerDirection.FORWARD;
+        boolean down = HotbarSlide.direction() == HudCycleStrip.Direction.FORWARD;
 
         // Incoming (the cell's current item) settles at y; outgoing (what was
         // there) leaves through the far side. Signs flip with direction.

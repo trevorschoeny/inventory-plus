@@ -77,8 +77,8 @@ public final class PowerUsersToolbar {
     /**
      * Top to bottom: Settings, then one on/off switch per
      * feature in the settings menu's tab order (Lock groups, Restock, Auto
-     * Tool Switch, Column Cycler, Hotbar Cycler), then companions' (Inventory
-     * Max: Pockets, Equipment Slots, Mend Anywhere). In one vertical Flow a
+     * Tool Switch, Column Cycler, Hotbar Cycler), then companions' (the suite's
+     * slot mods). In one vertical Flow a
      * hidden button is skipped, and at the bottom of the inventory's frame
      * the column wraps into a second one to the right.
      */

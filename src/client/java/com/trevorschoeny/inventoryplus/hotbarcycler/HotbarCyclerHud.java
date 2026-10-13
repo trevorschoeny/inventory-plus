@@ -1,10 +1,8 @@
 package com.trevorschoeny.inventoryplus.hotbarcycler;
 
-import com.trevorschoeny.inventoryplus.api.CycleHudSource;
-import com.trevorschoeny.inventoryplus.api.CycleView;
-import com.trevorschoeny.inventoryplus.api.CyclerDirection;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerRotator;
-import com.trevorschoeny.inventoryplus.cyclable.CycleHudRegistry;
+
+import com.trevlar.menukit.api.hud.HudCycleStrip;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -16,12 +14,12 @@ import java.util.Map;
 /**
  * Bridges Hotbar Cycler's rotation events into the two things that animate:
  * the hotbar slide itself ({@link HotbarSlide}, drawn by the Hud mixin) and
- * the Column and Pocket previews ({@link CycleHudRegistry}'s per-source clock).
+ * the rings on MenuKit's cycle strip beside it ({@link HudCycleStrip}).
  *
  * <p>Mirrors {@code ColumnCyclerHudSource.register()}'s bridge, so
  * {@link HotbarCycler} stays ignorant of the HUD. It is deliberately not a
- * {@link CycleHudSource}: Hotbar Cycler has no preview strip of its own. The
- * vanilla hotbar is the preview.
+ * strip source: Hotbar Cycler has no strip of its own. The vanilla hotbar is
+ * the preview.
  *
  * <h3>Before and after</h3>
  *
@@ -31,12 +29,11 @@ import java.util.Map;
  *
  * <ul>
  *   <li>The hotbar's nine stacks, copied, become the outgoing ghosts.</li>
- *   <li>Every registered source's view for the selected slot is captured so
- *       the registry can fire a slide only where the contents actually
- *       changed. A column whose members sit in untouched rows moves only
- *       its held cell, and a pocket's own slots never move at all. Doing the
- *       diff in the registry keeps this cycler-agnostic, so Pocket Cycler in
- *       Inventory Max participates without IP referencing it.</li>
+ *   <li>MenuKit's strip snapshots every source's ring on the selected slot
+ *       ({@link HudCycleStrip#snapshot}) and slides only the held cell of the
+ *       rings whose contents changed ({@link HudCycleStrip#slideChanged}). A
+ *       column whose members sit in untouched rows moves only its held cell,
+ *       and another mod's ring takes part without this mod naming it.</li>
  * </ul>
  */
 public final class HotbarCyclerHud {
@@ -44,7 +41,7 @@ public final class HotbarCyclerHud {
     private HotbarCyclerHud() {}
 
     private static ItemStack[] hotbarBefore;
-    private static Map<CycleHudSource, CycleView> viewsBefore;
+    private static Map<HudCycleStrip.Source, HudCycleStrip.View> viewsBefore;
     private static int selectedBefore = -1;
 
     public static void register() {
@@ -58,17 +55,17 @@ public final class HotbarCyclerHud {
                 for (int i = 0; i < snap.length; i++) snap[i] = inv.getItem(i).copy();
                 hotbarBefore = snap;
                 selectedBefore = inv.getSelectedSlot();
-                viewsBefore = CycleHudRegistry.snapshotViews(selectedBefore);
+                viewsBefore = HudCycleStrip.snapshot(selectedBefore);
             }
 
             @Override
             public void onRotation(ColumnCyclerRotator.Direction direction) {
-                CyclerDirection dir = direction == ColumnCyclerRotator.Direction.FORWARD
-                        ? CyclerDirection.FORWARD
-                        : CyclerDirection.BACKWARD;
+                HudCycleStrip.Direction dir = direction == ColumnCyclerRotator.Direction.FORWARD
+                        ? HudCycleStrip.Direction.FORWARD
+                        : HudCycleStrip.Direction.BACKWARD;
                 if (hotbarBefore != null) HotbarSlide.start(hotbarBefore, dir);
                 if (viewsBefore != null && selectedBefore >= 0) {
-                    CycleHudRegistry.fireChangedViews(selectedBefore, dir, viewsBefore);
+                    HudCycleStrip.slideChanged(selectedBefore, dir, viewsBefore);
                 }
                 hotbarBefore = null;
                 viewsBefore = null;

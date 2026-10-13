@@ -15,7 +15,6 @@ import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCyclerKeybind;
 import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCyclerRowButtons;
 import com.trevorschoeny.inventoryplus.columncycler.hud.ColumnCyclerHudSource;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
-import com.trevorschoeny.inventoryplus.cyclable.CycleHud;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
@@ -152,8 +151,7 @@ public class InventoryPlusClient implements ClientModInitializer {
         // The hotbar slide and the change-gated preview slides. Init order
         // relative to the HUD sources below is irrelevant: this only adds a
         // rotation listener now, and consults the source registry at rotation
-        // time. That is also what lets Pocket Cycler's source, registered by
-        // Inventory Max at its own init, take part without this mod referencing it.
+        // time, which is also what lets another mod's ring take part.
         HotbarCyclerHud.register();
 
         // Column Cycler implements the "bring this slot's item to the hotbar"
@@ -161,14 +159,10 @@ public class InventoryPlusClient implements ClientModInitializer {
         // keeps consumers independent of any one cycler.
         HotbarCyclableRegistry.register(ColumnCyclerCyclable.INSTANCE);
 
-        // The shared cycle HUD: a mini-hotbar strip right of the vanilla
-        // hotbar, showing whichever cycler is active on the selected hotbar
-        // slot. Pocket Cycler in Inventory Max registers its own source into
-        // the same registry. CycleHud reads CycleHudRegistry and knows no
-        // particular cycler. Column Cycler's contents and animation bridge
-        // live in ColumnCyclerHudSource.
+        // Column Cycler's ring on MenuKit's cycle strip (7.1.0), right of the
+        // vanilla hotbar. MenuKit draws it; ColumnCyclerHudSource says what
+        // the column holds and when it turned.
         ColumnCyclerHudSource.register();
-        CycleHud.register();
 
         // The right column: Settings, then each feature's on/off switch,
         // companions' after ours (built at client start).

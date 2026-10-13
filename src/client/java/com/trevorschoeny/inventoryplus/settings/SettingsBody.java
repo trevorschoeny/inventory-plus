@@ -43,9 +43,7 @@ import java.util.function.Supplier;
  * <p>A control with a real setting behind it reads that setting every frame and saves on change ({@link Bool}, choices, sliders,
  * and keys, which are Keybindery's). A control whose setting does not exist
  * yet is a {@link Bool#placeholder}: it shows its planned default, greyed.
- *
- * <p>A {@code greyed} body is an Inventory Max stand-in: headings and text are
- * drawn in the disabled grey as well, so the whole tab reads as unavailable.
+
  *
  * <p>No text here is hand-coloured: each label names its {@link TextRole}
  * (heading, body, disabled) and the kind of screen the menu is made as turns
@@ -80,7 +78,6 @@ final class SettingsBody {
     private static final Map<String, Boolean> OPEN = new HashMap<>();
 
     private final List<PanelElement> out = new ArrayList<>();
-    private final boolean greyed;
     private int y = 0;
 
     /**
@@ -92,13 +89,7 @@ final class SettingsBody {
      */
     private BooleanSupplier featureOn = () -> true;
 
-    SettingsBody(boolean greyed) {
-        this.greyed = greyed;
-    }
-
-    SettingsBody() {
-        this(false);
-    }
+    SettingsBody() {}
 
     // Text
 
@@ -147,10 +138,10 @@ final class SettingsBody {
         // look, and one bar across the menu panel on the inventory look
         // (SettingsMenu.nameBar).
         out.add(TextLabel.builder().at(0, y).text(Component.literal(title).withStyle(ChatFormatting.BOLD))
-                .role(role(TextRole.HEADING)).build());
+                .role(TextRole.HEADING).build());
         y += TEXT_ROW + 2;
         out.add(TextLabel.builder().at(0, y).text(Component.literal(description))
-                .role(role(TextRole.BODY)).build());
+                .role(TextRole.BODY).build());
         y += TEXT_ROW + 4;
     }
 
@@ -183,10 +174,6 @@ final class SettingsBody {
         return () -> !on.getAsBoolean() || unavailable.getAsBoolean();
     }
 
-    /** {@code role}, or the disabled role on a greyed stand-in body. */
-    private TextRole role(TextRole role) {
-        return greyed ? TextRole.DISABLED : role;
-    }
 
     /** Settings text in {@code role}, drawn in the disabled colour while the tab's feature is off. */
     private TextLabel settingText(int x, int y, Component text, TextRole role) {
@@ -196,7 +183,7 @@ final class SettingsBody {
     /** The same, with a hover tooltip when {@code tooltip} is given. */
     private TextLabel settingText(int x, int y, Component text, TextRole role, @Nullable Component tooltip) {
         BooleanSupplier on = featureOn;
-        TextLabel.Builder label = TextLabel.builder().at(x, y).text(text).role(role(role))
+        TextLabel.Builder label = TextLabel.builder().at(x, y).text(text).role(role)
                 .disabledWhen(() -> !on.getAsBoolean());
         if (tooltip != null) label.tooltip(tooltip);
         return label.build();
@@ -229,7 +216,7 @@ final class SettingsBody {
     SettingsBody section(String title, Supplier<Component> summary, @Nullable Integer swatch,
                          Consumer<SettingsBody> content) {
         if (y > 0) y += 4;
-        SettingsBody inner = new SettingsBody(greyed);
+        SettingsBody inner = new SettingsBody();
         inner.featureOn = featureOn;
         content.accept(inner);
         Section.Builder section = Section.builder(Component.literal(title))
@@ -240,9 +227,6 @@ final class SettingsBody {
                 .summary(summary)
                 .content(inner.build());
         if (swatch != null) section.swatch(swatch);
-        // A section takes the kind's heading and muted colours itself, and the
-        // disabled colour while disabled, as a stand-in's sections are.
-        if (greyed) section.disabledWhen(DISABLED);
         out.add(section.build());
         y += Section.HEADER_HEIGHT + 2;
         return this;
@@ -443,11 +427,6 @@ final class SettingsBody {
         return this;
     }
 
-    /** A dropdown shown at a fixed value and disabled (an Inventory Max stand-in). */
-    <T> SettingsBody choice(String label, List<T> values, Function<T, String> name, T current) {
-        return choice(label, values, name, () -> current, v -> {}, DISABLED);
-    }
-
     /**
      * A whole-number setting on a slider, bound to its config the same way.
      *
@@ -489,23 +468,11 @@ final class SettingsBody {
         return this;
     }
 
-    /** A keybind this mod cannot read, written out (an Inventory Max stand-in). */
-    SettingsBody key(Component name, Component current) {
-        label(0, name);
-        out.add(Button.builder().at(0, y).label(current).size(0, 16).disabledWhen(DISABLED).build());
-        y += CONTROL_ROW;
-        return this;
-    }
-
     /** Any other row: {@code atY} builds its elements at the row's y; {@code height} is what it takes up. */
     SettingsBody row(IntFunction<List<PanelElement>> atY, int height) {
         out.addAll(atY.apply(y));
         y += height;
         return this;
-    }
-
-    boolean greyed() {
-        return greyed;
     }
 
     List<PanelElement> build() {

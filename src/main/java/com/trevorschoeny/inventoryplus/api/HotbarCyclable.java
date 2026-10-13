@@ -10,7 +10,8 @@ import java.util.List;
 
 /**
  * Contract for anything that extends the player's hotbar reach by cycling.
- * Column Cycler implements it here, and Pocket Cycler in Inventory Max.
+ * Column Cycler implements it here; another mod with a ring (Hotbar Pockets)
+ * can too.
  *
  * <h3>Why this exists</h3>
  *

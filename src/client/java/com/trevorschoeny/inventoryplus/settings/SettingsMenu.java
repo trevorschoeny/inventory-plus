@@ -15,7 +15,6 @@ import com.trevlar.menukit.api.panel.ScreenKind;
 import com.trevlar.menukit.api.element.TextRole;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 
-import net.fabricmc.loader.api.FabricLoader;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -32,7 +31,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * The Inventory Plus and Inventory Max settings menu: full screen, a tab per
+ * The Inventory Plus settings menu: full screen, a tab per
  * feature.
  *
  * <p><b>Two looks, one menu.</b> The player picks the look on
@@ -52,9 +51,7 @@ import java.util.function.Supplier;
  * reopens the menu on General in the other kind ({@link #reopen}).
  *
  * <p>The menu is named {@link #MENU}, so other mods add tabs to it with
- * MenuKit's {@code Tabs.addTo}. Inventory Plus sets the order, and holds the
- * places of Inventory Max's three tabs with stand-ins that Inventory Max
- * replaces when it is installed.
+ * MenuKit's {@code Tabs.addTo}. Inventory Plus sets the order of its own tabs.
  *
  * <p>Opened from the dot button on the inventory toolbar, the Open settings
  * key, Mod Menu, and Ctrl-click on any feature's inventory button. Closing
@@ -69,9 +66,7 @@ public final class SettingsMenu extends MKScreen {
     public static final Identifier MENU = Identifier.fromNamespaceAndPath("inventoryplus", "settings");
 
     // Tab ids. The inventory buttons open their feature's tab on Ctrl-click
-    // (Cmd on a Mac), so the ids they need are public. Inventory Max's tabs are
-    // "inventorymax:pockets", "inventorymax:equipment_slots" and
-    // "inventorymax:mend_anywhere".
+    // (Cmd on a Mac), so the ids they need are public.
 
     /** The tab the menu opens on the first time. */
     public static final String GENERAL = "general";
@@ -184,7 +179,7 @@ public final class SettingsMenu extends MKScreen {
         return List.of(main(kind), donePanel(), confirmPanel());
     }
 
-    // Resets other mods add (Inventory Max)
+    // Resets other mods add
 
     private static final List<Runnable> EXTERNAL_RESETS = new java.util.concurrent.CopyOnWriteArrayList<>();
 
@@ -256,12 +251,9 @@ public final class SettingsMenu extends MKScreen {
         return create(parent);
     }
 
-    /**
-     * The menu's name: "Inventory Plus Max" with Inventory Max installed,
-     * "Inventory Plus" without.
-     */
+    /** The menu's name. */
     static String modName() {
-        return maxInstalled() ? "Inventory Plus Max" : "Inventory Plus";
+        return "Inventory Plus";
     }
 
     /**
@@ -280,11 +272,7 @@ public final class SettingsMenu extends MKScreen {
                 .build();
     }
 
-    private static boolean maxInstalled() {
-        return FabricLoader.getInstance().isModLoaded("inventorymax");
-    }
-
-    /** "Inventory Plus", or both names when Inventory Max is here to be configured too. */
+    /** The screen's title: the menu's name. */
     private static Component title() {
         return Component.literal(modName());
     }
@@ -315,11 +303,10 @@ public final class SettingsMenu extends MKScreen {
      *
      * <p>The Tabs set no size, so they fill: the panel hands a filling element
      * the viewport height less its own y (Panel's height pass), which puts
-     * their bottom on the panel's. Inventory Max's tabs come in through
+     * their bottom on the panel's. Other mods' tabs come in through
      * {@code Tabs.addTo}, so this layout is the whole of it.
      */
     private static Panel main(ScreenKind kind) {
-        boolean max = maxInstalled();
         boolean options = kind == ScreenKind.OPTIONS;
         Tabs.Builder builder = Tabs.builder().menu(MENU);
         // Both looks put the tabs in a sidebar. On the options screen MenuKit
@@ -329,25 +316,17 @@ public final class SettingsMenu extends MKScreen {
         Tabs tabs = builder
                 .state(() -> selectedTab, id -> selectedTab = id)
                 .bodyScroll(bodyScroll::get, bodyScroll::put)
-                .tab(tab(GENERAL, "General").body(() -> SettingsTabs.general(max)))
+                .tab(tab(GENERAL, "General").body(SettingsTabs::general))
                 // Tooltips right under General.
                 .tab(tab(TOOLTIPS, "Tooltips").body(SettingsTabs::tooltips))
                 .tab(tab(REACH, "Reach").body(SettingsTabs::reach))
-                .tab(tab(LOCK_GROUPS, "Lock groups").body(() -> SettingsTabs.lockGroups(max)))
+                .tab(tab(LOCK_GROUPS, "Lock groups").body(SettingsTabs::lockGroups))
                 .tab(tab(SORT, "Sort").body(SettingsTabs::sort))
                 .tab(tab(MOVE_MATCHING, "Move Matching").body(SettingsTabs::moveMatching))
                 .tab(tab(RESTOCK, "Restock").body(SettingsTabs::restock))
                 .tab(tab(AUTO_TOOL_SWITCH, "Auto Tool Switch").body(SettingsTabs::autoToolSwitch))
                 .tab(tab(COLUMN_CYCLER, "Column Cycler").body(SettingsTabs::columnCycler))
                 .tab(tab(HOTBAR_CYCLER, "Hotbar Cycler").body(SettingsTabs::hotbarCycler))
-                // Inventory Max's places. Its real tabs, added under these ids,
-                // take them over. Without it these show dimmed, greyed bodies.
-                .tab(tab("inventorymax:pockets", "Pockets").standIn()
-                        .body(SettingsTabs::pocketsStandIn))
-                .tab(tab("inventorymax:equipment_slots", "Equipment Slots").standIn()
-                        .body(SettingsTabs::equipmentSlotsStandIn))
-                .tab(tab("inventorymax:mend_anywhere", "Mend Anywhere").standIn()
-                        .body(SettingsTabs::mendAnywhereStandIn))
                 .build();
         Panel.Builder panel = Panel.builder("inventoryplus:settings")
                 .style(options ? PanelStyle.NONE : PanelStyle.RAISED)

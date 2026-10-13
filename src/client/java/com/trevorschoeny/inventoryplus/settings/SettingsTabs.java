@@ -24,7 +24,6 @@ import com.trevlar.slotkit.api.window.SlotOperations;
 import com.trevorschoeny.keybindery.api.KeybinderyAPI;
 import com.trevorschoeny.keybindery.chord.IChordKeyMapping;
 
-import net.fabricmc.loader.api.FabricLoader;
 
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -53,11 +52,6 @@ import java.util.function.Supplier;
  * <p>Controls with a real setting behind them read and write it live. The
  * rest are greyed placeholders showing their planned default (see
  * {@link SettingsBody}).
- *
- * <p>The three Inventory Max bodies are Inventory Plus's own copy, drawn from
- * {@code IMConfig}'s settings, because Inventory Plus cannot import Inventory
- * Max. They are shown only as stand-ins, greyed, until Inventory Max replaces
- * them with its real tabs.
  */
 final class SettingsTabs {
 
@@ -66,7 +60,7 @@ final class SettingsTabs {
     // Resets
     //
     // Every tab's Reset to Defaults asks first, then puts that tab's settings and keys back. General's Reset everything
-    // runs every tab's, and Inventory Max's through the hook it registers.
+    // runs every tab's, and other mods' through the hook they register.
 
     /** Opens a confirm for resetting tab {@code title}, then runs {@code reset}. */
     private static Runnable confirmReset(String title, Runnable reset) {
@@ -157,7 +151,7 @@ final class SettingsTabs {
 
     // General
 
-    static List<PanelElement> general(boolean maxInstalled) {
+    static List<PanelElement> general() {
         SettingsBody b = new SettingsBody()
                 .frame("General", "Settings for the whole menu. Greyed settings aren't built yet.");
         // No category header on the first settings.
@@ -166,9 +160,6 @@ final class SettingsTabs {
                 // take less room. Off by default.
                 .checkbox("Compact tooltips: short, one line on inventory buttons",
                         Bool.of(IPConfig::compactTooltips, IPConfig::setCompactTooltips));
-        // The advert for Inventory Max's tabs. With Inventory Max installed the
-        // stand-ins are gone, so there is nothing for this to hide.
-        if (!maxInstalled) b.checkbox("Show Inventory Max tabs", true);
         // A button that flips between the two looks, named for the one in use:
         // Classic (Minecraft's options screens) or Panel (a container-style
         // panel). The menu is made as one kind of screen or
@@ -184,13 +175,13 @@ final class SettingsTabs {
         // Its own category: it resets every tab.
         b.heading("Reset")
                 .actions(new SettingsBody.Action("Reset everything", () -> SettingsMenu.confirm("Reset everything?",
-                        "Every Inventory Plus and Inventory Max setting goes back to its default, and "
+                        "Every setting in this menu goes back to its default, and "
                                 + lockCount(null) + " are removed.",
                         SettingsTabs::resetEverything)));
         return b.build();
     }
 
-    /** General's Reset everything: every tab's reset, Inventory Max's included. */
+    /** General's Reset everything: every tab's reset, other mods' tabs included. */
     private static void resetEverything() {
         IPConfig.resetAll();
         Reach.revertAll();
@@ -208,7 +199,7 @@ final class SettingsTabs {
 
     /**
      * Every operation MenuKit knows, under three headings (Vanilla, Inventory
-     * Plus and Inventory Max, Other mods, leaving out an empty heading), one
+     * Plus, Other mods, leaving out an empty heading), one
      * collapsible section each, every box read from and written to the reach
      * record. A slot is reached only if every group it is in is checked, so a
      * lock group's cleared box is the lock.
@@ -229,8 +220,7 @@ final class SettingsTabs {
             else others.add(op);
         }
         operations(b, "Vanilla", vanilla);
-        operations(b, "Inventory Plus and Inventory Max", ours);
-        if (FabricLoader.getInstance().isModLoaded("inventorymax")) mendAnywhereSection(b);
+        operations(b, "Inventory Plus", ours);
         operations(b, "Other mods", others);
         // Shown now: from the next build on, none of these reads as new.
         List<String> shown = new ArrayList<>();
@@ -261,7 +251,7 @@ final class SettingsTabs {
         List<Place> ourGroups = new ArrayList<>();
         List<Place> otherGroups = new ArrayList<>();
         for (SlotGroups.Entry e : SlotGroups.listing()) {
-            // A set (Inventory Max's 27 pockets) is one box that writes each member.
+            // A set (Hotbar Pockets' 27 pockets) is one box that writes each member.
             List<String> keys = new ArrayList<>();
             for (SlotGroupId g : e.groups()) if (applies.contains(g.asString())) keys.add(g.asString());
             if (keys.isEmpty()) continue;
@@ -274,7 +264,7 @@ final class SettingsTabs {
         }
         // The cyclers' slots, as reach options. They are offered by every group that applies to the player's
         // inventory or hotbar, since they are subsets of those, first in the
-        // Inventory Plus and Inventory Max row. A cycler's own group keeps its
+        // Inventory Plus row. A cycler's own group keeps its
         // own option checked and fixed: it must rotate its own slots.
         boolean carried = applies.contains(new SlotGroupId.Category(SlotGroupCategory.PLAYER_INVENTORY).asString())
                 || applies.contains(new SlotGroupId.Category(SlotGroupCategory.PLAYER_HOTBAR).asString());
@@ -324,25 +314,8 @@ final class SettingsTabs {
             block(c, "Slot groups", slotGroups);
             block(c, "Lock groups", lockGroups);
             block(c, "Places", places);
-            block(c, "Inventory Plus and Inventory Max", ourGroups);
+            block(c, "Inventory Plus", ourGroups);
             block(c, "Other mods", otherGroups);
-        });
-    }
-
-    /**
-     * Mend Anywhere's reach: which items it repairs from
-     * XP, so it can take in the containers carried in the inventory too. Not
-     * a move, so not one of MenuKit's operations, and not wired yet: mending
-     * runs on the server, which can't read this reach record (kept on the
-     * client) until Inventory Max carries it there. Greyed at the current
-     * behaviour: the inventory and hotbar mend, carried containers don't.
-     */
-    private static void mendAnywhereSection(SettingsBody b) {
-        b.section("Mend Anywhere", () -> Component.literal("not built yet"), null, c -> {
-            c.line(0, Component.literal("Which items Mend Anywhere repairs from XP."));
-            c.reach("Slot groups", List.of(Place.fixed(Component.literal("Inventory"), true),
-                    Place.fixed(Component.literal("Hotbar"), true)));
-            c.reach("Places", carriedPlaces(false, false, false));
         });
     }
 
@@ -379,7 +352,7 @@ final class SettingsTabs {
      * button and server settings, then one section per group and + New group. What a group stops is set in
      * each operation's section in Reach; this tab manages the groups.
      */
-    static List<PanelElement> lockGroups(boolean maxInstalled) {
+    static List<PanelElement> lockGroups() {
         SettingsBody b = new SettingsBody()
                 .frame("Lock groups", "Lock slots and items so moves leave them alone. Press a group's key "
                         + "on a slot to add it to the group or take it out. What each group stops is set in Reach.",
@@ -393,9 +366,8 @@ final class SettingsTabs {
                 // Reach, so there is no switch for it here.
                 .checkbox("Show the lock button", Bool.of(IPConfig::lockedSlotsShowButton, IPConfig::setLockedSlotsShowButton));
         // The "keep container locks on the server" row is hidden since IP 2.0.0:
-        // Inventory Max can't load next to MenuKit 7, so a greyed row pointing
-        // at it would only confuse. containerLocksOnServer is still read and
-        // written below so the player's choice carries over, and the row comes
+        // the server side it needed is gone. containerLocksOnServer is still read
+        // and written so the player's choice carries over, and the row comes
         // back with new text once container locks move into Inventory Plus.
         // The groups go last.
         b.heading("Groups");
@@ -590,7 +562,7 @@ final class SettingsTabs {
     /**
      * A kind's other sources, besides the inventory itself. None is built: a
      * shulker box's or ender chest's contents can't be taken from in the
-     * inventory without the server (Inventory Max), and a bundle needs its own
+     * inventory without a server-side mod, and a bundle needs its own
      * click sequence. Greyed, shown at their planned defaults.
      */
     private static void pullFrom(SettingsBody b) {
@@ -670,43 +642,11 @@ final class SettingsTabs {
                 .build();
     }
 
-    // Inventory Max stand-ins (greyed until Inventory Max replaces them)
-
-    private static SettingsBody standIn(String title, String description) {
-        return new SettingsBody(true)
-                .frame(title, description + " Install Inventory Max to use it.", Bool.placeholder(true), null);
-    }
-
-    static List<PanelElement> pocketsStandIn() {
-        return standIn("Pockets", "Adds up to three extra slots behind each hotbar slot, "
-                        + "and keys to cycle through them.")
-                .checkbox("Show the Pockets button", true)
-                .choice("Beside the hotbar", List.of("Mini hotbar"), v -> v, "Mini hotbar")
-                .heading("Cycling")
-                .key(Component.literal("Pocket Cycle Forward"), Component.literal("Right Arrow"))
-                .key(Component.literal("Pocket Cycle Backward"), Component.literal("Left Arrow"))
-                .build();
-    }
-
-    static List<PanelElement> equipmentSlotsStandIn() {
-        return standIn("Equipment Slots", "Adds an elytra slot and a totem slot to your inventory.")
-                .checkbox("Show the Equipment Slots button", true)
-                .checkbox("Show elytra and totem icons beside the hotbar", true)
-                .build();
-    }
-
-    static List<PanelElement> mendAnywhereStandIn() {
-        return standIn("Mend Anywhere", "Mending items repair from XP anywhere in your inventory, "
-                        + "not only in your hands and armor.")
-                .checkbox("Show the Mend Anywhere button", true)
-                .build();
-    }
-
     // Shared
 
-    /** Inventory Plus's and Inventory Max's namespaces: "ours" in Reach's headings and blocks. */
+    /** Inventory Plus's namespace: "ours" in Reach's headings and blocks. */
     private static boolean isOurs(String namespace) {
-        return namespace.equals("inventoryplus") || namespace.equals("inventorymax");
+        return namespace.equals("inventoryplus");
     }
 
     /**
@@ -727,7 +667,7 @@ final class SettingsTabs {
 
     /**
      * A listing row as the menu shows it: its name, and for a group a mod
-     * added, that mod in parentheses ("Pockets (Inventory Max)"), so a player
+     * added, that mod in parentheses ("Pockets (Hotbar Pockets)"), so a player
      * can tell vanilla's groups from the rest.
      */
     static Component groupLabel(SlotGroups.Entry e) {

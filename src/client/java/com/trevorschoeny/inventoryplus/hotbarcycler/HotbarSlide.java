@@ -1,7 +1,6 @@
 package com.trevorschoeny.inventoryplus.hotbarcycler;
 
-import com.trevorschoeny.inventoryplus.api.CyclerDirection;
-import com.trevorschoeny.inventoryplus.cyclable.CycleSlide;
+import com.trevlar.menukit.api.hud.HudCycleStrip;
 
 import net.minecraft.world.item.ItemStack;
 
@@ -23,8 +22,9 @@ import org.jetbrains.annotations.Nullable;
  * because the next snapshot is taken from the already-rotated inventory.
  * Presses are not queued.
  *
- * <p>Time and easing come from {@link CycleSlide}, shared with the mini-hotbar
- * so the two feel identical. The mixin that draws this reads it every frame
+ * <p>Time and easing come from MenuKit's cycle strip
+ * ({@link HudCycleStrip#slideProgress}), so the hotbar and the strip beside it
+ * move as one. The mixin that draws this reads it every frame
  * and gets nothing once the slide has run its course.
  */
 public final class HotbarSlide {
@@ -33,13 +33,13 @@ public final class HotbarSlide {
 
     private static ItemStack @Nullable [] outgoing;
     private static long startMillis;
-    private static CyclerDirection direction = CyclerDirection.FORWARD;
+    private static HudCycleStrip.Direction direction = HudCycleStrip.Direction.FORWARD;
 
     /**
      * Begin a slide. {@code outgoingSnapshot} is the hotbar (0-8) as it was
      * before the rotation. The caller copies the stacks, this keeps them.
      */
-    public static void start(ItemStack[] outgoingSnapshot, CyclerDirection dir) {
+    public static void start(ItemStack[] outgoingSnapshot, HudCycleStrip.Direction dir) {
         if (outgoingSnapshot == null || outgoingSnapshot.length != HotbarCycler.COLUMNS) return;
         outgoing = outgoingSnapshot;
         direction = dir;
@@ -49,7 +49,7 @@ public final class HotbarSlide {
     /** True while a slide is running. Clears itself the first time it's asked after the end. */
     public static boolean isActive() {
         if (outgoing == null) return false;
-        if (CycleSlide.isDone(startMillis)) {
+        if (HudCycleStrip.slideDone(startMillis)) {
             outgoing = null;
             return false;
         }
@@ -58,10 +58,10 @@ public final class HotbarSlide {
 
     /** Eased progress, 0 to 1 (with the spring's brief overshoot). Only meaningful while active. */
     public static float progress() {
-        return CycleSlide.progress(startMillis);
+        return HudCycleStrip.slideProgress(startMillis);
     }
 
-    public static CyclerDirection direction() {
+    public static HudCycleStrip.Direction direction() {
         return direction;
     }
 

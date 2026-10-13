@@ -114,14 +114,11 @@ public final class Reach {
             "menukit:world_pickup", "menukit:drop", "menukit:drop_stack", "menukit:drag_fill",
             "menukit:hotbar_swap", "menukit:offhand_swap", "inventoryplus:restock_take");
 
-    /**
-     * What Exact item stops by default. Item groups copy it. Pocket Cycler
-     * rotation is stopped along with the other two cyclers.
-     */
+    /** What Exact item stops by default. Item groups copy it. */
     public static final Set<String> EXACT_ITEM_DENIES = Set.of(
             "menukit:drop", "menukit:drop_stack", "menukit:shift_click_out", "menukit:collect",
             "inventoryplus:sort", "inventoryplus:move_matching_out", "inventoryplus:move_matching_in",
-            "inventoryplus:column_cycle", "inventoryplus:hotbar_cycle", "inventorymax:pocket_cycle");
+            "inventoryplus:column_cycle", "inventoryplus:hotbar_cycle");
 
     // Feature reach groups
 
@@ -519,7 +516,13 @@ public final class Reach {
         }
     }
 
-    /** Replaces the record with {@code json}'s; {@code null} means a fresh install. Does not save. */
+    /**
+     * Replaces the record with {@code json}'s; {@code null} means a fresh install.
+     * Does not save. Anything naming Inventory Max (an operation, a group, a seen
+     * id) is dropped: the mod is retired and no mod reuses an {@code inventorymax:}
+     * id (Beryl), so those entries can never mean anything again. The next save
+     * writes the record without them.
+     */
     public static void read(@Nullable JsonObject json) {
         if (json == null) {
             state = State.of(Map.of(), defaultGroups(), Set.of(), SLOT_LOCK);
@@ -528,8 +531,14 @@ public final class Reach {
         Map<String, Set<String>> denied = new TreeMap<>();
         if (json.has("denied") && json.get("denied").isJsonObject()) {
             for (var e : json.getAsJsonObject("denied").entrySet()) {
+                if (retired(e.getKey())) continue;
                 Set<String> keys = new HashSet<>();
-                if (e.getValue().isJsonArray()) for (JsonElement k : e.getValue().getAsJsonArray()) keys.add(key(k.getAsString()));
+                if (e.getValue().isJsonArray()) {
+                    for (JsonElement k : e.getValue().getAsJsonArray()) {
+                        String key = key(k.getAsString());
+                        if (!retired(key)) keys.add(key);
+                    }
+                }
                 denied.put(e.getKey(), keys);
             }
         }
@@ -549,10 +558,25 @@ public final class Reach {
         }
         Set<String> seen = new HashSet<>();
         if (json.has("seen") && json.get("seen").isJsonArray()) {
-            for (JsonElement k : json.getAsJsonArray("seen")) seen.add(k.getAsString());
+            for (JsonElement k : json.getAsJsonArray("seen")) {
+                if (!retired(k.getAsString())) seen.add(k.getAsString());
+            }
         }
         String active = string(json, "active");
         state = State.of(denied, groups, seen, active == null ? SLOT_LOCK : active);
+    }
+
+    /**
+     * Whether {@code key} names Inventory Max: an operation id
+     * ({@code inventorymax:pocket_cycle}) or a group key, whose parts are split
+     * by {@code |} ({@code created|inventorymax:pocket_0_0|pocket_0_0},
+     * {@code category|inventorymax|equipment}).
+     */
+    private static boolean retired(String key) {
+        for (String part : key.split("\\|")) {
+            if (part.equals("inventorymax") || part.startsWith("inventorymax:")) return true;
+        }
+        return false;
     }
 
     /** The record as the "reach" object of {@code config.json}. */

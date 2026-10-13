@@ -13,7 +13,6 @@ import static com.trevlar.slotkit.api.group.SlotGroupCategory.SHULKER_STORAGE;
 import com.trevorschoeny.inventoryplus.api.PlayerMenuSlots;
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.*;
 
-import com.trevlar.slotkit.api.group.SlotGroupSet;
 import com.trevlar.slotkit.api.window.BehaviorKey;
 import com.trevlar.slotkit.api.window.SlotOperations.AppliesTo;
 import com.trevlar.slotkit.api.window.SlotOperations;
@@ -52,9 +51,10 @@ public final class IPSlotOperations {
         AppliesTo storageAndHotbar = AppliesTo.vanilla(PLAYER_INVENTORY, PLAYER_HOTBAR, CHEST_STORAGE,
                 SHULKER_STORAGE, DISPENSER_STORAGE, HOPPER_STORAGE, MOUNT_STORAGE);
         AppliesTo carried = AppliesTo.vanilla(PLAYER_INVENTORY, PLAYER_HOTBAR);
-        // The cyclers move only through their own inventory and hotbar slots,
-        // never a pocket (the Pocket Cycler owns those).
-        AppliesTo cycled = carried.except(new SlotGroupSet("inventorymax", "pockets"));
+        // The cyclers move only through the inventory and hotbar. A mod whose
+        // slots must stay out of them says so on its own groups (Hotbar
+        // Pockets: AppliesTo.only, SlotKit 1.1.0), so nothing is excepted here.
+        AppliesTo cycled = carried;
         // Sort works on the main inventory and on containers, never the hotbar.
         SlotOperations.define(SORT, Role.BOTH, storage);
         SlotOperations.define(MOVE_MATCHING_OUT, Role.TAKE, storageAndHotbar);

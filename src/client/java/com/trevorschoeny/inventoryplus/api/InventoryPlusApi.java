@@ -8,7 +8,6 @@ import com.trevlar.slotkit.api.window.TriBool;
 import com.trevorschoeny.inventoryplus.autorestock.AutoRestockSearch;
 import com.trevorschoeny.inventoryplus.autorestock.AutoRestockSuppression;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
-import com.trevorschoeny.inventoryplus.cyclable.CycleHudRegistry;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 import com.trevorschoeny.inventoryplus.lockedslots.WorldIdentity;
 import com.trevorschoeny.inventoryplus.sort.ContainerOpenTracker;
@@ -48,9 +47,9 @@ import java.util.function.Consumer;
  * <h2>What is here, and what is deliberately not</h2>
  *
  * <p>The types a companion <em>implements</em> or <em>passes</em> live here as
- * real types: {@link HotbarCyclable}, {@link CycleHudSource},
- * {@link CycleView}, {@link CyclerDirection},
- * {@link CyclerOperation}. The registries behind them stay internal, and this
+ * real types: {@link HotbarCyclable} and {@link CyclerOperation}. A ring on
+ * the HUD beside the hotbar is MenuKit's cycle strip since 3.0.0
+ * ({@code com.trevlar.menukit.api.hud.HudCycleStrip}), not this API. The registries behind them stay internal, and this
  * class exposes only the operations a companion actually needs. A registry's
  * other public methods are Inventory Plus talking to
  * itself, and promising them would freeze internals that have no business
@@ -117,16 +116,6 @@ public final class InventoryPlusApi {
     public static List<HotbarCyclable.ExtraSlot> extraSlotsToQuickMove(
             net.minecraft.world.entity.player.Player player, BehaviorKey<TriBool> take, BehaviorKey<TriBool> put) {
         return HotbarCyclableRegistry.extraSlotsToQuickMove(player, take, put);
-    }
-
-    /** Registers a source of cycle views for the shared cycler HUD. */
-    public static void registerHudSource(CycleHudSource source) {
-        CycleHudRegistry.register(source);
-    }
-
-    /** Plays the shared cycler HUD's slide animation for one of your cycles. */
-    public static void playCycleAnimation(CycleHudSource source, int hotbarSlot, CyclerDirection direction) {
-        CycleHudRegistry.fireCycleAnimation(source, hotbarSlot, direction);
     }
 
     // Restock
@@ -198,8 +187,7 @@ public final class InventoryPlusApi {
 
     /**
      * Adds a feature's on/off switch to the inventory's right column, after
-     * Inventory Plus's own, in the order companions call this (Inventory Max:
-     * its tab order). It behaves as Inventory Plus's switches do. Left click
+     * Inventory Plus's own, in the order companions call this. It behaves as Inventory Plus's switches do. Left click
      * toggles {@code on} through {@code set}, Ctrl-click (Cmd on a Mac) opens
      * {@code tabId}, the tooltip reads "{@code name}: On" with {@code hint}
      * under it (left out by Compact tooltips), and it shows while
