@@ -46,18 +46,18 @@ Hotbar Cycler rotates whole rows of your inventory through the hotbar, so a mini
 
 The row of buttons above your inventory is for acting: Move Matching out, Move Matching in, and Sort. The column to the right turns features on and off, with the settings gear at the top and a switch for each feature below it. Left-click a switch to turn its feature on or off. The Column Cycler and Hotbar Cycler switches start hidden, and each tab has a checkbox to show or hide its switch.
 
-Every feature has a tab in the settings menu, with its on and off switch, its keys and its settings. Open it with the gear, or with Inventory Plus's config button in Mod Menu. Ctrl-click (Cmd on a Mac) any Inventory Plus button to open that feature's tab. The menu looks like Minecraft's own Options screens, and the Look button on the General tab switches it to a panel like a container's.
+Every feature has a tab in the settings menu, with its on and off switch, its keys and its settings. Open it with the gear, or with Inventory Plus's config button in Mod Menu. Ctrl-click (Cmd on a Mac) any Inventory Plus button to open that feature's tab. The menu looks like Minecraft's own Options screens, and the Look button on the General tab switches it to a panel like a container's. Other mods can add their own tabs after Inventory Plus's, as [Hotbar Pockets](https://modrinth.com/mod/hotbar-pockets) does with its Pockets tab.
 
 ## Requirements
 
 - [Keybindery](https://modrinth.com/mod/keybindery) 1.1.0 or newer
-- [MenuKit](https://modrinth.com/mod/menukit) 7.0.0 or newer, below 8.0.0
-- [SlotKit](https://modrinth.com/mod/slotkit) 1.0.0 or newer, below 2.0.0
+- [MenuKit](https://modrinth.com/mod/menukit) 7.1.0 or newer, below 8.0.0
+- [SlotKit](https://modrinth.com/mod/slotkit) 1.1.0 or newer, below 2.0.0
 - [Fabric API](https://modrinth.com/mod/fabric-api)
 
 ## Compatibility
 
-Minecraft 26.3 with Fabric. Install it on your client, and it works on any server with nothing installed there. It also installs on servers, with Keybindery, MenuKit, SlotKit and Fabric API alongside it, and what players see does not change. It cannot be installed together with Inventory Max.
+Minecraft 26.3 with Fabric. Install it on your client, and it works on any server with nothing installed there. It also installs on servers, with Keybindery, MenuKit, SlotKit and Fabric API alongside it, and what players see does not change. It can't be installed together with Inventory Max, which is now Hotbar Pockets.
 
 ## License
 
