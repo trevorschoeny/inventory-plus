@@ -18,6 +18,7 @@ import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
+import com.trevorschoeny.inventoryplus.tooltips.Tooltips;
 import com.trevorschoeny.inventoryplus.lockgroups.LockTooltips;
 import com.trevorschoeny.inventoryplus.lockgroups.Locks;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
@@ -103,6 +104,8 @@ public class InventoryPlusClient implements ClientModInitializer {
         LockedItems.load();
         Locks.registerVeto();
         LockTooltips.register();
+        // Tooltips: every line Inventory Plus adds or changes, and the hide key.
+        Tooltips.register();
         ClientTickEvents.END_CLIENT_TICK.register(LockedSlotKeybind::tick);
 
         // One right-aligned MenuKit panel above the player's 3x9 grid, holding
