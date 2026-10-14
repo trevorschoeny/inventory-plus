@@ -211,6 +211,19 @@ public final class InventoryPlusApi {
     // The settings menu (companions add tabs with MenuKit's Tabs.addTo)
 
     /**
+     * The settings menu's name, for MenuKit's {@code Tabs.addTo}: a companion
+     * adds its own tab with
+     * {@code Tabs.addTo(InventoryPlusApi.SETTINGS_MENU, Tabs.tab(id).label(..).body(..))},
+     * once at client init. A tab added with no anchor goes after Inventory
+     * Plus's own tabs (companions' tabs among themselves by id). Its body is
+     * built fresh each time the menu opens. Use the tab's id for
+     * {@link #openSettings} and {@link #settingsScreen}, and pair it with
+     * {@link #confirmInSettings} for Reset to Defaults and
+     * {@link #registerSettingsReset} for Reset everything.
+     */
+    public static final Identifier SETTINGS_MENU = SettingsMenu.MENU;
+
+    /**
      * Asks before {@code action} in Inventory Plus's settings menu: a title, a
      * line of what it will do, then Cancel and Confirm. For a companion tab's
      * Reset to Defaults, so every reset in the menu asks the same way.
