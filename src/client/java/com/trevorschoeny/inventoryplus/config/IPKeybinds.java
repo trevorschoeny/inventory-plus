@@ -4,7 +4,6 @@ import com.mojang.blaze3d.platform.InputConstants;
 
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 
-import com.trevorschoeny.keybindery.api.KeybinderyAPI;
 
 import net.minecraft.client.KeyMapping;
 import net.minecraft.resources.Identifier;
@@ -134,28 +133,6 @@ public final class IPKeybinds {
             InputConstants.UNKNOWN.getValue(),
             CATEGORY);
 
-    /**
-     * Hides every tooltip while held. Space by default,
-     * which Jump shares: 26.2 maps a key to a list of mappings, so both fire.
-     * Read as a raw held state ({@link #isHeld}), never consumed, so it works
-     * on every screen and a focused button or text field still gets Space.
-     */
-    public static final KeyMapping HIDE_TOOLTIPS = new KeyMapping(
-            "key.inventoryplus.hide_tooltips",
-            InputConstants.Type.KEYBOARD,
-            InputConstants.KEY_SPACE,
-            CATEGORY);
-
-    /**
-     * Whether every key of {@code mapping}'s chord is physically down right
-     * now. Vanilla releases mapping states while a screen is open, so a key
-     * that must work under any screen (the pause menu included) reads
-     * Keybindery's physical state instead ({@link KeybinderyAPI#isHeld}).
-     */
-    public static boolean isHeld(KeyMapping mapping) {
-        return KeybinderyAPI.getInstance().isHeld(mapping);
-    }
-
     /** Register all keybinds with Fabric. Call once from client init. */
     public static void register() {
         KeyMappingHelper.registerKeyMapping(LOCK_SLOT);
@@ -169,6 +146,5 @@ public final class IPKeybinds {
         KeyMappingHelper.registerKeyMapping(HOTBAR_CYCLE_BACKWARD);
         KeyMappingHelper.registerKeyMapping(AUTO_SWITCH_RETURN);
         KeyMappingHelper.registerKeyMapping(OPEN_SETTINGS);
-        KeyMappingHelper.registerKeyMapping(HIDE_TOOLTIPS);
     }
 }

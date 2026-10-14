@@ -88,14 +88,6 @@ final class SettingsTabs {
         resetKeys(IPKeybinds.SORT);
     }
 
-    private static void resetTooltips() {
-        IPConfig.reset("tooltipsEnabled", "tooltipDurability", "tooltipFood", "tooltipFoodEffects",
-                "tooltipEnchantmentDescriptions", "tooltipSortEnchantments", "tooltipToolStats",
-                "tooltipCompare", "tooltipCondenseTrims", "tooltipModName", "hideTooltipsOnKey",
-                "tooltipDock");
-        resetKeys(IPKeybinds.HIDE_TOOLTIPS);
-    }
-
     private static void resetMoveMatching() {
         IPConfig.reset("moveMatchingEnabled", "moveMatchingShowButtons");
         resetKeys(IPKeybinds.MOVE_MATCHING_OUT, IPKeybinds.MOVE_MATCHING_IN);
@@ -461,50 +453,6 @@ final class SettingsTabs {
                 .key(IPKeybinds.SORT, Component.translatable(IPKeybinds.SORT.getName()),
                         Component.literal("Sorts the container under your mouse. With only your inventory "
                                 + "open, it sorts your inventory wherever your mouse is."))
-                .build();
-    }
-
-    /**
-     * Tooltips (formerly Item Tips): everything Inventory Plus
-     * does to tooltips. Off, Inventory Plus leaves every tooltip alone.
-     */
-    static List<PanelElement> tooltips() {
-        return new SettingsBody()
-                .frame("Tooltips", "Changes Inventory Plus makes to tooltips: extra lines on items, "
-                        + "and where they sit on screen.",
-                        Bool.of(IPConfig::tooltipsEnabled, IPConfig::setTooltipsEnabled),
-                        confirmReset("Tooltips", SettingsTabs::resetTooltips))
-                // Display first, then Item Details. Scrolling a long tooltip and
-                // keeping it on screen have no switch here, because they are
-                // always on.
-                .heading("Display")
-                // MenuKit 6.2.0's avoidCoverWhen: a tooltip vanilla would place
-                // beside the cursor docks at the bottom centre of the screen, or
-                // the top centre when the cursor would be inside it there.
-                .checkbox("Dock tooltips at top or bottom",
-                        Bool.of(IPConfig::tooltipDock, IPConfig::setTooltipDock))
-                // Hidden by MenuKit's tooltip seam, through a predicate Inventory
-                // Plus registers at client init (tooltips/Tooltips).
-                .checkbox("Hold a key to hide tooltips",
-                        Bool.of(IPConfig::hideTooltipsOnKey, IPConfig::setHideTooltipsOnKey))
-                .key(IPKeybinds.HIDE_TOOLTIPS, Component.translatable(IPKeybinds.HIDE_TOOLTIPS.getName()), null,
-                        () -> !IPConfig.hideTooltipsOnKey())
-                // One checkbox per provider in tooltips/, in the order they apply.
-                .heading("Item Details")
-                .checkbox("Durability", Bool.of(IPConfig::tooltipDurability, IPConfig::setTooltipDurability))
-                .checkbox("Food: nutrition and saturation", Bool.of(IPConfig::tooltipFood, IPConfig::setTooltipFood))
-                .checkbox("Food effects", Bool.of(IPConfig::tooltipFoodEffects, IPConfig::setTooltipFoodEffects))
-                .checkbox("Enchantment descriptions", Bool.of(IPConfig::tooltipEnchantmentDescriptions,
-                        IPConfig::setTooltipEnchantmentDescriptions))
-                .checkbox("Sort enchantments alphabetically", Bool.of(IPConfig::tooltipSortEnchantments,
-                        IPConfig::setTooltipSortEnchantments))
-                .checkbox("Tool stats: mining speed, tier and enchantability",
-                        Bool.of(IPConfig::tooltipToolStats, IPConfig::setTooltipToolStats))
-                .checkbox("Compare with what you're wearing or holding",
-                        Bool.of(IPConfig::tooltipCompare, IPConfig::setTooltipCompare))
-                .checkbox("Condense armor trim lines", Bool.of(IPConfig::tooltipCondenseTrims,
-                        IPConfig::setTooltipCondenseTrims))
-                .checkbox("Mod name", Bool.of(IPConfig::tooltipModName, IPConfig::setTooltipModName))
                 .build();
     }
 

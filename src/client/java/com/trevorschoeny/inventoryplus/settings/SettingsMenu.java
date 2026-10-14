@@ -78,7 +78,6 @@ public final class SettingsMenu extends MKScreen {
     public static final String AUTO_TOOL_SWITCH = "auto_tool_switch";
     public static final String COLUMN_CYCLER = "column_cycler";
     public static final String HOTBAR_CYCLER = "hotbar_cycler";
-    public static final String TOOLTIPS = "tooltips";
 
     /**
      * The open tab, kept across reopens for the rest of the session. MenuKit's
@@ -317,8 +316,6 @@ public final class SettingsMenu extends MKScreen {
                 .state(() -> selectedTab, id -> selectedTab = id)
                 .bodyScroll(bodyScroll::get, bodyScroll::put)
                 .tab(tab(GENERAL, "General").body(SettingsTabs::general))
-                // Tooltips right under General.
-                .tab(tab(TOOLTIPS, "Tooltips").body(SettingsTabs::tooltips))
                 .tab(tab(REACH, "Reach").body(SettingsTabs::reach))
                 .tab(tab(LOCK_GROUPS, "Lock groups").body(SettingsTabs::lockGroups))
                 .tab(tab(SORT, "Sort").body(SettingsTabs::sort))
