@@ -147,7 +147,7 @@ public class InventoryPlusClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(HotbarCyclerKeybind::tick);
         // The hotbar slide and the change-gated preview slides. Init order
         // relative to the HUD sources below is irrelevant: this only adds a
-        // rotation listener now, and consults the source registry at rotation
+        // rotation listener now, and snapshots MenuKit's cycle strip at rotation
         // time, which is also what lets another mod's ring take part.
         HotbarCyclerHud.register();
 

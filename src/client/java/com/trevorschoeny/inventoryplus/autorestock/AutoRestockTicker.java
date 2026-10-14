@@ -194,7 +194,7 @@ public final class AutoRestockTicker {
         int selected = inv.getSelectedSlot();
 
         // 0. Suppress refill for a deliberately changing slot. A sibling feature
-        // (IPP's pocket cycler, for one) may swap the held item wholesale, and a
+        // (Hotbar Pockets' pocket cycler, for one) may swap the held item wholesale, and a
         // wrap can even bring an empty pocket into the hand. That isn't
         // depletion, but the snapshot diff below can't tell. Re-baseline the
         // slot to its current contents so none of the refill paths fire for it

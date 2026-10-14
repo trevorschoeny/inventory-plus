@@ -149,17 +149,18 @@ public final class IPConfig {
     private static boolean restockShowButton = true;
     private static boolean autoToolSwitchShowButton = true;
     private static boolean lockGroupsEnabled = true;
-    // "Also keep container locks on the server" (Lock groups tab; replaces
+    // "Also keep container locks on the server" (Lock groups tab; replaced
     // Inventory Max's containerLocksEnabled). Container locks are always kept
-    // on this computer. With this on, each one placed from now on is also
-    // written to Inventory Max's shared channel, where the server keeps and
-    // enforces it as a plain lock. Off by default, because container locks are
-    // the player's own. Needs Inventory Max.
+    // on this computer. The option wrote each new one to Inventory Max's shared
+    // channel as well, where the server kept and enforced it as a plain lock.
+    // With Inventory Max retired nothing provides that channel, so the row is
+    // hidden (SettingsTabs) and the value is only carried over. Off by default,
+    // because container locks are the player's own.
     private static boolean containerLocksOnServer = false;
     // Compact tooltips: the inventory buttons' tooltips keep only their
     // essential lines (what it does, its state), no hints.
     private static boolean compactTooltips = false;
-    // The Tooltips tab moved to its own mod, Docked Tooltips (3.0.0). An old file's
+    // The Tooltips tab moved to its own mod, Dock and Hide Tooltips (3.0.0). An old file's
     // tooltips*, tooltip*, hideTooltipsOnKey and tooltipDock keys are never read,
     // and the next save drops them.
 

@@ -37,7 +37,7 @@ import java.util.List;
  * Because the trigger zone and the sustain zone are the same rectangle,
  * "the button survives the cursor crossing the gap" needs no sustain
  * timer and no remembered hover target. Inventory Max's {@code
- * PocketHover} carries that machinery because its zones differ in shape.
+ * PocketHover} carried that machinery because its zones differed in shape.
  * This feature does not need it.
  *
  * <p>A pressed button ignores hover entirely and is always drawn, which

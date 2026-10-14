@@ -108,7 +108,7 @@ public final class LockedSlotKeybind {
      *
      * <p>An earlier version of this walked {@code menu.slots} and bounds-
      * tested each one by hand, using {@code isActive()} to skip whatever a
-     * created slot (an IM pocket) was covering. That worked only as long
+     * created slot (an Inventory Max pocket) was covering. That worked only as long
      * as MenuKit's compositing happened to leave the covered vanilla slot
      * inactive; once MenuKit restored plain paint-over (composited panels
      * inside vanilla's slot pass, "the covered vanilla slot is active

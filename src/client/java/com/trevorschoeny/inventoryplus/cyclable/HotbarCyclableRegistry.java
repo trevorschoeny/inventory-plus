@@ -22,7 +22,7 @@ import java.util.List;
  *
  * Each cycler registers itself at mod init (typically in
  * {@code InventoryPlusClient.onInitializeClient()} for IP-side cyclers,
- * and in IPP's client init for IPP-side cyclers).
+ * and in a companion's client init for its own, as Hotbar Pockets does).
  *
  * <p>Registration order doesn't matter for correctness: each cycler
  * claims a disjoint subset of slot indices, so {@link #cyclablePosition}

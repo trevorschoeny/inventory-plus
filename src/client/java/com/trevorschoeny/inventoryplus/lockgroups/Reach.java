@@ -520,7 +520,7 @@ public final class Reach {
      * Replaces the record with {@code json}'s; {@code null} means a fresh install.
      * Does not save. Anything naming Inventory Max (an operation, a group, a seen
      * id) is dropped: the mod is retired and no mod reuses an {@code inventorymax:}
-     * id (Beryl), so those entries can never mean anything again. The next save
+     * id, so those entries can never mean anything again. The next save
      * writes the record without them.
      */
     public static void read(@Nullable JsonObject json) {

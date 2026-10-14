@@ -42,7 +42,7 @@ import java.util.UUID;
  * reference so it holds on either side of the single-player thread divide,
  * the same rule {@code LockedSlots.isLockable} follows.
  *
- * <p>Public because Inventory Max's totem restock converts the same index
+ * <p>Public because Simple Totem Slot's totem restock converts the same index
  * and should not keep its own copy. Only for code that runs on the client:
  * Inventory Plus is client-only, so anything on a server path must not name
  * this class.

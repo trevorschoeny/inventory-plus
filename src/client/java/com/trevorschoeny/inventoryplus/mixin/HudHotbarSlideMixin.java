@@ -18,7 +18,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * Draws Hotbar Cycler's slide in the vanilla hotbar: for the 220 ms after a
  * row rotation, each hotbar cell shows its old item sliding out and its new
- * item sliding in, on the mini-hotbar's spring curve. Slot frames and the
+ * item sliding in, on the cycle strip's spring curve. Slot frames and the
  * selection highlight never move; only items do.
  *
  * <h3>The seam (26.2)</h3>

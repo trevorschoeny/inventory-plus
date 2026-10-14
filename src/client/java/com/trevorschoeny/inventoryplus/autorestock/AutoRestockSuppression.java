@@ -10,7 +10,7 @@ package com.trevorschoeny.inventoryplus.autorestock;
  * Auto-Restock detects depletion by diffing a per-tick snapshot of the watched
  * slots ({@link AutoRestockTicker}). It can't tell <i>why</i> a slot's contents
  * changed, only that they did. A feature that swaps the hand item wholesale
- * (Inventory Max's pocket cycler brings a pocket item into the hand, and a
+ * (Hotbar Pockets' pocket cycler brings a pocket item into the hand, and a
  * wrap can bring an <i>empty</i> pocket in) trips that diff: the hand reads
  * empty, Auto-Restock assumes the item ran out, finds a backup stack, and
  * switches the selected slot to it, a jarring and wrong slot jump.

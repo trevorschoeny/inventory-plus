@@ -15,7 +15,7 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * A persistable identity for a <b>created</b> slot (a SlotKit slot
- * such as an Inventory Max pocket or equipment slot): its MenuKit
+ * such as a Hotbar Pockets pocket or Simple Totem Slot's slot): its MenuKit
  * {@link Address}, saved as {@link Address#asString()}.
  *
  * <h3>Why created slots need their own key</h3>

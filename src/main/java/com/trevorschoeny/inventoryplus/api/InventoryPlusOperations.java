@@ -19,7 +19,7 @@ import net.minecraft.resources.Identifier;
  * shift-click it looks like.
  *
  * <p>Published here, rather than kept internal, so a companion can send its own
- * moves under the same keys: Inventory Max's totem restock is a restock, and
+ * moves under the same keys: Simple Totem Slot's totem restock is a restock, and
  * should be judged as one.
  *
  * <p>Every key follows MenuKit's recipe for an operation of one's own

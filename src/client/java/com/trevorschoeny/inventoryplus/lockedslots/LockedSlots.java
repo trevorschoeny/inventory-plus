@@ -114,7 +114,7 @@ public final class LockedSlots {
      * because ender slot indices (0-26) overlap player container-slot indices.
      * Ender is single-viewer (your own ender, no other player can open it), so
      * it stays client-side per player just like player slots. Doing it on the
-     * client also means it works on a vanilla server without IPP.
+     * client also means it works on a vanilla server with nothing installed there.
      */
     private static final WorldStore<Map<Integer, String>> ENDER = WorldStore.sortedMap(LockedSlots::save);
     /**
@@ -128,9 +128,9 @@ public final class LockedSlots {
     /**
      * worldId -> container identity ({@code block:<dim>:<x>,<y>,<z>}, see
      * {@link ContainerIdentity}) -> locked slot indices. Placed-container locks,
-     * client-side and per player. This deliberately reverses Inventory Max's
-     * shared model: IP locks them for you alone. Claimed before any downstream
-     * provider, so IM's shared channel no longer answers for placed containers
+     * client-side and per player. This deliberately reverses the shared model
+     * Inventory Max had: IP locks them for you alone. Claimed before any
+     * downstream provider, so no shared channel answers for placed containers
      * while IP is present.
      */
     private static final WorldStore<Map<String, Map<Integer, String>>> CONTAINERS =

@@ -9,7 +9,7 @@ import net.fabricmc.api.ModInitializer;
  * the client's ({@link InventoryPlusClient}, in the client source set); what
  * runs here is only what a server needs to know about Inventory Plus: its slot
  * operations, so a server can answer "may Sort take from this slot?" for a
- * companion like Inventory Max, and name the operation a packet carries.
+ * companion like Hotbar Pockets, and name the operation a packet carries.
  *
  * <p>Runs before the client initializer on a client, and MenuKit freezes
  * declarations after both, so the operations are defined in time either way.
