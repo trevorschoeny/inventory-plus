@@ -4,7 +4,7 @@ Inventory Max cannot run alongside this version. A profile with Inventory Max st
 
 The strip beside the hotbar that shows a Column Cycler column is now drawn by MenuKit's cycle strip, so it looks and slides the same as other mods' cycle strips. When Hotbar Cycler turns, the strip slides with the hotbar.
 
-Inventory Plus no longer knows about Inventory Max. Anything your Reach settings saved about Inventory Max's moves or slots is dropped the first time this version loads.
+Inventory Plus no longer has any code for Inventory Max. Anything your Reach settings saved for Inventory Max's moves or slots is dropped the first time this version loads.
 
 Other mods can add their own tabs to the settings menu. They go after Inventory Plus's tabs.
 
