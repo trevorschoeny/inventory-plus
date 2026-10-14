@@ -56,8 +56,10 @@ public final class Tooltips {
         // at the bottom centre of the screen, or the top centre when the cursor
         // would be inside it there (MenuKit 6.2.0 avoidCoverWhen).
         MKTooltip.avoidCoverWhen(() -> IPConfig.tooltipsEnabled() && IPConfig.tooltipDock());
-        // Always on under the Tooltips switch, no longer settings. Keep on screen: one predicate for both of MenuKit's
-        // halves, wrapping a tooltip wider than the screen and clamping its top.
+        // Keep on screen and scroll have no settings: both are on whenever the
+        // Tooltips switch is. Keep on screen is one predicate for both of
+        // MenuKit's halves, wrapping a tooltip wider than the screen and
+        // clamping its top.
         // Scroll: the wheel moves a long tooltip on screen. MenuKit clamps the
         // offset to the tooltip, so one that fits never moves, and pins the
         // title. Wheel down (negative) moves the tooltip up, bringing its lower
