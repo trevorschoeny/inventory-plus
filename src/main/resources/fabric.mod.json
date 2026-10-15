@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "id": "inventoryplus",
   "version": "${version}",
+  "icon": "assets/inventoryplus/icon.png",
   "name": "Inventory Plus",
   "description": "Client-side inventory quality-of-life: auto-restock, auto tool switch, sorting, move matching, locked slots, column cycler. Installs on any server.",
   "authors": [
