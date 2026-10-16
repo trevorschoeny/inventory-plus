@@ -1,10 +1,16 @@
+## 3.1.0
+
+Requires MenuKit 7.2.0 or newer, below 8.0.0. Your locks, keys and other settings carry over when you update.
+
+Tooltips: instead of starting the cursor above the slots, a screen that opens now hides tooltips until you move the mouse. The cursor itself is never moved, so it can't nudge the mouse while the game window is in the background. Same switch on the Tooltips tab, on by default, now named "Hide tooltips until the mouse moves".
+
 ## 3.0.0
 
 Requires MenuKit 7.1.0 or newer, below 8.0.0, and SlotKit 1.1.0 or newer, below 2.0.0. It still works on any server, vanilla included, with nothing installed there. Your locks, keys and other settings carry over when you update.
 
 The strip beside the hotbar that shows a Column Cycler column is now drawn by MenuKit, so it looks and slides the same as other mods' strips, like Hotbar Pockets' mini hotbar. When Hotbar Cycler turns, the strip slides with the hotbar.
 
-When a screen opens, tooltips stay hidden until you move the mouse, so the slot under your cursor doesn't pop one up the moment it opens. It's a switch on the Tooltips tab, on by default.
+When you open your inventory, the cursor starts just above the slots, so no tooltip pops up the moment it opens. It's a switch on the Tooltips tab, on by default.
 
 The Sort button's tooltip, and other button tooltips of two lines, show on two lines again instead of with a stray "LF" box.
 
