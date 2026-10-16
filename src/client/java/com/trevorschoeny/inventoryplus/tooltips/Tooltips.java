@@ -6,6 +6,7 @@ import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevlar.menukit.api.element.MKTooltip;
 
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -40,6 +41,19 @@ public final class Tooltips {
 
     private Tooltips() {}
 
+    /** Where the mouse was when the open screen opened, in window pixels. */
+    private static double heldAtX, heldAtY;
+    /** True from a screen opening until the mouse first moves. */
+    private static boolean held;
+
+    /** Whether the hold is still on: the mouse hasn't moved since the screen opened. */
+    private static boolean stillHeld() {
+        if (!held) return false;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.mouseHandler.xpos() != heldAtX || mc.mouseHandler.ypos() != heldAtY) held = false;
+        return held;
+    }
+
     /** Call once from client init. */
     public static void register() {
         ItemTooltipCallback.EVENT.register((stack, context, type, lines) -> {
@@ -52,6 +66,17 @@ public final class Tooltips {
         // screen. Read raw, so it works where vanilla releases key states.
         MKTooltip.hideWhen(() -> IPConfig.tooltipsEnabled() && IPConfig.hideTooltipsOnKey()
                 && IPKeybinds.isHeld(IPKeybinds.HIDE_TOOLTIPS));
+        // Hide until the mouse moves (Trev, 2026-10-15): a screen that opens
+        // shows no tooltip until the mouse leaves where it was when it opened,
+        // so the slot that happens to sit under the cursor doesn't pop one up.
+        // The cursor itself is never moved.
+        ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
+            heldAtX = client.mouseHandler.xpos();
+            heldAtY = client.mouseHandler.ypos();
+            held = true;
+        });
+        MKTooltip.hideWhen(() -> IPConfig.tooltipsEnabled() && IPConfig.tooltipHideUntilMouseMoves()
+                && stillHeld());
         // Dock tooltips: every tooltip vanilla would place beside the cursor sits
         // at the bottom centre of the screen, or the top centre when the cursor
         // would be inside it there (MenuKit 6.2.0 avoidCoverWhen).

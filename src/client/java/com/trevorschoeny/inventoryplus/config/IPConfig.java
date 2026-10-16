@@ -192,10 +192,12 @@ public final class IPConfig {
     // so an upgrader's saved true there must not turn this on. Everyone starts
     // at off; the old key is read by nobody and the next save drops it.
     private static boolean tooltipDock = false;
-    // Opening the survival inventory from gameplay starts the cursor a few
-    // GUI pixels above centre, over the plain panel, so no slot is hovered
-    // on open. On by default (ported from Dock and Hide Tooltips).
-    private static boolean tooltipCursorAboveSlots = true;
+    // When a screen opens, tooltips stay hidden until the mouse moves, so the
+    // slot under the cursor doesn't pop one up the moment it opens. On by
+    // default. Replaces tooltipCursorAboveSlots, which moved the cursor (Trev,
+    // 2026-10-15: it moved it even with the game window in the background);
+    // that old key is read by nobody and the next save drops it.
+    private static boolean tooltipHideUntilMouseMoves = true;
 
     // Settings menu. On, the pause-menu look (MenuKit's options screen). Off,
     // the inventory look it had before.
@@ -310,7 +312,7 @@ public final class IPConfig {
         compactTooltips           = readBool(root, "compactTooltips",           compactTooltips);
         // Old key ignored on purpose (see the field doc): no migration.
         tooltipDock = readBool(root, "tooltipDock", tooltipDock);
-        tooltipCursorAboveSlots = readBool(root, "tooltipCursorAboveSlots", tooltipCursorAboveSlots);
+        tooltipHideUntilMouseMoves = readBool(root, "tooltipHideUntilMouseMoves", tooltipHideUntilMouseMoves);
         settingsOptionsLook = readBool(root, "settingsOptionsLook", settingsOptionsLook);
     }
 
@@ -406,7 +408,7 @@ public final class IPConfig {
         root.addProperty("hideTooltipsOnKey",         hideTooltipsOnKey);
         root.addProperty("compactTooltips",           compactTooltips);
         root.addProperty("tooltipDock", tooltipDock);
-        root.addProperty("tooltipCursorAboveSlots", tooltipCursorAboveSlots);
+        root.addProperty("tooltipHideUntilMouseMoves", tooltipHideUntilMouseMoves);
         root.addProperty("settingsOptionsLook", settingsOptionsLook);
         return root;
     }
@@ -473,7 +475,7 @@ public final class IPConfig {
     public static boolean hideTooltipsOnKey()        { return hideTooltipsOnKey; }
     public static boolean compactTooltips()          { return compactTooltips; }
     public static boolean tooltipDock() { return tooltipDock; }
-    public static boolean tooltipCursorAboveSlots() { return tooltipCursorAboveSlots; }
+    public static boolean tooltipHideUntilMouseMoves() { return tooltipHideUntilMouseMoves; }
     public static boolean settingsOptionsLook() { return settingsOptionsLook; }
     public static void setSortEnabled(boolean v)              { sortEnabled = v; save(); }
     public static void setMoveMatchingEnabled(boolean v)      { moveMatchingEnabled = v; save(); }
@@ -495,7 +497,7 @@ public final class IPConfig {
     public static void setHideTooltipsOnKey(boolean v)        { hideTooltipsOnKey = v; save(); }
     public static void setCompactTooltips(boolean v)          { compactTooltips = v; save(); }
     public static void setTooltipDock(boolean v) { tooltipDock = v; save(); }
-    public static void setTooltipCursorAboveSlots(boolean v) { tooltipCursorAboveSlots = v; save(); }
+    public static void setTooltipHideUntilMouseMoves(boolean v) { tooltipHideUntilMouseMoves = v; save(); }
     public static void setSettingsOptionsLook(boolean v) { settingsOptionsLook = v; save(); }
 
     // Getters

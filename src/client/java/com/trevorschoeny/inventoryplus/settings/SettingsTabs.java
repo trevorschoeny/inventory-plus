@@ -92,7 +92,7 @@ final class SettingsTabs {
         IPConfig.reset("tooltipsEnabled", "tooltipDurability", "tooltipFood", "tooltipFoodEffects",
                 "tooltipEnchantmentDescriptions", "tooltipSortEnchantments", "tooltipToolStats",
                 "tooltipCompare", "tooltipCondenseTrims", "tooltipModName", "hideTooltipsOnKey",
-                "tooltipDock", "tooltipCursorAboveSlots");
+                "tooltipDock", "tooltipHideUntilMouseMoves");
         resetKeys(IPKeybinds.HIDE_TOOLTIPS);
     }
 
@@ -483,10 +483,10 @@ final class SettingsTabs {
                 // the top centre when the cursor would be inside it there.
                 .checkbox("Dock tooltips at top or bottom",
                         Bool.of(IPConfig::tooltipDock, IPConfig::setTooltipDock))
-                // Moves the cursor off the centre slot when the survival inventory
-                // opens from gameplay, so its tooltip isn't the first thing you see.
-                .checkbox("Start with the cursor above the slots",
-                        Bool.of(IPConfig::tooltipCursorAboveSlots, IPConfig::setTooltipCursorAboveSlots))
+                // When a screen opens, the slot under the cursor shows no tooltip
+                // until the mouse moves (tooltips/Tooltips).
+                .checkbox("Hide tooltips until the mouse moves",
+                        Bool.of(IPConfig::tooltipHideUntilMouseMoves, IPConfig::setTooltipHideUntilMouseMoves))
                 // Hidden by MenuKit's tooltip seam, through a predicate Inventory
                 // Plus registers at client init (tooltips/Tooltips).
                 .checkbox("Hold a key to hide tooltips",

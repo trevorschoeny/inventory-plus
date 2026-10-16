@@ -4,7 +4,7 @@ Requires MenuKit 7.1.0 or newer, below 8.0.0, and SlotKit 1.1.0 or newer, below 
 
 The strip beside the hotbar that shows a Column Cycler column is now drawn by MenuKit, so it looks and slides the same as other mods' strips, like Hotbar Pockets' mini hotbar. When Hotbar Cycler turns, the strip slides with the hotbar.
 
-When you open your inventory, the cursor now starts just above the slots, so no tooltip pops up the moment it opens. It's a switch on the Tooltips tab, on by default.
+When a screen opens, tooltips stay hidden until you move the mouse, so the slot under your cursor doesn't pop one up the moment it opens. It's a switch on the Tooltips tab, on by default.
 
 The Sort button's tooltip, and other button tooltips of two lines, show on two lines again instead of with a stray "LF" box.
 

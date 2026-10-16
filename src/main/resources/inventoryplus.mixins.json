@@ -7,7 +7,6 @@
     "AbstractContainerScreenAccessor",
     "AbstractContainerScreenRenderSlotMixin",
     "CompoundContainerAccessor",
-    "CursorAboveSlotsMixin",
     "HudAccessor",
     "HudHotbarSlideMixin",
     "MouseHandlerScrollMixin",
