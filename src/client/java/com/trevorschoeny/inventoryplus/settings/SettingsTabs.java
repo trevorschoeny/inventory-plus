@@ -80,7 +80,7 @@ final class SettingsTabs {
     private static void resetGeneral() {
         IPConfig.reset("settingsOptionsLook", "compactTooltips");
         resetKeys(IPKeybinds.OPEN_SETTINGS);
-        // The look may have just gone back to the options look, so reopen in it.
+        // The look may have just gone back to the Default look, so reopen in it.
         SettingsMenu.reopen();
     }
 

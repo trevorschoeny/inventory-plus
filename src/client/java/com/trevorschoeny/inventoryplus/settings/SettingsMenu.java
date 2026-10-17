@@ -38,11 +38,11 @@ import java.util.function.Supplier;
  * General ({@code IPConfig.settingsOptionsLook}), and the menu is made as that
  * kind of MenuKit screen, fixed for its life:
  * <ul>
- *   <li>{@link ScreenKind#OPTIONS}, the default: the pause-menu look. The name is
+ *   <li>{@link ScreenKind#DEFAULT}, the default: the pause-menu look. The name is
  *       the screen's title, centred in white. The tabs run down a sidebar, the
  *       page sits in the list band over the blurred world, and Done is at the
  *       bottom.</li>
- *   <li>{@link ScreenKind#CONTAINER}: the inventory look the menu had before. A
+ *   <li>{@link ScreenKind#PANEL}: the inventory look the menu had before. A
  *       grey panel from the top of the screen with the name bar, the tabs down
  *       a sidebar, Done below it.</li>
  * </ul>
@@ -100,8 +100,8 @@ public final class SettingsMenu extends MKScreen {
         super(title(), kind, panels(kind));
         this.parent = parent;
         // The inventory look has its own name bar inside the panel, so no title
-        // band. The options look's title is the name.
-        if (kind == ScreenKind.CONTAINER) hideTitle();
+        // band. The Default look's title is the name.
+        if (kind == ScreenKind.PANEL) hideTitle();
         // Escape goes back to wherever the menu was opened from: the inventory,
         // Mod Menu, or the game. A container stays open underneath, because
         // swapping screens does not close it, and returning reuses the same screen.
@@ -169,7 +169,7 @@ public final class SettingsMenu extends MKScreen {
 
     /** The kind of screen the look setting asks for. */
     private static ScreenKind kind() {
-        return IPConfig.settingsOptionsLook() ? ScreenKind.OPTIONS : ScreenKind.CONTAINER;
+        return IPConfig.settingsOptionsLook() ? ScreenKind.DEFAULT : ScreenKind.PANEL;
     }
 
     /** The menu's panels for {@code kind}: the confirm panel is the same on both. */
@@ -296,7 +296,7 @@ public final class SettingsMenu extends MKScreen {
     private static final int NAME_BAR_GAP = 6;
 
     /**
-     * The menu panel. Options look: no box, so the blurred world shows, and the
+     * The menu panel. Default look: no box, so the blurred world shows, and the
      * Tabs alone, as a sidebar (Create World's tab bar turned on its side).
      * Inventory look: the grey panel with two rows, the name bar, then the
      * Tabs as a sidebar below it.
@@ -307,9 +307,9 @@ public final class SettingsMenu extends MKScreen {
      * {@code Tabs.addTo}, so this layout is the whole of it.
      */
     private static Panel main(ScreenKind kind) {
-        boolean options = kind == ScreenKind.OPTIONS;
+        boolean options = kind == ScreenKind.DEFAULT;
         Tabs.Builder builder = Tabs.builder().menu(MENU);
-        // Both looks put the tabs in a sidebar. On the options screen MenuKit
+        // Both looks put the tabs in a sidebar. On the Default look MenuKit
         // draws it as Create World's tab bar on its side.
         builder.mode(Tabs.Mode.SIDEBAR).align(Tabs.Align.LEFT);
         if (!options) builder.at(0, NAME_BAR_HEIGHT + NAME_BAR_GAP);

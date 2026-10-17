@@ -47,7 +47,7 @@ import java.util.function.Supplier;
  *
  * <p>No text here is hand-coloured: each label names its {@link TextRole}
  * (heading, body, disabled) and the kind of screen the menu is made as turns
- * that into a colour, so one body reads on the options look and the inventory
+ * that into a colour, so one body reads on the Default look and the inventory
  * look alike (MenuKit 6.1.0).
  *
  * <p>Rows are positioned assuming single-line text. A label that wraps at a
@@ -65,7 +65,7 @@ final class SettingsBody {
     private static final int SECTION_GAP = 8;
 
     /**
-     * A divider's colour on the inventory look; the options look draws vanilla's
+     * A divider's colour on the inventory look; the Default look draws vanilla's
      * separator and ignores it.
      */
     private static final int LINE_COLOR = 0xFF8B8B8B;
