@@ -229,7 +229,7 @@ On the General tab:
 
 - Open Settings sets the key that opens the menu.
 - Compact tooltips: short, one line on inventory buttons (off) shortens the buttons' tooltips to one line.
-- Look switches the menu between Classic, which looks like Minecraft's Options screens (the default), and Panel, which looks like a container.
+- Look switches the menu between Default, which looks like Minecraft's Options screens, and Panel, which looks like a container.
 - Reset everything puts every setting in the menu back to its default and removes every lock, after asking.
 
 Every key is also in Minecraft's Controls menu, under Inventory Plus.

@@ -14,6 +14,7 @@ import com.trevorschoeny.inventoryplus.settings.SettingsBody.Bool;
 import com.trevorschoeny.inventoryplus.settings.SettingsBody.Place;
 
 import com.trevlar.menukit.api.element.PanelElement;
+import com.trevlar.menukit.api.element.Toggle;
 import com.trevlar.slotkit.api.group.SlotGroupCategory;
 import com.trevlar.slotkit.api.group.SlotGroupId;
 import com.trevlar.slotkit.api.group.SlotGroups;
@@ -160,15 +161,19 @@ final class SettingsTabs {
                 // take less room. Off by default.
                 .checkbox("Compact tooltips: short, one line on inventory buttons",
                         Bool.of(IPConfig::compactTooltips, IPConfig::setCompactTooltips));
-        // A button that flips between the two looks, named for the one in use:
-        // Classic (Minecraft's options screens) or Panel (a container-style
-        // panel). The menu is made as one kind of screen or
-        // the other, so a click reopens it on General in the new look, which
-        // also rebuilds this button with the new name.
-        b.actions("Look", new SettingsBody.Action(IPConfig.settingsOptionsLook() ? "Classic" : "Panel", () -> {
-                    IPConfig.setSettingsOptionsLook(!IPConfig.settingsOptionsLook());
+        // A toggle between the two looks, named for the one in use: Default
+        // (Minecraft's own screens) or Panel (a container-style panel); MenuKit's
+        // convention for a mod's look switch (2026-10-17), replacing the old
+        // "Classic"/"Panel" cycle button. The menu is made as one kind of
+        // screen or the other, so a click reopens it on General in the new
+        // look, which also rebuilds this toggle with the new label.
+        b.row(y -> List.of(Toggle.builder().at(0, y).size(0, 16)
+                .label(() -> Component.literal("Look: " + (IPConfig.settingsOptionsLook() ? "Default" : "Panel")))
+                .state(IPConfig::settingsOptionsLook, v -> {
+                    IPConfig.setSettingsOptionsLook(v);
                     SettingsMenu.reopen();
-                }));
+                })
+                .build()), 20);
         b.heading("Presets")
                 .actions("Save or load a file", "Save to file", "Load from file")
                 .actions("Share by pasting", "Copy to clipboard", "Paste from clipboard");
