@@ -13,6 +13,8 @@ import com.trevorschoeny.inventoryplus.lockgroups.Reach;
 import com.trevorschoeny.inventoryplus.settings.SettingsBody.Bool;
 import com.trevorschoeny.inventoryplus.settings.SettingsBody.Place;
 
+import com.trevlar.menukit.api.element.Flow;
+import com.trevlar.menukit.api.element.ListView;
 import com.trevlar.menukit.api.element.PanelElement;
 import com.trevlar.menukit.api.element.Toggle;
 import com.trevlar.slotkit.api.group.SlotGroupCategory;
@@ -374,75 +376,101 @@ final class SettingsTabs {
         // the server side it needed is gone. containerLocksOnServer is still read
         // and written so the player's choice carries over, and the row comes
         // back with new text once container locks move into Inventory Plus.
-        // The groups go last.
+        // The groups go last: MenuKit's ListView keyed by group id (7.3.0), each
+        // row a card holding the group's section. Adding or deleting a group
+        // updates the list in place, with no rebuild of the menu.
         b.heading("Groups");
-        for (LockGroup g : Reach.groups()) lockGroupSection(b, g);
-        // A new group picks its kind up front and starts with its kind's
-        // default's choices. Item (every item of a type) is only ever custom.
-        // Each says on hover how its kind works.
-        b.actions(newGroupAction("+ Slot group", LockKind.SLOT, "New slot group"),
-                newGroupAction("+ Item group", LockKind.ITEM, "New item group"),
-                newGroupAction("+ Exact item group", LockKind.EXACT, "New exact item group"));
+        // Its toolbar (the add buttons, delete and the arrows) isn't placed on
+        // its own, so MenuKit draws it at the list's top.
+        b.element(y -> ListView.<LockGroup>builder()
+                .at(0, y)
+                .items(Reach::groups)
+                .key(LockGroup::id)
+                .row(g -> Flow.builder().boxed().add(lockGroupSection(b, g.id())).build())
+                .selection(() -> selectedGroup, id -> selectedGroup = id)
+                // A new group picks its kind up front and starts with its kind's
+                // default's choices. Item (every item of a type) is only ever
+                // custom. Each says on hover how its kind works.
+                .add(Component.literal("+ Slot group"), Component.literal(LockKind.SLOT.description()),
+                        () -> Reach.createGroup(LockKind.SLOT, "New slot group", Reach.nextColour()).id())
+                .add(Component.literal("+ Item group"), Component.literal(LockKind.ITEM.description()),
+                        () -> Reach.createGroup(LockKind.ITEM, "New item group", Reach.nextColour()).id())
+                .add(Component.literal("+ Exact item group"), Component.literal(LockKind.EXACT.description()),
+                        () -> Reach.createGroup(LockKind.EXACT, "New exact item group", Reach.nextColour()).id())
+                .remove(Component.literal("- Delete group"), SettingsTabs::deleteGroup)
+                // Asked while the dialog shows, so the count is the count then.
+                .confirmRemove(g -> Component.literal("Delete " + g.name() + "? " + deleteEffect(g)))
+                // The order the lock button cycles through.
+                .move(Reach::moveGroup)
+                // The two defaults can't be deleted or moved; they stay first.
+                .pinned(LockGroup::isDefault)
+                .build(), 0);
         return b.build();
     }
 
-    private static SettingsBody.Action newGroupAction(String label, LockKind kind, String name) {
-        return new SettingsBody.Action(label, () -> newGroup(kind, name), Component.literal(kind.description()));
-    }
-
-    private static void newGroup(LockKind kind, String name) {
-        Reach.createGroup(kind, name, Reach.nextColour());
-        SettingsMenu.rebuild();
-    }
+    /** The group selected in the list, kept across a rebuild of the menu. */
+    private static @Nullable String selectedGroup;
 
     /**
-     * One lock group as a collapsible section. Closed: its colour, its name,
-     * and a grey summary (its kind when the name does not say it, and its key).
-     * Open: kind, key, colour, name, and Delete for a custom group; opening
-     * the section is how a group is edited.
+     * One lock group's section, read by id so a renamed or recoloured group
+     * shows its new self. Closed: its colour, its name, and a grey summary (its
+     * kind when the name does not say it, and its key). Open: kind, key,
+     * colour and name; opening the section is how a group is edited.
+     *
+     * <p>ponytail: a Section's title and swatch are fixed when built, so a
+     * rename or recolour still rebuilds the menu to show them; the list,
+     * selection, open sections and scroll all survive it. Drop the rebuild if
+     * MenuKit's Section takes a title and swatch supplier.
      */
-    private static void lockGroupSection(SettingsBody b, LockGroup g) {
+    private static PanelElement lockGroupSection(SettingsBody b, String id) {
+        LockGroup g = Reach.group(id);
         KeyMapping key = g.key() == null ? null : keyNamed(g.key());
         Supplier<Component> summary = () -> {
+            LockGroup now = Reach.group(id);
+            if (now == null) return Component.empty();
             String keyText = key == null ? "no key yet" : "key " + key.getTranslatedKeyMessage().getString();
-            return Component.literal(g.name().equals(g.kind().displayName()) ? keyText
-                    : g.kind().displayName() + " · " + keyText);
+            return Component.literal(now.name().equals(now.kind().displayName()) ? keyText
+                    : now.kind().displayName() + " · " + keyText);
         };
-        b.section(g.name(), summary, LockColours.argb(g.colour(), 0xFF), c -> {
+        return b.sectionElement("lockgroup:" + id, g.name(), summary, LockColours.argb(g.colour(), 0xFF), c -> {
             c.line(0, Component.literal("Kind: " + g.kind().displayName()
                     + (g.isDefault() ? " (a default group; it cannot be deleted)" : "")),
                     Component.literal(g.kind().description()));
             if (key != null) c.key(key, Component.literal("Key"));
             // A key for a group made in game needs Keybindery's runtime bindings.
             else c.line(0, Component.literal("Key: none yet"));
-            c.choice("Colour", Reach.COLOURS, LockColours::displayName, g::colour, colour -> {
-                Reach.recolour(g.id(), colour);
+            c.choice("Colour", Reach.COLOURS, LockColours::displayName,
+                    () -> Reach.group(id) == null ? g.colour() : Reach.group(id).colour(), colour -> {
+                Reach.recolour(id, colour);
                 SettingsMenu.rebuild();
             }, () -> false);
             c.textSetting("Name", g.name(), "Rename", name -> {
-                Reach.rename(g.id(), name);
+                Reach.rename(id, name);
                 SettingsMenu.rebuild();
             });
-            if (!g.isDefault()) c.actions(new SettingsBody.Action("Delete", () -> confirmDelete(g)));
-        });
+        }, 0, 0);
     }
 
     /**
-     * Deleting a group moves its locks to the default of its kind. An Item group has no default of its kind, so its locks
-     * are removed, and the confirm says which.
+     * What deleting a group does to its locks, counted now: they move to the
+     * default of its kind, or, for an Item group, which has no default of its
+     * kind, they are removed.
      */
-    private static void confirmDelete(LockGroup g) {
+    private static String deleteEffect(LockGroup g) {
         String count = lockCount(g.id());
-        String body = g.kind() == LockKind.ITEM
+        return g.kind() == LockKind.ITEM
                 ? "This removes its " + count + "."
                 : "This moves its " + count + " to " + Reach.resolve(Reach.defaultOf(g.kind()), g.kind()).name() + ".";
-        SettingsMenu.confirm("Delete " + g.name() + "?", body, () -> {
-            String to = g.kind() == LockKind.ITEM ? null : Reach.defaultOf(g.kind());
-            LockedSlots.reassign(g.id(), to);
-            LockedItems.reassign(g.id(), to);
-            Reach.deleteGroup(g.id());
-            SettingsMenu.rebuild();
-        });
+    }
+
+    /** Deletes group {@code id}, moving or removing its locks first (see {@link #deleteEffect}). */
+    private static void deleteGroup(String id) {
+        LockGroup g = Reach.group(id);
+        if (g == null || g.isDefault()) return;
+        String to = g.kind() == LockKind.ITEM ? null : Reach.defaultOf(g.kind());
+        LockedSlots.reassign(id, to);
+        LockedItems.reassign(id, to);
+        Reach.deleteGroup(id);
     }
 
     /** The registered key named {@code name}, or {@code null}. */

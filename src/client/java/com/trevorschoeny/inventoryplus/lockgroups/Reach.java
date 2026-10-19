@@ -433,6 +433,27 @@ public final class Reach {
         replace(State.of(s.denied(), groups, s.seen(), s.active()));
     }
 
+    /**
+     * Moves custom group {@code id} to {@code toIndex} in the group order, the
+     * order the lock button cycles through. The defaults stay first: a custom
+     * group never goes above them.
+     */
+    public static void moveGroup(String id, int toIndex) {
+        State s = state;
+        List<LockGroup> groups = new ArrayList<>(s.groups());
+        int from = -1;
+        int defaults = 0;
+        for (int i = 0; i < groups.size(); i++) {
+            if (groups.get(i).id().equals(id)) from = i;
+            if (groups.get(i).isDefault()) defaults++;
+        }
+        if (from < 0 || groups.get(from).isDefault()) return;
+        int to = Math.max(defaults, Math.min(groups.size() - 1, toIndex));
+        if (to == from) return;
+        groups.add(to, groups.remove(from));
+        replace(State.of(s.denied(), groups, s.seen(), s.active()));
+    }
+
     /** The first dye colour no group uses yet, or gray when all 16 are taken. */
     public static String nextColour() {
         Set<String> used = new HashSet<>();

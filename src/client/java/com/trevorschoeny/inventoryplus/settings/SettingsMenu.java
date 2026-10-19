@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.settings;
 
+import com.trevlar.menukit.api.dialog.ConfirmDialog;
 import com.trevlar.menukit.api.element.Click;
 import com.trevlar.menukit.api.element.Flow;
 import com.trevlar.menukit.api.element.Button;
@@ -172,6 +173,20 @@ public final class SettingsMenu extends MKScreen {
         return IPConfig.settingsOptionsLook() ? ScreenKind.DEFAULT : ScreenKind.PANEL;
     }
 
+    /** The lock groups the open menu's tab bodies were built with. */
+    private static List<com.trevorschoeny.inventoryplus.lockgroups.LockGroup> builtWithGroups = List.of();
+
+    /**
+     * Switches tab. The Lock groups tab adds and deletes groups in place, but
+     * Reach lists the groups too and its body is built once per menu, so
+     * leaving for another tab after the groups changed rebuilds the menu on
+     * that tab.
+     */
+    private static void selectTab(String id) {
+        selectedTab = id;
+        if (!com.trevorschoeny.inventoryplus.lockgroups.Reach.groups().equals(builtWithGroups)) rebuild();
+    }
+
     /** The menu's panels for {@code kind}: the confirm panel is the same on both. */
     private static List<Panel> panels(ScreenKind kind) {
         // Both looks end in Done at the bottom. The Panel look has no Back to
@@ -197,10 +212,10 @@ public final class SettingsMenu extends MKScreen {
 
     // Confirms
     //
-    // One modal panel for every confirm the menu asks (the resets, deleting a
-    // group). Its text reads the pending confirm every frame, so a count it
-    // states is the count when it opened. MenuKit's ConfirmDialog fixes its
-    // text when built, and a count has to be taken when the button is pressed.
+    // One MenuKit ConfirmDialog for every confirm the menu asks (the resets).
+    // Its title and body read the pending confirm while it shows (MenuKit
+    // 7.3.0), so a count it states is the count when it opened. Deleting a
+    // lock group asks through the group list's own confirm.
 
     private record Confirm(String title, String body, Runnable action) {}
 
@@ -215,28 +230,17 @@ public final class SettingsMenu extends MKScreen {
     }
 
     private static Panel confirmPanel() {
-        List<PanelElement> elements = List.of(
-                TextLabel.builder().at(0, 0)
-                        .text(() -> Component.literal(pending == null ? "" : pending.title()))
-                        .role(TextRole.HEADING).build(),
-                TextLabel.builder().at(0, 14)
-                        .text(() -> Component.literal(pending == null ? "" : pending.body()))
-                        .role(TextRole.BODY).build(),
-                Button.builder().at(0, 32).size(70, 16).label(Component.literal("Cancel"))
-                        .onClick(() -> pending = null).build(),
-                Button.builder().at(74, 32).size(70, 16).label(Component.literal("Confirm"))
-                        .onClick(() -> {
-                            Confirm c = pending;
-                            pending = null;
-                            if (c != null) c.action().run();
-                        }).build());
-        return Panel.builder("inventoryplus:settings_confirm")
-                .elements(elements)
-                .style(PanelStyle.RAISED)
-                .position(PanelPosition.center())
+        return ConfirmDialog.builder()
+                .id("inventoryplus:settings_confirm")
+                .title(() -> Component.literal(pending == null ? "" : pending.title()))
+                .body(() -> Component.literal(pending == null ? "" : pending.body()))
+                .onCancel(() -> pending = null)
+                .onConfirm(() -> {
+                    Confirm c = pending;
+                    pending = null;
+                    if (c != null) c.action().run();
+                })
                 .build()
-                .modal()
-                .onEscape(() -> pending = null)
                 .visibleWhen(() -> pending != null);
     }
 
@@ -307,6 +311,7 @@ public final class SettingsMenu extends MKScreen {
      * {@code Tabs.addTo}, so this layout is the whole of it.
      */
     private static Panel main(ScreenKind kind) {
+        builtWithGroups = com.trevorschoeny.inventoryplus.lockgroups.Reach.groups();
         boolean options = kind == ScreenKind.DEFAULT;
         Tabs.Builder builder = Tabs.builder().menu(MENU);
         // Both looks put the tabs in a sidebar. On the Default look MenuKit
@@ -314,7 +319,7 @@ public final class SettingsMenu extends MKScreen {
         builder.mode(Tabs.Mode.SIDEBAR).align(Tabs.Align.LEFT);
         if (!options) builder.at(0, NAME_BAR_HEIGHT + NAME_BAR_GAP);
         Tabs tabs = builder
-                .state(() -> selectedTab, id -> selectedTab = id)
+                .state(() -> selectedTab, SettingsMenu::selectTab)
                 .bodyScroll(bodyScroll::get, bodyScroll::put)
                 .tab(tab(GENERAL, "General").body(SettingsTabs::general))
                 // Tooltips right under General.

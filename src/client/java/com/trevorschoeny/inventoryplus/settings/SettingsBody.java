@@ -71,9 +71,9 @@ final class SettingsBody {
     private static final int LINE_COLOR = 0xFF8B8B8B;
 
     /**
-     * Which sections are open, by title, for the session. Keyed by title, so
-     * two sections with one title share a state. Key by id if that ever
-     * shows.
+     * Which sections are open, for the session, by key: the title for Reach's
+     * moves (unique there), the group id for a lock group's section, so a
+     * rename never moves another section's state onto it.
      */
     private static final Map<String, Boolean> OPEN = new HashMap<>();
 
@@ -216,19 +216,36 @@ final class SettingsBody {
     SettingsBody section(String title, Supplier<Component> summary, @Nullable Integer swatch,
                          Consumer<SettingsBody> content) {
         if (y > 0) y += 4;
+        out.add(sectionElement(title, title, summary, swatch, content, 0, y));
+        y += Section.HEADER_HEIGHT + 2;
+        return this;
+    }
+
+    /**
+     * A section as an element, at {@code (x, y)}, its open state kept under
+     * {@code openKey}: for a row of a {@link com.trevlar.menukit.api.element.ListView},
+     * which places it itself. Its content greys with this body's feature.
+     */
+    PanelElement sectionElement(String openKey, String title, Supplier<Component> summary, @Nullable Integer swatch,
+                                Consumer<SettingsBody> content, int x, int y) {
         SettingsBody inner = new SettingsBody();
         inner.featureOn = featureOn;
         content.accept(inner);
         Section.Builder section = Section.builder(Component.literal(title))
-                .at(0, y)
+                .at(x, y)
                 // Open state lives here, not in the Section, so a rebuild of the
-                // menu (a lock group added or recoloured) leaves open what was.
-                .state(() -> OPEN.getOrDefault(title, false), v -> OPEN.put(title, v))
+                // menu (a lock group renamed or recoloured) leaves open what was.
+                .state(() -> OPEN.getOrDefault(openKey, false), v -> OPEN.put(openKey, v))
                 .summary(summary)
                 .content(inner.build());
         if (swatch != null) section.swatch(swatch);
-        out.add(section.build());
-        y += Section.HEADER_HEIGHT + 2;
+        return section.build();
+    }
+
+    /** Places {@code element} at the next row; {@code height} is what it takes before it grows. */
+    SettingsBody element(java.util.function.IntFunction<PanelElement> atY, int height) {
+        out.add(atY.apply(y));
+        y += height;
         return this;
     }
 

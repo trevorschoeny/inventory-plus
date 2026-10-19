@@ -4,6 +4,8 @@
 
 - The General tab's Look setting is now a toggle, not a button you click to cycle. It reads Look: Default or Look: Panel for the look in use; clicking it switches to the other one.
 - The option screen look is now called Default; it was Classic.
+- Lock groups are a list now. Pick a group, then delete it or move it up or down with the buttons above the list. The order is the order the lock button cycles through. The two default groups stay at the top. Deleting a group asks first, saying where its locks go.
+- A group's settings stay open when you rename it, recolour it, or add another group.
 - Requires MenuKit 7.3.0 or newer, below 8.0.0, and SlotKit 2.0.0 or newer, below 3.0.0.
 - It still works on any server, vanilla included, with nothing installed there. Your locks, keys, and other settings carry over when you update.
 
