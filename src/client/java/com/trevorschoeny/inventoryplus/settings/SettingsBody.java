@@ -19,6 +19,7 @@ import com.trevorschoeny.keybindery.chord.ChordButton;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
@@ -481,8 +482,13 @@ final class SettingsBody {
     SettingsBody items(String label, Supplier<List<ItemStack>> get, Consumer<List<ItemStack>> set,
                        ItemMatch.Match match, BooleanSupplier unavailable) {
         label(0, Component.literal(label));
-        out.add(ItemPicker.builder().at(0, y).label(Component.literal(label)).stacks(get, set).match(match)
-                .disabledWhen(gated(unavailable)).build());
+        ItemPicker.Builder picker = ItemPicker.builder().at(0, y).label(Component.literal(label))
+                .stacks(get, set).match(match).disabledWhen(gated(unavailable));
+        // An exact item lock holds through durability damage, and ignores stack
+        // count (MenuKit 7.3.0 ItemMatch.ignoring/ignoringCount); the only EXACT
+        // picker in this file is LockedItems's, so this is always what it wants.
+        if (match == ItemMatch.Match.EXACT) picker.ignoring(DataComponents.DAMAGE).ignoringCount();
+        out.add(picker.build());
         y += ItemPicker.SIZE + 2;
         return this;
     }

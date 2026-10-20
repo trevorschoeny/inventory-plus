@@ -17,6 +17,8 @@ import com.trevorschoeny.inventoryplus.lockgroups.Reach;
 
 import net.fabricmc.loader.api.FabricLoader;
 
+import com.trevlar.menukit.api.element.ItemMatch;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -46,11 +48,12 @@ import java.util.TreeMap;
  *
  * <h3>What "exact" ignores</h3>
  *
- * <p>Exact match compares the full component set <b>except durability
- * damage</b>, and never stack count. A lock that included damage would
- * release the moment the player used the item, which is precisely the item
- * they cared most about protecting. {@link #normalize} is where that
- * exclusion lives, applied to both sides of every comparison.
+ * <p>An Exact lock's comparison ({@link #exactRule}) leaves out durability
+ * damage and stack count (MenuKit 7.3.0's {@code ItemMatch.ignoring} /
+ * {@code ignoringCount}): a lock that released the moment the player used
+ * the item would be useless, since that is precisely the item they cared
+ * most about protecting. Everything else about the stack, enchantments,
+ * custom data, a renamed label, has to match exactly.
  *
  * <h3>Storage: a {@link WorldStore} of the encoded form</h3>
  *
@@ -84,7 +87,7 @@ public final class LockedItems {
     private static final int CURRENT_VERSION = 2;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    /** One exact lock: its group and its normalized stack, encoded. */
+    /** One exact lock: its group and its stack, encoded. */
     public record ExactLock(String group, JsonElement stack) {}
 
     /** One world's item locks, in the form the file holds. */
@@ -222,12 +225,12 @@ public final class LockedItems {
         return mc.level.registryAccess().createSerializationContext(JsonOps.INSTANCE);
     }
 
-    /** An exact entry's stack, normalized, or {@code null} if it no longer decodes. */
+    /** An exact entry's stack, or {@code null} if it no longer decodes. */
     private static @Nullable ItemStack decode(RegistryOps<JsonElement> ops, JsonElement encoded) {
         return ItemStack.CODEC.parse(ops, encoded)
                 .resultOrPartial(err -> InventoryPlusClient.LOGGER.debug(
                         "[locked-items] undecodable exact entry, ignoring: {}", err))
-                .map(LockedItems::normalize).orElse(null);
+                .orElse(null);
     }
 
     // Matching
@@ -244,8 +247,7 @@ public final class LockedItems {
         if (stack == null || stack.isEmpty()) return null;
         View v = view();
         if (v == null || v.exact().isEmpty()) return null;
-        ItemStack probe = normalize(stack);
-        for (var e : v.exact()) if (ItemStack.isSameItemSameComponents(probe, e.getKey())) return e.getValue();
+        for (var e : v.exact()) if (exactRule(e.getKey()).matches(stack)) return e.getValue();
         return null;
     }
 
@@ -260,13 +262,12 @@ public final class LockedItems {
     }
 
     /**
-     * A stack reduced to what an exact lock compares: one item, no
-     * durability damage. Applied to stored entries and candidates alike.
+     * {@code stored} as the rule side of an Exact lock's comparison: the same
+     * item and components, ignoring durability damage, with no count
+     * (MenuKit's {@code ItemMatch}; see the class doc, "What exact ignores").
      */
-    private static ItemStack normalize(ItemStack stack) {
-        ItemStack copy = stack.copyWithCount(1);
-        copy.remove(DataComponents.DAMAGE);
-        return copy;
+    private static ItemMatch exactRule(ItemStack stored) {
+        return new ItemMatch(stored, ItemMatch.Match.EXACT).ignoring(DataComponents.DAMAGE).ignoringCount();
     }
 
     // Applying locks
@@ -291,14 +292,14 @@ public final class LockedItems {
             STORE.set(new ItemLocks(byId, before.exact()));
         } else {
             RegistryOps<JsonElement> ops = ops(mc);
-            ItemStack probe = normalize(stack);
+            ItemStack probe = stack.copy();
             String current = exactGroup(stack);
             // Every entry but this item's stays; this item is re-added under
             // the new group, unless the press takes the same group off.
             List<ExactLock> exact = new ArrayList<>();
             for (ExactLock e : before.exact()) {
                 ItemStack decoded = decode(ops, e.stack());
-                if (decoded == null || !ItemStack.isSameItemSameComponents(probe, decoded)) exact.add(e);
+                if (decoded == null || !exactRule(decoded).matches(probe)) exact.add(e);
             }
             if (!group.id().equals(current)) {
                 JsonElement encoded = ItemStack.CODEC.encodeStart(ops, probe).result().orElse(null);
@@ -358,7 +359,11 @@ public final class LockedItems {
         STORE.set(new ItemLocks(byId, before.exact()));
     }
 
-    /** The items an Exact item group locks in this world, as compared: one of each, no damage. In the order added. */
+    /**
+     * The items an Exact item group locks in this world, as stored (matching
+     * ignores durability damage and count regardless; see {@link #exactRule}).
+     * In the order added.
+     */
     public static List<ItemStack> exactOf(String groupId) {
         View v = view();
         if (v == null) return List.of();
@@ -368,23 +373,22 @@ public final class LockedItems {
     }
 
     /**
-     * Makes {@code stacks} the Exact item group's whole set in this world,
-     * each normalized as a lock compares it. An item locked exactly by another
-     * group moves here: an item carries one Exact lock, as with the lock key.
+     * Makes {@code stacks} the Exact item group's whole set in this world. An
+     * item locked exactly by another group moves here: an item carries one
+     * Exact lock, as with the lock key.
      */
     public static void setExact(String groupId, List<ItemStack> stacks) {
         Minecraft mc = Minecraft.getInstance();
         if (view() == null) return;
         RegistryOps<JsonElement> ops = ops(mc);
         List<ItemStack> wanted = new ArrayList<>();
-        for (ItemStack s : stacks) if (!s.isEmpty()) wanted.add(normalize(s));
+        for (ItemStack s : stacks) if (!s.isEmpty()) wanted.add(s.copy());
         ItemLocks before = STORE.get();
         List<ExactLock> exact = new ArrayList<>();
         for (ExactLock e : before.exact()) {
             if (groupId.equals(e.group())) continue;
             ItemStack decoded = decode(ops, e.stack());
-            boolean taken = decoded != null
-                    && wanted.stream().anyMatch(w -> ItemStack.isSameItemSameComponents(w, decoded));
+            boolean taken = decoded != null && wanted.stream().anyMatch(w -> exactRule(decoded).matches(w));
             if (!taken) exact.add(e);
         }
         for (ItemStack w : wanted) {
