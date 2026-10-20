@@ -11,7 +11,7 @@
 - The General tab's Look setting is now a toggle, not a button you click to cycle. It reads Look: Default or Look: Panel for the look in use; clicking it switches to the other one.
 - The option screen look is now called Default; it was Classic.
 - Lock groups are a list now. Pick a group, then delete it or move it up or down with the buttons above the list. The order is the order the lock button cycles through. The two default groups stay at the top. Deleting a group asks first, saying where its locks go.
-- A group's settings stay open when you rename it, re-color it, or add another group.
+- A group's settings stay open when you rename it, recolor it, or add another group.
 - A group's color is a color picker now: the 16 dye colors, or any color you like on its Custom tab.
 - Item and exact item groups list their items in their settings. Click the empty slot to pick items from a searchable grid of every item, or remove one with its corner button. Locks are kept per world, so pick them while you're in one.
 - Requires MenuKit 7.3.0 or newer, below 8.0.0, and SlotKit 2.0.0 or newer, below 3.0.0.
