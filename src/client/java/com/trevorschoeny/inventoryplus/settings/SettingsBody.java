@@ -2,6 +2,9 @@ package com.trevorschoeny.inventoryplus.settings;
 
 import com.trevlar.menukit.api.element.Button;
 import com.trevlar.menukit.api.element.Checkbox;
+import com.trevlar.menukit.api.element.ColorField;
+import com.trevlar.menukit.api.element.ItemMatch;
+import com.trevlar.menukit.api.element.ItemPicker;
 import com.trevlar.menukit.api.element.Divider;
 import com.trevlar.menukit.api.element.Dropdown;
 import com.trevlar.menukit.api.element.Flow;
@@ -18,6 +21,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -228,13 +232,23 @@ final class SettingsBody {
      */
     PanelElement sectionElement(String openKey, String title, Supplier<Component> summary, @Nullable Integer swatch,
                                 Consumer<SettingsBody> content, int x, int y) {
+        Component fixed = Component.literal(title);
+        return sectionElement(openKey, () -> fixed, summary, swatch == null ? null : () -> swatch, content, x, y);
+    }
+
+    /**
+     * The same with its title and swatch read every frame (MenuKit 7.3.0), so
+     * a lock group's rename or recolour shows on the same section, no rebuild.
+     */
+    PanelElement sectionElement(String openKey, Supplier<Component> title, Supplier<Component> summary,
+                                @Nullable IntSupplier swatch, Consumer<SettingsBody> content, int x, int y) {
         SettingsBody inner = new SettingsBody();
         inner.featureOn = featureOn;
         content.accept(inner);
-        Section.Builder section = Section.builder(Component.literal(title))
+        Section.Builder section = Section.builder(title)
                 .at(x, y)
                 // Open state lives here, not in the Section, so a rebuild of the
-                // menu (a lock group renamed or recoloured) leaves open what was.
+                // menu (a switch of tab after the groups changed) leaves open what was.
                 .state(() -> OPEN.getOrDefault(openKey, false), v -> OPEN.put(openKey, v))
                 .summary(summary)
                 .content(inner.build());
@@ -441,6 +455,35 @@ final class SettingsBody {
                 .disabledWhen(gated(unavailable))
                 .build());
         y += CONTROL_ROW;
+        return this;
+    }
+
+    /**
+     * A colour setting: its text above MenuKit's {@link ColorField}, a swatch
+     * that opens the colour dialog (Basic: the 16 dyes; Custom: HSV and hex).
+     * {@code get} and {@code set} are {@code 0xRRGGBB}.
+     */
+    SettingsBody colour(String label, IntSupplier get, IntConsumer set) {
+        label(0, Component.literal(label));
+        out.add(ColorField.builder().at(0, y).label(Component.literal(label)).state(get, set)
+                .disabledWhen(gated(() -> false)).build());
+        y += CONTROL_ROW;
+        return this;
+    }
+
+    /**
+     * A list of items: its text above MenuKit's {@link ItemPicker}, a row of
+     * slots that opens the creative-search grid. {@code match} is how the
+     * setting compares stacks ({@code ITEM}: the kind only; {@code EXACT}: the
+     * whole stack, editable). Put it last in a section, where a row that wraps
+     * has nothing below it to push.
+     */
+    SettingsBody items(String label, Supplier<List<ItemStack>> get, Consumer<List<ItemStack>> set,
+                       ItemMatch.Match match, BooleanSupplier unavailable) {
+        label(0, Component.literal(label));
+        out.add(ItemPicker.builder().at(0, y).label(Component.literal(label)).stacks(get, set).match(match)
+                .disabledWhen(gated(unavailable)).build());
+        y += ItemPicker.SIZE + 2;
         return this;
     }
 

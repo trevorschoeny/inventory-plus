@@ -419,10 +419,10 @@ public final class Reach {
         withGroup(new LockGroup(g.id(), g.kind(), trimmed, g.colour(), g.key()));
     }
 
-    /** Recolours group {@code id} to dye colour {@code colour}. */
+    /** Recolours group {@code id} to {@code colour}: a dye colour's name, or {@code #rrggbb}. */
     public static void recolour(String id, String colour) {
         LockGroup g = group(id);
-        if (g == null || !COLOURS.contains(colour) || colour.equals(g.colour())) return;
+        if (g == null || !(COLOURS.contains(colour) || LockColours.isHex(colour)) || colour.equals(g.colour())) return;
         withGroup(new LockGroup(g.id(), g.kind(), g.name(), colour, g.key()));
     }
 

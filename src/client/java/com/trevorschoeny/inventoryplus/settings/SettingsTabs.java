@@ -14,6 +14,7 @@ import com.trevorschoeny.inventoryplus.settings.SettingsBody.Bool;
 import com.trevorschoeny.inventoryplus.settings.SettingsBody.Place;
 
 import com.trevlar.menukit.api.element.Flow;
+import com.trevlar.menukit.api.element.ItemMatch;
 import com.trevlar.menukit.api.element.ListView;
 import com.trevlar.menukit.api.element.PanelElement;
 import com.trevlar.menukit.api.element.Toggle;
@@ -377,17 +378,18 @@ final class SettingsTabs {
         // and written so the player's choice carries over, and the row comes
         // back with new text once container locks move into Inventory Plus.
         // The groups go last: MenuKit's ListView keyed by group id (7.3.0), each
-        // row a card holding the group's section. Adding or deleting a group
-        // updates the list in place, with no rebuild of the menu.
-        b.heading("Groups");
-        // Its toolbar (the add buttons, delete and the arrows) isn't placed on
-        // its own, so MenuKit draws it at the list's top.
+        // row a card holding the group's section. Adding, deleting, renaming or
+        // recolouring a group updates it in place, with no rebuild of the menu.
+        // Its toolbar (the heading, the add buttons, delete and the arrows)
+        // isn't placed on its own, so MenuKit draws it at the list's top, the
+        // heading and the buttons on one line.
         b.element(y -> ListView.<LockGroup>builder()
                 .at(0, y)
                 .items(Reach::groups)
                 .key(LockGroup::id)
                 .row(g -> Flow.builder().boxed().add(lockGroupSection(b, g.id())).build())
                 .selection(() -> selectedGroup, id -> selectedGroup = id)
+                .title(Component.literal("Groups"))
                 // A new group picks its kind up front and starts with its kind's
                 // default's choices. Item (every item of a type) is only ever
                 // custom. Each says on hover how its kind works.
@@ -412,42 +414,53 @@ final class SettingsTabs {
     private static @Nullable String selectedGroup;
 
     /**
-     * One lock group's section, read by id so a renamed or recoloured group
-     * shows its new self. Closed: its colour, its name, and a grey summary (its
-     * kind when the name does not say it, and its key). Open: kind, key,
-     * colour and name; opening the section is how a group is edited.
-     *
-     * <p>ponytail: a Section's title and swatch are fixed when built, so a
-     * rename or recolour still rebuilds the menu to show them; the list,
-     * selection, open sections and scroll all survive it. Drop the rebuild if
-     * MenuKit's Section takes a title and swatch supplier.
+     * One lock group's section, read by id every frame: its title and swatch
+     * too (MenuKit 7.3.0), so a rename or recolour shows on the same row.
+     * Closed: its colour, its name, and a grey summary (its kind when the name
+     * does not say it, and its key). Open: kind, key, colour (MenuKit's
+     * ColorField), name, and for an Item or Exact item group the items it
+     * locks in this world (MenuKit's ItemPicker).
      */
     private static PanelElement lockGroupSection(SettingsBody b, String id) {
         LockGroup g = Reach.group(id);
         KeyMapping key = g.key() == null ? null : keyNamed(g.key());
-        Supplier<Component> summary = () -> {
-            LockGroup now = Reach.group(id);
-            if (now == null) return Component.empty();
-            String keyText = key == null ? "no key yet" : "key " + key.getTranslatedKeyMessage().getString();
-            return Component.literal(now.name().equals(now.kind().displayName()) ? keyText
-                    : now.kind().displayName() + " · " + keyText);
+        // A deleted group's row lives a frame past it: read the last one seen.
+        LockGroup[] last = {g};
+        Supplier<LockGroup> now = () -> {
+            LockGroup current = Reach.group(id);
+            if (current != null) last[0] = current;
+            return last[0];
         };
-        return b.sectionElement("lockgroup:" + id, g.name(), summary, LockColours.argb(g.colour(), 0xFF), c -> {
+        Supplier<Component> summary = () -> {
+            LockGroup current = now.get();
+            String keyText = key == null ? "no key yet" : "key " + key.getTranslatedKeyMessage().getString();
+            return Component.literal(current.name().equals(current.kind().displayName()) ? keyText
+                    : current.kind().displayName() + " · " + keyText);
+        };
+        return b.sectionElement("lockgroup:" + id, () -> Component.literal(now.get().name()), summary,
+                () -> LockColours.argb(now.get().colour(), 0xFF), c -> {
             c.line(0, Component.literal("Kind: " + g.kind().displayName()
                     + (g.isDefault() ? " (a default group; it cannot be deleted)" : "")),
                     Component.literal(g.kind().description()));
             if (key != null) c.key(key, Component.literal("Key"));
             // A key for a group made in game needs Keybindery's runtime bindings.
             else c.line(0, Component.literal("Key: none yet"));
-            c.choice("Colour", Reach.COLOURS, LockColours::displayName,
-                    () -> Reach.group(id) == null ? g.colour() : Reach.group(id).colour(), colour -> {
-                Reach.recolour(id, colour);
-                SettingsMenu.rebuild();
-            }, () -> false);
-            c.textSetting("Name", g.name(), "Rename", name -> {
-                Reach.rename(id, name);
-                SettingsMenu.rebuild();
-            });
+            // Basic: the 16 dyes; Custom: any colour, kept as #rrggbb.
+            c.colour("Colour", () -> LockColours.rgb(now.get().colour()),
+                    rgb -> Reach.recolour(id, LockColours.of(rgb)));
+            c.textSetting("Name", g.name(), "Rename", name -> Reach.rename(id, name));
+            // An Item group locks every item of a type, an Exact item group one
+            // item as it is: the picker keeps the kind only, or the whole stack.
+            // Item locks are kept per world, so they're chosen in one.
+            if (g.kind().locksItems()) {
+                boolean item = g.kind() == LockKind.ITEM;
+                if (!LockedItems.inWorld()) c.line(0, Component.literal("Join a world to choose its items."));
+                c.items(item ? "Items, every one of each type" : "Items, exactly as they are",
+                        () -> item ? LockedItems.itemsOf(id) : LockedItems.exactOf(id),
+                        stacks -> { if (item) LockedItems.setItems(id, stacks); else LockedItems.setExact(id, stacks); },
+                        item ? ItemMatch.Match.ITEM : ItemMatch.Match.EXACT,
+                        () -> !LockedItems.inWorld());
+            }
         }, 0, 0);
     }
 

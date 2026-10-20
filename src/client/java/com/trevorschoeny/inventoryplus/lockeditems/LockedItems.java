@@ -315,6 +315,89 @@ public final class LockedItems {
         return changed;
     }
 
+    // A group's items, as the settings menu's item picker reads and writes them
+    // (MenuKit's ItemPicker). The current world only: locks are per world, and
+    // stacks need its registries. Outside a world there is nothing to show.
+
+    /** Whether a world is open, so a group's items can be read and set. */
+    public static boolean inWorld() {
+        return view() != null;
+    }
+
+    /**
+     * The items an Item group locks in this world, one stack each. In item id
+     * order, as the file keeps them: a newly picked item takes its place by
+     * id, not at the end.
+     */
+    public static List<ItemStack> itemsOf(String groupId) {
+        View v = view();
+        if (v == null) return List.of();
+        List<ItemStack> out = new ArrayList<>();
+        STORE.get().byId().forEach((id, group) -> {
+            if (!groupId.equals(group)) return;
+            Identifier rl = Identifier.tryParse(id);
+            Item item = rl == null ? null : BuiltInRegistries.ITEM.getOptional(rl).orElse(null);
+            if (item != null) out.add(new ItemStack(item));
+        });
+        return out;
+    }
+
+    /**
+     * Makes {@code stacks}' item types the Item group's whole set in this world.
+     * A type locked by another Item group moves here: a type carries one Item
+     * lock, as with the lock key.
+     */
+    public static void setItems(String groupId, List<ItemStack> stacks) {
+        if (view() == null) return;
+        ItemLocks before = STORE.get();
+        Map<String, String> byId = new HashMap<>();
+        before.byId().forEach((id, g) -> { if (!groupId.equals(g)) byId.put(id, g); });
+        for (ItemStack s : stacks) {
+            if (!s.isEmpty()) byId.put(BuiltInRegistries.ITEM.getKey(s.getItem()).toString(), groupId);
+        }
+        STORE.set(new ItemLocks(byId, before.exact()));
+    }
+
+    /** The items an Exact item group locks in this world, as compared: one of each, no damage. In the order added. */
+    public static List<ItemStack> exactOf(String groupId) {
+        View v = view();
+        if (v == null) return List.of();
+        List<ItemStack> out = new ArrayList<>();
+        for (var e : v.exact()) if (groupId.equals(e.getValue())) out.add(e.getKey().copy());
+        return out;
+    }
+
+    /**
+     * Makes {@code stacks} the Exact item group's whole set in this world,
+     * each normalized as a lock compares it. An item locked exactly by another
+     * group moves here: an item carries one Exact lock, as with the lock key.
+     */
+    public static void setExact(String groupId, List<ItemStack> stacks) {
+        Minecraft mc = Minecraft.getInstance();
+        if (view() == null) return;
+        RegistryOps<JsonElement> ops = ops(mc);
+        List<ItemStack> wanted = new ArrayList<>();
+        for (ItemStack s : stacks) if (!s.isEmpty()) wanted.add(normalize(s));
+        ItemLocks before = STORE.get();
+        List<ExactLock> exact = new ArrayList<>();
+        for (ExactLock e : before.exact()) {
+            if (groupId.equals(e.group())) continue;
+            ItemStack decoded = decode(ops, e.stack());
+            boolean taken = decoded != null
+                    && wanted.stream().anyMatch(w -> ItemStack.isSameItemSameComponents(w, decoded));
+            if (!taken) exact.add(e);
+        }
+        for (ItemStack w : wanted) {
+            JsonElement encoded = ItemStack.CODEC.encodeStart(ops, w).result().orElse(null);
+            if (encoded == null) {
+                InventoryPlusClient.LOGGER.error("[locked-items] could not encode {}", w);
+                continue;
+            }
+            exact.add(new ExactLock(groupId, encoded));
+        }
+        STORE.set(new ItemLocks(before.byId(), exact));
+    }
+
     // Every world at once (a group's delete, the Lock groups Reset)
 
     /** As {@code LockedSlots.count}: item and exact locks of {@code groupId}, or all. */

@@ -89,7 +89,7 @@ public final class SettingsMenu extends MKScreen {
 
     /**
      * Each tab's body scroll, by tab id, for the session (MenuKit's
-     * Tabs.bodyScroll). A rebuild (a lock group added or recoloured) opens
+     * Tabs.bodyScroll). A rebuild (a reset, or a tab switch after the groups changed) opens
      * the body where the player was, not at the top.
      */
     private static final Map<String, Double> bodyScroll = new HashMap<>();
@@ -146,9 +146,9 @@ public final class SettingsMenu extends MKScreen {
 
     /**
      * Builds the menu again on the same tab, over the same parent. The tab
-     * bodies are built once per menu, so adding, renaming, recolouring or
-     * deleting a lock group (anything that changes which rows exist or what a
-     * section's header says) rebuilds. Deferred to the next tick, so a button
+     * bodies are built once per menu; the lock groups list updates itself, so
+     * what rebuilds is a reset, and a tab switch after the groups changed (so
+     * Reach lists them as they are). Deferred to the next tick, so a button
      * never swaps the screen out from under its own click.
      */
     static void rebuild() {
