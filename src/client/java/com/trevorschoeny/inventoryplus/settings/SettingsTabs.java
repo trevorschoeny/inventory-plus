@@ -110,7 +110,10 @@ final class SettingsTabs {
         IPConfig.reset("restockEnabled", "restockShowButton", "autoRestockArmor", "autoRestockArmorBeforeBreak",
                 "autoRestockTool", "autoRestockToolBeforeBreak", "autoRestockItem", "autoRestockShulker",
                 "autoRestockShulkerAmmo", "autoRestockBeforeBreakThreshold",
-                "restockItemsFromShulkers", "restockItemsFromBundles", "restockItemsFromEnderChest");
+                "restockItemsFromShulkers", "restockItemsFromBundles", "restockItemsFromEnderChest",
+                "restockToolsFromShulkers", "restockToolsFromBundles", "restockToolsFromEnderChest",
+                "restockArmorFromShulkers", "restockArmorFromBundles", "restockArmorFromEnderChest",
+                "restockAmmoFromShulkers", "restockAmmoFromBundles", "restockAmmoFromEnderChest");
     }
 
     private static void resetAutoToolSwitch() {
@@ -615,27 +618,35 @@ final class SettingsTabs {
                 .checkbox("Restock tools", tool)
                 .subCheckbox("Swap before it breaks", Bool.of(IPConfig::autoRestockToolBeforeBreak,
                         IPConfig::setAutoRestockToolBeforeBreak).onlyWhen(tool.get()));
-        pullFrom(b);
+        pullFrom(b, tool, Bool.of(IPConfig::restockToolsFromShulkers, IPConfig::setRestockToolsFromShulkers),
+                Bool.of(IPConfig::restockToolsFromBundles, IPConfig::setRestockToolsFromBundles),
+                Bool.of(IPConfig::restockToolsFromEnderChest, IPConfig::setRestockToolsFromEnderChest));
         b.heading("Armor")
                 .checkbox("Restock armor", armor)
                 .subCheckbox("Swap before it breaks", Bool.of(IPConfig::autoRestockArmorBeforeBreak,
                         IPConfig::setAutoRestockArmorBeforeBreak).onlyWhen(armor.get()));
-        pullFrom(b);
-        // Arrows and rockets refilled as you shoot. Not built yet, so greyed.
-        b.heading("Ammo").checkbox("Restock ammo", true);
-        pullFrom(b);
+        pullFrom(b, armor, Bool.of(IPConfig::restockArmorFromShulkers, IPConfig::setRestockArmorFromShulkers),
+                Bool.of(IPConfig::restockArmorFromBundles, IPConfig::setRestockArmorFromBundles),
+                Bool.of(IPConfig::restockArmorFromEnderChest, IPConfig::setRestockArmorFromEnderChest));
+        // Ammo for the bow or crossbow in hand when the inventory has none: a bow
+        // finds arrows anywhere in the inventory already, so the only sources
+        // are carried containers, and these boxes are the whole switch.
+        b.heading("Ammo");
+        pullFrom(b, null, Bool.of(IPConfig::restockAmmoFromShulkers, IPConfig::setRestockAmmoFromShulkers),
+                Bool.of(IPConfig::restockAmmoFromBundles, IPConfig::setRestockAmmoFromBundles),
+                Bool.of(IPConfig::restockAmmoFromEnderChest, IPConfig::setRestockAmmoFromEnderChest));
         return b.build();
     }
 
     /**
-     * Tools', Armor's and Ammo's other sources, besides the inventory itself:
-     * greyed, at their planned defaults, until those restock paths learn to
-     * reach into carried containers (Emerald, after Items).
+     * A kind's other sources, besides the inventory itself (Emerald): shulker boxes and
+     * bundles carried in the inventory, and the ender chest. Under the kind's own switch
+     * when it has one ({@code kind}); Ammo has none.
      */
-    private static void pullFrom(SettingsBody b) {
-        b.checkbox("Pull from Shulker Boxes in your inventory", true)
-                .checkbox("Pull from Bundles in your inventory", true)
-                .checkbox("Pull from your Ender Chest", false);
+    private static void pullFrom(SettingsBody b, @Nullable Bool kind, Bool shulkers, Bool bundles, Bool enderChest) {
+        b.subCheckbox("Pull from Shulker Boxes in your inventory", kind == null ? shulkers : shulkers.onlyWhen(kind.get()))
+                .subCheckbox("Pull from Bundles in your inventory", kind == null ? bundles : bundles.onlyWhen(kind.get()))
+                .subCheckbox("Pull from your Ender Chest", kind == null ? enderChest : enderChest.onlyWhen(kind.get()));
     }
 
     static List<PanelElement> autoToolSwitch() {

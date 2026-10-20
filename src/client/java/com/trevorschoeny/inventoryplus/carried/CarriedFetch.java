@@ -35,7 +35,8 @@ import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.RESTOC
 
 /**
  * The client's half of taking an item out of a carried container, shared by every
- * feature that does it (Restock, pick block): find, honour locks, then ask.
+ * feature that does it (Restock's ran out, broke, before break and ammo; pick block):
+ * find, honour locks, then ask.
  *
  * <ul>
  *   <li><b>The server runs Inventory Plus</b> (it answers {@link CarriedTake.Take}): the
@@ -81,6 +82,17 @@ public final class CarriedFetch {
     public static boolean fetch(MultiPlayerGameMode gameMode, LocalPlayer player, Reach reach, Purpose purpose,
                                 Predicate<ItemStack> test, @Nullable Comparator<ItemStack> prefer,
                                 ItemStack enderProbe, int target) {
+        return fetch(gameMode, player, reach, purpose, test, prefer, enderProbe, target, -1);
+    }
+
+    /**
+     * The same, for a before-break swap ({@link Purpose#RESTOCK_SWAP}): the worn item in
+     * {@code target} moves to {@code spare}, an empty inventory slot the client chose with
+     * its own locks.
+     */
+    public static boolean fetch(MultiPlayerGameMode gameMode, LocalPlayer player, Reach reach, Purpose purpose,
+                                Predicate<ItemStack> test, @Nullable Comparator<ItemStack> prefer,
+                                ItemStack enderProbe, int target, int spare) {
         if (reach.shulkers() || reach.bundles()) {
             boolean serverHelps = serverHelps(CarriedTake.Take.TYPE);
             ItemScope scope = ItemScope.inventory().shulkers(reach.shulkers()).bundles(reach.bundles());
@@ -99,11 +111,11 @@ public final class CarriedFetch {
             }
             if (chosen != null) {
                 if (serverHelps) {
-                    ClientPlayNetworking.send(new CarriedTake.Take(chosen.path(), chosen.stack(), target, purpose));
+                    ClientPlayNetworking.send(new CarriedTake.Take(chosen.path(), chosen.stack(), target, purpose, spare));
                     InventoryPlusClient.LOGGER.debug("[carried] {}: asked for {} at {}", purpose, chosen.stack(), chosen.path());
                     return true;
                 }
-                if (fromBundleByClicks(gameMode, player, chosen.path(), target, purpose.take(), putOf(purpose))) {
+                if (fromBundleByClicks(gameMode, player, chosen.path(), target, spare, purpose.take(), putOf(purpose))) {
                     return true;
                 }
             }
@@ -112,7 +124,7 @@ public final class CarriedFetch {
             int locked = 0;
             for (int i = 0; i < LockedSlots.ENDER_SLOT_COUNT; i++) if (LockedSlots.isEnderLocked(i)) locked |= 1 << i;
             ClientPlayNetworking.send(new CarriedTake.FromEnderChest(enderProbe.copyWithCount(1), target, purpose,
-                    reach.shulkers(), reach.bundles(), locked));
+                    spare, reach.shulkers(), reach.bundles(), locked));
             InventoryPlusClient.LOGGER.debug("[carried] {}: asked the ender chest for {}", purpose, enderProbe.getItem());
             return true;
         }
@@ -131,28 +143,34 @@ public final class CarriedFetch {
     /** The operation the target slot must allow for {@code purpose}, as the server's {@code room} asks it. */
     private static BehaviorKey<TriBool> putOf(Purpose purpose) {
         return switch (purpose) {
-            case RESTOCK -> RESTOCK_PUT;
-            case PICK -> BehaviorKeys.INVENTORY_INSERT;
+            case RESTOCK, RESTOCK_SWAP -> RESTOCK_PUT;
+            case AMMO, PICK -> BehaviorKeys.INVENTORY_INSERT;
         };
     }
 
     /**
      * The no-server-mod path: takes the item at {@code path} (one bundle deep, the bundle in
-     * an inventory slot) into the empty {@code target} with vanilla clicks. False when it
-     * can't: the top-level item isn't a bundle, something is on the cursor, the target
-     * isn't empty, or it refuses {@code put}.
+     * an inventory slot) into {@code target} with vanilla clicks. The target is empty, or,
+     * for a swap ({@code spare} set), holds the worn item, which the clicks leave in the
+     * empty {@code spare}. False when it can't: the top-level item isn't a bundle, something
+     * is on the cursor, the slots aren't as described, or the target refuses {@code put}.
      */
     private static boolean fromBundleByClicks(MultiPlayerGameMode gameMode, LocalPlayer player, ItemPath path,
-                                              int target, BehaviorKey<TriBool> take, BehaviorKey<TriBool> put) {
+                                              int target, int spare, BehaviorKey<TriBool> take,
+                                              BehaviorKey<TriBool> put) {
         AbstractContainerMenu menu = player.inventoryMenu;
         if (!menu.getCarried().isEmpty()) return false;
         ItemStack bundle = player.getInventory().getItem(path.slot());
         if (!(bundle.getItem() instanceof BundleItem)) return false;   // a shulker needs the server
-        if (!player.getInventory().getItem(target).isEmpty()) return false;
+        boolean swap = spare >= 0;
+        if (player.getInventory().getItem(target).isEmpty() == swap) return false;
+        if (swap && !player.getInventory().getItem(spare).isEmpty()) return false;
         int bundleSlot = PlayerMenuSlots.menuIndexOf(menu, player, path.slot());
         int targetSlot = PlayerMenuSlots.menuIndexOf(menu, player, target);
-        if (bundleSlot < 0 || targetSlot < 0) return false;
+        int spareSlot = swap ? PlayerMenuSlots.menuIndexOf(menu, player, spare) : -1;
+        if (bundleSlot < 0 || targetSlot < 0 || (swap && spareSlot < 0)) return false;
         if (!IPSlotOperations.allowsMenuSlot(player, targetSlot, put)) return false;
+        if (swap && !IPSlotOperations.allowsMenuSlot(player, targetSlot, take)) return false;
 
         // A bundle path's index is the item's position in the bundle's contents, which is
         // the index vanilla's selection uses (26.3: BundleContents.Mutable.removeOne takes
@@ -169,9 +187,11 @@ public final class CarriedFetch {
         }
         SlotOperations.as(take, put, () -> {
             // Right click on the bundle with an empty cursor lifts the selected item;
-            // left click on the empty target sets it down.
+            // left click on the target sets it down (on a worn item, swaps the two, and a
+            // left click on the empty spare sets the worn one down).
             gameMode.handleContainerInput(menu.containerId, bundleSlot, 1, ContainerInput.PICKUP, player);
             gameMode.handleContainerInput(menu.containerId, targetSlot, 0, ContainerInput.PICKUP, player);
+            if (swap) gameMode.handleContainerInput(menu.containerId, spareSlot, 0, ContainerInput.PICKUP, player);
         });
         InventoryPlusClient.LOGGER.debug("[carried] took bundle item {} at {} by clicks", index, path);
         return true;
@@ -183,7 +203,13 @@ public final class CarriedFetch {
      * there is none.
      */
     public static int emptySlot(LocalPlayer player, BehaviorKey<TriBool> put) {
+        return emptySlot(player, put, -1);
+    }
+
+    /** The same, never {@code except}. */
+    public static int emptySlot(LocalPlayer player, BehaviorKey<TriBool> put, int except) {
         for (int i = 0; i < 36; i++) {
+            if (i == except) continue;
             if (player.getInventory().getItem(i).isEmpty() && IPSlotOperations.allowsPlayerSlot(player, i, put)) return i;
         }
         return -1;

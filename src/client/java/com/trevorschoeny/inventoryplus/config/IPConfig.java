@@ -80,6 +80,18 @@ public final class IPConfig {
     private static boolean restockItemsFromShulkers = false;
     private static boolean restockItemsFromBundles = false;
     private static boolean restockItemsFromEnderChest = false;
+    // The same three sources for Tools (broke and before break), Armor (the same)
+    // and Ammo (arrows and the like for the ranged weapon in hand). Off until
+    // Trev picks the defaults.
+    private static boolean restockToolsFromShulkers = false;
+    private static boolean restockToolsFromBundles = false;
+    private static boolean restockToolsFromEnderChest = false;
+    private static boolean restockArmorFromShulkers = false;
+    private static boolean restockArmorFromBundles = false;
+    private static boolean restockArmorFromEnderChest = false;
+    private static boolean restockAmmoFromShulkers = false;
+    private static boolean restockAmmoFromBundles = false;
+    private static boolean restockAmmoFromEnderChest = false;
     // Pick block from carried containers (Emerald): when the inventory has none of
     // the picked block, take it from a shulker box, a bundle or the ender chest
     // (General tab). Off until Trev picks the defaults.
@@ -272,6 +284,15 @@ public final class IPConfig {
         restockItemsFromShulkers     = readBool(root, "restockItemsFromShulkers",     restockItemsFromShulkers);
         restockItemsFromBundles      = readBool(root, "restockItemsFromBundles",      restockItemsFromBundles);
         restockItemsFromEnderChest   = readBool(root, "restockItemsFromEnderChest",   restockItemsFromEnderChest);
+        restockToolsFromShulkers = readBool(root, "restockToolsFromShulkers", restockToolsFromShulkers);
+        restockToolsFromBundles = readBool(root, "restockToolsFromBundles", restockToolsFromBundles);
+        restockToolsFromEnderChest = readBool(root, "restockToolsFromEnderChest", restockToolsFromEnderChest);
+        restockArmorFromShulkers = readBool(root, "restockArmorFromShulkers", restockArmorFromShulkers);
+        restockArmorFromBundles = readBool(root, "restockArmorFromBundles", restockArmorFromBundles);
+        restockArmorFromEnderChest = readBool(root, "restockArmorFromEnderChest", restockArmorFromEnderChest);
+        restockAmmoFromShulkers = readBool(root, "restockAmmoFromShulkers", restockAmmoFromShulkers);
+        restockAmmoFromBundles = readBool(root, "restockAmmoFromBundles", restockAmmoFromBundles);
+        restockAmmoFromEnderChest = readBool(root, "restockAmmoFromEnderChest", restockAmmoFromEnderChest);
         pickFromShulkers             = readBool(root, "pickFromShulkers",             pickFromShulkers);
         pickFromBundles              = readBool(root, "pickFromBundles",              pickFromBundles);
         pickFromEnderChest           = readBool(root, "pickFromEnderChest",           pickFromEnderChest);
@@ -389,6 +410,15 @@ public final class IPConfig {
         root.addProperty("restockItemsFromShulkers",    restockItemsFromShulkers);
         root.addProperty("restockItemsFromBundles",     restockItemsFromBundles);
         root.addProperty("restockItemsFromEnderChest",  restockItemsFromEnderChest);
+        root.addProperty("restockToolsFromShulkers", restockToolsFromShulkers);
+        root.addProperty("restockToolsFromBundles", restockToolsFromBundles);
+        root.addProperty("restockToolsFromEnderChest", restockToolsFromEnderChest);
+        root.addProperty("restockArmorFromShulkers", restockArmorFromShulkers);
+        root.addProperty("restockArmorFromBundles", restockArmorFromBundles);
+        root.addProperty("restockArmorFromEnderChest", restockArmorFromEnderChest);
+        root.addProperty("restockAmmoFromShulkers", restockAmmoFromShulkers);
+        root.addProperty("restockAmmoFromBundles", restockAmmoFromBundles);
+        root.addProperty("restockAmmoFromEnderChest", restockAmmoFromEnderChest);
         root.addProperty("pickFromShulkers",            pickFromShulkers);
         root.addProperty("pickFromBundles",             pickFromBundles);
         root.addProperty("pickFromEnderChest",          pickFromEnderChest);
@@ -534,6 +564,15 @@ public final class IPConfig {
     public static boolean restockItemsFromShulkers()    { return restockItemsFromShulkers; }
     public static boolean restockItemsFromBundles()     { return restockItemsFromBundles; }
     public static boolean restockItemsFromEnderChest()  { return restockItemsFromEnderChest; }
+    public static boolean restockToolsFromShulkers() { return restockToolsFromShulkers; }
+    public static boolean restockToolsFromBundles() { return restockToolsFromBundles; }
+    public static boolean restockToolsFromEnderChest() { return restockToolsFromEnderChest; }
+    public static boolean restockArmorFromShulkers() { return restockArmorFromShulkers; }
+    public static boolean restockArmorFromBundles() { return restockArmorFromBundles; }
+    public static boolean restockArmorFromEnderChest() { return restockArmorFromEnderChest; }
+    public static boolean restockAmmoFromShulkers() { return restockAmmoFromShulkers; }
+    public static boolean restockAmmoFromBundles() { return restockAmmoFromBundles; }
+    public static boolean restockAmmoFromEnderChest() { return restockAmmoFromEnderChest; }
     public static boolean pickFromShulkers()            { return pickFromShulkers; }
     public static boolean pickFromBundles()             { return pickFromBundles; }
     public static boolean pickFromEnderChest()          { return pickFromEnderChest; }
@@ -568,6 +607,15 @@ public final class IPConfig {
     public static void setRestockItemsFromShulkers(boolean v)    { restockItemsFromShulkers = v; save(); }
     public static void setRestockItemsFromBundles(boolean v)     { restockItemsFromBundles = v; save(); }
     public static void setRestockItemsFromEnderChest(boolean v)  { restockItemsFromEnderChest = v; save(); }
+    public static void setRestockToolsFromShulkers(boolean v) { restockToolsFromShulkers = v; save(); }
+    public static void setRestockToolsFromBundles(boolean v) { restockToolsFromBundles = v; save(); }
+    public static void setRestockToolsFromEnderChest(boolean v) { restockToolsFromEnderChest = v; save(); }
+    public static void setRestockArmorFromShulkers(boolean v) { restockArmorFromShulkers = v; save(); }
+    public static void setRestockArmorFromBundles(boolean v) { restockArmorFromBundles = v; save(); }
+    public static void setRestockArmorFromEnderChest(boolean v) { restockArmorFromEnderChest = v; save(); }
+    public static void setRestockAmmoFromShulkers(boolean v) { restockAmmoFromShulkers = v; save(); }
+    public static void setRestockAmmoFromBundles(boolean v) { restockAmmoFromBundles = v; save(); }
+    public static void setRestockAmmoFromEnderChest(boolean v) { restockAmmoFromEnderChest = v; save(); }
     public static void setPickFromShulkers(boolean v)            { pickFromShulkers = v; save(); }
     public static void setPickFromBundles(boolean v)             { pickFromBundles = v; save(); }
     public static void setPickFromEnderChest(boolean v)          { pickFromEnderChest = v; save(); }

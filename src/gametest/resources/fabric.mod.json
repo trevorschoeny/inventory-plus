@@ -6,7 +6,8 @@
   "entrypoints": {
     "fabric-client-gametest": [
       "com.trevorschoeny.inventoryplus.checks.CarriedRestockChecks",
-      "com.trevorschoeny.inventoryplus.checks.CarriedPickChecks"
+      "com.trevorschoeny.inventoryplus.checks.CarriedPickChecks",
+      "com.trevorschoeny.inventoryplus.checks.CarriedWearChecks"
     ]
   }
 }

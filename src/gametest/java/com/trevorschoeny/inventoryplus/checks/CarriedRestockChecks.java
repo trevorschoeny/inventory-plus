@@ -144,7 +144,7 @@ public class CarriedRestockChecks implements FabricClientGameTest {
             });
             ctx.waitTicks(5);
             ctx.runOnClient(mc -> ClientPlayNetworking.send(new CarriedTake.FromEnderChest(
-                    new ItemStack(Items.COBBLESTONE), 0, RESTOCK, false, false, 1 << 2)));
+                    new ItemStack(Items.COBBLESTONE), 0, RESTOCK, -1, false, false, 1 << 2)));
             ctx.waitTicks(5);
             onServer(world, p -> expect(p.getInventory().getItem(0).getCount() == 20
                             && p.getEnderChestInventory().getItem(2).getCount() == 5,

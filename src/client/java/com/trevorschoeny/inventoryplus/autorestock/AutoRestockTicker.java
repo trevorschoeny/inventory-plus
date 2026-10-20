@@ -99,9 +99,11 @@ import java.util.List;
  * keyed off vanilla's InventoryMenu slot mapping (helmet=5, chest=6,
  * legs=7, boots=8, offhand button=40 for SWAP).
  *
- * <h3>Not built</h3>
+ * <h3>Carried containers</h3>
  *
- * Shulker or bundle as a nested source, and direct ammo pull for bows.
+ * When the inventory has nothing that fits, each path falls back to a shulker box,
+ * bundle or the ender chest ({@link CarriedRestock}), and ammo for a ranged weapon in hand
+ * comes only from there.
  */
 public final class AutoRestockTicker {
 
@@ -128,6 +130,9 @@ public final class AutoRestockTicker {
     private static final int IDX_ARMOR_FEET  = 39;
     private static final int IDX_OFFHAND     = 40;
     private static final int IDX_CURSOR      = 41;
+
+    /** An armour slot's container index is {@code EquipmentSlot.getIndex(36)}: 36 feet to 39 head. */
+    private static final int ARMOR_INDEX_BASE = 36;
 
     // InventoryMenu slot mapping
     private static final int MENU_ARMOR_HEAD  = 5;
@@ -260,6 +265,10 @@ public final class AutoRestockTicker {
             tryDurabilitySwapArmor(gameMode, inv, player, EquipmentSlot.FEET,  MENU_ARMOR_FEET);
         }
 
+        // 4. Ammo: a ranged weapon in hand with nothing to fire in the inventory gets a
+        // stack from a carried container (the Ammo boxes).
+        CarriedRestock.ammoTick(gameMode, player);
+
         snapshot(player);
     }
 
@@ -333,9 +342,14 @@ public final class AutoRestockTicker {
                 ? HotbarCyclableRegistry.extraSlotsToBring(player, RESTOCK_TAKE, RESTOCK_PUT) : List.of();
         int source = AutoRestockSearch.findSource(inv, prev, excludeSlot, extras);
         if (source == AutoRestockSearch.NONE) {
-            InventoryPlusClient.LOGGER.debug(
-                    "[break-restock] no replacement for target={} item={}",
-                    targetClickKey, prev.getItem());
+            // Nothing in the inventory: the freshest of the same item from a carried
+            // container, into the hand that broke (the Tools tab's "Pull from" boxes).
+            if (!CarriedRestock.toolBroke(gameMode, player, prev,
+                    isActiveHotbar ? targetClickKey : CarriedTake.OFFHAND)) {
+                InventoryPlusClient.LOGGER.debug(
+                        "[break-restock] no replacement for target={} item={}",
+                        targetClickKey, prev.getItem());
+            }
             return;
         }
         if (isActiveHotbar) {
@@ -369,9 +383,12 @@ public final class AutoRestockTicker {
         List<ExtraSlot> extras = HotbarCyclableRegistry.extraSlotsToQuickMove(player, RESTOCK_TAKE, RESTOCK_PUT);
         int source = AutoRestockSearch.findArmorSource(inv, prev, extras);
         if (source == AutoRestockSearch.NONE) {
-            InventoryPlusClient.LOGGER.debug(
-                    "[break-restock] no replacement for armor[{}] item={}",
-                    slot, prev.getItem());
+            // Nothing in the inventory: from a carried container (the Armor boxes).
+            if (!CarriedRestock.armorBroke(gameMode, player, prev, slot.getIndex(ARMOR_INDEX_BASE))) {
+                InventoryPlusClient.LOGGER.debug(
+                        "[break-restock] no replacement for armor[{}] item={}",
+                        slot, prev.getItem());
+            }
             return;
         }
         // A pocket source moves server-side (inert client-side in-world). An
@@ -415,9 +432,13 @@ public final class AutoRestockTicker {
         List<ExtraSlot> extras = HotbarCyclableRegistry.extraSlotsToBring(player, RESTOCK_TAKE, RESTOCK_PUT);
         int source = AutoRestockSearch.findHigherDurability(inv, now, selected, extras);
         if (source == AutoRestockSearch.NONE) {
-            InventoryPlusClient.LOGGER.debug(
-                    "[durability-restock] no replacement for hotbar[{}] item={}",
-                    selected, now.getItem());
+            // Nothing fresher in the inventory: swap one in from a carried container; the
+            // worn one goes to an empty inventory slot.
+            if (!CarriedRestock.beforeBreak(gameMode, player, now, selected)) {
+                InventoryPlusClient.LOGGER.debug(
+                        "[durability-restock] no replacement for hotbar[{}] item={}",
+                        selected, now.getItem());
+            }
             return;
         }
         refillActiveHotbarSlot(gameMode, player, source, selected, "durability-restock", now);
@@ -429,9 +450,11 @@ public final class AutoRestockTicker {
         if (!tookDamageThisTick(now)) return;
         int source = AutoRestockSearch.findHigherDurability(inv, now, AutoRestockSearch.NONE);
         if (source == AutoRestockSearch.NONE) {
-            InventoryPlusClient.LOGGER.debug(
-                    "[durability-restock] no replacement for offhand item={}",
-                    now.getItem());
+            if (!CarriedRestock.beforeBreak(gameMode, player, now, CarriedTake.OFFHAND)) {
+                InventoryPlusClient.LOGGER.debug(
+                        "[durability-restock] no replacement for offhand item={}",
+                        now.getItem());
+            }
             return;
         }
         swapIntoOffhand(gameMode, player, source, "durability-restock", now);
@@ -458,9 +481,11 @@ public final class AutoRestockTicker {
         if (!tookDamageThisTick(now)) return;
         int source = AutoRestockSearch.findHigherDurabilityArmor(inv, now);
         if (source == AutoRestockSearch.NONE) {
-            InventoryPlusClient.LOGGER.debug(
-                    "[durability-restock] no replacement for armor[{}] item={}",
-                    slot, now.getItem());
+            if (!CarriedRestock.beforeBreak(gameMode, player, now, slot.getIndex(ARMOR_INDEX_BASE))) {
+                InventoryPlusClient.LOGGER.debug(
+                        "[durability-restock] no replacement for armor[{}] item={}",
+                        slot, now.getItem());
+            }
             return;
         }
         // Three separate clicks, so a refusal part-way would strand the worn
