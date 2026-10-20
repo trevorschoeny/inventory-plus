@@ -84,6 +84,18 @@ loom {
     }
 }
 
+// Self-checks: Fabric client gametests in src/gametest, run with `./gradlew :inventory-plus:runClientGameTest`.
+fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = 'inventoryplus_checks'
+        enableGameTests = false
+        enableClientGameTests = true
+        eula = true
+    }
+}
+apply from: rootProject.file('Trevlar Mods Codebases/test-gallery/kit/checks.gradle')   // SceneWorld
+
 // Client-only dependencies, after loom {} so its client configurations exist.
 dependencies {
     // MenuKit's client half (UI, screens), which the project dep above leaves out.

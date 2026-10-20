@@ -108,7 +108,8 @@ final class SettingsTabs {
     private static void resetRestock() {
         IPConfig.reset("restockEnabled", "restockShowButton", "autoRestockArmor", "autoRestockArmorBeforeBreak",
                 "autoRestockTool", "autoRestockToolBeforeBreak", "autoRestockItem", "autoRestockShulker",
-                "autoRestockShulkerAmmo", "autoRestockBeforeBreakThreshold");
+                "autoRestockShulkerAmmo", "autoRestockBeforeBreakThreshold",
+                "restockItemsFromShulkers", "restockItemsFromBundles", "restockItemsFromEnderChest");
     }
 
     private static void resetAutoToolSwitch() {
@@ -591,8 +592,14 @@ final class SettingsTabs {
                         () -> !((IPConfig.autoRestockArmor() && IPConfig.autoRestockArmorBeforeBreak())
                                 || (IPConfig.autoRestockTool() && IPConfig.autoRestockToolBeforeBreak())));
         // Items, Tools, Armor, Ammo.
-        b.heading("Items").checkbox("Restock items", item);
-        pullFrom(b);
+        b.heading("Items").checkbox("Restock items", item)
+                // Built (Emerald): where an item that ran out may come from.
+                .subCheckbox("Pull from Shulker Boxes in your inventory", Bool.of(IPConfig::restockItemsFromShulkers,
+                        IPConfig::setRestockItemsFromShulkers).onlyWhen(item.get()))
+                .subCheckbox("Pull from Bundles in your inventory", Bool.of(IPConfig::restockItemsFromBundles,
+                        IPConfig::setRestockItemsFromBundles).onlyWhen(item.get()))
+                .subCheckbox("Pull from your Ender Chest", Bool.of(IPConfig::restockItemsFromEnderChest,
+                        IPConfig::setRestockItemsFromEnderChest).onlyWhen(item.get()));
         b.heading("Tools")
                 .checkbox("Restock tools", tool)
                 .subCheckbox("Swap before it breaks", Bool.of(IPConfig::autoRestockToolBeforeBreak,
@@ -610,10 +617,9 @@ final class SettingsTabs {
     }
 
     /**
-     * A kind's other sources, besides the inventory itself. None is built: a
-     * shulker box's or ender chest's contents can't be taken from in the
-     * inventory without a server-side mod, and a bundle needs its own
-     * click sequence. Greyed, shown at their planned defaults.
+     * Tools', Armor's and Ammo's other sources, besides the inventory itself:
+     * greyed, at their planned defaults, until those restock paths learn to
+     * reach into carried containers (Emerald, after Items).
      */
     private static void pullFrom(SettingsBody b) {
         b.checkbox("Pull from Shulker Boxes in your inventory", true)

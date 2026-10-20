@@ -6,6 +6,7 @@ import com.trevorschoeny.inventoryplus.api.PlayerMenuSlots;
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
+import com.trevorschoeny.inventoryplus.nested.NestedRestock;
 import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
 
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.RESTOCK_PUT;
@@ -288,7 +289,13 @@ public final class AutoRestockTicker {
         List<ExtraSlot> extras = isActiveHotbar
                 ? HotbarCyclableRegistry.extraSlotsToBring(player, RESTOCK_TAKE, RESTOCK_PUT) : List.of();
         int source = AutoRestockSearch.findSource(inv, prev, excludeSlot, extras);
-        if (source == AutoRestockSearch.NONE) return;
+        if (source == AutoRestockSearch.NONE) {
+            // Nothing left in the inventory: the same item from inside a carried
+            // shulker box or bundle, or the ender chest, into the slot that ran out.
+            CarriedRestock.refill(gameMode, player, prev,
+                    isActiveHotbar ? targetClickKey : NestedRestock.OFFHAND);
+            return;
+        }
         if (isActiveHotbar) {
             refillActiveHotbarSlot(gameMode, player, source, targetClickKey, "item-restock", prev);
         } else {
