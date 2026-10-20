@@ -543,7 +543,7 @@ final class SettingsTabs {
             // A key for a group made in game needs Keybindery's runtime bindings.
             else c.line(0, Component.literal("Key: none yet"));
             // Basic: the 16 dyes; Custom: any colour, kept as #rrggbb.
-            c.colour("Colour", () -> LockColours.rgb(now.get().colour()),
+            c.colour("Color", () -> LockColours.rgb(now.get().colour()),
                     rgb -> Reach.recolour(id, LockColours.of(rgb)));
             c.textSetting("Name", g.name(), "Rename", name -> Reach.rename(id, name));
             // An Item group locks every item of a type, an Exact item group one
