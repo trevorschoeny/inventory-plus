@@ -38,9 +38,12 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 
@@ -81,8 +84,7 @@ final class SettingsTabs {
 
     /** General's own settings back to default. Only Reset everything runs it. */
     private static void resetGeneral() {
-        IPConfig.reset("settingsOptionsLook", "compactTooltips",
-                "pickFromShulkers", "pickFromBundles", "pickFromEnderChest");
+        IPConfig.reset("settingsOptionsLook", "compactTooltips");
         resetKeys(IPKeybinds.OPEN_SETTINGS);
         // The look may have just gone back to the Default look, so reopen in it.
         SettingsMenu.reopen();
@@ -109,18 +111,14 @@ final class SettingsTabs {
     private static void resetRestock() {
         IPConfig.reset("restockEnabled", "restockShowButton", "autoRestockArmor", "autoRestockArmorBeforeBreak",
                 "autoRestockTool", "autoRestockToolBeforeBreak", "autoRestockItem", "autoRestockShulker",
-                "autoRestockShulkerAmmo", "autoRestockBeforeBreakThreshold",
-                "restockItemsFromShulkers", "restockItemsFromBundles", "restockItemsFromEnderChest",
-                "restockToolsFromShulkers", "restockToolsFromBundles", "restockToolsFromEnderChest",
-                "restockArmorFromShulkers", "restockArmorFromBundles", "restockArmorFromEnderChest",
-                "restockAmmoFromShulkers", "restockAmmoFromBundles", "restockAmmoFromEnderChest");
+                "autoRestockShulkerAmmo", "autoRestockBeforeBreakThreshold");
     }
 
     private static void resetAutoToolSwitch() {
         IPConfig.reset("autoToolSwitchEnabled", "autoToolSwitchShowButton", "autoToolSwitchReturnAuto",
                 "autoToolSwitchReturnKey",
                 "autoToolSwitchReturnCooldownSeconds", "autoToolSwitchWeapons", "autoToolSwitchAllMobs",
-                "autoToolSwitchWeaponPreference", "autoToolSwitchFromShulkers", "autoToolSwitchFromBundles");
+                "autoToolSwitchWeaponPreference");
         resetKeys(IPKeybinds.AUTO_SWITCH_RETURN);
     }
 
@@ -182,16 +180,9 @@ final class SettingsTabs {
                     SettingsMenu.reopen();
                 })
                 .build()), 20);
-        // Pick block reaches into carried containers when the inventory has none of
-        // the block (Emerald). Off until Trev picks the defaults; where these sit
-        // (here, or with Reach's places) is his call too.
+        // Pick block's carried containers live in Reach (Trev, 2026-10-20).
         b.heading("Pick block")
-                .checkbox("Pick from Shulker Boxes in your inventory",
-                        Bool.of(IPConfig::pickFromShulkers, IPConfig::setPickFromShulkers))
-                .checkbox("Pick from Bundles in your inventory",
-                        Bool.of(IPConfig::pickFromBundles, IPConfig::setPickFromBundles))
-                .checkbox("Pick from your Ender Chest",
-                        Bool.of(IPConfig::pickFromEnderChest, IPConfig::setPickFromEnderChest));
+                .line("Pick block can reach into containers you carry. Which ones is set on the Reach tab.");
         b.heading("Presets")
                 .actions("Save or load a file", "Save to file", "Load from file")
                 .actions("Share by pasting", "Copy to clipboard", "Paste from clipboard");
@@ -231,7 +222,10 @@ final class SettingsTabs {
         SettingsBody b = new SettingsBody().frame("Reach",
                 "Choose where each move may take items from and put them. A cleared box means the "
                         + "move never touches that group. Clear a lock group's box to make it stop that move.",
-                confirmReset("Reach", Reach::revertAll));
+                confirmReset("Reach", () -> {
+                    Reach.revertAll();
+                    IPConfig.reset(PLACE_KEYS.values().stream().flatMap(List::stream).toArray(String[]::new));
+                }));
         List<BehaviorKey<?>> vanilla = new ArrayList<>();
         List<BehaviorKey<?>> ours = new ArrayList<>();
         List<BehaviorKey<?>> others = new ArrayList<>();
@@ -244,6 +238,9 @@ final class SettingsTabs {
         }
         operations(b, "Vanilla", vanilla);
         operations(b, "Inventory Plus", ours);
+        // Pick block isn't one of MenuKit's operations, so it has no reach of
+        // its own; its carried places get a section here all the same.
+        pickBlockSection(b);
         operations(b, "Other mods", others);
         // Shown now: from the next build on, none of these reads as new.
         List<String> shown = new ArrayList<>();
@@ -310,7 +307,8 @@ final class SettingsTabs {
             lockGroups.add(new Place(Component.literal(g.name()), () -> !Reach.lockDenies(g.id(), id),
                     v -> Reach.setLockDenies(g.id(), id, !v), () -> false));
         }
-        List<Place> places = placesOf(id);
+        List<Place> places = new ArrayList<>();
+        for (List<Place> block : placesOf(id).values()) places.addAll(block);
 
         List<Place> all = new ArrayList<>(slotGroups);
         all.addAll(lockGroups);
@@ -331,36 +329,120 @@ final class SettingsTabs {
         b.section(SlotOperations.name(op).getString(), summary, null, c -> {
             c.line(0, SlotOperations.description(op));
             // The move's own settings sit above its checkboxes.
-            c.actions(new SettingsBody.Action("Revert to default", () -> Reach.revert(id)));
+            c.actions(new SettingsBody.Action("Revert to default", () -> {
+                Reach.revert(id);
+                List<String> keys = PLACE_KEYS.get(id);
+                if (keys != null) IPConfig.reset(keys.toArray(String[]::new));
+            }));
             // Shift-click in's fill order waits on MenuKit, so it is greyed.
             if (op == BehaviorKeys.SHIFT_CLICK_IN) c.buttons("Priority…");
             block(c, "Slot groups", slotGroups);
             block(c, "Lock groups", lockGroups);
-            block(c, "Places", places);
+            // Carried containers, one block per kind where the feature
+            // splits them (Restock: Items, Tools, Armor, Ammo).
+            placesOf(id).forEach((label, block) -> block(c, label, block));
             block(c, "Inventory Plus", ourGroups);
             block(c, "Other mods", otherGroups);
         });
     }
 
-    /** Containers carried in the inventory, as greyed reach boxes (none is reachable yet). */
-    private static List<Place> carriedPlaces(boolean shulker, boolean bundle, boolean enderChest) {
-        return List.of(Place.fixed(Component.literal("Shulker Boxes"), shulker),
-                Place.fixed(Component.literal("Bundles"), bundle),
-                Place.fixed(Component.literal("Ender Chest"), enderChest));
+    /** Pick block's key in {@link #PLACE_KEYS}; not a MenuKit operation id. */
+    private static final String PICK_BLOCK = "inventoryplus:pick_block";
+
+    /**
+     * The config keys behind each operation's carried places, so Revert to
+     * default and Reach's Reset to Defaults put them back. Defaults: all off.
+     */
+    private static final Map<String, List<String>> PLACE_KEYS = Map.of(
+            "inventoryplus:restock_take", List.of(
+                    "restockItemsFromShulkers", "restockItemsFromBundles", "restockItemsFromEnderChest",
+                    "restockToolsFromShulkers", "restockToolsFromBundles", "restockToolsFromEnderChest",
+                    "restockArmorFromShulkers", "restockArmorFromBundles", "restockArmorFromEnderChest",
+                    "restockAmmoFromShulkers", "restockAmmoFromBundles", "restockAmmoFromEnderChest"),
+            "inventoryplus:auto_tool_switch", List.of("autoToolSwitchFromShulkers", "autoToolSwitchFromBundles"),
+            PICK_BLOCK, List.of("pickFromShulkers", "pickFromBundles", "pickFromEnderChest"));
+
+    /** A carried place backed by its own setting, greyed while {@code unavailable}. */
+    private static Place place(String name, Bool setting, BooleanSupplier unavailable) {
+        return new Place(Component.literal(name), setting.get(), setting.set(), unavailable);
     }
 
     /**
-     * The places Inventory Plus declares for an operation: things carried
-     * that aren't slots. Only Restock's takes from
-     * reaches into: Shulker Boxes, Bundles and the Ender Chest carried in the
-     * inventory. None of those mechanics is built yet, so the boxes are greyed.
+     * Shulker boxes and bundles carried in the inventory, and the ender chest
+     * when {@code enderChest} is given (Auto Tool Switch has none: which tool is
+     * best is the client's call, and it can't see inside the ender chest).
      */
-    private static List<Place> placesOf(String operation) {
-        // Bundles and the Ender Chest beside Shulker Boxes, at the Restock
-        // tab's planned defaults.
-        return operation.equals("inventoryplus:restock_take")
-                ? carriedPlaces(IPConfig.autoRestockShulker(), true, false)
-                : List.of();
+    private static List<Place> carried(Bool shulkers, Bool bundles, @Nullable Bool enderChest,
+                                       BooleanSupplier unavailable) {
+        List<Place> out = new ArrayList<>(3);
+        out.add(place("Shulker Boxes in your inventory", shulkers, unavailable));
+        out.add(place("Bundles in your inventory", bundles, unavailable));
+        if (enderChest != null) out.add(place("Your Ender Chest", enderChest, unavailable));
+        return out;
+    }
+
+    /**
+     * The places Inventory Plus declares for an operation: containers carried
+     * in the inventory that it may reach into, each a real setting (Trev,
+     * 2026-10-20: moved here from the Restock, General and Auto Tool Switch
+     * tabs). Restock's keep their split by kind, each block greyed while its
+     * kind is off; Ammo has no switch of its own. Labels in order.
+     */
+    private static Map<String, List<Place>> placesOf(String operation) {
+        Map<String, List<Place>> out = new LinkedHashMap<>();
+        switch (operation) {
+            case "inventoryplus:restock_take" -> {
+                out.put("Places: items", carried(
+                        Bool.of(IPConfig::restockItemsFromShulkers, IPConfig::setRestockItemsFromShulkers),
+                        Bool.of(IPConfig::restockItemsFromBundles, IPConfig::setRestockItemsFromBundles),
+                        Bool.of(IPConfig::restockItemsFromEnderChest, IPConfig::setRestockItemsFromEnderChest),
+                        () -> !IPConfig.autoRestockItem()));
+                out.put("Places: tools", carried(
+                        Bool.of(IPConfig::restockToolsFromShulkers, IPConfig::setRestockToolsFromShulkers),
+                        Bool.of(IPConfig::restockToolsFromBundles, IPConfig::setRestockToolsFromBundles),
+                        Bool.of(IPConfig::restockToolsFromEnderChest, IPConfig::setRestockToolsFromEnderChest),
+                        () -> !IPConfig.autoRestockTool()));
+                out.put("Places: armor", carried(
+                        Bool.of(IPConfig::restockArmorFromShulkers, IPConfig::setRestockArmorFromShulkers),
+                        Bool.of(IPConfig::restockArmorFromBundles, IPConfig::setRestockArmorFromBundles),
+                        Bool.of(IPConfig::restockArmorFromEnderChest, IPConfig::setRestockArmorFromEnderChest),
+                        () -> !IPConfig.autoRestockArmor()));
+                out.put("Places: ammo", carried(
+                        Bool.of(IPConfig::restockAmmoFromShulkers, IPConfig::setRestockAmmoFromShulkers),
+                        Bool.of(IPConfig::restockAmmoFromBundles, IPConfig::setRestockAmmoFromBundles),
+                        Bool.of(IPConfig::restockAmmoFromEnderChest, IPConfig::setRestockAmmoFromEnderChest),
+                        () -> false));
+            }
+            case "inventoryplus:auto_tool_switch" -> out.put("Places", carried(
+                    Bool.of(IPConfig::autoToolSwitchFromShulkers, IPConfig::setAutoToolSwitchFromShulkers),
+                    Bool.of(IPConfig::autoToolSwitchFromBundles, IPConfig::setAutoToolSwitchFromBundles),
+                    null, () -> false));
+            case PICK_BLOCK -> out.put("Places", carried(
+                    Bool.of(IPConfig::pickFromShulkers, IPConfig::setPickFromShulkers),
+                    Bool.of(IPConfig::pickFromBundles, IPConfig::setPickFromBundles),
+                    Bool.of(IPConfig::pickFromEnderChest, IPConfig::setPickFromEnderChest),
+                    () -> false));
+            default -> { }
+        }
+        return out;
+    }
+
+    /**
+     * Pick block's section: only its places, since it has no slot reach to
+     * set. Closed, the same live count every operation shows.
+     */
+    private static void pickBlockSection(SettingsBody b) {
+        List<Place> places = placesOf(PICK_BLOCK).get("Places");
+        Supplier<Component> summary = () -> {
+            long on = places.stream().filter(p -> p.on().getAsBoolean()).count();
+            return Component.literal(on == places.size() ? "all " + on + " on" : on + " of " + places.size() + " on");
+        };
+        b.section("Pick block", summary, null, c -> {
+            c.line(0, Component.literal("Where pick block may take a block from when your inventory has none."));
+            c.actions(new SettingsBody.Action("Revert to default",
+                    () -> IPConfig.reset(PLACE_KEYS.get(PICK_BLOCK).toArray(String[]::new))));
+            block(c, "Places", places);
+        });
     }
 
     /** One labelled block of checkboxes, left out when nothing in it applies. */
@@ -606,47 +688,25 @@ final class SettingsTabs {
                         () -> !((IPConfig.autoRestockArmor() && IPConfig.autoRestockArmorBeforeBreak())
                                 || (IPConfig.autoRestockTool() && IPConfig.autoRestockToolBeforeBreak())));
         // Items, Tools, Armor, Ammo.
-        b.heading("Items").checkbox("Restock items", item)
-                // Built (Emerald): where an item that ran out may come from.
-                .subCheckbox("Pull from Shulker Boxes in your inventory", Bool.of(IPConfig::restockItemsFromShulkers,
-                        IPConfig::setRestockItemsFromShulkers).onlyWhen(item.get()))
-                .subCheckbox("Pull from Bundles in your inventory", Bool.of(IPConfig::restockItemsFromBundles,
-                        IPConfig::setRestockItemsFromBundles).onlyWhen(item.get()))
-                .subCheckbox("Pull from your Ender Chest", Bool.of(IPConfig::restockItemsFromEnderChest,
-                        IPConfig::setRestockItemsFromEnderChest).onlyWhen(item.get()));
+        // Where each kind may also pull from (carried shulker boxes, bundles,
+        // the ender chest) is Reach's, per kind, in Restock's take section
+        // (Trev, 2026-10-20). One note here where the boxes were.
+        b.line("Containers to pull from (shulker boxes, bundles, your ender chest) are set on the Reach tab.");
+        b.heading("Items").checkbox("Restock items", item);
         b.heading("Tools")
                 .checkbox("Restock tools", tool)
                 .subCheckbox("Swap before it breaks", Bool.of(IPConfig::autoRestockToolBeforeBreak,
                         IPConfig::setAutoRestockToolBeforeBreak).onlyWhen(tool.get()));
-        pullFrom(b, tool, Bool.of(IPConfig::restockToolsFromShulkers, IPConfig::setRestockToolsFromShulkers),
-                Bool.of(IPConfig::restockToolsFromBundles, IPConfig::setRestockToolsFromBundles),
-                Bool.of(IPConfig::restockToolsFromEnderChest, IPConfig::setRestockToolsFromEnderChest));
         b.heading("Armor")
                 .checkbox("Restock armor", armor)
                 .subCheckbox("Swap before it breaks", Bool.of(IPConfig::autoRestockArmorBeforeBreak,
                         IPConfig::setAutoRestockArmorBeforeBreak).onlyWhen(armor.get()));
-        pullFrom(b, armor, Bool.of(IPConfig::restockArmorFromShulkers, IPConfig::setRestockArmorFromShulkers),
-                Bool.of(IPConfig::restockArmorFromBundles, IPConfig::setRestockArmorFromBundles),
-                Bool.of(IPConfig::restockArmorFromEnderChest, IPConfig::setRestockArmorFromEnderChest));
         // Ammo for the bow or crossbow in hand when the inventory has none: a bow
         // finds arrows anywhere in the inventory already, so the only sources
-        // are carried containers, and these boxes are the whole switch.
-        b.heading("Ammo");
-        pullFrom(b, null, Bool.of(IPConfig::restockAmmoFromShulkers, IPConfig::setRestockAmmoFromShulkers),
-                Bool.of(IPConfig::restockAmmoFromBundles, IPConfig::setRestockAmmoFromBundles),
-                Bool.of(IPConfig::restockAmmoFromEnderChest, IPConfig::setRestockAmmoFromEnderChest));
+        // are carried containers, and those are all set on Reach.
+        b.heading("Ammo")
+                .line("Arrows and rockets come from carried containers only, set on the Reach tab.");
         return b.build();
-    }
-
-    /**
-     * A kind's other sources, besides the inventory itself (Emerald): shulker boxes and
-     * bundles carried in the inventory, and the ender chest. Under the kind's own switch
-     * when it has one ({@code kind}); Ammo has none.
-     */
-    private static void pullFrom(SettingsBody b, @Nullable Bool kind, Bool shulkers, Bool bundles, Bool enderChest) {
-        b.subCheckbox("Pull from Shulker Boxes in your inventory", kind == null ? shulkers : shulkers.onlyWhen(kind.get()))
-                .subCheckbox("Pull from Bundles in your inventory", kind == null ? bundles : bundles.onlyWhen(kind.get()))
-                .subCheckbox("Pull from your Ender Chest", kind == null ? enderChest : enderChest.onlyWhen(kind.get()));
     }
 
     static List<PanelElement> autoToolSwitch() {
@@ -678,13 +738,9 @@ final class SettingsTabs {
                         SettingsTabs::titleCase,
                         IPConfig::autoToolSwitchWeaponPreference, IPConfig::setAutoToolSwitchWeaponPreference,
                         () -> !IPConfig.autoToolSwitchWeapons())
-                // Only when the inventory has nothing that fits (Emerald). No ender
-                // chest: which tool is best is the client's call, and it can't see in.
+                // Carried containers it may take a tool from are Reach's (Trev, 2026-10-20).
                 .heading("Containers")
-                .checkbox("Take tools from Shulker Boxes in your inventory",
-                        Bool.of(IPConfig::autoToolSwitchFromShulkers, IPConfig::setAutoToolSwitchFromShulkers))
-                .checkbox("Take tools from Bundles in your inventory",
-                        Bool.of(IPConfig::autoToolSwitchFromBundles, IPConfig::setAutoToolSwitchFromBundles))
+                .line("Containers to take tools from (shulker boxes, bundles) are set on the Reach tab.")
                 .build();
     }
 
