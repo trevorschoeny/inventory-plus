@@ -35,8 +35,8 @@ import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.RESTOC
 
 /**
  * The client's half of taking an item out of a carried container, shared by every
- * feature that does it (Restock's ran out, broke, before break and ammo; pick block):
- * find, honour locks, then ask.
+ * feature that does it (Restock's ran out, broke, before break and ammo; pick block; Auto
+ * Tool Switch): find, honour locks, then ask.
  *
  * <ul>
  *   <li><b>The server runs Inventory Plus</b> (it answers {@link CarriedTake.Take}): the
@@ -144,7 +144,7 @@ public final class CarriedFetch {
     private static BehaviorKey<TriBool> putOf(Purpose purpose) {
         return switch (purpose) {
             case RESTOCK, RESTOCK_SWAP -> RESTOCK_PUT;
-            case AMMO, PICK -> BehaviorKeys.INVENTORY_INSERT;
+            case AMMO, PICK, TOOL -> BehaviorKeys.INVENTORY_INSERT;
         };
     }
 

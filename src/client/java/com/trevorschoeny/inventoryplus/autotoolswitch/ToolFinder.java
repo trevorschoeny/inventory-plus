@@ -288,7 +288,7 @@ public final class ToolFinder {
      *       picks shovels for dirt while rejecting arbitrary items.</li>
      * </ul>
      */
-    private static boolean isMatchingToolForBlock(ItemStack stack, BlockState blockState) {
+    static boolean isMatchingToolForBlock(ItemStack stack, BlockState blockState) {
         if (stack.isEmpty()) return false;
         if (blockState.requiresCorrectToolForDrops()) {
             return stack.isCorrectToolForDrops(blockState);
@@ -308,7 +308,7 @@ public final class ToolFinder {
      * <p>Tiebreaker: remaining durability (higher is better) at a small
      * weight, so it doesn't override the speed signal.
      */
-    private static double scoreToolForBlock(ItemStack stack, BlockState blockState) {
+    static double scoreToolForBlock(ItemStack stack, BlockState blockState) {
         double speed = stack.getDestroySpeed(blockState);
         double remainingDurability = remainingDurability(stack);
         return speed * 100.0 + remainingDurability * 0.001;
@@ -330,7 +330,7 @@ public final class ToolFinder {
      * long as they're tagged into one of the sub-tags (#minecraft:swords,
      * #minecraft:spears and so on).
      */
-    private static boolean isWeapon(ItemStack stack) {
+    static boolean isWeapon(ItemStack stack) {
         if (stack.isEmpty()) return false;
         return stack.is(ItemTags.WEAPON_ENCHANTABLE)
                 || stack.is(ItemTags.TRIDENT_ENCHANTABLE);
@@ -342,7 +342,7 @@ public final class ToolFinder {
      * active-slot logic and as the predicate when searching for the
      * preferred type only.
      */
-    private static boolean isPreferredWeapon(ItemStack stack) {
+    static boolean isPreferredWeapon(ItemStack stack) {
         if (stack.isEmpty()) return false;
         WeaponPreference pref = IPConfig.autoToolSwitchWeaponPreference();
         return switch (pref) {
@@ -371,7 +371,7 @@ public final class ToolFinder {
      * elsewhere) is not built. The {@code entity} parameter is passed
      * through findBestForMob for it.
      */
-    private static double scoreWeapon(ItemStack stack) {
+    static double scoreWeapon(ItemStack stack) {
         WeaponPreference pref = IPConfig.autoToolSwitchWeaponPreference();
         double typeScore;
         if (stack.is(ItemTags.SWORDS)) {

@@ -120,7 +120,7 @@ final class SettingsTabs {
         IPConfig.reset("autoToolSwitchEnabled", "autoToolSwitchShowButton", "autoToolSwitchReturnAuto",
                 "autoToolSwitchReturnKey",
                 "autoToolSwitchReturnCooldownSeconds", "autoToolSwitchWeapons", "autoToolSwitchAllMobs",
-                "autoToolSwitchWeaponPreference");
+                "autoToolSwitchWeaponPreference", "autoToolSwitchFromShulkers", "autoToolSwitchFromBundles");
         resetKeys(IPKeybinds.AUTO_SWITCH_RETURN);
     }
 
@@ -678,6 +678,13 @@ final class SettingsTabs {
                         SettingsTabs::titleCase,
                         IPConfig::autoToolSwitchWeaponPreference, IPConfig::setAutoToolSwitchWeaponPreference,
                         () -> !IPConfig.autoToolSwitchWeapons())
+                // Only when the inventory has nothing that fits (Emerald). No ender
+                // chest: which tool is best is the client's call, and it can't see in.
+                .heading("Containers")
+                .checkbox("Take tools from Shulker Boxes in your inventory",
+                        Bool.of(IPConfig::autoToolSwitchFromShulkers, IPConfig::setAutoToolSwitchFromShulkers))
+                .checkbox("Take tools from Bundles in your inventory",
+                        Bool.of(IPConfig::autoToolSwitchFromBundles, IPConfig::setAutoToolSwitchFromBundles))
                 .build();
     }
 

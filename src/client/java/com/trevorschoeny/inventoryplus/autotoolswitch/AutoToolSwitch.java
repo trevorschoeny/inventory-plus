@@ -14,6 +14,7 @@ import com.trevlar.slotkit.api.window.SlotOperations;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
@@ -153,6 +154,7 @@ public final class AutoToolSwitch {
      */
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(AutoToolSwitch::onClientTick);
+        ClientTickEvents.END_CLIENT_TICK.register(CarriedTools::tick);
     }
 
     /**
@@ -179,7 +181,15 @@ public final class AutoToolSwitch {
 
         BlockState blockState = player.level().getBlockState(pos);
         ToolFinder.Match match = ToolFinder.findBestForBlock(player.getInventory(), blockState);
-        if (match == null) return;
+        if (match == null) {
+            // No tool for it in the inventory, and none in the hand: one from a carried
+            // container, if the Containers boxes allow (CarriedTools switches once it lands).
+            if (!ToolFinder.isMatchingToolForBlock(player.getInventory().getSelectedItem(), blockState)
+                    && player instanceof LocalPlayer local) {
+                CarriedTools.forBlock(local, pos, blockState);
+            }
+            return;
+        }
 
         applySwitch(match, Action.MINING, mc);
     }
@@ -219,7 +229,14 @@ public final class AutoToolSwitch {
         if (inFlight != null) return;
 
         ToolFinder.Match match = ToolFinder.findBestForMob(player.getInventory(), living);
-        if (match == null) return;
+        if (match == null) {
+            // No weapon in the inventory or the hand: one from a carried container; the
+            // next swing finds it.
+            if (!ToolFinder.isWeapon(player.getInventory().getSelectedItem()) && player instanceof LocalPlayer local) {
+                CarriedTools.forMob(local);
+            }
+            return;
+        }
 
         applySwitch(match, Action.COMBAT, mc);
     }

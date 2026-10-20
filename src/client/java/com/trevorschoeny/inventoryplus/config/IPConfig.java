@@ -128,6 +128,10 @@ public final class IPConfig {
     // Preferred weapon type: wins regardless of material when the player has
     // multiple weapon kinds available. Persisted as the enum name.
     private static WeaponPreference autoToolSwitchWeaponPreference = WeaponPreference.SWORD;
+    // When the inventory has no tool or weapon that fits, take one from a carried
+    // shulker box or bundle (Emerald). Off until Trev picks the defaults.
+    private static boolean autoToolSwitchFromShulkers = false;
+    private static boolean autoToolSwitchFromBundles = false;
 
     // Show Buttons
     private static boolean sortShowButton = true;
@@ -317,6 +321,8 @@ public final class IPConfig {
         autoToolSwitchWeapons  = readBool(root, "autoToolSwitchWeapons",  autoToolSwitchWeapons);
         autoToolSwitchAllMobs  = readBool(root, "autoToolSwitchAllMobs",  autoToolSwitchAllMobs);
         autoToolSwitchWeaponPreference = WeaponPreference.fromName(readString(root, "autoToolSwitchWeaponPreference", null), autoToolSwitchWeaponPreference);
+        autoToolSwitchFromShulkers = readBool(root, "autoToolSwitchFromShulkers", autoToolSwitchFromShulkers);
+        autoToolSwitchFromBundles = readBool(root, "autoToolSwitchFromBundles", autoToolSwitchFromBundles);
         sortShowButton         = readBool(root, "sortShowButton",         sortShowButton);
         moveMatchingShowButtons= readBool(root, "moveMatchingShowButtons",moveMatchingShowButtons);
         lockedSlotsShowButton  = readBool(root, "lockedSlotsShowButton",  lockedSlotsShowButton);
@@ -430,6 +436,8 @@ public final class IPConfig {
         root.addProperty("autoToolSwitchWeapons",   autoToolSwitchWeapons);
         root.addProperty("autoToolSwitchAllMobs",   autoToolSwitchAllMobs);
         root.addProperty("autoToolSwitchWeaponPreference", autoToolSwitchWeaponPreference.name());
+        root.addProperty("autoToolSwitchFromShulkers", autoToolSwitchFromShulkers);
+        root.addProperty("autoToolSwitchFromBundles", autoToolSwitchFromBundles);
         root.addProperty("sortShowButton",          sortShowButton);
         root.addProperty("moveMatchingShowButtons", moveMatchingShowButtons);
         root.addProperty("lockedSlotsShowButton",   lockedSlotsShowButton);
@@ -584,6 +592,8 @@ public final class IPConfig {
     public static boolean autoToolSwitchWeapons()       { return autoToolSwitchWeapons; }
     public static boolean autoToolSwitchAllMobs()       { return autoToolSwitchAllMobs; }
     public static WeaponPreference autoToolSwitchWeaponPreference() { return autoToolSwitchWeaponPreference; }
+    public static boolean autoToolSwitchFromShulkers() { return autoToolSwitchFromShulkers; }
+    public static boolean autoToolSwitchFromBundles() { return autoToolSwitchFromBundles; }
     public static boolean sortShowButton()              { return sortShowButton; }
     public static boolean moveMatchingShowButtons()     { return moveMatchingShowButtons; }
     public static boolean lockedSlotsShowButton()       { return lockedSlotsShowButton; }
@@ -627,6 +637,8 @@ public final class IPConfig {
     public static void setAutoToolSwitchWeapons(boolean v)       { autoToolSwitchWeapons = v; save(); }
     public static void setAutoToolSwitchAllMobs(boolean v)       { autoToolSwitchAllMobs = v; save(); }
     public static void setAutoToolSwitchWeaponPreference(WeaponPreference v) { autoToolSwitchWeaponPreference = v; save(); }
+    public static void setAutoToolSwitchFromShulkers(boolean v) { autoToolSwitchFromShulkers = v; save(); }
+    public static void setAutoToolSwitchFromBundles(boolean v) { autoToolSwitchFromBundles = v; save(); }
     public static void setSortShowButton(boolean v)              { sortShowButton = v; save(); }
     public static void setMoveMatchingShowButtons(boolean v)     { moveMatchingShowButtons = v; save(); }
     public static void setLockedSlotsShowButton(boolean v)       { lockedSlotsShowButton = v; save(); }

@@ -31,13 +31,14 @@ import net.minecraft.world.item.enchantment.EnchantmentHelper;
 
 import java.util.function.Predicate;
 
+import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.AUTO_TOOL_SWITCH;
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.RESTOCK_PUT;
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.RESTOCK_TAKE;
 
 /**
  * Taking an item out of a carried container: the server's half (SlotKit's item sources,
- * client chooses and server acts). Restock (ran out, broke, before break, ammo) and
- * pick block use it.
+ * client chooses and server acts). Restock (ran out, broke, before break, ammo), pick
+ * block and Auto Tool Switch use it.
  *
  * <p>Two requests, both answered on the server thread:
  * <ul>
@@ -97,7 +98,14 @@ public final class CarriedTake {
          * pick, which then finds it there and brings it to the hand. Judged as the hotbar
          * swap vanilla's pick is, so a slot lock that stops swaps stops it.
          */
-        PICK(BehaviorKeys.HOTBAR_SWAP);
+        PICK(BehaviorKeys.HOTBAR_SWAP),
+        /**
+         * Auto Tool Switch: the tool or weapon the client chose for the block or mob into
+         * an empty inventory slot, where the switch finds it. Only from a {@link Take}: which
+         * tool is best is the client's call, so the server never chooses one in the ender
+         * chest.
+         */
+        TOOL(AUTO_TOOL_SWITCH);
 
         /** The operation the item's top-level slot must allow. */
         final BehaviorKey<TriBool> take;
@@ -189,6 +197,7 @@ public final class CarriedTake {
         ItemStack probe = request.probe();
         if (probe.isEmpty()) return;
         Purpose purpose = request.purpose();
+        if (purpose == Purpose.TOOL) return;   // the client chooses tools; see Purpose.TOOL
         int room = room(player, purpose, request.target(), request.spare(), probe);
         if (room <= 0) return;
         Predicate<ItemStack> wanted = matcher(player, purpose, request.target(), probe);
@@ -231,6 +240,8 @@ public final class CarriedTake {
             }
             case AMMO -> s -> firesFrom(player.getMainHandItem(), s) || firesFrom(player.getOffhandItem(), s);
             case PICK -> s -> ItemStack.isSameItemSameComponents(s, probe);
+            // The client's choice, already checked to be the item it saw.
+            case TOOL -> s -> true;
         };
     }
 
@@ -254,8 +265,8 @@ public final class CarriedTake {
      *   <li>{@link Purpose#RESTOCK_SWAP}: a hotbar slot, the offhand or an armour slot that
      *       holds a damaged item and gives it up, with {@code spare} an empty inventory
      *       slot to take it; one item.</li>
-     *   <li>{@link Purpose#AMMO} and {@link Purpose#PICK}: an empty hotbar or main
-     *       inventory slot, a full stack.</li>
+     *   <li>{@link Purpose#AMMO}, {@link Purpose#PICK} and {@link Purpose#TOOL}: an empty
+     *       hotbar or main inventory slot, a full stack.</li>
      * </ul>
      */
     private static int room(ServerPlayer player, Purpose purpose, int target, int spare, ItemStack kind) {
@@ -283,7 +294,7 @@ public final class CarriedTake {
                 yield IPSlotOperations.allowsPlayerSlot(player, target, RESTOCK_PUT)
                         && IPSlotOperations.allowsPlayerSlot(player, target, RESTOCK_TAKE) ? 1 : 0;
             }
-            case AMMO, PICK -> emptyInventorySlot(player, target) ? kind.getMaxStackSize() : 0;
+            case AMMO, PICK, TOOL -> emptyInventorySlot(player, target) ? kind.getMaxStackSize() : 0;
         };
     }
 
