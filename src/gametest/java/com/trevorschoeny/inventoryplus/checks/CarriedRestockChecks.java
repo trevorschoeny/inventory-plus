@@ -8,7 +8,7 @@ import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockeditems.LockKind;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockgroups.Reach;
-import com.trevorschoeny.inventoryplus.nested.NestedRestock;
+import com.trevorschoeny.inventoryplus.nested.CarriedTake;
 
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -30,6 +30,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
+
+import static com.trevorschoeny.inventoryplus.checks.CarriedItems.bundle;
+import static com.trevorschoeny.inventoryplus.checks.CarriedItems.bundleItems;
+import static com.trevorschoeny.inventoryplus.checks.CarriedItems.clear;
+import static com.trevorschoeny.inventoryplus.checks.CarriedItems.contents;
+import static com.trevorschoeny.inventoryplus.checks.CarriedItems.menuSlot;
+import static com.trevorschoeny.inventoryplus.checks.CarriedItems.onServer;
+import static com.trevorschoeny.inventoryplus.checks.CarriedItems.shulker;
+
+import static com.trevorschoeny.inventoryplus.nested.CarriedTake.Purpose.RESTOCK;
 
 /**
  * Restock's "ran out" from inside carried containers (Emerald, steps 1 and 2). Each case
@@ -110,9 +120,9 @@ public class CarriedRestockChecks implements FabricClientGameTest {
             ItemStack renamed = new ItemStack(Items.COBBLESTONE, 30);
             renamed.set(DataComponents.CUSTOM_NAME, Component.literal("Not what's there"));
             ctx.runOnClient(mc -> {
-                ClientPlayNetworking.send(new NestedRestock.Take(shulkerSlot4, renamed, 0));          // wrong components
-                ClientPlayNetworking.send(new NestedRestock.Take(shulkerSlot4,
-                        new ItemStack(Items.COBBLESTONE, 30), 21));                                  // not a hotbar slot
+                ClientPlayNetworking.send(new CarriedTake.Take(shulkerSlot4, renamed, 0, RESTOCK));          // wrong components
+                ClientPlayNetworking.send(new CarriedTake.Take(shulkerSlot4,
+                        new ItemStack(Items.COBBLESTONE, 30), 21, RESTOCK));                                  // not a hotbar slot
             });
             ctx.waitTicks(5);
             onServer(world, p -> expect(p.getInventory().getItem(0).getCount() == 60
@@ -120,7 +130,7 @@ public class CarriedRestockChecks implements FabricClientGameTest {
                             && contents(p.getInventory().getItem(20)).get(4).getCount() == 30,
                     "a request with the wrong item, or for a slot that isn't the hotbar or offhand, does nothing"));
             ctx.runOnClient(mc -> ClientPlayNetworking.send(
-                    new NestedRestock.Take(shulkerSlot4, new ItemStack(Items.COBBLESTONE, 30), 0)));
+                    new CarriedTake.Take(shulkerSlot4, new ItemStack(Items.COBBLESTONE, 30), 0, RESTOCK)));
             ctx.waitTicks(5);
             onServer(world, p -> expect(p.getInventory().getItem(0).getCount() == 64
                             && contents(p.getInventory().getItem(20)).get(4).getCount() == 26,
@@ -133,8 +143,8 @@ public class CarriedRestockChecks implements FabricClientGameTest {
                 p.getEnderChestInventory().setItem(5, new ItemStack(Items.COBBLESTONE, 20));
             });
             ctx.waitTicks(5);
-            ctx.runOnClient(mc -> ClientPlayNetworking.send(new NestedRestock.FromEnderChest(
-                    new ItemStack(Items.COBBLESTONE), 0, false, false, 1 << 2)));
+            ctx.runOnClient(mc -> ClientPlayNetworking.send(new CarriedTake.FromEnderChest(
+                    new ItemStack(Items.COBBLESTONE), 0, RESTOCK, false, false, 1 << 2)));
             ctx.waitTicks(5);
             onServer(world, p -> expect(p.getInventory().getItem(0).getCount() == 20
                             && p.getEnderChestInventory().getItem(2).getCount() == 5,
@@ -199,50 +209,6 @@ public class CarriedRestockChecks implements FabricClientGameTest {
         ctx.waitTicks(10);
         onServer(world, p -> p.getInventory().setItem(slot, ItemStack.EMPTY));
         ctx.waitTicks(15);
-    }
-
-    private static void onServer(TestSingleplayerContext world, Consumer<ServerPlayer> action) {
-        world.getServer().runOnServer(server -> action.accept(server.getPlayerList().getPlayers().get(0)));
-    }
-
-    private static net.minecraft.world.inventory.Slot menuSlot(net.minecraft.world.entity.player.Player player, int containerSlot) {
-        return player.inventoryMenu.getSlot(PlayerMenuSlots.menuIndexOf(player.inventoryMenu, player, containerSlot));
-    }
-
-    // ── Building and reading items (as SlotKit's ItemSourcesChecks) ──
-
-    private static ItemStack shulker(Object... slotsAndStacks) {
-        ItemStack[] items = new ItemStack[27];
-        Arrays.fill(items, ItemStack.EMPTY);
-        for (int i = 0; i < slotsAndStacks.length; i += 2) items[(int) slotsAndStacks[i]] = (ItemStack) slotsAndStacks[i + 1];
-        ItemStack box = new ItemStack(Items.SHULKER_BOX);
-        box.set(DataComponents.CONTAINER, ItemContainerContents.fromItems(List.of(items)));
-        return box;
-    }
-
-    private static ItemStack bundle(ItemStack... items) {
-        ItemStack b = new ItemStack(Items.BUNDLE);
-        b.set(DataComponents.BUNDLE_CONTENTS, new BundleContents(Arrays.stream(items).map(ItemStackTemplate::fromNonEmptyStack).toList()));
-        return b;
-    }
-
-    private static List<ItemStack> contents(ItemStack shulker) {
-        List<ItemStack> out = new ArrayList<>();
-        for (int i = 0; i < 27; i++) out.add(ItemStack.EMPTY);
-        ItemContainerContents c = shulker.get(DataComponents.CONTAINER);
-        List<ItemStack> read = c == null ? List.of() : c.itemCopies().toList();
-        for (int i = 0; i < read.size(); i++) out.set(i, read.get(i));
-        return out;
-    }
-
-    private static List<ItemStack> bundleItems(ItemStack bundle) {
-        BundleContents c = bundle.get(DataComponents.BUNDLE_CONTENTS);
-        return c == null ? List.of() : c.itemCopies().toList();
-    }
-
-    private static void clear(ServerPlayer p) {
-        p.getInventory().clearContent();
-        p.getEnderChestInventory().clearContent();
     }
 
     private static void expect(boolean ok, String what) {

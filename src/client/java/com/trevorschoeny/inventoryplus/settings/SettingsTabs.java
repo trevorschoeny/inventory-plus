@@ -81,7 +81,8 @@ final class SettingsTabs {
 
     /** General's own settings back to default. Only Reset everything runs it. */
     private static void resetGeneral() {
-        IPConfig.reset("settingsOptionsLook", "compactTooltips");
+        IPConfig.reset("settingsOptionsLook", "compactTooltips",
+                "pickFromShulkers", "pickFromBundles", "pickFromEnderChest");
         resetKeys(IPKeybinds.OPEN_SETTINGS);
         // The look may have just gone back to the Default look, so reopen in it.
         SettingsMenu.reopen();
@@ -178,6 +179,16 @@ final class SettingsTabs {
                     SettingsMenu.reopen();
                 })
                 .build()), 20);
+        // Pick block reaches into carried containers when the inventory has none of
+        // the block (Emerald). Off until Trev picks the defaults; where these sit
+        // (here, or with Reach's places) is his call too.
+        b.heading("Pick block")
+                .checkbox("Pick from Shulker Boxes in your inventory",
+                        Bool.of(IPConfig::pickFromShulkers, IPConfig::setPickFromShulkers))
+                .checkbox("Pick from Bundles in your inventory",
+                        Bool.of(IPConfig::pickFromBundles, IPConfig::setPickFromBundles))
+                .checkbox("Pick from your Ender Chest",
+                        Bool.of(IPConfig::pickFromEnderChest, IPConfig::setPickFromEnderChest));
         b.heading("Presets")
                 .actions("Save or load a file", "Save to file", "Load from file")
                 .actions("Share by pasting", "Copy to clipboard", "Paste from clipboard");

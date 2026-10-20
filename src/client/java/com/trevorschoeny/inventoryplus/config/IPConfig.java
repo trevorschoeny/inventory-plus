@@ -80,6 +80,12 @@ public final class IPConfig {
     private static boolean restockItemsFromShulkers = false;
     private static boolean restockItemsFromBundles = false;
     private static boolean restockItemsFromEnderChest = false;
+    // Pick block from carried containers (Emerald): when the inventory has none of
+    // the picked block, take it from a shulker box, a bundle or the ender chest
+    // (General tab). Off until Trev picks the defaults.
+    private static boolean pickFromShulkers = false;
+    private static boolean pickFromBundles = false;
+    private static boolean pickFromEnderChest = false;
     // The four "use locked items" settings are gone: what a lock stops is its
     // lock group's choice in the reach record now. Their old values are still
     // read from the file once, for the 1.5.x migration of item locks
@@ -266,6 +272,9 @@ public final class IPConfig {
         restockItemsFromShulkers     = readBool(root, "restockItemsFromShulkers",     restockItemsFromShulkers);
         restockItemsFromBundles      = readBool(root, "restockItemsFromBundles",      restockItemsFromBundles);
         restockItemsFromEnderChest   = readBool(root, "restockItemsFromEnderChest",   restockItemsFromEnderChest);
+        pickFromShulkers             = readBool(root, "pickFromShulkers",             pickFromShulkers);
+        pickFromBundles              = readBool(root, "pickFromBundles",              pickFromBundles);
+        pickFromEnderChest           = readBool(root, "pickFromEnderChest",           pickFromEnderChest);
         autoRestockBeforeBreakThreshold = readInt(root, "autoRestockBeforeBreakThreshold",
                 autoRestockBeforeBreakThreshold);
         autoToolSwitchEnabled  = readBool(root, "autoToolSwitchEnabled",  autoToolSwitchEnabled);
@@ -380,6 +389,9 @@ public final class IPConfig {
         root.addProperty("restockItemsFromShulkers",    restockItemsFromShulkers);
         root.addProperty("restockItemsFromBundles",     restockItemsFromBundles);
         root.addProperty("restockItemsFromEnderChest",  restockItemsFromEnderChest);
+        root.addProperty("pickFromShulkers",            pickFromShulkers);
+        root.addProperty("pickFromBundles",             pickFromBundles);
+        root.addProperty("pickFromEnderChest",          pickFromEnderChest);
         root.addProperty("autoRestockBeforeBreakThreshold", autoRestockBeforeBreakThreshold);
         root.addProperty("autoToolSwitchEnabled",   autoToolSwitchEnabled);
         root.addProperty("autoToolSwitchReturnAuto", autoToolSwitchReturnAuto);
@@ -522,6 +534,9 @@ public final class IPConfig {
     public static boolean restockItemsFromShulkers()    { return restockItemsFromShulkers; }
     public static boolean restockItemsFromBundles()     { return restockItemsFromBundles; }
     public static boolean restockItemsFromEnderChest()  { return restockItemsFromEnderChest; }
+    public static boolean pickFromShulkers()            { return pickFromShulkers; }
+    public static boolean pickFromBundles()             { return pickFromBundles; }
+    public static boolean pickFromEnderChest()          { return pickFromEnderChest; }
     public static int autoRestockBeforeBreakThreshold() { return autoRestockBeforeBreakThreshold; }
     public static boolean autoToolSwitchEnabled()       { return autoToolSwitchEnabled; }
     public static boolean autoToolSwitchReturnAuto() { return autoToolSwitchReturnAuto; }
@@ -553,6 +568,9 @@ public final class IPConfig {
     public static void setRestockItemsFromShulkers(boolean v)    { restockItemsFromShulkers = v; save(); }
     public static void setRestockItemsFromBundles(boolean v)     { restockItemsFromBundles = v; save(); }
     public static void setRestockItemsFromEnderChest(boolean v)  { restockItemsFromEnderChest = v; save(); }
+    public static void setPickFromShulkers(boolean v)            { pickFromShulkers = v; save(); }
+    public static void setPickFromBundles(boolean v)             { pickFromBundles = v; save(); }
+    public static void setPickFromEnderChest(boolean v)          { pickFromEnderChest = v; save(); }
     public static void setAutoRestockBeforeBreakThreshold(int v) { autoRestockBeforeBreakThreshold = v; save(); }
     public static void setAutoToolSwitchEnabled(boolean v)       { autoToolSwitchEnabled = v; save(); }
     public static void setAutoToolSwitchReturnAuto(boolean v) { autoToolSwitchReturnAuto = v; save(); }

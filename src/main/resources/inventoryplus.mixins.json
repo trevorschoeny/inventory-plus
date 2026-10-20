@@ -9,6 +9,7 @@
     "CompoundContainerAccessor",
     "HudAccessor",
     "HudHotbarSlideMixin",
+    "MinecraftPickBlockMixin",
     "MouseHandlerScrollMixin",
     "MultiPlayerGameModeAttackMixin",
     "MultiPlayerGameModeBlockAttackMixin",
