@@ -3,10 +3,14 @@ package com.trevorschoeny.inventoryplus.checks;
 import static com.trevorschoeny.inventoryplus.checks.CarriedItems.clear;
 import static com.trevorschoeny.inventoryplus.checks.CarriedItems.onServer;
 
+import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
+import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
+import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCycler;
 import com.trevorschoeny.inventoryplus.lockeditems.LockKind;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockgroups.Reach;
+import com.trevorschoeny.inventoryplus.movematching.ScreenLayout;
 import com.trevorschoeny.inventoryplus.toolbar.PowerUsersToolbar;
 import com.trevorschoeny.inventoryplus.toolbar.Toolbar;
 
@@ -47,7 +51,8 @@ import java.util.function.Function;
  * creative's inventory tab, a chest) and nowhere else (creative's item tabs).
  * The gesture is Q on a slot, which the default Slot lock stops, sent through
  * the screen's own {@code slotClicked}, so creative's is judged at creative's
- * seam.
+ * seam. On creative's tabs the lock and cycle keys work, and from gameplay in
+ * creative both cyclers turn on the server.
  */
 public class ModeChecks implements FabricClientGameTest {
 
@@ -99,11 +104,14 @@ public class ModeChecks implements FabricClientGameTest {
             expectRefused(MAIN_LOCKED, "creative inventory tab: a locked main slot");
             expectRefused(HOTBAR_LOCKED, "creative inventory tab: a locked hotbar slot");
             expectTaken(MAIN_FREE, "creative inventory tab: an unlocked main slot");
+            keyChecks(MAIN_FREE, "creative inventory tab");
 
             selectTab(CreativeModeTabs.BUILDING_BLOCKS);
             expectShown(false, false, "creative item tab");
             expectRefused(HOTBAR_LOCKED, "creative item tab: a locked hotbar slot");
             expectTaken(HOTBAR_FREE, "creative item tab: an unlocked hotbar slot");
+            // The lock key works on the hotbar, the only player slots an item tab has.
+            lockKeyCheck(HOTBAR_FREE, "creative item tab");
 
             // Sort from creative's inventory tab lands on the server: the scattered
             // stacks merge, the locked slot keeps its own.
@@ -113,7 +121,14 @@ public class ModeChecks implements FabricClientGameTest {
             ctx.runOnClient(mc -> expect(!com.trevorschoeny.inventoryplus.sort.Sorter.canSort(
                             ((AbstractContainerScreen<?>) mc.gui.screen()).getMenu()),
                     "creative inventory tab: Sort sits out"));
-            ctx.setScreen(() -> null);
+            // Closed as a player closes it (E or Escape run onClose, which hands the
+            // player back the inventory menu); setScreen(null) would leave creative's
+            // item-picker menu in place.
+            ctx.runOnClient(mc -> mc.gui.screen().onClose());
+            ctx.waitTicks(3);
+
+            // The cyclers turn in creative from gameplay, on the server.
+            cyclerChecks(world);
 
             // A chest while in creative: both toolbars, and the locks still hold.
             stock(world);
@@ -167,6 +182,104 @@ public class ModeChecks implements FabricClientGameTest {
                             && p.getInventory().getItem(MAIN_LOCKED).getCount() == 10,
                     where + ": Sort leaves the locked slot's stone where it is");
         });
+    }
+
+    /**
+     * The keys on an open screen: L locks the slot under the mouse and L again
+     * unlocks it; C adds that slot to its column's cycle (Column Cycler on).
+     * Neither sends a click, so both work on creative's tabs today.
+     */
+    private void keyChecks(int index, String where) {
+        lockKeyCheck(index, where);
+        ctx.runOnClient(mc -> {
+            IPConfig.setColumnCyclerEnabled(true);
+            ColumnCycler.setCycle(index, false);
+        });
+        hover(index);
+        ctx.getInput().pressKey(IPKeybinds.CYCLE_SLOT);
+        ctx.waitTicks(4);
+        expect(ctx.computeOnClient(mc -> ColumnCycler.isCycleSlot(index)),
+                where + ": C adds the slot under the mouse to its column's cycle");
+        ctx.runOnClient(mc -> {
+            ColumnCycler.setCycle(index, false);
+            IPConfig.setColumnCyclerEnabled(false);
+        });
+    }
+
+    private void lockKeyCheck(int index, String where) {
+        hover(index);
+        ctx.getInput().pressKey(IPKeybinds.LOCK_SLOT);
+        ctx.waitTicks(4);
+        expect(isLocked(index), where + ": L locks the slot under the mouse");
+        ctx.getInput().pressKey(IPKeybinds.LOCK_SLOT);
+        ctx.waitTicks(4);
+        expect(!isLocked(index), where + ": L again unlocks it");
+    }
+
+    private boolean isLocked(int index) {
+        return ctx.computeOnClient(mc -> LockedSlots.isLockedSlot(
+                invSlot(((AbstractContainerScreen<?>) mc.gui.screen()).getMenu(), mc.player, index)));
+    }
+
+    /**
+     * In creative, from gameplay: the column key turns a column's cycle and the
+     * hotbar key turns a row through the hotbar, and the server has the result.
+     */
+    private void cyclerChecks(TestSingleplayerContext world) {
+        int top = 9 + 4, row0col6 = HotbarCycler.firstSlotOf(0) + 6;
+        onServer(world, p -> {
+            clear(p);
+            p.getInventory().setItem(top, new ItemStack(Items.COBBLESTONE, 3));
+            p.getInventory().setItem(4, new ItemStack(Items.DIRT, 7));
+            p.getInventory().setItem(row0col6, new ItemStack(Items.OAK_LOG, 2));
+            p.getInventory().setItem(6, new ItemStack(Items.SAND, 5));
+        });
+        ctx.waitTicks(5);
+        ctx.runOnClient(mc -> {
+            IPConfig.setColumnCyclerEnabled(true);
+            ColumnCycler.setCycle(top, true);
+            mc.player.getInventory().setSelectedSlot(4);
+        });
+        ctx.getInput().pressKey(IPKeybinds.CYCLE_FORWARD);
+        ctx.waitTicks(10);
+        String client = ctx.computeOnClient(mc -> mc.player.getInventory().getItem(4) + " / "
+                + mc.player.getInventory().getItem(top) + " sel " + mc.player.getInventory().getSelectedSlot()
+                + " cycle " + ColumnCycler.isCycleSlot(top) + " menu " + mc.player.containerMenu.getClass().getSimpleName()
+                + " screen " + mc.gui.screen());
+        onServer(world, p -> {
+            expect(p.getInventory().getItem(4).is(Items.COBBLESTONE) && p.getInventory().getItem(top).is(Items.DIRT),
+                    "creative, gameplay: the column key brings the column's item into the hotbar (server "
+                            + p.getInventory().getItem(4) + " / " + p.getInventory().getItem(top) + "; client " + client + ")");
+        });
+        ctx.runOnClient(mc -> {
+            ColumnCycler.setCycle(top, false);
+            IPConfig.setColumnCyclerEnabled(false);
+            IPConfig.setHotbarCyclerEnabled(true);
+            HotbarCycler.setRow(0, true);
+        });
+        ctx.getInput().pressKey(IPKeybinds.HOTBAR_CYCLE_FORWARD);
+        ctx.waitTicks(10);
+        onServer(world, p -> {
+            expect(p.getInventory().getItem(6).is(Items.OAK_LOG) && p.getInventory().getItem(row0col6).is(Items.SAND),
+                    "creative, gameplay: the hotbar key turns the row through the hotbar");
+        });
+        ctx.runOnClient(mc -> {
+            HotbarCycler.setRow(0, false);
+            IPConfig.setHotbarCyclerEnabled(false);
+        });
+    }
+
+    /** Puts the cursor over the open screen's slot for inventory slot {@code index}. */
+    private void hover(int index) {
+        double[] at = ctx.computeOnClient(mc -> {
+            AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) mc.gui.screen();
+            Slot slot = invSlot(screen.getMenu(), mc.player, index);
+            double scale = (double) mc.getWindow().getScreenWidth() / mc.getWindow().getGuiScaledWidth();
+            return new double[]{(ScreenLayout.leftPos(screen) + slot.x + 8) * scale,
+                    (ScreenLayout.topPos(screen) + slot.y + 8) * scale};
+        });
+        ctx.getInput().setCursorPos(at[0], at[1]);
+        ctx.waitTicks(2);
     }
 
     /** "stacks x total" of the dirt in the main inventory. */
