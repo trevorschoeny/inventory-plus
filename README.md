@@ -11,6 +11,7 @@ It's client-side, so it works on any server.
 - Refills the stack in your hand from your inventory when it runs out.
 - Replaces a broken tool or armor piece with the same item from your inventory, or the closest match you have.
 - Can also swap out a tool or armor piece just before it breaks. You set how low its durability gets before it swaps.
+- Can also take from shulker boxes and bundles in your inventory, and from your ender chest, when your inventory has nothing that fits. It's off by default.
 
 ### Sort
 
@@ -29,6 +30,7 @@ It's client-side, so it works on any server.
 - Puts the right tool in your hand when you start mining a block.
 - Can also switch to a weapon when you attack a mob, using the weapon type you prefer.
 - Switches back to what you were holding a moment after you stop, or when you press a key.
+- Can also take a tool or weapon from a shulker box or bundle in your inventory.
 - It's off until you turn it on.
 
 ### Lock groups
@@ -42,6 +44,7 @@ It's client-side, so it works on any server.
 
 - Decides which slots each move is allowed to use, for every Inventory Plus feature and for vanilla moves like shift-clicking and dropping.
 - Each lock group has a checkbox under each move, so you choose exactly what a lock stops.
+- Also sets whether Restock, Auto Tool Switch, and pick block may take from shulker boxes and bundles in your inventory, and from your ender chest.
 
 ### Tooltips
 
@@ -65,8 +68,8 @@ It's client-side, so it works on any server.
 ## Requirements
 
 - [Keybindery](https://modrinth.com/mod/keybindery) 1.1.0 or newer, for the keys and the key buttons in the settings menu.
-- [MenuKit](https://modrinth.com/mod/menukit) 7.2.0 or newer, below 8.0.0, which draws the buttons, the settings menu, the strip beside the hotbar, and the tooltip changes.
-- [SlotKit](https://modrinth.com/mod/slotkit) 1.1.0 or newer, below 2.0.0, which tells Inventory Plus what each slot is, so locks and Reach know what a move may touch.
+- [MenuKit](https://modrinth.com/mod/menukit) 7.3.0 or newer, below 8.0.0, which draws the buttons, the settings menu, the strip beside the hotbar, and the tooltip changes.
+- [SlotKit](https://modrinth.com/mod/slotkit) 2.0.0 or newer, below 3.0.0, which tells Inventory Plus what each slot is, so locks and Reach know what a move may touch.
 - [Fabric API](https://modrinth.com/mod/fabric-api).
 
 ## Pairs well with
@@ -123,10 +126,11 @@ Restock is on by default and works while you play, with no screen open.
 - When the stack in your hand or offhand runs out, it's refilled with the same item from your hotbar or inventory.
 - When a tool or armor piece breaks, it's replaced with the same item. If you don't have one, it's replaced with the best item of the same kind you have, such as an iron pickaxe for a broken diamond one.
 - With Swap before it breaks turned on, a tool or armor piece is swapped for a fresher one once its durability drops to the number you set.
+- Restock can also take from a shulker box or bundle in your inventory, or from your ender chest, when your inventory has nothing that fits. This is set on the Reach tab, separately for items, tools, armor, and ammo (arrows or rockets for the bow or crossbow in your hand), and each starts off.
 - Restock never takes from a slot locked with Slot lock.
 
 | Setting on the Restock tab | Default |
-|---|---|
+| --- | --- |
 | Restock (the switch) | On |
 | Show the Restock button | On |
 | Swap before breaking at durability | 10 (from 2 to 50) |
@@ -143,11 +147,12 @@ Auto Tool Switch is off by default. Turn it on with its switch in the inventory'
 - When you start mining a block, the best tool you have for it is put in your hand. If the tool is in your hotbar, the selected slot changes. If it's in your inventory, it's swapped into your hand.
 - With Switch weapons too turned on, attacking a hostile mob puts a weapon in your hand. Your preferred weapon type is used when you have it, whatever its material. Turn on All mobs, not just hostile ones to switch for every mob.
 - Hold Sneak to mine or attack without switching.
+- When your inventory and hand have no tool or weapon that fits, it can take one from a shulker box or bundle in your inventory. This is set on the Reach tab and starts off. Your ender chest isn't searched, since the tool is picked on your side and the game doesn't show you what's in a closed ender chest.
 - By default, your hotbar switches back to what you were holding 1 second after you stop. You can change the wait, turn it off, or use a key instead.
 - It does nothing in creative.
 
 | Setting on the Auto Tool Switch tab | Default |
-|---|---|
+| --- | --- |
 | Auto Tool Switch (the switch) | Off |
 | Show the Auto Tool Switch button | On |
 | Switch back automatically | On |
@@ -173,12 +178,14 @@ To lock something:
 - Slot locks work in your inventory (armor and offhand included), your ender chest, and any chest, barrel, shulker box, hopper, or dispenser you open. Locks in placed containers are kept on your computer, so they work on any server.
 - Left-click the Lock groups switch to pause every lock without deleting any.
 
-On the Lock groups tab:
+On the Lock groups tab, your groups are a list:
 
 - Show the lock button (on) shows or hides the Lock groups switch.
-- Each group has a section where you can see its kind and key, pick one of the 16 dye colors, and rename it. Slot lock's key is the Lock Slot key, and the other groups have no key of their own, since L applies whichever group is picked.
-- The + Slot group, + Item group, and + Exact item group buttons make a new group. An Item group locks every item of one type, so locking one diamond pickaxe locks every diamond pickaxe.
-- A group you made can be deleted. Its locks move to Slot lock or Exact item, except an Item group's, which are removed. The menu asks first and says how many locks it affects.
+- Click a group to open its settings. They show its kind and key, Color, which opens a picker with the 16 dye colors on one tab and any color on its Custom tab, and Rename. Slot lock's key is the Lock Slot key, and the other groups have no key of their own, since L applies whichever group is picked.
+- An Item or Exact item group also lists the items it locks. Click the empty slot to pick one from a searchable grid of every item, or remove one with its corner button. These are kept per world, so pick them while you're in one.
+- The + Slot group, + Item group, and + Exact item group buttons above the list make a new group. An Item group locks every item of one type, so locking one diamond pickaxe locks every diamond pickaxe.
+- The order of the list is the order the Lock groups switch goes through when you right-click it. Move a group up or down with the arrows above the list. Slot lock and Exact item stay at the top.
+- A group you made can be deleted with the button above the list. Its locks move to Slot lock or Exact item, except an Item group's, which are removed. It asks first and says how many locks it affects.
 - Reset to Defaults removes every group you made and every lock, in every world.
 
 What each group stops can be changed in Reach.
@@ -189,6 +196,8 @@ The Reach tab lists every move that can change your slots, under Vanilla, Invent
 
 - For example, clearing Exact item in the Restock takes from section stops Restock from using items locked with Exact item.
 - Clearing Slot lock in the Auto Tool Switch section stops Auto Tool Switch from taking tools out of locked slots.
+- The Restock takes from, Auto Tool Switch, and Pick block sections also have boxes for the shulker boxes and bundles in your inventory, and Restock and Pick block have one for your ender chest. Restock's are split into items, tools, armor, and ammo. They all start off.
+- With those boxes ticked, pick block takes the picked block's item from those containers when your inventory has none. Creative isn't affected.
 - The closed section shows how many boxes are on and which lock groups stop the move. A move that's new since you last opened the tab is marked new.
 - Revert to default puts one move back. Reset to Defaults at the top puts every move back.
 
@@ -202,7 +211,7 @@ The Tooltips switch is on by default. Turning it off leaves every tooltip as van
 - With Dock tooltips at top or bottom turned on, a tooltip that would open beside your mouse sits at the bottom center of the screen instead, or at the top center when your mouse is down there.
 
 | Setting on the Tooltips tab | Default |
-|---|---|
+| --- | --- |
 | Dock tooltips at top or bottom | Off |
 | Hide tooltips until the mouse moves | On |
 | Hold a key to hide tooltips | On |
@@ -229,13 +238,13 @@ On the General tab:
 
 - Open Settings sets the key that opens the menu.
 - Compact tooltips: short, one line on inventory buttons (off) shortens the buttons' tooltips to one line.
-- Look switches the menu between Default, which looks like Minecraft's Options screens, and Panel, which looks like a container.
+- Look switches the menu between Default, which looks like Minecraft's Options screens (the default), and Panel, which looks like a container. The button names the look in use, and clicking it switches to the other.
 - Reset everything puts every setting in the menu back to its default and removes every lock, after asking.
 
 Every key is also in Minecraft's Controls menu, under Inventory Plus.
 
 | Key | Default |
-|---|---|
+| --- | --- |
 | Lock Slot | L |
 | Sort | S |
 | Move Matching Out of Inventory | O |
@@ -243,8 +252,8 @@ Every key is also in Minecraft's Controls menu, under Inventory Plus.
 | Toggle Cycle Slot | C |
 | Column Cycle Forward | Up arrow |
 | Column Cycle Backward | Down arrow |
-| Hotbar Cycle Forward | ] |
-| Hotbar Cycle Backward | [ |
+| Hotbar Cycle Forward | \] |
+| Hotbar Cycle Backward | \[ |
 | Auto-Switch: Return to Previous Tool | Left Shift |
 | Open Settings | Not set |
 | Hide Tooltips | Space |
@@ -260,7 +269,7 @@ Column Cycler is off by default. Turn it on from its tab. To put its switch in t
 - With Scroll to cycle on, scrolling the mouse wheel on a hotbar slot with a cycle rotates the cycle instead of changing slots. Turning it on turns off Hotbar Cycler's Scroll to cycle, since there is one wheel.
 
 | Setting on the Column Cycler tab | Default |
-|---|---|
+| --- | --- |
 | Column Cycler (the switch) | Off |
 | Beside the hotbar | Mini hotbar (or Off) |
 | Show the Column Cycler button | Off |
@@ -274,17 +283,17 @@ Column Cycler is off by default. Turn it on from its tab. To put its switch in t
 Hotbar Cycler is off by default. Turn it on from its tab. To put its switch in the inventory's right column, turn on Show the Hotbar Cycler button.
 
 - Hover a row of your inventory and a small button appears at its left. Click it to add the row to the cycle, or click it again to take the row out. Buttons of rows in the cycle stay visible.
-- Press ] to bring the next row down into your hotbar and [ to send it back up. Items keep their columns, and the hotbar slides to show the change.
+- Press \] to bring the next row down into your hotbar and \[ to send it back up. Items keep their columns, and the hotbar slides to show the change.
 - The keys work with no screen open and in your inventory, including with a chest open. They only move your own rows.
 - With Scroll to cycle on, the mouse wheel rotates the rows instead of changing hotbar slots. Turning it on turns off Column Cycler's Scroll to cycle.
 
 | Setting on the Hotbar Cycler tab | Default |
-|---|---|
+| --- | --- |
 | Hotbar Cycler (the switch) | Off |
 | Show the Hotbar Cycler button | Off |
 | Show the row buttons | On |
-| Hotbar Cycle Forward | ] |
-| Hotbar Cycle Backward | [ |
+| Hotbar Cycle Forward | \] |
+| Hotbar Cycle Backward | \[ |
 | Scroll to cycle | Off |
 
 ## For mod developers
