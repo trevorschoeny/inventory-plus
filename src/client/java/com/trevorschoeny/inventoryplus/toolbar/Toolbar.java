@@ -4,6 +4,7 @@ import com.trevorschoeny.inventoryplus.movematching.MoveMatchingButtons;
 import com.trevorschoeny.inventoryplus.sort.SortButton;
 
 import com.trevlar.menukit.api.element.Flow;
+import com.trevlar.menukit.api.panel.ModeScope;
 import com.trevlar.menukit.api.panel.Panel;
 import com.trevlar.menukit.api.element.PanelElement;
 import com.trevlar.menukit.api.panel.PanelPosition;
@@ -11,11 +12,8 @@ import com.trevlar.menukit.api.panel.PanelStyle;
 import com.trevlar.slotkit.api.group.SlotGroupCategory;
 import com.trevlar.menukit.api.panel.OutsideRegion;
 import com.trevlar.slotkit.api.group.SlotGroupPanelAdapter;
+import com.trevlar.slotkit.api.slot.SlotPlacement;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 
 import java.util.List;
 
@@ -53,18 +51,20 @@ import java.util.List;
  *
  * <h3>Per-screen scope</h3>
  *
+ * <p>Every panel is placed in both modes, around a slot group, and shows
+ * wherever that group is on the open screen. No screen check.
+ *
  * <ul>
- *   <li>Inventory toolbar: the panel's visibleWhen excludes Creative. It is
- *       anchored to {@link SlotGroupCategory#PLAYER_INVENTORY}, so it
- *       appears on every container screen with a 3x9 main inventory group,
- *       which is nearly all non-creative ones.</li>
- *   <li>External toolbar: anchored to the four sortable storage
+ *   <li>Inventory toolbar: around {@link SlotGroupCategory#PLAYER_INVENTORY},
+ *       so it appears on every screen with the 3x9 main inventory, creative's
+ *       inventory tab included, and not on creative's item tabs, which have
+ *       none.</li>
+ *   <li>External toolbars: one around each of the four sortable storage
  *       categories ({@link SlotGroupCategory#CHEST_STORAGE},
  *       {@link SlotGroupCategory#SHULKER_STORAGE},
  *       {@link SlotGroupCategory#DISPENSER_STORAGE},
- *       {@link SlotGroupCategory#HOPPER_STORAGE}). The category filter
- *       handles visibility, so it hides on specialized UIs (furnace, anvil,
- *       enchanting table) whose slot groups aren't in the list.</li>
+ *       {@link SlotGroupCategory#HOPPER_STORAGE}), so they hide on specialized
+ *       UIs (furnace, anvil, enchanting table) whose groups aren't in the list.</li>
  * </ul>
  *
  * <h3>Adding buttons</h3>
@@ -86,37 +86,57 @@ public final class Toolbar {
     }
 
     /**
-     * Anchored above the player's 3x9 main inventory. Holds Move Matching out
-     * and in, and Sort. Hidden in Creative, because the creative item picker
-     * isn't a real inventory.
+     * Anchored above the player's 3x9 main inventory, in both modes. Holds
+     * Move Matching out and in, and Sort. Shows wherever that group is on the
+     * open screen: the survival inventory, any container, and creative's
+     * inventory tab, but not creative's item tabs, which have no main
+     * inventory (presence comes from the group, not a screen check).
      */
     private static void registerInventoryToolbar() {
-        Panel panel = Panel.builder("inventoryplus.toolbar.inventory")
+        Panel panel = inventoryToolbar = Panel.builder("inventoryplus.toolbar.inventory")
                 .elements(buildInventoryChildren())
                 .style(PanelStyle.NONE)
-                .position(PanelPosition.region(OutsideRegion.TOP_ALIGN_RIGHT))
-                .visibleWhen(Toolbar::isToolbarScope)
+                .in(ModeScope.BOTH, SlotPlacement.group(SlotGroupCategory.PLAYER_INVENTORY,
+                        PanelPosition.region(OutsideRegion.TOP_ALIGN_RIGHT)))
                 .build();
-        new SlotGroupPanelAdapter(panel)
-                .on(SlotGroupCategory.PLAYER_INVENTORY);
+        new SlotGroupPanelAdapter(panel);
     }
 
+    /** The containers a Sort button sits above. */
+    private static final List<SlotGroupCategory> SORTABLE = List.of(
+            SlotGroupCategory.CHEST_STORAGE, SlotGroupCategory.SHULKER_STORAGE,
+            SlotGroupCategory.DISPENSER_STORAGE, SlotGroupCategory.HOPPER_STORAGE);
+
     /**
-     * Anchored above the external container's slot group (chest, shulker,
-     * dispenser, hopper). Holds that container's Sort. The category filter
-     * alone controls visibility.
+     * One toolbar above each sortable container's slot group (chest, shulker,
+     * dispenser, hopper), in both modes, holding that container's Sort. A
+     * placement names one group, so each category is its own panel.
      */
     private static void registerExternalToolbar() {
-        Panel panel = Panel.builder("inventoryplus.toolbar.external")
-                .elements(buildExternalChildren())
-                .style(PanelStyle.NONE)
-                .position(PanelPosition.region(OutsideRegion.TOP_ALIGN_RIGHT))
-                .build();
-        new SlotGroupPanelAdapter(panel)
-                .on(SlotGroupCategory.CHEST_STORAGE,
-                    SlotGroupCategory.SHULKER_STORAGE,
-                    SlotGroupCategory.DISPENSER_STORAGE,
-                    SlotGroupCategory.HOPPER_STORAGE);
+        for (SlotGroupCategory category : SORTABLE) {
+            Panel panel = Panel.builder("inventoryplus.toolbar.external." + category.path())
+                    .elements(buildExternalChildren())
+                    .style(PanelStyle.NONE)
+                    .in(ModeScope.BOTH, SlotPlacement.group(category,
+                            PanelPosition.region(OutsideRegion.TOP_ALIGN_RIGHT)))
+                    .build();
+            new SlotGroupPanelAdapter(panel);
+            externalToolbars.add(panel);
+        }
+    }
+
+    // The panels, for the self-checks to ask whether they show (placedBounds).
+    private static Panel inventoryToolbar;
+    private static final List<Panel> externalToolbars = new java.util.ArrayList<>();
+
+    /** The toolbar above the player inventory. */
+    public static Panel inventoryToolbar() {
+        return inventoryToolbar;
+    }
+
+    /** The toolbars above the sortable containers, one per category. */
+    public static List<Panel> externalToolbars() {
+        return List.copyOf(externalToolbars);
     }
 
     /**
@@ -141,9 +161,4 @@ public final class Toolbar {
         return List.of(sort);
     }
 
-    private static boolean isToolbarScope() {
-        Screen screen = Minecraft.getInstance().gui.screen();
-        return screen instanceof AbstractContainerScreen<?>
-                && !(screen instanceof CreativeModeInventoryScreen);
-    }
 }

@@ -8,7 +8,9 @@ import com.trevlar.menukit.api.panel.Panel;
 import com.trevlar.menukit.api.element.TextLabel;
 import com.trevlar.menukit.api.element.PanelElement;
 import com.trevlar.menukit.api.panel.OutsideRegion;
+import com.trevlar.menukit.api.panel.ModeScope;
 import com.trevlar.menukit.api.panel.PanelPosition;
+import com.trevlar.menukit.api.panel.Placement;
 import com.trevlar.menukit.api.panel.PanelStyle;
 import com.trevlar.menukit.api.element.Tabs;
 import com.trevlar.menukit.api.panel.MKScreen;
@@ -289,7 +291,7 @@ public final class SettingsMenu extends MKScreen {
     private static Panel donePanel() {
         return Panel.builder("inventoryplus:settings_done")
                 .style(PanelStyle.NONE)
-                .position(PanelPosition.region(OutsideRegion.BOTTOM_CENTER))
+                .in(ModeScope.BOTH, Placement.screen(PanelPosition.region(OutsideRegion.BOTTOM_CENTER)))
                 .add(Button.builder().label(CommonComponents.GUI_DONE).size(200, 20)
                         .onClick(() -> Minecraft.getInstance().gui.screen().onClose()).build())
                 .build();
@@ -335,7 +337,7 @@ public final class SettingsMenu extends MKScreen {
                 .build();
         Panel.Builder panel = Panel.builder("inventoryplus:settings")
                 .style(options ? PanelStyle.NONE : PanelStyle.RAISED)
-                .position(PanelPosition.main());
+                .in(ModeScope.BOTH, Placement.screen(PanelPosition.main()));
         if (!options) panel.add(nameBar());
         return panel.add(tabs).build();
     }

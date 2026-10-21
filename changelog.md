@@ -1,3 +1,16 @@
+## 3.3.0
+
+Requires MenuKit 7.4.0 or newer and SlotKit 2.1.0 or newer.
+
+### Fixed
+
+- Locks and Reach now hold in creative, on the inventory tab and on item tabs, as they do in survival.
+- The hotbar's slide when Hotbar Cycler turns now ends when the strip's does.
+
+### Changed
+
+- The feature buttons on the right now show on creative's inventory tab too. They stay off item tabs, which have no inventory.
+
 ## 3.2.0
 
 ### Added

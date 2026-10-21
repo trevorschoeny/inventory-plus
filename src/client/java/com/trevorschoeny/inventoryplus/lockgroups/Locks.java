@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.lockgroups;
 
+import com.trevlar.menukit.api.panel.ModeScope;
 import com.trevlar.slotkit.api.window.SlotOperations;
 import com.trevlar.slotkit.api.window.SlotRef;
 
@@ -52,9 +53,13 @@ public final class Locks {
 
     private Locks() {}
 
-    /** Once, at client init. */
+    /**
+     * Once, at client init. In both modes: a lock and a slot group's reach
+     * hold in creative as in survival (SlotKit judges creative's
+     * clicks at their own seam).
+     */
     public static void registerVeto() {
-        SlotOperations.veto((ref, group, operation) -> {
+        SlotOperations.veto(ModeScope.BOTH, (ref, group, operation) -> {
             boolean denied = denies(ref, group, operation);
             if (denied && PROBED.contains(operation.id().toString())) probe(ref, group, operation);
             return denied;

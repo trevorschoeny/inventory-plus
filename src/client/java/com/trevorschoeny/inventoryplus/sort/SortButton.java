@@ -68,7 +68,8 @@ public final class SortButton {
                                 SortState.MODE, identity, pinHere)))
                 .onSecondaryClick(gestures::accept)
                 .tint(ModeGestures.tint(SortState.MODE, identity, feedback))
-                .visibleWhen(() -> IPConfig.sortEnabled() && IPConfig.sortShowButton())
+                .visibleWhen(() -> IPConfig.sortEnabled() && IPConfig.sortShowButton()
+                        && (openMenu() == null || Sorter.canSort(openMenu())))
                 .build();
     }
 

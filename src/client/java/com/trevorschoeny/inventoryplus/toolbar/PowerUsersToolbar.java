@@ -4,6 +4,7 @@ import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 
 import com.trevlar.menukit.api.element.Button;
 import com.trevlar.menukit.api.element.Flow;
+import com.trevlar.menukit.api.panel.ModeScope;
 import com.trevlar.menukit.api.panel.Panel;
 import com.trevlar.menukit.api.element.PanelElement;
 import com.trevlar.menukit.api.panel.PanelPosition;
@@ -11,13 +12,11 @@ import com.trevlar.menukit.api.panel.PanelStyle;
 import com.trevlar.slotkit.api.group.SlotGroupCategory;
 import com.trevlar.menukit.api.panel.OutsideRegion;
 import com.trevlar.slotkit.api.group.SlotGroupPanelAdapter;
+import com.trevlar.slotkit.api.slot.SlotPlacement;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
@@ -44,9 +43,9 @@ import java.util.List;
  *
  * <h3>Per-screen scope</h3>
  *
- * Anchored to {@link SlotGroupCategory#PLAYER_INVENTORY} like the
- * inventory toolbar. The panel's {@code visibleWhen} excludes Creative,
- * because the creative item picker isn't a real inventory.
+ * Placed around {@link SlotGroupCategory#PLAYER_INVENTORY} in both modes,
+ * like the inventory toolbar: wherever the main inventory is, creative's
+ * inventory tab included, and not on creative's item tabs.
  */
 public final class PowerUsersToolbar {
 
@@ -63,15 +62,23 @@ public final class PowerUsersToolbar {
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> registerPanel());
     }
 
+    private static Panel column;
+
+    /** The column, for the self-checks to ask whether it shows; null before client start. */
+    public static Panel panel() {
+        return column;
+    }
+
     private static void registerPanel() {
-        Panel panel = Panel.builder("inventoryplus.toolbar.power-users")
+        Panel panel = column = Panel.builder("inventoryplus.toolbar.power-users")
                 .elements(buildChildren())
                 .style(PanelStyle.NONE)
-                .position(PanelPosition.region(OutsideRegion.RIGHT_ALIGN_TOP))
-                .visibleWhen(PowerUsersToolbar::isToolbarScope)
+                // Both modes: beside the main inventory wherever it is, creative's
+                // inventory tab included, never on an item tab.
+                .in(ModeScope.BOTH, SlotPlacement.group(SlotGroupCategory.PLAYER_INVENTORY,
+                        PanelPosition.region(OutsideRegion.RIGHT_ALIGN_TOP)))
                 .build();
-        new SlotGroupPanelAdapter(panel)
-                .on(SlotGroupCategory.PLAYER_INVENTORY);
+        new SlotGroupPanelAdapter(panel);
     }
 
     /**
@@ -106,9 +113,4 @@ public final class PowerUsersToolbar {
                 .build();
     }
 
-    private static boolean isToolbarScope() {
-        Screen screen = Minecraft.getInstance().gui.screen();
-        return screen instanceof AbstractContainerScreen<?>
-                && !(screen instanceof CreativeModeInventoryScreen);
-    }
 }

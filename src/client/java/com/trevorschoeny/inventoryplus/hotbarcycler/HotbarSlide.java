@@ -32,7 +32,8 @@ public final class HotbarSlide {
     private HotbarSlide() {}
 
     private static ItemStack @Nullable [] outgoing;
-    private static long startMillis;
+    /** MenuKit's slide start, on its own clock (System.currentTimeMillis never reported done). */
+    private static HudCycleStrip.SlideStart start = HudCycleStrip.begin();
     private static HudCycleStrip.Direction direction = HudCycleStrip.Direction.FORWARD;
 
     /**
@@ -43,13 +44,13 @@ public final class HotbarSlide {
         if (outgoingSnapshot == null || outgoingSnapshot.length != HotbarCycler.COLUMNS) return;
         outgoing = outgoingSnapshot;
         direction = dir;
-        startMillis = System.currentTimeMillis();
+        start = HudCycleStrip.begin();
     }
 
     /** True while a slide is running. Clears itself the first time it's asked after the end. */
     public static boolean isActive() {
         if (outgoing == null) return false;
-        if (HudCycleStrip.slideDone(startMillis)) {
+        if (HudCycleStrip.slideDone(start)) {
             outgoing = null;
             return false;
         }
@@ -58,7 +59,7 @@ public final class HotbarSlide {
 
     /** Eased progress, 0 to 1 (with the spring's brief overshoot). Only meaningful while active. */
     public static float progress() {
-        return HudCycleStrip.slideProgress(startMillis);
+        return HudCycleStrip.slideProgress(start);
     }
 
     public static HudCycleStrip.Direction direction() {

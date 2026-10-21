@@ -7,6 +7,7 @@ import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.SORT;
 import com.trevlar.slotkit.api.window.SlotOperations;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -72,6 +73,18 @@ import java.util.Map;
 public final class Sorter {
 
     private Sorter() {}
+
+    /**
+     * Whether Sort's clicks reach {@code menu}. They are container clicks sent
+     * to the server, which creative's item-picker menu (its inventory tab)
+     * doesn't apply: creative screens apply clicks their own way. So Sort sits
+     * out there until SlotKit offers a click path that works on creative's
+     * screen. A chest opened in creative is an ordinary container menu and
+     * sorts.
+     */
+    public static boolean canSort(AbstractContainerMenu menu) {
+        return !(menu instanceof CreativeModeInventoryScreen.ItemPickerMenu);
+    }
 
     /**
      * Sorts the given region. The caller resolves the region (sortable

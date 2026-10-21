@@ -5,7 +5,9 @@ import com.trevorschoeny.inventoryplus.config.IPConfig;
 
 import com.trevlar.menukit.api.panel.Panel;
 import com.trevlar.menukit.api.element.PanelElement;
+import com.trevlar.menukit.api.panel.ModeScope;
 import com.trevlar.menukit.api.panel.PanelPosition;
+import com.trevlar.menukit.api.panel.Placement;
 import com.trevlar.menukit.api.panel.PanelStyle;
 import com.trevlar.menukit.api.element.Toggle;
 import com.trevlar.menukit.api.panel.ScreenOrigin;
@@ -93,7 +95,9 @@ public final class HotbarCyclerRowButtons {
                 .elements(List.of(button))
                 .visible(true)
                 .style(PanelStyle.NONE)
-                .position(PanelPosition.pixel(() -> rowButtonOrigin(r)))
+                // Both modes: the origin is null wherever the row isn't on the
+                // menu (creative's item tabs have no inventory rows), which hides it.
+                .in(ModeScope.BOTH, Placement.screen(PanelPosition.pixel(() -> rowButtonOrigin(r))))
                 .build()
                 // The button floats in the frame margin beside the grid. Clicks
                 // that miss it must reach vanilla, or the margin would swallow a
@@ -136,7 +140,7 @@ public final class HotbarCyclerRowButtons {
                 .elements(List.of(indicator))
                 .visible(true)
                 .style(PanelStyle.NONE)
-                .position(PanelPosition.pixel(HotbarCyclerRowButtons::hotbarIndicatorOrigin))
+                .in(ModeScope.BOTH, Placement.screen(PanelPosition.pixel(HotbarCyclerRowButtons::hotbarIndicatorOrigin)))
                 .build()
                 .opaque(false);
         new ScreenPanelAdapter(panel, 0).onPlayerInventory();

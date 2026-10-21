@@ -106,9 +106,8 @@ public final class SlotGroupDetector {
      * standalone survival inventory) is excluded by not being listed, with
      * no dynamic "is a container present?" check. A feature that wants
      * buttons inside the standalone inventory adds its own widgets with
-     * their own positioning.
-     *
-     * <p>CreativeModeInventoryScreen is also excluded.
+     * their own positioning. Creative's inventory screen isn't one of them:
+     * it pairs the inventory with no container.
      */
     public static boolean isMoveMatchingScreen(Screen screen) {
         return screen instanceof ContainerScreen
