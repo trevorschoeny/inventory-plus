@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.autorestock;
 
+import com.trevlar.menukit.api.panel.ModeScope;
 import com.trevlar.slotkit.api.window.BehaviorKeys;
 
 import com.trevorschoeny.inventoryplus.carried.CarriedFetch;
@@ -115,7 +116,7 @@ final class CarriedRestock {
             return;
         }
         CarriedFetch.Reach reach = ammo();
-        if (!reach.any() || player.hasInfiniteMaterials()) return;
+        if (!reach.any() || !ModeScope.SURVIVAL.includes(player)) return;
         ItemStack weapon = player.getMainHandItem().getItem() instanceof ProjectileWeaponItem
                 ? player.getMainHandItem() : player.getOffhandItem();
         if (!(weapon.getItem() instanceof ProjectileWeaponItem ranged)) return;

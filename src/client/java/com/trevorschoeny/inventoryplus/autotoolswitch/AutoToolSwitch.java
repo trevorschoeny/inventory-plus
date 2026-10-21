@@ -9,6 +9,7 @@ import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
 
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.AUTO_TOOL_SWITCH;
 
+import com.trevlar.menukit.api.panel.ModeScope;
 import com.trevlar.slotkit.api.window.SlotOperations;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -171,7 +172,7 @@ public final class AutoToolSwitch {
         if (!IPConfig.autoToolSwitchEnabled()) return;
         // Never auto-switch in creative: instant-break and infinite items make
         // it pointless, and a switch there is just noise.
-        if (player.isCreative()) return;
+        if (!ModeScope.SURVIVAL.includes(player)) return;
         // Sneak suppression: the player wants exact control.
         if (player.isShiftKeyDown()) return;
         // Commit-at-start: skip if a switch is already in flight
@@ -207,7 +208,7 @@ public final class AutoToolSwitch {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || !player.getUUID().equals(mc.player.getUUID())) return;
         if (!IPConfig.autoToolSwitchEnabled()) return;
-        if (player.isCreative()) return;
+        if (!ModeScope.SURVIVAL.includes(player)) return;
         // Weapons toggle gates the combat path entirely.
         if (!IPConfig.autoToolSwitchWeapons()) return;
         // Only LivingEntity targets. Projectiles, items and so on don't get

@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.carried;
 
+import com.trevlar.menukit.api.panel.ModeScope;
 import com.trevlar.slotkit.api.window.BehaviorKeys;
 
 import com.trevorschoeny.inventoryplus.config.IPConfig;
@@ -37,7 +38,7 @@ public final class CarriedPick {
     public static void beforePick(Minecraft mc) {
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null || mc.gameMode == null) return;
-        if (player.hasInfiniteMaterials()) return;
+        if (!ModeScope.SURVIVAL.includes(player)) return;
         CarriedFetch.Reach reach = new CarriedFetch.Reach(IPConfig.pickFromShulkers(),
                 IPConfig.pickFromBundles(), IPConfig.pickFromEnderChest());
         if (!reach.any()) return;
