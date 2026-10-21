@@ -10,6 +10,8 @@ Requires MenuKit 7.4.0 or newer and SlotKit 2.1.0 or newer.
 ### Changed
 
 - The feature buttons on the right now show on creative's inventory tab too. They stay off item tabs, which have no inventory.
+- Sort works on creative's inventory tab, with its button and its key.
+- Column Cycler's keys turn a column in creative's inventory too, on the inventory tab and, with the mouse on a hotbar slot, on item tabs.
 
 ## 3.2.0
 

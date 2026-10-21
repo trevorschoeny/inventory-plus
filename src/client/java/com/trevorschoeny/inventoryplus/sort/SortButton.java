@@ -68,8 +68,9 @@ public final class SortButton {
                                 SortState.MODE, identity, pinHere)))
                 .onSecondaryClick(gestures::accept)
                 .tint(ModeGestures.tint(SortState.MODE, identity, feedback))
-                .visibleWhen(() -> IPConfig.sortEnabled() && IPConfig.sortShowButton()
-                        && (openMenu() == null || Sorter.canSort(openMenu())))
+                // Creative's inventory tab sorts too: SlotKit runs Sort's clicks
+                // through creative's own click path there (fluorite 29ecf6b).
+                .visibleWhen(() -> IPConfig.sortEnabled() && IPConfig.sortShowButton())
                 .build();
     }
 

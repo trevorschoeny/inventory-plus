@@ -13,12 +13,14 @@ import com.trevlar.slotkit.api.window.SlotOperations;
 import com.trevlar.slotkit.api.window.TriBool;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -175,6 +177,14 @@ public final class ColumnCyclerRotator {
             return false;
         }
 
+        // A creative item tab shows only the hotbar, so the ring's inventory
+        // slots aren't on the open menu and no click can reach them. Creative
+        // sets slots directly instead, as the creative screen does itself.
+        if (menu instanceof CreativeModeInventoryScreen.ItemPickerMenu
+                && !allOnMenu(containerSlots, menu, player)) {
+            return rotateByCreativeSet(containerSlots, direction, feature, take, put, player, gameMode);
+        }
+
         // A slot that refuses the operation sits the rotation out: it keeps its
         // item and the ring turns around it. Locks refuse through the veto
         // (Locks), so a locked item stays put the same way. Both cyclers
@@ -222,6 +232,51 @@ public final class ColumnCyclerRotator {
                 gameMode.handleContainerInput(containerId, slotIdx, hotbar, ContainerInput.SWAP, player);
             }
         });
+        return true;
+    }
+
+    /** Whether every slot of the ring is on {@code menu}. */
+    private static boolean allOnMenu(List<Integer> containerSlots, AbstractContainerMenu menu, LocalPlayer player) {
+        for (int containerSlot : containerSlots) {
+            if (PlayerMenuSlots.menuIndexOf(menu, player, containerSlot) < 0) return false;
+        }
+        return true;
+    }
+
+    /**
+     * The rotation on a creative item tab: the ring's new contents are worked
+     * out here and each changed slot is set on the client and sent with
+     * {@code handleCreativeModeItemAdd}, the packet creative uses to set any
+     * inventory slot on the server. Locks are judged against the player's
+     * inventory menu, which holds every ring slot, so a refused slot sits out
+     * exactly as it does for a click rotation. Same result as the swaps:
+     * forward, each item moves one place toward the hotbar and the hotbar's
+     * wraps to the top; backward, the reverse.
+     */
+    private static boolean rotateByCreativeSet(List<Integer> containerSlots, Direction direction, String feature,
+                                               BehaviorKey<TriBool> take, BehaviorKey<TriBool> put,
+                                               LocalPlayer player, MultiPlayerGameMode gameMode) {
+        AbstractContainerMenu inventoryMenu = player.inventoryMenu;
+        List<Integer> ring = withoutRefused(containerSlots, inventoryMenu, player, take, put, feature);
+        int n = ring.size();
+        if (n < 2) return false;
+        int hotbar = ring.get(n - 1);
+        if (hotbar < 0 || hotbar > 8) return false;
+
+        Inventory inv = player.getInventory();
+        ItemStack[] before = new ItemStack[n];
+        for (int i = 0; i < n; i++) before[i] = inv.getItem(ring.get(i)).copy();
+
+        AutoRestockSuppression.markExternalChange(hotbar);
+        for (int i = 0; i < n; i++) {
+            ItemStack now = direction == Direction.FORWARD ? before[(i + n - 1) % n] : before[(i + 1) % n];
+            if (ItemStack.matches(now, before[i])) continue;
+            int menuIdx = PlayerMenuSlots.menuIndexOf(inventoryMenu, player, ring.get(i));
+            if (menuIdx < 0) continue;
+            inv.setItem(ring.get(i), now.copy());
+            gameMode.handleCreativeModeItemAdd(now.copy(), menuIdx);
+        }
+        InventoryPlusClient.LOGGER.debug("[{}] rotated {} slots by creative set (item tab)", feature, n);
         return true;
     }
 

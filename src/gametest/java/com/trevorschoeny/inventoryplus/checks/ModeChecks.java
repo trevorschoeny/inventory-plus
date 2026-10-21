@@ -51,8 +51,10 @@ import java.util.function.Function;
  * creative's inventory tab, a chest) and nowhere else (creative's item tabs).
  * The gesture is Q on a slot, which the default Slot lock stops, sent through
  * the screen's own {@code slotClicked}, so creative's is judged at creative's
- * seam. On creative's tabs the lock and cycle keys work, and from gameplay in
- * creative both cyclers turn on the server.
+ * seam. On creative's tabs the lock and cycle keys work, Sort sorts the
+ * inventory tab and has nothing to sort on an item tab, the column keys turn
+ * a column on either tab, and from gameplay in creative both cyclers turn on
+ * the server.
  */
 public class ModeChecks implements FabricClientGameTest {
 
@@ -98,9 +100,8 @@ public class ModeChecks implements FabricClientGameTest {
                     "creative: the inventory opens as the creative screen");
 
             selectTab(CreativeModeTabs.INVENTORY);
-            // The column shows; the toolbar has nothing to show, since Sort sits out
-            // there and Move Matching is for containers.
-            expectShown(false, true, "creative's inventory tab");
+            // Both show: the toolbar holds Sort (Move Matching is for containers).
+            expectShown(true, true, "creative's inventory tab");
             expectRefused(MAIN_LOCKED, "creative inventory tab: a locked main slot");
             expectRefused(HOTBAR_LOCKED, "creative inventory tab: a locked hotbar slot");
             expectTaken(MAIN_FREE, "creative inventory tab: an unlocked main slot");
@@ -113,14 +114,18 @@ public class ModeChecks implements FabricClientGameTest {
             // The lock key works on the hotbar, the only player slots an item tab has.
             lockKeyCheck(HOTBAR_FREE, "creative item tab");
 
-            // Sort from creative's inventory tab lands on the server: the scattered
-            // stacks merge, the locked slot keeps its own.
+            // An item tab has no main inventory: Sort has nothing to sort there, and
+            // the cycle keys on a hotbar slot turn its column, on the server.
+            sortNothingCheck(world, "creative item tab");
+            screenCycleCheck(world, HOTBAR_FREE, "creative item tab");
+
+            // Creative's inventory tab: Sort lands on the server (the scattered
+            // stacks merge, the locked slot keeps its own), and the cycle keys on
+            // a cycle slot turn its column (SlotKit fluorite 29ecf6b runs both
+            // through creative's own click path).
             selectTab(CreativeModeTabs.INVENTORY);
-            // Sort sits out on creative's inventory tab: its clicks don't reach
-            // creative's item-picker menu (Sorter.canSort; a SlotKit gap).
-            ctx.runOnClient(mc -> expect(!com.trevorschoeny.inventoryplus.sort.Sorter.canSort(
-                            ((AbstractContainerScreen<?>) mc.gui.screen()).getMenu()),
-                    "creative inventory tab: Sort sits out"));
+            sortChecks(world, "creative inventory tab");
+            screenCycleCheck(world, 9 + HOTBAR_FREE, "creative inventory tab");
             // Closed as a player closes it (E or Escape run onClose, which hands the
             // player back the inventory menu); setScreen(null) would leave creative's
             // item-picker menu in place.
@@ -181,6 +186,64 @@ public class ModeChecks implements FabricClientGameTest {
             expect(p.getInventory().getItem(MAIN_LOCKED).is(Items.STONE)
                             && p.getInventory().getItem(MAIN_LOCKED).getCount() == 10,
                     where + ": Sort leaves the locked slot's stone where it is");
+        });
+    }
+
+    /**
+     * Sort on a screen with no main inventory (a creative item tab) changes
+     * nothing: the scattered dirt stays two stacks on the server.
+     */
+    private void sortNothingCheck(TestSingleplayerContext world, String where) {
+        onServer(world, p -> {
+            clear(p);
+            p.getInventory().setItem(30, new ItemStack(Items.DIRT, 5));
+            p.getInventory().setItem(12, new ItemStack(Items.DIRT, 7));
+        });
+        ctx.waitTicks(10);
+        ctx.getInput().setCursorPos(1, 1);
+        ctx.getInput().pressKey(IPKeybinds.SORT);
+        ctx.waitTicks(15);
+        onServer(world, p -> expect(dirtStacks(p.getInventory()).equals("2x12"),
+                where + ": Sort has nothing to sort and leaves the dirt as it was"));
+    }
+
+    /**
+     * The cycle keys on an open screen, with the mouse on {@code hoverIndex}
+     * (a slot of the column): forward brings the column's top item into the
+     * hotbar slot, back puts it back, and the server has each result. Column
+     * 4's cycle is its top slot alone, so the ring is that slot and hotbar 4.
+     */
+    private void screenCycleCheck(TestSingleplayerContext world, int hoverIndex, String where) {
+        int top = 9 + HOTBAR_FREE;
+        onServer(world, p -> {
+            clear(p);
+            p.getInventory().setItem(top, new ItemStack(Items.COBBLESTONE, 3));
+            p.getInventory().setItem(HOTBAR_FREE, new ItemStack(Items.DIRT, 7));
+        });
+        ctx.waitTicks(10);
+        ctx.runOnClient(mc -> {
+            IPConfig.setColumnCyclerEnabled(true);
+            ColumnCycler.setCycle(top, true);
+        });
+        hover(hoverIndex);
+        ctx.getInput().pressKey(IPKeybinds.CYCLE_FORWARD);
+        ctx.waitTicks(10);
+        String client = ctx.computeOnClient(mc -> mc.player.getInventory().getItem(HOTBAR_FREE) + " / "
+                + mc.player.getInventory().getItem(top));
+        onServer(world, p -> expect(p.getInventory().getItem(HOTBAR_FREE).is(Items.COBBLESTONE)
+                        && p.getInventory().getItem(top).is(Items.DIRT),
+                where + ": the forward key brings the column's item into the hotbar (server "
+                        + p.getInventory().getItem(HOTBAR_FREE) + " / " + p.getInventory().getItem(top)
+                        + "; client " + client + ")"));
+        ctx.getInput().pressKey(IPKeybinds.CYCLE_BACKWARD);
+        ctx.waitTicks(10);
+        onServer(world, p -> expect(p.getInventory().getItem(HOTBAR_FREE).is(Items.DIRT)
+                        && p.getInventory().getItem(top).is(Items.COBBLESTONE),
+                where + ": the back key puts it back (server "
+                        + p.getInventory().getItem(HOTBAR_FREE) + " / " + p.getInventory().getItem(top) + ")"));
+        ctx.runOnClient(mc -> {
+            ColumnCycler.setCycle(top, false);
+            IPConfig.setColumnCyclerEnabled(false);
         });
     }
 
