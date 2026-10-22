@@ -7,6 +7,7 @@ import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCycler;
+import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCyclerRowButtons;
 import com.trevorschoeny.inventoryplus.lockeditems.LockKind;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockgroups.Reach;
@@ -126,6 +127,7 @@ public class ModeChecks implements FabricClientGameTest {
             selectTab(CreativeModeTabs.INVENTORY);
             sortChecks(world, "creative inventory tab");
             screenCycleCheck(world, 9 + HOTBAR_FREE, "creative inventory tab");
+            screenHotbarCycleCheck(world, "creative inventory tab");
             // Closed as a player closes it (E or Escape run onClose, which hands the
             // player back the inventory menu); setScreen(null) would leave creative's
             // item-picker menu in place.
@@ -244,6 +246,38 @@ public class ModeChecks implements FabricClientGameTest {
         ctx.runOnClient(mc -> {
             ColumnCycler.setCycle(top, false);
             IPConfig.setColumnCyclerEnabled(false);
+        });
+    }
+
+    /**
+     * Hotbar Cycler's forward key with the screen named by {@code where} open
+     * (creative's inventory tab): no hover needed, since the key turns
+     * whichever rows are in the cycle (HotbarCyclerKeybind's class doc).
+     */
+    private void screenHotbarCycleCheck(TestSingleplayerContext world, String where) {
+        int row0col6 = HotbarCycler.firstSlotOf(0) + 6;
+        onServer(world, p -> {
+            clear(p);
+            p.getInventory().setItem(row0col6, new ItemStack(Items.OAK_LOG, 2));
+            p.getInventory().setItem(6, new ItemStack(Items.SAND, 5));
+        });
+        ctx.waitTicks(10);
+        ctx.runOnClient(mc -> {
+            IPConfig.setHotbarCyclerEnabled(true);
+            HotbarCycler.setRow(0, true);
+        });
+        ctx.waitTicks(2);
+        // Row 0 is toggled on, so its button stays visible without a hover.
+        expect(ctx.computeOnClient(mc -> HotbarCyclerRowButtons.row0Panel().placedBounds() != null),
+                where + ": row 0's cycle button shows");
+        ctx.getInput().pressKey(IPKeybinds.HOTBAR_CYCLE_FORWARD);
+        ctx.waitTicks(10);
+        onServer(world, p -> expect(p.getInventory().getItem(6).is(Items.OAK_LOG)
+                        && p.getInventory().getItem(row0col6).is(Items.SAND),
+                where + ": the hotbar key turns the row through the hotbar with the screen open"));
+        ctx.runOnClient(mc -> {
+            HotbarCycler.setRow(0, false);
+            IPConfig.setHotbarCyclerEnabled(false);
         });
     }
 

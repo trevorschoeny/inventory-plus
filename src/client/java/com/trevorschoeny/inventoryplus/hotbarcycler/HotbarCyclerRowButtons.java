@@ -78,6 +78,14 @@ public final class HotbarCyclerRowButtons {
 
     // Toggleable rows
 
+    // Row 0's panel, for the self-check to ask whether it shows (placedBounds).
+    private static Panel row0Panel;
+
+    /** Row 0's button panel; null before {@link #register}. */
+    public static Panel row0Panel() {
+        return row0Panel;
+    }
+
     private static void registerRow(int row) {
         final int r = row;
         PanelElement button = Toggle.builder().sprite(TEXTURE).size(BUTTON_SIZE, BUTTON_SIZE)
@@ -104,6 +112,7 @@ public final class HotbarCyclerRowButtons {
                 // carried item the player meant to drop outside the panel.
                 .opaque(false);
         new ScreenPanelAdapter(panel, 0).onPlayerInventory();
+        if (r == 0) row0Panel = panel;
     }
 
     /**
