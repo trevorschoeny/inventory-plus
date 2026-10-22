@@ -36,7 +36,8 @@ import java.util.Set;
  * already in it, and the sources are every other non-hotbar slot). OUT makes
  * it the source (the match set and destinations are the other slots, and an
  * item goes only into a container that already holds it). The match set
- * always comes from the receiving side.
+ * always comes from the receiving side. The hotbar joins the player's side
+ * where Reach allows it, which by default it does not.
  *
  * <h3>Modes, decided per item type</h3>
  *
@@ -64,8 +65,8 @@ import java.util.Set;
  *
  * Vanilla's quick move routes to "the other half" and fills the hotbar
  * first in chest screens. Explicit PICKUPs place into chosen slots, stop
- * when the eligible ones are full, and honour the hotbar exclusion and
- * locked slots in both directions.
+ * when the eligible ones are full, and honor Reach and locks in both
+ * directions.
  */
 public final class MoveMatchingExecutor {
 
@@ -83,15 +84,23 @@ public final class MoveMatchingExecutor {
 
         Inventory playerInv = player.getInventory();
         List<Slot> otherSlots = collectOtherSlots(menu, clickedGroup, playerInv);
+        // The player's side is the main inventory and the hotbar. Reach leaves
+        // the hotbar out of both keys by default (Move Matching's Hotbar box),
+        // so it takes part only once the player ticks it there.
+        List<Slot> hotbar = hotbarSlots(menu, playerInv);
+        List<Slot> playerSide = new ArrayList<>(clickedGroup.slots());
+        playerSide.addAll(hotbar);
 
         List<Slot> matchSetSlots, sourceCandidates, destinationSlots;
         if (direction == Direction.IN) {
-            matchSetSlots = clickedGroup.slots();
+            // The hotbar's kinds count only where Move Matching may fill it.
+            matchSetSlots = new ArrayList<>(clickedGroup.slots());
+            for (Slot h : hotbar) if (SlotOperations.allows(menu, h, player, MOVE_MATCHING_IN)) matchSetSlots.add(h);
             sourceCandidates = otherSlots;
-            destinationSlots = clickedGroup.slots();
+            destinationSlots = playerSide;
         } else {
             matchSetSlots = otherSlots;
-            sourceCandidates = new ArrayList<>(clickedGroup.slots());
+            sourceCandidates = playerSide;
             destinationSlots = otherSlots;
         }
 
@@ -291,6 +300,13 @@ public final class MoveMatchingExecutor {
             result.add(slot);
         }
         return result;
+    }
+
+    /** The player's hotbar slots on {@code menu}, in order. */
+    private static List<Slot> hotbarSlots(AbstractContainerMenu menu, Inventory playerInv) {
+        List<Slot> out = new ArrayList<>(9);
+        for (Slot slot : menu.slots) if (isHotbarSlot(slot, playerInv)) out.add(slot);
+        return out;
     }
 
     private static boolean isHotbarSlot(Slot slot, Inventory playerInv) {

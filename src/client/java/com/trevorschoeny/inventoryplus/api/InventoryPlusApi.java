@@ -24,6 +24,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
@@ -256,5 +257,21 @@ public final class InventoryPlusApi {
     public static void denyInReach(BehaviorKey<?> operation, Collection<SlotGroupId> groups) {
         com.trevorschoeny.inventoryplus.lockgroups.Reach.setDenied(operation.id().toString(),
                 groups.stream().map(SlotGroupId::asString).toList(), true);
+    }
+
+    /**
+     * Keeps every operation off {@code groups} by default except
+     * {@code allowed}, as unticked boxes in the Reach tab that the player can
+     * tick. For a companion whose slots hold things the player placed on
+     * purpose (Hotbar Pockets' pockets): a pickup, a shift-click in or a sort
+     * would otherwise fill them or empty them. The companion's own operation
+     * belongs in {@code allowed}. A player who has changed an operation's
+     * reach keeps exactly what they saved. Call once at client init.
+     */
+    public static void protectInReach(Collection<SlotGroupId> groups, Collection<BehaviorKey<?>> allowed) {
+        Set<String> allowedIds = new java.util.HashSet<>();
+        for (BehaviorKey<?> op : allowed) allowedIds.add(op.id().toString());
+        com.trevorschoeny.inventoryplus.lockgroups.Reach.denyByDefault(
+                groups.stream().map(SlotGroupId::asString).toList(), op -> !allowedIds.contains(op));
     }
 }

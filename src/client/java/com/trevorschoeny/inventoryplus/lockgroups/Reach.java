@@ -7,6 +7,7 @@ import com.google.gson.JsonObject;
 
 import com.trevorschoeny.inventoryplus.lockeditems.LockKind;
 
+import com.trevlar.slotkit.api.group.SlotGroupCategory;
 import com.trevlar.slotkit.api.group.SlotGroupId;
 
 import org.jetbrains.annotations.Nullable;
@@ -24,6 +25,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.IntPredicate;
+import java.util.function.Predicate;
 
 /**
  * The reach record: one record, kept by the player, that
@@ -46,12 +48,14 @@ import java.util.function.IntPredicate;
  *
  * <h2>The default, computed by kind</h2>
  *
- * <p>An operation with no entry denies no slot group and no place, and denies
- * a lock group exactly when that group's kind's default does
- * ({@link #SLOT_LOCK_DENIES}, {@link #EXACT_ITEM_DENIES}; Item groups copy
- * Exact item). So an untouched operation treats a new custom group like its
- * kind's default without anything being written, and a changed default table
- * reaches everyone who never touched that operation.
+ * <p>An operation with no entry denies a lock group exactly when that group's
+ * kind's default does ({@link #SLOT_LOCK_DENIES}, {@link #EXACT_ITEM_DENIES};
+ * Item groups copy Exact item), denies the slot groups its slot-group defaults
+ * name ({@link #denyByDefault}: the hotbar for Move Matching, a companion's
+ * protected slots), and denies no feature group and no place. So an untouched
+ * operation treats a new custom group like its kind's default without
+ * anything being written, and a changed default table reaches everyone who
+ * never touched that operation.
  *
  * <h2>Keys</h2>
  *
@@ -107,18 +111,64 @@ public final class Reach {
 
     // The two defaults' tables
 
-    /** What Slot lock stops by default. */
+    /**
+     * What Slot lock stops by default. A Slot lock keeps a slot's place in the
+     * layout: automation leaves it alone and nothing lands in it on its own.
+     * What the player does to it on purpose (a click, a number key, F) still
+     * works, and so do the moves that put things back (Restock refilling it,
+     * Auto Tool Switch's return) and the cyclers, which turn it with its row.
+     */
     public static final Set<String> SLOT_LOCK_DENIES = Set.of(
             "inventoryplus:sort", "inventoryplus:move_matching_out", "inventoryplus:move_matching_in",
             "menukit:shift_click_in", "menukit:shift_click_out", "menukit:collect",
             "menukit:world_pickup", "menukit:drop", "menukit:drop_stack", "menukit:drag_fill",
-            "menukit:hotbar_swap", "menukit:offhand_swap", "inventoryplus:restock_take");
+            "inventoryplus:restock_take");
 
-    /** What Exact item stops by default. Item groups copy it. */
+    /**
+     * What Exact item stops by default. Item groups copy it. An item lock keeps
+     * the item with the player: the moves that send it away (Q, shift-click
+     * out, Move Matching out) and Sort. Collect, the cyclers and topping up a
+     * locked stack keep it on the player, so they work. Only items on the
+     * player count ({@code Locks}).
+     */
     public static final Set<String> EXACT_ITEM_DENIES = Set.of(
-            "menukit:drop", "menukit:drop_stack", "menukit:shift_click_out", "menukit:collect",
-            "inventoryplus:sort", "inventoryplus:move_matching_out", "inventoryplus:move_matching_in",
-            "inventoryplus:column_cycle", "inventoryplus:hotbar_cycle");
+            "menukit:drop", "menukit:drop_stack", "menukit:shift_click_out",
+            "inventoryplus:sort", "inventoryplus:move_matching_out");
+
+    // Slot-group defaults
+
+    /**
+     * Slot groups an operation leaves alone until the player ticks their boxes.
+     *
+     * @param keys       the slot-group keys denied
+     * @param operations the operation ids the default applies to
+     */
+    private record GroupDefault(Set<String> keys, Predicate<String> operations) {}
+
+    private static final Set<String> MOVE_MATCHING = Set.of(
+            "inventoryplus:move_matching_out", "inventoryplus:move_matching_in");
+
+    /** Move Matching never takes from or fills the hotbar unless the player ticks it. */
+    private static final List<GroupDefault> GROUP_DEFAULTS = new CopyOnWriteArrayList<>(List.of(
+            new GroupDefault(Set.of(new SlotGroupId.Category(SlotGroupCategory.PLAYER_HOTBAR).asString()),
+                    MOVE_MATCHING::contains)));
+
+    /**
+     * Denies slot groups {@code keys} by default to every operation
+     * {@code operations} accepts, as unticked boxes the player can tick. Once
+     * per caller, at client init. An operation whose reach the player has
+     * changed uses exactly what was saved instead.
+     */
+    public static void denyByDefault(java.util.Collection<String> keys, Predicate<String> operations) {
+        GROUP_DEFAULTS.add(new GroupDefault(Set.copyOf(keys), Objects.requireNonNull(operations, "operations")));
+    }
+
+    /** The slot-group keys {@code operation} leaves alone when it has no entry. */
+    private static Set<String> defaultGroupDenies(String operation) {
+        Set<String> out = new HashSet<>();
+        for (GroupDefault d : GROUP_DEFAULTS) if (d.operations().test(operation)) out.addAll(d.keys());
+        return out;
+    }
 
     // Feature reach groups
 
@@ -139,9 +189,9 @@ public final class Reach {
 
     /**
      * Registers a feature's slots as a reach group. Once per feature, at client
-     * init. A feature's key is denied by default to every operation Slot lock
-     * stops by default ({@link #SLOT_LOCK_DENIES}), which is what the cyclers'
-     * old derived Slot lock did; its own operation is never denied.
+     * init. No operation is denied a feature's slots by default: a cycled slot
+     * is an ordinary slot until the player unticks its box. Its own operation
+     * is never denied.
      */
     public static void registerFeature(String key, String label, String owner, IntPredicate members) {
         if (!isFeatureKey(key)) throw new IllegalArgumentException("[reach] not a feature key: " + key);
@@ -164,22 +214,7 @@ public final class Reach {
     public static boolean featureDenies(String key, String operation) {
         for (Feature f : FEATURES) if (f.key().equals(key) && f.owner().equals(operation)) return false;
         Set<String> entry = state.denied().get(operation);
-        return entry != null ? entry.contains(key) : SLOT_LOCK_DENIES.contains(operation);
-    }
-
-    /**
-     * The upgrade for a player who had a cycle-lock switch off: every
-     * operation that denies one of {@code keys} stops denying it, written as
-     * explicit entries, so the old answer survives the defaults.
-     */
-    public static void allowEverywhere(String... keys) {
-        Set<String> ops = new TreeSet<>(SLOT_LOCK_DENIES);
-        ops.addAll(state.denied().keySet());
-        for (String op : ops) {
-            List<String> allowed = new ArrayList<>();
-            for (String key : keys) if (featureDenies(key, op)) allowed.add(key);
-            if (!allowed.isEmpty()) setDenied(op, allowed, false);
-        }
+        return entry != null && entry.contains(key);
     }
 
     /** The default group of {@code kind}: what a new group copies and an orphaned lock falls back to. */
@@ -204,8 +239,9 @@ public final class Reach {
      *
      * @param lockDenies lock group id to the operations it stops, defaults and
      *                   entries combined
-     * @param groupDenies operation id to the slot-group and place keys it may
-     *                    not use (only entries can deny these)
+     * @param groupDenies operation id to the slot-group and place keys its
+     *                    entry denies (an operation with no entry uses
+     *                    {@link #defaultGroupDenies})
      */
     private record State(Map<String, Set<String>> denied, List<LockGroup> groups, Set<String> seen,
                          String active, Map<String, LockGroup> byId,
@@ -294,7 +330,9 @@ public final class Reach {
 
     /** True when {@code operation} may not use slot group or place {@code key}. */
     public static boolean denies(String operation, String key) {
-        Set<String> keys = state.groupDenies().get(operation);
+        State s = state;
+        if (!s.denied().containsKey(operation)) return defaultGroupDenies(operation).contains(key);
+        Set<String> keys = s.groupDenies().get(operation);
         return keys != null && keys.contains(key);
     }
 
@@ -502,7 +540,7 @@ public final class Reach {
     /**
      * The set of keys {@code operation} may not use as it stands: its entry,
      * or for an operation without one, the lock groups the kind defaults stop
-     * and the features denied by default.
+     * and its slot-group defaults.
      */
     public static Set<String> effectiveDenied(String operation) {
         State s = state;
@@ -512,15 +550,19 @@ public final class Reach {
         for (LockGroup g : s.groups()) {
             if (defaultDenies(g.kind()).contains(operation)) out.add(g.reachKey());
         }
-        for (Feature f : FEATURES) {
-            if (featureDenies(f.key(), operation)) out.add(f.key());
-        }
+        out.addAll(defaultGroupDenies(operation));
         return Collections.unmodifiableSet(out);
     }
 
     // Persistence (the "reach" object in config.json)
 
-    private static final int VERSION = 1;
+    /**
+     * 2 cleared every saved choice once, so every player moved to the
+     * defaults of that release (cycled slots unprotected, item locks letting
+     * the cyclers and Collect through, Slot lock letting number keys and F
+     * through, pockets protected). A file below 2 is read without its choices.
+     */
+    private static final int VERSION = 2;
 
     /**
      * A saved key as this MenuKit writes it. MenuKit 6.0.0 renamed a category
@@ -550,7 +592,9 @@ public final class Reach {
             return;
         }
         Map<String, Set<String>> denied = new TreeMap<>();
-        if (json.has("denied") && json.get("denied").isJsonObject()) {
+        boolean current = json.has("version") && json.get("version").isJsonPrimitive()
+                && json.get("version").getAsInt() >= VERSION;
+        if (current && json.has("denied") && json.get("denied").isJsonObject()) {
             for (var e : json.getAsJsonObject("denied").entrySet()) {
                 if (retired(e.getKey())) continue;
                 Set<String> keys = new HashSet<>();

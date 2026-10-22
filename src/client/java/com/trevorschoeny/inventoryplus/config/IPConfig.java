@@ -261,13 +261,7 @@ public final class IPConfig {
             String json = Files.readString(path);
             JsonObject root = JsonParser.parseString(json).getAsJsonObject();
             apply(root);
-            legacyUsesLockedItems = new LegacyUsesLockedItems(
-                    readBool(root, "autoRestockArmorUsesLockedItems", true),
-                    readBool(root, "autoRestockToolUsesLockedItems", true),
-                    readBool(root, "autoRestockItemUsesLockedItems", true),
-                    readBool(root, "autoToolSwitchUsesLockedItems", true));
-            legacyCycleLocks = new LegacyCycleLocks(
-                    readBool(root, "cycleSlotsLocked", true), readBool(root, "lockCycledRows", true));
+            legacyCycleSlotsLocked = readBool(root, "cycleSlotsLocked", true);
             Reach.read(root.has("reach") && root.get("reach").isJsonObject() ? root.getAsJsonObject("reach") : null);
             InventoryPlusClient.LOGGER.info("[config] loaded from {}", path);
         } catch (IOException | JsonSyntaxException | IllegalStateException e) {
@@ -491,30 +485,12 @@ public final class IPConfig {
     }
 
     /**
-     * The four removed "use locked items" settings as the file last held them
-     * (true when absent, their old default). Read by the 1.5.x migration only.
+     * The removed "Lock the slots the cyclers use" switch as the file last held
+     * it (true when absent, its default), for the 1.5.x pairing drop in LockedSlots.
      */
-    public record LegacyUsesLockedItems(boolean restockArmor, boolean restockTool, boolean restockItem,
-                                        boolean autoToolSwitch) {}
+    private static boolean legacyCycleSlotsLocked = true;
 
-    private static LegacyUsesLockedItems legacyUsesLockedItems = new LegacyUsesLockedItems(true, true, true, true);
-
-    public static LegacyUsesLockedItems legacyUsesLockedItems() { return legacyUsesLockedItems; }
-
-    /**
-     * The two removed cycle-lock switches as the file last held them (true
-     * when absent, their default): "Lock the slots the cyclers use" and
-     * Hotbar Cycler's "Lock cycled rows". Read by the upgrade to feature reach
-     * groups only.
-     */
-    public record LegacyCycleLocks(boolean cycleSlotsLocked, boolean lockCycledRows) {}
-
-    private static LegacyCycleLocks legacyCycleLocks = new LegacyCycleLocks(true, true);
-
-    public static LegacyCycleLocks legacyCycleLocks() { return legacyCycleLocks; }
-
-    /** The old global switch as the file held it, for the 1.5.x pairing drop in LockedSlots. */
-    public static boolean legacyCycleSlotsLocked() { return legacyCycleLocks.cycleSlotsLocked(); }
+    public static boolean legacyCycleSlotsLocked() { return legacyCycleSlotsLocked; }
 
     public static boolean sortEnabled()              { return sortEnabled; }
     public static boolean moveMatchingEnabled()      { return moveMatchingEnabled; }

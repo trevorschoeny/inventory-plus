@@ -1,6 +1,9 @@
 package com.trevorschoeny.inventoryplus.lockgroups;
 
 import com.trevlar.menukit.api.panel.ModeScope;
+import com.trevlar.slotkit.api.group.SlotGroupCategory;
+import com.trevlar.slotkit.api.group.SlotGroupId;
+import com.trevlar.slotkit.api.group.SlotGroups;
 import com.trevlar.slotkit.api.window.SlotOperations;
 import com.trevlar.slotkit.api.window.SlotRef;
 
@@ -26,7 +29,8 @@ import java.util.List;
  *
  * <p>The Slot-kind lock on the slot (stored in the player, ender, created or
  * container store, or a companion's shared container lock, judged as Slot
- * lock), the Item and Exact locks matching the stack in it, and the feature
+ * lock), the Item and Exact locks matching the stack in it when the slot is
+ * one the player carries items in, and the feature
  * reach groups the slot is in now (a cycle slot reports Column Cycler by
  * name, not an implicit Slot lock). It replaces {@code isLocked(int)}, {@code isLockedSlot(Slot)},
  * {@code LockedItems.isLocked} and {@code LockedItems.blocks(user)}, which
@@ -129,8 +133,11 @@ public final class Locks {
         }
         if (stored != null) groups.add(Reach.resolve(stored, LockKind.SLOT).id());
 
+        // Item locks keep an item with the player, so they count only on items
+        // the player carries. A locked item stored in a chest comes back out
+        // like any other.
         ItemStack stack = ref.container().getItem(ref.containerSlot());
-        if (!stack.isEmpty()) {
+        if (!stack.isEmpty() && onPlayer(ref)) {
             String item = LockedItems.itemGroup(stack);
             if (item != null) groups.add(Reach.resolve(item, LockKind.ITEM).id());
             String exact = LockedItems.exactGroup(stack);
@@ -138,6 +145,24 @@ public final class Locks {
         }
         groups.addAll(features);
         return groups;
+    }
+
+    /** The categories of the slots a player carries items in. */
+    private static final java.util.Set<SlotGroupCategory> PLAYER_CATEGORIES = java.util.Set.of(
+            SlotGroupCategory.PLAYER_INVENTORY, SlotGroupCategory.PLAYER_HOTBAR,
+            SlotGroupCategory.PLAYER_ARMOR, SlotGroupCategory.PLAYER_OFFHAND);
+
+    /**
+     * True when {@code ref} is one of the local player's own slots, or a
+     * created slot declared as one (Hotbar Pockets' pockets, an elytra slot).
+     */
+    private static boolean onPlayer(SlotRef ref) {
+        if (ref.container() instanceof Inventory inv) return isLocalPlayer(inv.player);
+        SlotGroupCategory category = ref.category();
+        if (category == null && SlotGroups.of(ref) instanceof SlotGroupId.Created created) {
+            category = SlotGroups.categoryOf(created);
+        }
+        return category != null && PLAYER_CATEGORIES.contains(category);
     }
 
     /** True for the player this client is, on either side of a single-player game. */

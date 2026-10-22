@@ -49,9 +49,9 @@ import java.util.Set;
  * <h3>Reach group</h3>
  *
  * The cycle slots and the hotbar slot of every active column are Column
- * Cycler's feature reach group ({@link #inReachGroup}): every move a Slot
- * lock stops leaves them alone by default, which the player changes per move
- * in Reach. They carry no lock. {@code L} puts a real Slot lock on top, and
+ * Cycler's feature reach group ({@link #inReachGroup}). No move leaves them
+ * alone by default: they are ordinary slots until the player unticks a move
+ * for them in Reach. They carry no lock. {@code L} puts a real Slot lock on top, and
  * the cycle mark is what they show. This replaced the "Lock the slots the
  * cyclers use" pairing, a derived Slot lock behind one global switch.
  *
