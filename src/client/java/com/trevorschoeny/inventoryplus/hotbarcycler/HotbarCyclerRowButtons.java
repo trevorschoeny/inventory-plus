@@ -136,7 +136,7 @@ public final class HotbarCyclerRowButtons {
      * The hotbar carries the same button in its pressed state whenever any
      * row is on, saying "the hotbar is always in the cycle". It reports
      * state and is not clickable, so it is wired to a no-op setter rather
-     * than given click behaviour to suppress.
+     * than given click behavior to suppress.
      */
     private static void registerHotbarIndicator() {
         PanelElement indicator = Toggle.builder().sprite(TEXTURE).size(BUTTON_SIZE, BUTTON_SIZE)
@@ -170,7 +170,7 @@ public final class HotbarCyclerRowButtons {
 
     /**
      * Button top-left for a row whose first slot is {@code first}: to the
-     * left of the slot frame by the gap, and vertically centred on the
+     * left of the slot frame by the gap, and vertically centered on the
      * 16px slot so it reads as belonging to that row.
      */
     private static ScreenOrigin buttonOriginFor(SlotScreenRect first) {

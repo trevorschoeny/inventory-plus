@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Under each enchantment line, one grey line saying what it does, from
+ * Under each enchantment line, one gray line saying what it does, from
  * {@code enchantment.<namespace>.<path>.desc} in the lang file. Every vanilla
  * enchantment has one. An enchantment whose key has no translation (an
  * unknown modded one) gets no line rather than a raw key.

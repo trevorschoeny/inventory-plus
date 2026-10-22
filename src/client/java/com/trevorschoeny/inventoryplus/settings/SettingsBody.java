@@ -47,12 +47,12 @@ import java.util.function.Supplier;
  *
  * <p>A control with a real setting behind it reads that setting every frame and saves on change ({@link Bool}, choices, sliders,
  * and keys, which are Keybindery's). A control whose setting does not exist
- * yet is a {@link Bool#placeholder}: it shows its planned default, greyed.
+ * yet is a {@link Bool#placeholder}: it shows its planned default, grayed.
 
  *
- * <p>No text here is hand-coloured: each label names its {@link TextRole}
+ * <p>No text here is hand-colored: each label names its {@link TextRole}
  * (heading, body, disabled) and the kind of screen the menu is made as turns
- * that into a colour, so one body reads on the Default look and the inventory
+ * that into a color, so one body reads on the Default look and the inventory
  * look alike (MenuKit 6.1.0).
  *
  * <p>Rows are positioned assuming single-line text. A label that wraps at a
@@ -70,7 +70,7 @@ final class SettingsBody {
     private static final int SECTION_GAP = 8;
 
     /**
-     * A divider's colour on the inventory look; the Default look draws vanilla's
+     * A divider's color on the inventory look; the Default look draws vanilla's
      * separator and ignores it.
      */
     private static final int LINE_COLOR = 0xFF8B8B8B;
@@ -87,7 +87,7 @@ final class SettingsBody {
 
     /**
      * Whether the tab's feature is on. Set by the frame's on/off checkbox;
-     * every control made after it greys and disables while this reads false,
+     * every control made after it grays and disables while this reads false,
      * since when a feature is off, every setting in its tab is too.
      * Captured per control when it is made, so the frame above the line is
      * never gated.
@@ -115,7 +115,7 @@ final class SettingsBody {
      * The settings follow. For a tab with no feature to turn off (Reach),
      * Reset stands alone. {@code onReset} runs on the button,
      * normally a confirm ({@link SettingsMenu#confirm}); {@code null} leaves
-     * it greyed.
+     * it grayed.
      */
     SettingsBody frame(String title, String description, @Nullable Runnable onReset) {
         header(title, description);
@@ -124,7 +124,7 @@ final class SettingsBody {
 
     /**
      * The same, with the feature's On/Off switch right of Reset to Defaults.
-     * Everything below the switch greys while it is off.
+     * Everything below the switch grays while it is off.
      */
     SettingsBody frame(String title, String description, Bool use, @Nullable Runnable onReset) {
         header(title, description);
@@ -180,7 +180,7 @@ final class SettingsBody {
     }
 
 
-    /** Settings text in {@code role}, drawn in the disabled colour while the tab's feature is off. */
+    /** Settings text in {@code role}, drawn in the disabled color while the tab's feature is off. */
     private TextLabel settingText(int x, int y, Component text, TextRole role) {
         return settingText(x, y, text, role, null);
     }
@@ -211,7 +211,7 @@ final class SettingsBody {
 
     /**
      * A collapsible section: MenuKit's {@link Section}, closed to start. Its
-     * header is an arrow, an optional colour swatch, the title and a grey
+     * header is an arrow, an optional color swatch, the title and a gray
      * {@code summary} read every frame; a click opens it. {@code content}
      * fills a fresh body laid out from the section's own top-left.
      *
@@ -229,7 +229,7 @@ final class SettingsBody {
     /**
      * A section as an element, at {@code (x, y)}, its open state kept under
      * {@code openKey}: for a row of a {@link com.trevlar.menukit.api.element.ListView},
-     * which places it itself. Its content greys with this body's feature.
+     * which places it itself. Its content grays with this body's feature.
      */
     PanelElement sectionElement(String openKey, String title, Supplier<Component> summary, @Nullable Integer swatch,
                                 Consumer<SettingsBody> content, int x, int y) {
@@ -239,7 +239,7 @@ final class SettingsBody {
 
     /**
      * The same with its title and swatch read every frame (MenuKit 7.3.0), so
-     * a lock group's rename or recolour shows on the same section, no rebuild.
+     * a lock group's rename or recolor shows on the same section, no rebuild.
      */
     PanelElement sectionElement(String openKey, Supplier<Component> title, Supplier<Component> summary,
                                 @Nullable IntSupplier swatch, Consumer<SettingsBody> content, int x, int y) {
@@ -284,7 +284,7 @@ final class SettingsBody {
 
     /**
      * A boolean setting as a control sees it: where it reads, where it
-     * writes, and when it is greyed. The control reads {@code get} every
+     * writes, and when it is grayed. The control reads {@code get} every
      * frame, so a setting changed elsewhere (another tab, the old screen, a
      * setter that turns a sibling off) shows at once.
      */
@@ -295,12 +295,12 @@ final class SettingsBody {
             return new Bool(get, set, () -> false);
         }
 
-        /** The same setting, greyed while {@code available} is false (its parent is off). */
+        /** The same setting, grayed while {@code available} is false (its parent is off). */
         Bool onlyWhen(BooleanSupplier available) {
             return new Bool(get, set, () -> !available.getAsBoolean());
         }
 
-        /** A control with no setting behind it yet: shows {@code value}, always greyed. */
+        /** A control with no setting behind it yet: shows {@code value}, always grayed. */
         static Bool placeholder(boolean value) {
             return new Bool(() -> value, v -> {}, DISABLED);
         }
@@ -310,7 +310,7 @@ final class SettingsBody {
     // checkbox, which is small enough to sit inline with its text to the
     // right. A sub-setting indents.
 
-    /** A setting's text, on its own line, greying while the feature is off. */
+    /** A setting's text, on its own line, graying while the feature is off. */
     private void label(int x, Component text) {
         label(x, text, null);
     }
@@ -329,7 +329,7 @@ final class SettingsBody {
         return checkbox(INDENT, label, setting);
     }
 
-    /** A checkbox with no setting behind it yet, shown at {@code on} and greyed. */
+    /** A checkbox with no setting behind it yet, shown at {@code on} and grayed. */
     SettingsBody checkbox(String label, boolean on) {
         return checkbox(0, label, Bool.placeholder(on));
     }
@@ -346,11 +346,11 @@ final class SettingsBody {
     /**
      * One checkbox in a reach list, bound to the record: checked while the
      * operation may use this group ({@code on}), and {@code set} writes it.
-     * {@code unavailable} greys a box the player cannot change yet.
+     * {@code unavailable} grays a box the player cannot change yet.
      */
     record Place(Component name, BooleanSupplier on, Consumer<Boolean> set, BooleanSupplier unavailable) {
 
-        /** A box with nothing behind it yet, shown at {@code on} and greyed. */
+        /** A box with nothing behind it yet, shown at {@code on} and grayed. */
         static Place fixed(Component name, boolean on) {
             return new Place(name, () -> on, v -> {}, DISABLED);
         }
@@ -372,7 +372,7 @@ final class SettingsBody {
         return this;
     }
 
-    /** A setting whose control is a row of buttons, greyed until they are built. */
+    /** A setting whose control is a row of buttons, grayed until they are built. */
     SettingsBody actions(String label, String... buttons) {
         label(0, Component.literal(label));
         return buttons(buttons);
@@ -442,7 +442,7 @@ final class SettingsBody {
     /**
      * A setting with a few named values, bound to its config: the dropdown
      * reads {@code get} every frame and hands a pick to {@code set}, which
-     * saves. {@code unavailable} greys it while a parent setting is off.
+     * saves. {@code unavailable} grays it while a parent setting is off.
      */
     <T> SettingsBody choice(String label, List<T> values, Function<T, String> name,
                             Supplier<T> get, Consumer<T> set, BooleanSupplier unavailable) {
@@ -460,8 +460,8 @@ final class SettingsBody {
     }
 
     /**
-     * A colour setting: its text above MenuKit's {@link ColorField}, a swatch
-     * that opens the colour dialog (Basic: the 16 dyes; Custom: HSV and hex).
+     * A color setting: its text above MenuKit's {@link ColorField}, a swatch
+     * that opens the color dialog (Basic: the 16 dyes; Custom: HSV and hex).
      * {@code get} and {@code set} are {@code 0xRRGGBB}.
      */
     SettingsBody colour(String label, IntSupplier get, IntConsumer set) {
@@ -526,7 +526,7 @@ final class SettingsBody {
         return key(key, label, tooltip, () -> false);
     }
 
-    /** The same, greyed while {@code unavailable} (its checkbox above is off). */
+    /** The same, grayed while {@code unavailable} (its checkbox above is off). */
     SettingsBody key(KeyMapping key, Component label, @Nullable Component tooltip, BooleanSupplier unavailable) {
         label(0, label, tooltip);
         out.add(ChordButton.builder(key).at(0, y).disabledWhen(gated(unavailable)).build());

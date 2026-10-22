@@ -46,15 +46,15 @@ final class ToolStats {
                 }
             }
             if (tier != null) {
-                out.add(Tooltips.labelled("tooltip.inventoryplus.tool_stats.tier",
+                out.add(Tooltips.labeled("tooltip.inventoryplus.tool_stats.tier",
                         Component.translatableWithFallback("tooltip.inventoryplus.tool_stats.tier." + tier,
                                 titleCase(tier))));
             }
-            out.add(Tooltips.labelled("tooltip.inventoryplus.tool_stats.mining_speed", Tooltips.number(speed)));
+            out.add(Tooltips.labeled("tooltip.inventoryplus.tool_stats.mining_speed", Tooltips.number(speed)));
         }
         Enchantable enchantable = stack.get(DataComponents.ENCHANTABLE);
         if (enchantable != null && enchantable.value() > 0) {
-            out.add(Tooltips.labelled("tooltip.inventoryplus.tool_stats.enchantability",
+            out.add(Tooltips.labeled("tooltip.inventoryplus.tool_stats.enchantability",
                     String.valueOf(enchantable.value())));
         }
         return out;

@@ -22,7 +22,7 @@ final class Food {
         if (food == null) return List.of();
         String saturation = String.format(Locale.ROOT, "%.1f", food.nutrition() * food.saturation() * 2f);
         return List.of(
-                Tooltips.labelled("tooltip.inventoryplus.item_tips.nutrition", String.valueOf(food.nutrition())),
-                Tooltips.labelled("tooltip.inventoryplus.item_tips.saturation", saturation));
+                Tooltips.labeled("tooltip.inventoryplus.item_tips.nutrition", String.valueOf(food.nutrition())),
+                Tooltips.labeled("tooltip.inventoryplus.item_tips.saturation", saturation));
     }
 }

@@ -59,9 +59,9 @@ import java.util.function.Function;
  */
 public class ModeChecks implements FabricClientGameTest {
 
-    /** Locked main inventory slot, and its unlocked neighbour. */
+    /** Locked main inventory slot, and its unlocked neighbor. */
     private static final int MAIN_LOCKED = 20, MAIN_FREE = 21;
-    /** Locked hotbar slot, and its unlocked neighbour: the only player slots on an item tab. */
+    /** Locked hotbar slot, and its unlocked neighbor: the only player slots on an item tab. */
     private static final int HOTBAR_LOCKED = 3, HOTBAR_FREE = 4;
 
     private ClientGameTestContext ctx;

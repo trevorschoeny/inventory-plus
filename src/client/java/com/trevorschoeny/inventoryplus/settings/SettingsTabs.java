@@ -52,12 +52,12 @@ import java.util.function.Supplier;
  *
  * <p>Every tab has one frame: the title, a description,
  * Reset to Defaults, the feature's on/off checkbox (not on General or
- * Reach), a line, then its settings one per line, every one of them greyed
+ * Reach), a line, then its settings one per line, every one of them grayed
  * while the feature is off. Done sits below the menu panel, not in
  * a tab. Every reach lives in the Reach tab, and feature tabs have none.
  *
  * <p>Controls with a real setting behind them read and write it live. The
- * rest are greyed placeholders showing their planned default (see
+ * rest are grayed placeholders showing their planned default (see
  * {@link SettingsBody}).
  */
 final class SettingsTabs {
@@ -160,7 +160,7 @@ final class SettingsTabs {
 
     static List<PanelElement> general() {
         SettingsBody b = new SettingsBody()
-                .frame("General", "Settings for the whole menu. Greyed settings aren't built yet.");
+                .frame("General", "Settings for the whole menu. Grayed settings aren't built yet.");
         // No category header on the first settings.
         b.key(IPKeybinds.OPEN_SETTINGS)
                 // The inventory buttons' tooltips in one short line each, to
@@ -334,7 +334,7 @@ final class SettingsTabs {
                 List<String> keys = PLACE_KEYS.get(id);
                 if (keys != null) IPConfig.reset(keys.toArray(String[]::new));
             }));
-            // Shift-click in's fill order waits on MenuKit, so it is greyed.
+            // Shift-click in's fill order waits on MenuKit, so it is grayed.
             if (op == BehaviorKeys.SHIFT_CLICK_IN) c.buttons("Priority…");
             block(c, "Slot groups", slotGroups);
             block(c, "Lock groups", lockGroups);
@@ -362,7 +362,7 @@ final class SettingsTabs {
             "inventoryplus:auto_tool_switch", List.of("autoToolSwitchFromShulkers", "autoToolSwitchFromBundles"),
             PICK_BLOCK, List.of("pickFromShulkers", "pickFromBundles", "pickFromEnderChest"));
 
-    /** A carried place backed by its own setting, greyed while {@code unavailable}. */
+    /** A carried place backed by its own setting, grayed while {@code unavailable}. */
     private static Place place(String name, Bool setting, BooleanSupplier unavailable) {
         return new Place(Component.literal(name), setting.get(), setting.set(), unavailable);
     }
@@ -385,7 +385,7 @@ final class SettingsTabs {
      * The places Inventory Plus declares for an operation: containers carried
      * in the inventory that it may reach into, each a real setting (Trev,
      * 2026-10-20: moved here from the Restock, General and Auto Tool Switch
-     * tabs). Restock's keep their split by kind, each block greyed while its
+     * tabs). Restock's keep their split by kind, each block grayed while its
      * kind is off; Ammo has no switch of its own. Labels in order.
      */
     private static Map<String, List<Place>> placesOf(String operation) {
@@ -445,7 +445,7 @@ final class SettingsTabs {
         });
     }
 
-    /** One labelled block of checkboxes, left out when nothing in it applies. */
+    /** One labeled block of checkboxes, left out when nothing in it applies. */
     private static void block(SettingsBody c, String label, List<Place> places) {
         if (!places.isEmpty()) c.reach(label, places);
     }
@@ -476,7 +476,7 @@ final class SettingsTabs {
         // back with new text once container locks move into Inventory Plus.
         // The groups go last: MenuKit's ListView keyed by group id (7.3.0), each
         // row a card holding the group's section. Adding, deleting, renaming or
-        // recolouring a group updates it in place, with no rebuild of the menu.
+        // recoloring a group updates it in place, with no rebuild of the menu.
         // Its toolbar (the heading, the add buttons, delete and the arrows)
         // isn't placed on its own, so MenuKit draws it at the list's top, the
         // heading and the buttons on one line.
@@ -512,9 +512,9 @@ final class SettingsTabs {
 
     /**
      * One lock group's section, read by id every frame: its title and swatch
-     * too (MenuKit 7.3.0), so a rename or recolour shows on the same row.
-     * Closed: its colour, its name, and a grey summary (its kind when the name
-     * does not say it, and its key). Open: kind, key, colour (MenuKit's
+     * too (MenuKit 7.3.0), so a rename or recolor shows on the same row.
+     * Closed: its color, its name, and a gray summary (its kind when the name
+     * does not say it, and its key). Open: kind, key, color (MenuKit's
      * ColorField), name, and for an Item or Exact item group the items it
      * locks in this world (MenuKit's ItemPicker).
      */
@@ -542,7 +542,7 @@ final class SettingsTabs {
             if (key != null) c.key(key, Component.literal("Key"));
             // A key for a group made in game needs Keybindery's runtime bindings.
             else c.line(0, Component.literal("Key: none yet"));
-            // Basic: the 16 dyes; Custom: any colour, kept as #rrggbb.
+            // Basic: the 16 dyes; Custom: any color, kept as #rrggbb.
             c.colour("Color", () -> LockColours.rgb(now.get().colour()),
                     rgb -> Reach.recolour(id, LockColours.of(rgb)));
             c.textSetting("Name", g.name(), "Rename", name -> Reach.rename(id, name));
@@ -622,8 +622,8 @@ final class SettingsTabs {
                 // always on.
                 .heading("Display")
                 // MenuKit 6.2.0's avoidCoverWhen: a tooltip vanilla would place
-                // beside the cursor docks at the bottom centre of the screen, or
-                // the top centre when the cursor would be inside it there.
+                // beside the cursor docks at the bottom center of the screen, or
+                // the top center when the cursor would be inside it there.
                 .checkbox("Dock tooltips at top or bottom",
                         Bool.of(IPConfig::tooltipDock, IPConfig::setTooltipDock))
                 // When a screen opens, the slot under the cursor shows no tooltip
@@ -661,7 +661,7 @@ final class SettingsTabs {
                         + "but only items the other side already has. One button moves them in, the other out.",
                         Bool.of(IPConfig::moveMatchingEnabled, IPConfig::setMoveMatchingEnabled),
                         confirmReset("Move Matching", SettingsTabs::resetMoveMatching))
-                // Where Move Matching puts items first waits on MenuKit, so it is greyed.
+                // Where Move Matching puts items first waits on MenuKit, so it is grayed.
                 .actions("Fill order", "Priority…")
                 .checkbox("Show the Move Matching buttons",
                         Bool.of(IPConfig::moveMatchingShowButtons, IPConfig::setMoveMatchingShowButtons))
@@ -671,7 +671,7 @@ final class SettingsTabs {
     }
 
     static List<PanelElement> restock() {
-        // Each kind is its own switch too, and its sub-options grey while it
+        // Each kind is its own switch too, and its sub-options gray while it
         // is off, as in the old settings screen.
         Bool armor = Bool.of(IPConfig::autoRestockArmor, IPConfig::setAutoRestockArmor);
         Bool tool = Bool.of(IPConfig::autoRestockTool, IPConfig::setAutoRestockTool);

@@ -31,4 +31,3 @@ Requires MenuKit 7.4.0 or newer and SlotKit 2.1.0 or newer.
 - Item and Exact item groups list the items they lock, and you can add items from a searchable grid.
 - The Look setting names the look in use, and the Options screen look is now called Default instead of Classic.
 - Requires MenuKit 7.3.0 or newer, below 8.0.0, and SlotKit 2.0.0 or newer, below 3.0.0.
-- It still works on any server, vanilla included, with nothing installed there. Your locks, keys, and other settings carry over when you update.

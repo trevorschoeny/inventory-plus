@@ -58,7 +58,7 @@ public final class FeatureToggleButtons {
                     feedback.press();
                     Reach.cycleActive(click.isShiftRight() ? -1 : 1);
                 })
-                // The active group's colour, faint; the press flash over it.
+                // The active group's color, faint; the press flash over it.
                 .tint(() -> {
                     int flash = feedback.tint();
                     return flash != 0 ? flash : LockColours.argb(Reach.active().colour(), 0x70);
@@ -119,7 +119,7 @@ public final class FeatureToggleButtons {
     /**
      * A feature's switch: "Restock: On", then {@code detail} (state worth
      * knowing: the lock group's name) and {@code hints} (how to use it) in
-     * grey when given, left click toggling {@code on} through {@code set}.
+     * gray when given, left click toggling {@code on} through {@code set}.
      * With Compact tooltips on (General) it is one line, the detail after a
      * dot and no hints: "Lock groups: On · Default slots".
      */

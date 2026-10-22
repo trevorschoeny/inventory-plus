@@ -78,7 +78,7 @@ public final class Tooltips {
         MKTooltip.hideWhen(() -> IPConfig.tooltipsEnabled() && IPConfig.tooltipHideUntilMouseMoves()
                 && stillHeld());
         // Dock tooltips: every tooltip vanilla would place beside the cursor sits
-        // at the bottom centre of the screen, or the top centre when the cursor
+        // at the bottom center of the screen, or the top center when the cursor
         // would be inside it there (MenuKit 6.2.0 avoidCoverWhen).
         MKTooltip.avoidCoverWhen(() -> IPConfig.tooltipsEnabled() && IPConfig.tooltipDock());
         // Keep on screen and scroll have no settings: both are on whenever the
@@ -126,12 +126,12 @@ public final class Tooltips {
 
     // Shared by the providers
 
-    /** A grey label from the lang file followed by a gold value: "Nutrition: 5". */
-    static Component labelled(String key, String value) {
-        return labelled(key, Component.literal(value));
+    /** A gray label from the lang file followed by a gold value: "Nutrition: 5". */
+    static Component labeled(String key, String value) {
+        return labeled(key, Component.literal(value));
     }
 
-    static Component labelled(String key, Component value) {
+    static Component labeled(String key, Component value) {
         return Component.translatable(key).withStyle(ChatFormatting.GRAY)
                 .append(value.copy().withStyle(ChatFormatting.GOLD));
     }

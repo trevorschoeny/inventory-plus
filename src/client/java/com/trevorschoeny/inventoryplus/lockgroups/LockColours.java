@@ -3,9 +3,9 @@ package com.trevorschoeny.inventoryplus.lockgroups;
 import net.minecraft.world.item.DyeColor;
 
 /**
- * A lock group's colour as drawn, semi-transparent, so a padlock or item mark
- * tints but never hides what is under it. Stored as a dye colour's name
- * ({@code red}) or, for one chosen on the colour field's Custom tab, as
+ * A lock group's color as drawn, semi-transparent, so a padlock or item mark
+ * tints but never hides what is under it. Stored as a dye color's name
+ * ({@code red}) or, for one chosen on the color field's Custom tab, as
  * {@code #rrggbb}.
  */
 public final class LockColours {
@@ -15,7 +15,7 @@ public final class LockColours {
     /** How opaque a lock's mark is, matching the alpha the other indicators use. */
     private static final int ALPHA = 0xAB;
 
-    /** {@code group}'s colour as ARGB at the marks' alpha. */
+    /** {@code group}'s color as ARGB at the marks' alpha. */
     public static int argb(LockGroup group) {
         return argb(group.colour(), ALPHA);
     }
@@ -33,7 +33,7 @@ public final class LockColours {
 
     /**
      * How {@code rgb} is stored: a dye's name when it is exactly a dye's
-     * colour (the colour field's Basic tab), so files stay readable and an
+     * color (the color field's Basic tab), so files stay readable and an
      * older Inventory Plus still reads it, else {@code #rrggbb}.
      */
     public static String of(int rgb) {
@@ -44,7 +44,7 @@ public final class LockColours {
         return String.format("#%06x", c);
     }
 
-    /** Whether {@code colour} is a hex colour, {@code #rrggbb}. */
+    /** Whether {@code colour} is a hex color, {@code #rrggbb}. */
     public static boolean isHex(String colour) {
         return colour.length() == 7 && colour.charAt(0) == '#' && colour.substring(1).chars().allMatch(
                 ch -> Character.digit(ch, 16) >= 0);

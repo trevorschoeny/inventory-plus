@@ -13,8 +13,8 @@ import org.jetbrains.annotations.Nullable;
  *               for the defaults, {@code g1}, {@code g2}, ... for custom groups
  * @param kind   what a lock of this group attaches to
  * @param name   what the player calls it
- * @param colour a dye colour's name ({@code gray}, {@code red}, ...), or
- *               {@code #rrggbb} for a custom colour ({@link LockColours})
+ * @param colour a dye color's name ({@code gray}, {@code red}, ...), or
+ *               {@code #rrggbb} for a custom color ({@link LockColours})
  * @param key    the {@code KeyMapping} name that applies this group, or
  *               {@code null}. Only Slot lock has one until Keybindery's
  *               runtime bindings exist; the field is here now so they drop

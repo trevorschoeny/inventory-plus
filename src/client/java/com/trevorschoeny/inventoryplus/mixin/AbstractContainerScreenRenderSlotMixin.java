@@ -73,7 +73,7 @@ public abstract class AbstractContainerScreenRenderSlotMixin {
 
     /**
      * ARGB tint for the corner indicator sprites: alpha 0xAB (67%) and white,
-     * so no colour change. Applied through the colour overload of
+     * so no color change. Applied through the color overload of
      * {@link GuiGraphicsExtractor#blit} so the icons read as hints rather than
      * dominating the slot content.
      */
@@ -90,7 +90,7 @@ public abstract class AbstractContainerScreenRenderSlotMixin {
         // own (its cycler has a reach group instead). A real Slot lock put on
         // one with L draws its padlock beside the cycle mark.
 
-        // Lock icon, in the colour of the slot's lock group. A shared lock
+        // Lock icon, in the color of the slot's lock group. A shared lock
         // is Slot lock.
         if (locked) {
             int iconX = slot.x + 16 - INVENTORYPLUS$LOCK_ICON_W - 1;
@@ -130,7 +130,7 @@ public abstract class AbstractContainerScreenRenderSlotMixin {
 
         // Locked-item mark, top left. Every matching stack carries it, not just
         // the first one found, since every one of them is protected. It is in
-        // its group's colour, and an exact lock wins over an item one as the
+        // its group's color, and an exact lock wins over an item one as the
         // more specific rule.
         ItemStack stack = slot.getItem();
         String exact = locksOn && !stack.isEmpty() ? LockedItems.exactGroup(stack) : null;

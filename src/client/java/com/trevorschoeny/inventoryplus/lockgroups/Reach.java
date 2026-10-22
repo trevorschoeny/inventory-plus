@@ -312,7 +312,7 @@ public final class Reach {
         return state.seen().contains(operation);
     }
 
-    /** The 16 dye colours, in the order a new group takes the next unused one. */
+    /** The 16 dye colors, in the order a new group takes the next unused one. */
     public static final List<String> COLOURS = List.of(
             "gray", "red", "orange", "yellow", "lime", "green", "cyan", "light_blue",
             "blue", "purple", "magenta", "pink", "brown", "black", "white", "light_gray");
@@ -419,7 +419,7 @@ public final class Reach {
         withGroup(new LockGroup(g.id(), g.kind(), trimmed, g.colour(), g.key()));
     }
 
-    /** Recolours group {@code id} to {@code colour}: a dye colour's name, or {@code #rrggbb}. */
+    /** Recolors group {@code id} to {@code colour}: a dye color's name, or {@code #rrggbb}. */
     public static void recolour(String id, String colour) {
         LockGroup g = group(id);
         if (g == null || !(COLOURS.contains(colour) || LockColours.isHex(colour)) || colour.equals(g.colour())) return;
@@ -454,7 +454,7 @@ public final class Reach {
         replace(State.of(s.denied(), groups, s.seen(), s.active()));
     }
 
-    /** The first dye colour no group uses yet, or gray when all 16 are taken. */
+    /** The first dye color no group uses yet, or gray when all 16 are taken. */
     public static String nextColour() {
         Set<String> used = new HashSet<>();
         for (LockGroup g : groups()) used.add(g.colour());

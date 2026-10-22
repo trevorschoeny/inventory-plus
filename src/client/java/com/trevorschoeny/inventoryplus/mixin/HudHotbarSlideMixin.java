@@ -48,7 +48,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * <h3>Re-entrancy</h3>
  *
  * The invoker calls the very method this injects into, so without a guard
- * each re-emission would be cancelled and re-emitted again, forever. A flag
+ * each re-emission would be canceled and re-emitted again, forever. A flag
  * marks the two nested calls as ours so the inject passes them through. HUD
  * extraction runs on the render thread only, so a plain static is enough.
  *

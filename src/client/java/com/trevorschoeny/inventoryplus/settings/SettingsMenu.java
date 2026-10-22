@@ -42,14 +42,14 @@ import java.util.function.Supplier;
  * kind of MenuKit screen, fixed for its life:
  * <ul>
  *   <li>{@link ScreenKind#DEFAULT}, the default: the pause-menu look. The name is
- *       the screen's title, centred in white. The tabs run down a sidebar, the
+ *       the screen's title, centered in white. The tabs run down a sidebar, the
  *       page sits in the list band over the blurred world, and Done is at the
  *       bottom.</li>
  *   <li>{@link ScreenKind#PANEL}: the inventory look the menu had before. A
- *       grey panel from the top of the screen with the name bar, the tabs down
+ *       gray panel from the top of the screen with the name bar, the tabs down
  *       a sidebar, Done below it.</li>
  * </ul>
- * Every tab and body is the same on both: their text is coloured by role
+ * Every tab and body is the same on both: their text is colored by role
  * ({@code TextRole}), so the kind decides how it reads. Changing the look
  * reopens the menu on General in the other kind ({@link #reopen}).
  *
@@ -60,7 +60,7 @@ import java.util.function.Supplier;
  * key, Mod Menu, and Ctrl-click on any feature's inventory button. Closing
  * returns to the screen it was opened from.
  *
- * <p>Controls with a real setting behind them work, and the rest are greyed
+ * <p>Controls with a real setting behind them work, and the rest are grayed
  * placeholders ({@link SettingsBody}).
  */
 public final class SettingsMenu extends MKScreen {
@@ -264,7 +264,7 @@ public final class SettingsMenu extends MKScreen {
 
     /**
      * The inventory look's name: one bar across the whole menu panel, above the sidebar and
-     * the body, centred on the panel: the name at twice
+     * the body, centered on the panel: the name at twice
      * size, bold, between two spacers that share the row's leftover evenly.
      * The menu panel's first row; the Tabs are the second (see {@link #main}).
      */
@@ -284,7 +284,7 @@ public final class SettingsMenu extends MKScreen {
     }
 
     /**
-     * Done, at the bottom centre at vanilla's width, the way every Options
+     * Done, at the bottom center at vanilla's width, the way every Options
      * screen ends, on both looks. {@code onClose} runs the return action, so Done
      * and Escape agree.
      */
@@ -304,7 +304,7 @@ public final class SettingsMenu extends MKScreen {
     /**
      * The menu panel. Default look: no box, so the blurred world shows, and the
      * Tabs alone, as a sidebar (Create World's tab bar turned on its side).
-     * Inventory look: the grey panel with two rows, the name bar, then the
+     * Inventory look: the gray panel with two rows, the name bar, then the
      * Tabs as a sidebar below it.
      *
      * <p>The Tabs set no size, so they fill: the panel hands a filling element
