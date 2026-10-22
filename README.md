@@ -68,8 +68,8 @@ It's client-side, so it works on any server.
 ## Requirements
 
 - [Keybindery](https://modrinth.com/mod/keybindery) 1.1.0 or newer, for the keys and the key buttons in the settings menu.
-- [MenuKit](https://modrinth.com/mod/menukit) 7.3.0 or newer, below 8.0.0, which draws the buttons, the settings menu, the strip beside the hotbar, and the tooltip changes.
-- [SlotKit](https://modrinth.com/mod/slotkit) 2.0.0 or newer, below 3.0.0, which tells Inventory Plus what each slot is, so locks and Reach know what a move may touch.
+- [MenuKit](https://modrinth.com/mod/menukit) 7.4.0 or newer, below 8.0.0, which draws the buttons, the settings menu, the strip beside the hotbar, and the tooltip changes.
+- [SlotKit](https://modrinth.com/mod/slotkit) 2.1.0 or newer, below 3.0.0, which tells Inventory Plus what each slot is, so locks and Reach know what a move may touch.
 - [Fabric API](https://modrinth.com/mod/fabric-api).
 
 ## Pairs well with
@@ -84,7 +84,7 @@ It runs on Minecraft 26.3 with Fabric. Install it on your client, and it works o
 
 ### The buttons on your inventory
 
-Open your inventory or any container to see the buttons. They don't appear in the creative inventory.
+Open your inventory or any container to see the buttons. In creative they're on the inventory tab too, but not on the item tabs, which have no inventory.
 
 The row of small buttons above your inventory is for actions. From left to right, it has Move Matching out, Move Matching in, and Sort. The Move Matching buttons only appear while a container is open next to your inventory. A container with a Sort button of its own (a chest, barrel, ender chest, shulker box, hopper, dispenser, or dropper) has it above its slots.
 
@@ -97,6 +97,17 @@ Every button works the same way.
 - Ctrl-click (Cmd on a Mac) any Inventory Plus button to open that feature's tab in the settings menu. Holding Ctrl changes the tooltip to say so.
 - Hover a button to see its tooltip, which shows the current mode and what each click does.
 
+### In creative
+
+Most of Inventory Plus works in creative the same as in survival.
+
+- On creative's inventory tab, the Sort button and the column on the right show as usual, and S sorts your inventory. On an item tab, Sort leaves your inventory as it is.
+- Locks hold on the inventory tab and on the item tabs, and L locks and unlocks slots there.
+- Column Cycler's keys work on the inventory tab and, with your mouse on a hotbar slot, on the item tabs. Both cyclers' keys work with no screen open.
+- Hotbar Cycler's row buttons and keys work on the inventory tab too.
+- Move Matching works in any container you open in creative.
+- Auto Tool Switch does nothing in creative, and Restock and pick block don't take from shulker boxes, bundles, or your ender chest there.
+
 ### Sort
 
 - Left-click the Sort button above your inventory to sort your inventory. Your hotbar is never sorted.
@@ -104,6 +115,8 @@ Every button works the same way.
 - Right-click a Sort button to change the order. The orders are Category (the creative menu's order, the default), Quantity (most of an item first), ID (alphabetical by item ID), and Rarity (rarest first).
 - Middle-click the Sort button above a container to pin the current order to that container. A pinned button is tinted pink, and middle-clicking it again unpins it.
 - Press S over a container to sort it. With no container open, S sorts your inventory wherever your mouse is.
+- When another mod shows more than one container on a screen, such as a shulker box opened below a chest, each keeps its own order and pin, and S sorts whichever one your mouse is over.
+- A box like that keeps its order and pin only while its screen stays open; closing it clears both. Its slot locks aren't affected, and hold the next time you open it.
 - Locked slots and locked items stay where they are while everything else is sorted around them.
 
 The Sort tab has the Sort switch (on by default), Show the Sort button (on), and the Sort key (S).
@@ -115,6 +128,7 @@ The Sort tab has the Sort switch (on by default), Show the Sort button (on), and
 - Right-click either button to change how much moves. Move all matching items moves everything. All but one of each stack leaves one item in each stack. All but one stack of each leaves one full stack of each item. Only if they all fit moves an item only when all of it fits.
 - The in and out buttons keep separate modes.
 - Middle-click Move Matching out to pin its mode to the open container. Middle-click it again to unpin.
+- When more than one container is open on a screen, Move Matching out puts each item only into a container that already has it.
 - Press O to move matching items out and I to move them in. The keys work anywhere in the screen.
 
 The Move Matching tab has the Move Matching switch (on by default), Show the Move Matching buttons (on), and the keys Move Matching Out of Inventory (O) and Move Matching Into Inventory (I).
@@ -128,6 +142,7 @@ Restock is on by default and works while you play, with no screen open.
 - With Swap before it breaks turned on, a tool or armor piece is swapped for a fresher one once its durability drops to the number you set.
 - Restock can also take from a shulker box or bundle in your inventory, or from your ender chest, when your inventory has nothing that fits. This is set on the Reach tab, separately for items, tools, armor, and ammo (arrows or rockets for the bow or crossbow in your hand), and each starts off.
 - Restock never takes from a slot locked with Slot lock.
+- In creative, Restock doesn't take from shulker boxes, bundles, or your ender chest.
 
 | Setting on the Restock tab | Default |
 | --- | --- |
@@ -177,6 +192,8 @@ To lock something:
 - With a slot group picked, hold L and move the mouse across slots to lock several at once.
 - Slot locks work in your inventory (armor and offhand included), your ender chest, and any chest, barrel, shulker box, hopper, or dispenser you open. Locks in placed containers are kept on your computer, so they work on any server.
 - Left-click the Lock groups switch to pause every lock without deleting any.
+- Locks hold in creative too, on the inventory tab and on the item tabs.
+- When more than one container is open on a screen, each one's locks stay with that container.
 
 On the Lock groups tab, your groups are a list:
 
@@ -237,7 +254,7 @@ Some settings are grayed even with their feature on. Those are planned and don't
 On the General tab:
 
 - Open Settings sets the key that opens the menu.
-- Compact tooltips: short, one line on inventory buttons (off) shortens the buttons' tooltips to one line.
+- Compact tooltips (off) shortens the inventory buttons' tooltips to one line.
 - Look switches the menu between Default, which looks like Minecraft's Options screens (the default), and Panel, which looks like a container. The button names the look in use, and clicking it switches to the other.
 - Reset everything puts every setting in the menu back to its default and removes every lock, after asking.
 
@@ -265,6 +282,7 @@ Column Cycler is off by default. Turn it on from its tab. To put its switch in t
 - Press C over a slot in your inventory (not your hotbar) to add it to its column's cycle. Press C again to take it out. Hold C and move across slots to add several.
 - With no screen open, press the Up and Down arrows to rotate the cycle in the column of your selected hotbar slot.
 - In your inventory, hover a slot in the cycle and press Up or Down to rotate that column.
+- In creative, this works on the inventory tab, and on the item tabs with your mouse on a hotbar slot.
 - The column's items show in a strip beside the hotbar, which you can turn off with Beside the hotbar.
 - With Scroll to cycle on, scrolling the mouse wheel on a hotbar slot with a cycle rotates the cycle instead of changing slots. Turning it on turns off Hotbar Cycler's Scroll to cycle, since there is one wheel.
 
@@ -284,7 +302,7 @@ Hotbar Cycler is off by default. Turn it on from its tab. To put its switch in t
 
 - Hover a row of your inventory and a small button appears at its left. Click it to add the row to the cycle, or click it again to take the row out. Buttons of rows in the cycle stay visible.
 - Press \] to bring the next row down into your hotbar and \[ to send it back up. Items keep their columns, and the hotbar slides to show the change.
-- The keys work with no screen open and in your inventory, including with a chest open. They only move your own rows.
+- The keys work with no screen open and in your inventory, including with a chest open. With no screen open they work in creative too. They only move your own rows.
 - With Scroll to cycle on, the mouse wheel rotates the rows instead of changing hotbar slots. Turning it on turns off Column Cycler's Scroll to cycle.
 
 | Setting on the Hotbar Cycler tab | Default |
