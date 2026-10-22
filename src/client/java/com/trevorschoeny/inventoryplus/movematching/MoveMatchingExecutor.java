@@ -34,8 +34,9 @@ import java.util.Set;
  * Inventory-centric: {@code clickedGroup} is always the player main
  * inventory. IN makes it the destination (the match set is the types
  * already in it, and the sources are every other non-hotbar slot). OUT makes
- * it the source (the match set and destinations are the other slots). The
- * match set always comes from the receiving side.
+ * it the source (the match set and destinations are the other slots, and an
+ * item goes only into a container that already holds it). The match set
+ * always comes from the receiving side.
  *
  * <h3>Modes, decided per item type</h3>
  *
@@ -117,9 +118,28 @@ public final class MoveMatchingExecutor {
         }
         int stacksMoved = 0;
         for (Map.Entry<Item, List<Slot>> entry : byType.entrySet()) {
-            stacksMoved += moveType(gameMode, player, menu, entry.getKey(), entry.getValue(), allowedDestinations, mode);
+            // Out, an item goes only into a container that already holds it, so
+            // with several containers on screen (a chest's container list) each
+            // keeps to its own kinds. In, the destination is the inventory alone.
+            List<Slot> destinations = direction == Direction.IN ? allowedDestinations
+                    : holding(entry.getKey(), allowedDestinations, matchSetSlots);
+            stacksMoved += moveType(gameMode, player, menu, entry.getKey(), entry.getValue(), destinations, mode);
         }
         InventoryPlusClient.LOGGER.debug("[move-matching {} {}] moved from {} stack(s)", direction, mode, stacksMoved);
+    }
+
+    /**
+     * The destinations in a container that holds {@code item} somewhere among
+     * {@code containerSlots}. A container is a slot's {@code slot.container}:
+     * every slot group is its own (SlotKit 2.1), so a box opened in a chest's
+     * list is one container and the chest another.
+     */
+    private static List<Slot> holding(Item item, List<Slot> destinations, List<Slot> containerSlots) {
+        Set<Object> holders = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        for (Slot s : containerSlots) if (s.getItem().is(item)) holders.add(s.container);
+        List<Slot> out = new ArrayList<>();
+        for (Slot d : destinations) if (holders.contains(d.container)) out.add(d);
+        return out;
     }
 
     /** Applies the mode to one item type's source stacks. Returns stacks that moved anything. */

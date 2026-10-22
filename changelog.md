@@ -6,6 +6,8 @@ Requires MenuKit 7.4.0 or newer and SlotKit 2.1.0 or newer.
 
 - Locks and Reach now hold in creative, on the inventory tab and on item tabs, as they do in survival.
 - The hotbar's slide when Hotbar Cycler turns now ends when the strip's does.
+- With more than one container on a chest's screen, such as a shulker box opened below the chest by another mod, Move Matching out puts each item only in a container that already holds it, instead of the first empty slot it finds. Sort's mode and pin stay with each container.
+- A chest's slot locks could stop working after you switched worlds, until the chest was opened again.
 
 ### Changed
 

@@ -74,9 +74,10 @@ public final class ContainerOpenTracker {
 
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             if (!(screen instanceof AbstractContainerScreen<?> acs)) return;
+            int containerId = acs.getMenu().containerId;
+            settledMenu = acs.getMenu();   // whatever happens below, this menu's answer is final now
             long age = System.currentTimeMillis() - lastClickedAtMs;
             if (lastClickedBlockPos == null || age > ASSOCIATION_TTL_MS) return;
-            int containerId = acs.getMenu().containerId;
             openMenuBlockPos.put(containerId, lastClickedBlockPos);
             InventoryPlusClient.LOGGER.debug(
                     "[sort] associated containerId={} with blockPos={}",
@@ -93,6 +94,23 @@ public final class ContainerOpenTracker {
                 openMenuBlockPos.remove(containerId);
             });
         });
+    }
+
+    /**
+     * The last menu whose screen finished init, so whose block (or none) is
+     * known. Held by identity: container ids repeat (they start again in each
+     * world), so an id cannot say which menu it was.
+     */
+    private static @Nullable AbstractContainerMenu settledMenu;
+
+    /**
+     * Whether {@link #getBlockPos} has its final answer for {@code menu}: its
+     * screen has finished init, where the block is tied to it. Asked earlier (a
+     * panel laid out during init, such as a container list placing slots), it
+     * may still be null for a menu that does have a block.
+     */
+    public static boolean settled(AbstractContainerMenu menu) {
+        return settledMenu == menu;
     }
 
     public static @Nullable BlockPos getBlockPos(int containerId) {

@@ -152,8 +152,13 @@ public final class LockedSlots {
 
     // Per-open-screen cache of the container key. isLockedSlot runs per slot per
     // frame; resolving the identity re-reads the tracker and a block state, so
-    // it is done once per containerId and reused until the menu changes.
-    private static int cachedContainerId = Integer.MIN_VALUE;
+    // it is done once per menu and reused until the menu changes.
+    /**
+     * The menu {@link #cachedContainerKey} is for, by identity: container ids
+     * start again in each world, so a key cached by id outlived its menu and
+     * was read for the next world's menu with the same id.
+     */
+    private static @Nullable AbstractContainerMenu cachedMenu;
     private static @Nullable String cachedContainerKey;
 
     private static boolean loaded = false;
@@ -481,13 +486,19 @@ public final class LockedSlots {
         if (mc == null || mc.player == null) return null;
         AbstractContainerMenu menu = mc.player.containerMenu;
         if (menu == null) return null;
-        if (menu.containerId != cachedContainerId) {
-            cachedContainerId = menu.containerId;
+        if (menu != cachedMenu) {
             ContainerIdentity id = ContainerIdentity.forMenu(menu);
-            cachedContainerKey = (id != null && id.isPersistent()) ? id.key() : null;
-            // [reach-probe]: this key is kept for the whole life of the menu. If
-            // the tracker has not yet tied a block to it (that happens at
-            // AFTER_INIT), it is kept unbound until the menu is reopened.
+            String key = (id != null && id.isPersistent()) ? id.key() : null;
+            // Asked before the screen finished init (a container list places its
+            // slots then, and their locks are read), the block may not be tied to
+            // the menu yet: answer null for now, and ask again, rather than keep
+            // a null for the whole life of the menu and lose its locks.
+            if (key == null && !com.trevorschoeny.inventoryplus.sort.ContainerOpenTracker.settled(menu)) {
+                return null;
+            }
+            cachedMenu = menu;
+            cachedContainerKey = key;
+            // [reach-probe]: this key is kept for the whole life of the menu.
             InventoryPlusClient.LOGGER.info("[reach-probe] container key for menu {}: {} (tracker pos {})",
                     menu.containerId, cachedContainerKey,
                     com.trevorschoeny.inventoryplus.sort.ContainerOpenTracker.getBlockPos(menu.containerId));
@@ -589,6 +600,9 @@ public final class LockedSlots {
         // state.
         if (!isRenderThread()) return false;
         if (slot.container instanceof Inventory) return false;   // a player slot
+        // A slot group's slot (a box in the ender chest's container list) is its
+        // own container, not the ender chest's, whatever its index.
+        if (CreatedSlotKey.of(slot) != null) return false;
         int ci = slot.getContainerSlot();
         if (ci < 0 || ci >= ENDER_SLOT_COUNT) return false;
         return ContainerOpenTracker.openContainerBlock() instanceof EnderChestBlock;

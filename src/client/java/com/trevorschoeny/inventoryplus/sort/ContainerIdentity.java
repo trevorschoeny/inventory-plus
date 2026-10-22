@@ -2,6 +2,8 @@ package com.trevorschoeny.inventoryplus.sort;
 
 import com.trevorschoeny.inventoryplus.mixin.CompoundContainerAccessor;
 
+import com.trevlar.slotkit.api.slot.CreatedSlot;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
@@ -89,6 +91,16 @@ public final class ContainerIdentity {
                 return new ContainerIdentity("playerinv");
             }
             return null;
+        }
+
+        // A SlotKit slot group (a box opened in a chest's container list) is its
+        // own container (SlotKit 2.1), not the block the screen was opened on, so
+        // it gets its own identity: one per group on this menu, for the session,
+        // never the chest's, whose pins it would otherwise share.
+        CreatedSlot created = CreatedSlot.of(slot);
+        if (created != null) {
+            return isSortableContainerMenu(menu)
+                    ? new ContainerIdentity("session:" + menu.containerId + ":" + created.panelId()) : null;
         }
 
         // Vanilla uses PlayerEnderChestContainer for an open ender chest.
