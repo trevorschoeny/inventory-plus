@@ -10,7 +10,8 @@
       "com.trevorschoeny.inventoryplus.checks.CarriedWearChecks",
       "com.trevorschoeny.inventoryplus.checks.CarriedToolChecks",
       "com.trevorschoeny.inventoryplus.checks.ModeChecks",
-      "com.trevorschoeny.inventoryplus.checks.ContainerListChecks"
+      "com.trevorschoeny.inventoryplus.checks.ContainerListChecks",
+      "com.trevorschoeny.inventoryplus.checks.WorldSwitchLockChecks"
     ],
     "main": [
       "com.trevorschoeny.inventoryplus.checks.ListFixture"
