@@ -122,7 +122,7 @@ public final class Reach {
             "inventoryplus:sort", "inventoryplus:move_matching_out", "inventoryplus:move_matching_in",
             "menukit:shift_click_in", "menukit:shift_click_out", "menukit:collect",
             "menukit:world_pickup", "menukit:drop", "menukit:drop_stack", "menukit:drag_fill",
-            "inventoryplus:restock_take");
+            "inventoryplus:restock_take", "inventoryplus:pick_block");
 
     /**
      * What Exact item stops by default. Item groups copy it. An item lock keeps

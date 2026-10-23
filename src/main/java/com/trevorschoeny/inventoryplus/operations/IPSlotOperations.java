@@ -24,7 +24,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 
 /**
- * Inventory Plus's side of SlotKit's slot operations: defining its eight
+ * Inventory Plus's side of SlotKit's slot operations: defining its nine
  * operations, and asking about the player's own slots.
  *
  * <p>The keys themselves are public, in
@@ -38,7 +38,7 @@ public final class IPSlotOperations {
     private IPSlotOperations() {}
 
     /**
-     * Defines the eight operations with their roles, so MenuKit lists them and a
+     * Defines the nine operations with their roles, so MenuKit lists them and a
      * settings screen can show only the ones that could move an item. From the
      * common initializer, so a server knows them too. Idempotent.
      */
@@ -64,6 +64,7 @@ public final class IPSlotOperations {
         SlotOperations.define(AUTO_TOOL_SWITCH, Role.BOTH, carried);
         SlotOperations.define(COLUMN_CYCLE, Role.BOTH, cycled);
         SlotOperations.define(HOTBAR_CYCLE, Role.BOTH, cycled);
+        SlotOperations.define(PICK_BLOCK, Role.TAKE, carried);
     }
 
     /**
