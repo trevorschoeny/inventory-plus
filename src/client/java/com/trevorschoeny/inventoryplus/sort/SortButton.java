@@ -7,6 +7,7 @@ import com.trevorschoeny.inventoryplus.buttonmode.PressFeedback;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 
 import com.trevlar.menukit.api.element.Button;
+import com.trevlar.slotkit.api.group.ResolvedSlotGroup;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -19,6 +20,7 @@ import net.minecraft.world.inventory.Slot;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -29,8 +31,9 @@ import java.util.function.Supplier;
  * <p>The button carries Sort's mode: left-click sorts in the order in force, right-click changes the order,
  * shift+right-click goes back, middle-click pins the order to this
  * container (on a container's toolbar only). Which container is resolved the
- * same way the click resolves it, by walking the menu for the toolbar's anchor slot, so the tooltip,
- * the tint and the action all agree on what "this container" is.
+ * same way the click resolves it, from the slots the toolbar sits on (the main
+ * inventory, or the toolbar's own group), so the tooltip, the tint and the
+ * action all agree on what "this container" is.
  */
 public final class SortButton {
 
@@ -42,26 +45,31 @@ public final class SortButton {
     public static final int SIZE = 9;
 
     public static Button inventoryToolbarButton(int x, int y) {
-        return build(x, y, Target.INVENTORY);
+        return build(x, y, false, menu -> {
+            Slot anchor = findInventoryAnchor(menu);
+            return anchor == null ? List.of() : SortKeybind.collectRegion(menu, anchor);
+        });
     }
 
-    public static Button externalToolbarButton(int x, int y) {
-        return build(x, y, Target.EXTERNAL);
+    /** Sorts {@code group}, read on each use: the group the toolbar sits on now, or null where it isn't showing. */
+    public static Button externalToolbarButton(int x, int y, Supplier<@Nullable ResolvedSlotGroup> group) {
+        return build(x, y, true, menu -> {
+            ResolvedSlotGroup g = group.get();
+            return g == null ? List.of() : g.slots();
+        });
     }
 
-    private enum Target { INVENTORY, EXTERNAL }
-
-    private static Button build(int x, int y, Target target) {
+    /** {@code region}: the slots this button sorts on the open menu, empty for none. */
+    private static Button build(int x, int y, boolean pinHere, Function<AbstractContainerMenu, List<Slot>> region) {
         PressFeedback feedback = new PressFeedback();
-        Supplier<@Nullable ContainerIdentity> identity = () -> currentIdentity(target);
-        // Only a container's own Sort pins, not the inventory's.
-        boolean pinHere = target == Target.EXTERNAL;
+        Supplier<@Nullable ContainerIdentity> identity = () -> currentIdentity(region);
+        // Only a container's own Sort pins (pinHere), not the inventory's.
         var gestures = ModeGestures.handler(SortState.MODE, identity, pinHere, feedback);
         return Button.builder().sprite(TEXTURE).at(x, y).size(SIZE, SIZE)
                 .onClick(() -> {
                     if (SettingsMenu.ctrlClickOpens(SettingsMenu.SORT)) return;
                     feedback.press();
-                    triggerSort(target);
+                    triggerSort(region);
                 })
                 .tooltip(SettingsMenu.tooltip("Sort",
                         ModeGestures.tooltip(t -> "Sort by " + t.label(), t -> "Sort: " + t.label(),
@@ -75,11 +83,11 @@ public final class SortButton {
     }
 
     /** The identity of the container this toolbar's button acts on, or null if none is open. */
-    private static @Nullable ContainerIdentity currentIdentity(Target target) {
+    private static @Nullable ContainerIdentity currentIdentity(Function<AbstractContainerMenu, List<Slot>> region) {
         AbstractContainerMenu menu = openMenu();
         if (menu == null) return null;
-        Slot anchor = target == Target.INVENTORY ? findInventoryAnchor(menu) : findExternalAnchor(menu);
-        return anchor == null ? null : ContainerIdentity.fromHoveredSlot(anchor, menu);
+        List<Slot> slots = region.apply(menu);
+        return slots.isEmpty() ? null : ContainerIdentity.fromHoveredSlot(slots.get(0), menu);
     }
 
     private static @Nullable AbstractContainerMenu openMenu() {
@@ -87,23 +95,21 @@ public final class SortButton {
         return screen instanceof AbstractContainerScreen<?> acs ? acs.getMenu() : null;
     }
 
-    private static void triggerSort(Target target) {
+    private static void triggerSort(Function<AbstractContainerMenu, List<Slot>> regionOf) {
         if (!IPConfig.sortEnabled()) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.gameMode == null) return;
         AbstractContainerMenu menu = openMenu();
         if (menu == null) return;
 
-        Slot anchor = target == Target.INVENTORY ? findInventoryAnchor(menu) : findExternalAnchor(menu);
-        if (anchor == null) return;
-        ContainerIdentity identity = ContainerIdentity.fromHoveredSlot(anchor, menu);
+        List<Slot> region = regionOf.apply(menu);
+        if (region.size() < 2) return;
+        ContainerIdentity identity = ContainerIdentity.fromHoveredSlot(region.get(0), menu);
         if (identity == null) return;
 
         SortType type = SortState.getType(identity);
-        List<Slot> region = SortKeybind.collectRegion(menu, anchor);
-        if (region.size() < 2) return;
-        InventoryPlusClient.LOGGER.debug("[sort] button ({}): {} {} over {} slots",
-                target, identity.key(), type, region.size());
+        InventoryPlusClient.LOGGER.debug("[sort] button: {} {} over {} slots",
+                identity.key(), type, region.size());
         Sorter.sort(menu, mc.gameMode, mc.player, region, type);
     }
 

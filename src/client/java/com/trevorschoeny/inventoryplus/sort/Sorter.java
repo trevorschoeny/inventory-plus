@@ -4,6 +4,8 @@ import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.SORT;
 
+import com.trevlar.slotkit.api.group.SlotGroupCategories;
+import com.trevlar.slotkit.api.group.SlotGroupCategory;
 import com.trevlar.slotkit.api.window.SlotOperations;
 
 import net.minecraft.client.Minecraft;
@@ -68,6 +70,14 @@ import java.util.Map;
  * branches on the type. It groups, hands the groups to the comparator,
  * and splits the result into stacks. Adding a stop is a one-line
  * comparator on the enum with no change here.
+ *
+ * <h3>Bundles</h3>
+ *
+ * An opened bundle ({@link SlotGroupCategory#BUNDLE_STORAGE}) is not a grid:
+ * its slots are its stacks in order, then the slot that adds one, and taking a
+ * stack out moves the ones after it up. A filled slot never grows, and the
+ * bundle's weight limit means it holds at most one stack of an item, so there
+ * is nothing to merge. It sorts by {@link #sortBundle}.
  */
 public final class Sorter {
 
@@ -82,6 +92,12 @@ public final class Sorter {
                             Player player, List<Slot> region, SortType type) {
         // Each stop owns its chunk ordering.
         Comparator<ItemStack> order = type.comparator();
+
+        if (!region.isEmpty() && SlotGroupCategories.categoriesBySlot(menu).get(region.get(0))
+                == SlotGroupCategory.BUNDLE_STORAGE) {
+            sortBundle(menu, gameMode, player, region, order);
+            return;
+        }
 
         // A slot that refuses sorting stays put, and sort operates only on what
         // is left: dropped from this list, the slot is never read as a source
@@ -102,6 +118,43 @@ public final class Sorter {
 
         InventoryPlusClient.LOGGER.debug(
                 "[sort] sorted {} unlocked slots with {}", unlocked.size(), type);
+    }
+
+    /**
+     * A bundle's stacks into {@code order}, by moving each to the end in turn:
+     * one PICKUP lifts it (the stacks after it move up), and a second puts it
+     * in the add slot, which is then the last slot of what's left. Once every
+     * stack has gone to the end in order, the bundle is in order.
+     *
+     * <p>A slot that refuses sorting can't hold its place in a list that
+     * closes up around every lift, so one such slot leaves the bundle as it is.
+     */
+    private static void sortBundle(AbstractContainerMenu menu, MultiPlayerGameMode gameMode,
+                                   Player player, List<Slot> region, Comparator<ItemStack> order) {
+        for (Slot s : region) if (!SlotOperations.allows(menu, s, player, SORT)) return;
+        // The stacks are the leading slots; the add slot and anything hidden after them are empty.
+        List<ItemStack> current = new ArrayList<>();
+        for (Slot s : region) {
+            if (s.getItem().isEmpty()) break;
+            current.add(s.getItem());
+        }
+        List<ItemStack> target = new ArrayList<>(current);
+        target.sort(order);
+        if (target.equals(current)) return; // ItemStack has no equals: same stacks, same order
+
+        SlotOperations.as(SORT, () -> {
+            for (ItemStack next : target) {
+                int from = current.indexOf(next);
+                int last = current.size() - 1;
+                // Already last: moving it to the end changes nothing.
+                if (from != last) {
+                    gameMode.handleContainerInput(menu.containerId, region.get(from).index, 0, ContainerInput.PICKUP, player);
+                    gameMode.handleContainerInput(menu.containerId, region.get(last).index, 0, ContainerInput.PICKUP, player);
+                }
+                current.add(current.remove(from));
+            }
+        });
+        InventoryPlusClient.LOGGER.debug("[sort] sorted a bundle's {} stacks", current.size());
     }
 
     /** Steps 2 to 4: group, distribute, and sort with the type's comparator. */

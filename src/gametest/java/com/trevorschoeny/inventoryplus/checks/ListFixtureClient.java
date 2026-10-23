@@ -12,7 +12,8 @@ import net.minecraft.client.gui.screens.inventory.ContainerScreen;
 import net.minecraft.network.chat.Component;
 
 /**
- * A chest's container list with the chest and {@link ListFixture}'s two boxes,
+ * A chest's container list with the chest and {@link ListFixture}'s two boxes
+ * and bundle,
  * shown only while {@link #on} (a check sets it), so the other checks' chests
  * keep vanilla's screen.
  */
@@ -40,6 +41,13 @@ public class ListFixtureClient implements ClientModInitializer {
                 .content(SlotGroupElement.of(ListFixture.BOX_B.id()))
                 .on(ContainerScreen.class)
                 .order(20)
+                .visibleWhen(() -> on)
+                .declare();
+        ContainerRegion.section("inventoryplus_checks:bundle", ModeScope.BOTH)
+                .title(() -> Component.literal("Bundle"))
+                .content(SlotGroupElement.of(ListFixture.BUNDLE.id()))
+                .on(ContainerScreen.class)
+                .order(30)
                 .visibleWhen(() -> on)
                 .declare();
     }

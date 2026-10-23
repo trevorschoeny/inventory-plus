@@ -7,7 +7,13 @@ import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.movematching.ScreenLayout;
+import com.trevorschoeny.inventoryplus.sort.SortType;
+import com.trevorschoeny.inventoryplus.toolbar.Toolbar;
+import com.trevlar.menukit.api.panel.Panel;
+import com.trevlar.menukit.api.panel.Reference;
 import com.trevlar.slotkit.api.slot.CreatedSlot;
+
+import com.mojang.blaze3d.platform.InputConstants;
 
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -32,12 +38,19 @@ import net.minecraft.world.phys.Vec3;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Sort, Move Matching and locks act on one container at a time with several
  * open in a chest's container list: the chest, and {@link ListFixture}'s two
- * boxes below it, each its own container.
+ * shulker boxes and bundle below it, each its own container.
  *
  * <ul>
+ *   <li>Each box has its own Sort button, and box B's sorts box B, not the
+ *       chest or box A.</li>
+ *   <li>The bundle's Sort button and the sort key over it put its stacks in
+ *       order, though a stack taken out of a bundle moves the rest up.</li>
  *   <li>The sort key over a box sorts that box, and the chest and the other box
  *       stay as they were; over the chest, the chest alone.</li>
  *   <li>L locks the slot under the mouse in that container only (the same index
@@ -51,7 +64,7 @@ import org.jetbrains.annotations.Nullable;
 public class ContainerListChecks implements FabricClientGameTest {
 
     /** Which container a slot is in: the chest, or one of the boxes. */
-    private enum In { CHEST, A, B }
+    private enum In { CHEST, A, B, BUNDLE }
 
     private ClientGameTestContext ctx;
 
@@ -76,6 +89,7 @@ public class ContainerListChecks implements FabricClientGameTest {
                 p.level().setBlockAndUpdate(at, Blocks.CHEST.defaultBlockState());
                 ListFixture.BOX_A.setActiveCount(p, ListFixture.SIZE);
                 ListFixture.BOX_B.setActiveCount(p, ListFixture.SIZE);
+                ListFixture.BUNDLE.setActiveCount(p, ListFixture.SIZE);
                 return at;
             });
             ctx.waitTicks(5);
@@ -96,6 +110,8 @@ public class ContainerListChecks implements FabricClientGameTest {
             });
 
             sortChecks(world);
+            buttonChecks(world);
+            bundleChecks(world);
             lockChecks(world);
             moveMatchingChecks(world);
 
@@ -108,6 +124,7 @@ public class ContainerListChecks implements FabricClientGameTest {
             onServer(world, p -> {
                 ListFixture.BOX_A.setActiveCount(p, 0);
                 ListFixture.BOX_B.setActiveCount(p, 0);
+                ListFixture.BUNDLE.setActiveCount(p, 0);
             });
         }
     }
@@ -141,6 +158,102 @@ public class ContainerListChecks implements FabricClientGameTest {
                     + stacks(p, In.B, Items.DIRT) + ")");
         });
         emptyAll(world);
+    }
+
+    /**
+     * Each box's own Sort button sorts that box. Box B's is the second shulker
+     * toolbar; before each toolbar had its own group, every one sorted the
+     * first container on the menu, the chest.
+     */
+    private void buttonChecks(TestSingleplayerContext world) {
+        fill(world, In.CHEST, 0, Items.DIRT, 5); fill(world, In.CHEST, 5, Items.DIRT, 7);
+        fill(world, In.A, 0, Items.DIRT, 4);     fill(world, In.A, 6, Items.DIRT, 6);
+        fill(world, In.B, 0, Items.DIRT, 3);     fill(world, In.B, 4, Items.DIRT, 9);
+        ctx.waitTicks(10);
+
+        clickSort("shulker_storage.1");
+        onServer(world, p -> {
+            expect(stacks(p, In.B, Items.DIRT).equals("1x12"), "Box B's Sort button merges box B's dirt ("
+                    + stacks(p, In.B, Items.DIRT) + ")");
+            expect(stacks(p, In.A, Items.DIRT).equals("2x10"), "Box B's Sort button leaves box A alone ("
+                    + stacks(p, In.A, Items.DIRT) + ")");
+            expect(stacks(p, In.CHEST, Items.DIRT).equals("2x12"), "Box B's Sort button leaves the chest alone ("
+                    + stacks(p, In.CHEST, Items.DIRT) + ")");
+        });
+        clickSort("shulker_storage");
+        onServer(world, p -> expect(stacks(p, In.A, Items.DIRT).equals("1x10"),
+                "Box A's Sort button merges box A's dirt (" + stacks(p, In.A, Items.DIRT) + ")"));
+        emptyAll(world);
+    }
+
+    /**
+     * Four stacks in the bundle, out of order; its Sort button, then the sort
+     * key over it, put them in Sort's order with every stack kept. Each lift
+     * moves the stacks after it up, so a sort that swaps slots in place would
+     * scramble them.
+     */
+    private void bundleChecks(TestSingleplayerContext world) {
+        Runnable shuffle = () -> {
+            fill(world, In.BUNDLE, 0, Items.OAK_LOG, 3);
+            fill(world, In.BUNDLE, 1, Items.DIAMOND, 2);
+            fill(world, In.BUNDLE, 2, Items.BREAD, 5);
+            fill(world, In.BUNDLE, 3, Items.COBBLESTONE, 7);
+            ctx.waitTicks(10);
+            onServer(world, p -> expect(!sorted(bundle(p)), "the bundle starts out of order (" + bundle(p) + ")"));
+        };
+        shuffle.run();
+        clickSort("bundle_storage");
+        onServer(world, p -> expectSortedBundle(p, "the bundle's Sort button"));
+
+        emptyAll(world);
+        shuffle.run();
+        hover(In.BUNDLE, 1);
+        ctx.getInput().pressKey(IPKeybinds.SORT);
+        ctx.waitTicks(15);
+        onServer(world, p -> expectSortedBundle(p, "the sort key over the bundle"));
+        emptyAll(world);
+    }
+
+    private static void expectSortedBundle(ServerPlayer p, String by) {
+        List<ItemStack> stacks = bundle(p);
+        expect(stacks.size() == 4 && sorted(stacks), by + " puts its four stacks in order (" + stacks + ")");
+        expect(total(p, In.BUNDLE, Items.OAK_LOG) == 3 && total(p, In.BUNDLE, Items.DIAMOND) == 2
+                && total(p, In.BUNDLE, Items.BREAD) == 5 && total(p, In.BUNDLE, Items.COBBLESTONE) == 7,
+                by + " keeps every item (" + stacks + ")");
+    }
+
+    /** The bundle's stacks on the server, in slot order. */
+    private static List<ItemStack> bundle(ServerPlayer p) {
+        List<ItemStack> out = new ArrayList<>();
+        for (int i = 0; i < ListFixture.SIZE; i++) {
+            ItemStack s = serverSlot(p, In.BUNDLE, i).getItem();
+            if (!s.isEmpty()) out.add(s);
+        }
+        return out;
+    }
+
+    /** In the order the bundle's Sort uses, the default (nothing pinned on it). */
+    private static boolean sorted(List<ItemStack> stacks) {
+        for (int i = 1; i < stacks.size(); i++) {
+            if (SortType.DEFAULT.comparator().compare(stacks.get(i - 1), stacks.get(i)) > 0) return false;
+        }
+        return true;
+    }
+
+    /** Clicks the Sort button of the container toolbar whose id ends in {@code which}, and waits for the sort. */
+    private void clickSort(String which) {
+        double[] at = ctx.computeOnClient(mc -> {
+            Panel toolbar = Toolbar.externalToolbars().stream()
+                    .filter(t -> t.id().equals("inventoryplus.toolbar.external." + which)).findFirst().orElseThrow();
+            Reference r = toolbar.placedBounds();
+            expect(r != null, "the " + which + " Sort toolbar shows");
+            double scale = (double) mc.getWindow().getScreenWidth() / mc.getWindow().getGuiScaledWidth();
+            return new double[]{(r.leftPos() + r.imageWidth() / 2.0) * scale, (r.topPos() + r.imageHeight() / 2.0) * scale};
+        });
+        ctx.getInput().setCursorPos(at[0], at[1]);
+        ctx.waitTicks(2);
+        ctx.getInput().pressMouse(InputConstants.MOUSE_BUTTON_LEFT);
+        ctx.waitTicks(15);
     }
 
     /** L on one container's slot locks that container's slot alone; a locked stack stays through a sort. */
@@ -219,7 +332,8 @@ public class ContainerListChecks implements FabricClientGameTest {
             CreatedSlot created = CreatedSlot.of(s);
             In which = created == null ? In.CHEST
                     : created.panelId().equals(ListFixture.BOX_A.id().panelId()) ? In.A
-                    : created.panelId().equals(ListFixture.BOX_B.id().panelId()) ? In.B : null;
+                    : created.panelId().equals(ListFixture.BOX_B.id().panelId()) ? In.B
+                    : created.panelId().equals(ListFixture.BUNDLE.id().panelId()) ? In.BUNDLE : null;
             int local = created == null ? s.getContainerSlot() : created.getLocalIndex();
             if (which == in && local == i) return s;
         }
@@ -241,7 +355,8 @@ public class ContainerListChecks implements FabricClientGameTest {
 
     private void emptyAll(TestSingleplayerContext world) {
         onServer(world, p -> {
-            for (In in : In.values()) for (int i = 0; i < size(in); i++) serverSlot(p, in, i).set(ItemStack.EMPTY);
+            // Back to front: the bundle moves its stacks up as each one goes.
+            for (In in : In.values()) for (int i = size(in) - 1; i >= 0; i--) serverSlot(p, in, i).set(ItemStack.EMPTY);
             clear(p);
             p.containerMenu.broadcastChanges();
         });

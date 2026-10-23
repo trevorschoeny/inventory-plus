@@ -9,6 +9,7 @@ import com.trevlar.menukit.api.panel.Panel;
 import com.trevlar.menukit.api.element.PanelElement;
 import com.trevlar.menukit.api.panel.PanelPosition;
 import com.trevlar.menukit.api.panel.PanelStyle;
+import com.trevlar.slotkit.api.group.CategoryPanels;
 import com.trevlar.slotkit.api.group.SlotGroupCategory;
 import com.trevlar.menukit.api.panel.OutsideRegion;
 import com.trevlar.slotkit.api.group.SlotGroupPanelAdapter;
@@ -59,12 +60,15 @@ import java.util.List;
  *       so it appears on every screen with the 3x9 main inventory, creative's
  *       inventory tab included, and not on creative's item tabs, which have
  *       none.</li>
- *   <li>External toolbars: one around each of the four sortable storage
- *       categories ({@link SlotGroupCategory#CHEST_STORAGE},
+ *   <li>External toolbars: one around every shown group of the sortable
+ *       storage categories ({@link SlotGroupCategory#CHEST_STORAGE},
  *       {@link SlotGroupCategory#SHULKER_STORAGE},
  *       {@link SlotGroupCategory#DISPENSER_STORAGE},
- *       {@link SlotGroupCategory#HOPPER_STORAGE}), so they hide on specialized
- *       UIs (furnace, anvil, enchanting table) whose groups aren't in the list.</li>
+ *       {@link SlotGroupCategory#HOPPER_STORAGE},
+ *       {@link SlotGroupCategory#BUNDLE_STORAGE}), vanilla or another mod's,
+ *       so a shulker box or bundle another mod opens beside a chest gets its
+ *       own Sort, and they hide on specialized UIs (furnace, anvil, enchanting
+ *       table) whose groups aren't in the list.</li>
  * </ul>
  *
  * <h3>Adding buttons</h3>
@@ -105,23 +109,29 @@ public final class Toolbar {
     /** The containers a Sort button sits above. */
     private static final List<SlotGroupCategory> SORTABLE = List.of(
             SlotGroupCategory.CHEST_STORAGE, SlotGroupCategory.SHULKER_STORAGE,
-            SlotGroupCategory.DISPENSER_STORAGE, SlotGroupCategory.HOPPER_STORAGE);
+            SlotGroupCategory.DISPENSER_STORAGE, SlotGroupCategory.HOPPER_STORAGE,
+            SlotGroupCategory.BUNDLE_STORAGE);
 
     /**
-     * One toolbar above each sortable container's slot group (chest, shulker,
-     * dispenser, hopper), in both modes, holding that container's Sort. A
-     * placement names one group, so each category is its own panel.
+     * One toolbar above each shown group of a sortable category, in both
+     * modes, holding that group's Sort: a chest's, and the shulker box, ender
+     * chest or bundle another mod opens beside it, each its own (SlotKit's
+     * {@link CategoryPanels}). The first of each category keeps the id one
+     * panel per category had.
      */
     private static void registerExternalToolbar() {
         for (SlotGroupCategory category : SORTABLE) {
-            Panel panel = Panel.builder("inventoryplus.toolbar.external." + category.path())
-                    .elements(buildExternalChildren())
-                    .style(PanelStyle.NONE)
-                    .in(ModeScope.BOTH, SlotPlacement.group(category,
-                            PanelPosition.region(OutsideRegion.TOP_ALIGN_RIGHT)))
-                    .build();
-            new SlotGroupPanelAdapter(panel);
-            externalToolbars.add(panel);
+            CategoryPanels.declare(category, on -> {
+                String id = "inventoryplus.toolbar.external." + category.path();
+                Panel panel = Panel.builder(on.index() == 0 ? id : id + "." + on.index())
+                        // The group is read on each click: a tab switch can move the panel to another.
+                        .elements(List.of(SortButton.externalToolbarButton(0, 0, on::group)))
+                        .style(PanelStyle.NONE)
+                        .in(ModeScope.BOTH, on.around(PanelPosition.region(OutsideRegion.TOP_ALIGN_RIGHT)))
+                        .build();
+                externalToolbars.add(panel);
+                return panel;
+            });
         }
     }
 
@@ -134,7 +144,7 @@ public final class Toolbar {
         return inventoryToolbar;
     }
 
-    /** The toolbars above the sortable containers, one per category. */
+    /** The toolbars above the sortable containers, {@link CategoryPanels#MAX_SHOWN} per category in {@link #SORTABLE} order. */
     public static List<Panel> externalToolbars() {
         return List.copyOf(externalToolbars);
     }
@@ -154,11 +164,6 @@ public final class Toolbar {
                 // Sort targets the player's main inventory from this toolbar.
                 .add(SortButton.inventoryToolbarButton(0, 0))
                 .build());
-    }
-
-    private static List<PanelElement> buildExternalChildren() {
-        PanelElement sort = SortButton.externalToolbarButton(0, 0);
-        return List.of(sort);
     }
 
 }
