@@ -205,6 +205,8 @@ public final class IPConfig {
     private static boolean tooltipModName = false;
     // On the Tooltips tab, under its switch.
     private static boolean hideTooltipsOnKey = true;
+    // Reverses the key: item tooltips stay hidden, and holding it shows them.
+    private static boolean tooltipKeyShows = false;
     // Compact tooltips: the inventory buttons' tooltips keep only their
     // essential lines (what it does, its state), no hints.
     private static boolean compactTooltips = false;
@@ -353,6 +355,7 @@ public final class IPConfig {
         tooltipModName = readBool(root, "tooltipModName", tooltipModName);
         hideTooltipsOnKey         = readBool(root, "hideTooltipsOnKey",
                 readBool(root, "hideTooltipsOnCtrl", hideTooltipsOnKey));
+        tooltipKeyShows           = readBool(root, "tooltipKeyShows",           tooltipKeyShows);
         compactTooltips           = readBool(root, "compactTooltips",           compactTooltips);
         // Old key ignored on purpose (see the field doc): no migration.
         tooltipDock = readBool(root, "tooltipDock", tooltipDock);
@@ -467,6 +470,7 @@ public final class IPConfig {
         root.addProperty("tooltipCondenseTrims", tooltipCondenseTrims);
         root.addProperty("tooltipModName", tooltipModName);
         root.addProperty("hideTooltipsOnKey",         hideTooltipsOnKey);
+        root.addProperty("tooltipKeyShows",           tooltipKeyShows);
         root.addProperty("compactTooltips",           compactTooltips);
         root.addProperty("tooltipDock", tooltipDock);
         root.addProperty("tooltipHideUntilMouseMoves", tooltipHideUntilMouseMoves);
@@ -534,6 +538,7 @@ public final class IPConfig {
     public static boolean tooltipCondenseTrims() { return tooltipCondenseTrims; }
     public static boolean tooltipModName() { return tooltipModName; }
     public static boolean hideTooltipsOnKey()        { return hideTooltipsOnKey; }
+    public static boolean tooltipKeyShows()          { return tooltipKeyShows; }
     public static boolean compactTooltips()          { return compactTooltips; }
     public static boolean tooltipDock() { return tooltipDock; }
     public static boolean tooltipHideUntilMouseMoves() { return tooltipHideUntilMouseMoves; }
@@ -556,6 +561,7 @@ public final class IPConfig {
     public static void setTooltipCondenseTrims(boolean v) { tooltipCondenseTrims = v; save(); }
     public static void setTooltipModName(boolean v) { tooltipModName = v; save(); }
     public static void setHideTooltipsOnKey(boolean v)        { hideTooltipsOnKey = v; save(); }
+    public static void setTooltipKeyShows(boolean v)          { tooltipKeyShows = v; save(); }
     public static void setCompactTooltips(boolean v)          { compactTooltips = v; save(); }
     public static void setTooltipDock(boolean v) { tooltipDock = v; save(); }
     public static void setTooltipHideUntilMouseMoves(boolean v) { tooltipHideUntilMouseMoves = v; save(); }

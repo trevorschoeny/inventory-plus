@@ -98,7 +98,7 @@ final class SettingsTabs {
     private static void resetTooltips() {
         IPConfig.reset("tooltipsEnabled", "tooltipDurability", "tooltipFood", "tooltipFoodEffects",
                 "tooltipEnchantmentDescriptions", "tooltipSortEnchantments", "tooltipToolStats",
-                "tooltipCompare", "tooltipCondenseTrims", "tooltipModName", "hideTooltipsOnKey",
+                "tooltipCompare", "tooltipCondenseTrims", "tooltipModName", "hideTooltipsOnKey", "tooltipKeyShows",
                 "tooltipDock", "tooltipHideUntilMouseMoves");
         resetKeys(IPKeybinds.HIDE_TOOLTIPS);
     }
@@ -636,6 +636,10 @@ final class SettingsTabs {
                         Bool.of(IPConfig::hideTooltipsOnKey, IPConfig::setHideTooltipsOnKey))
                 .key(IPKeybinds.HIDE_TOOLTIPS, Component.translatable(IPKeybinds.HIDE_TOOLTIPS.getName()), null,
                         () -> !IPConfig.hideTooltipsOnKey())
+                // Reverses the key: item tooltips hidden until it is held.
+                .subCheckbox("Instead, hide item tooltips and show them while the key is held",
+                        new Bool(IPConfig::tooltipKeyShows, IPConfig::setTooltipKeyShows,
+                                () -> !IPConfig.hideTooltipsOnKey()))
                 // One checkbox per provider in tooltips/, in the order they apply.
                 .heading("Item Details")
                 .checkbox("Durability", Bool.of(IPConfig::tooltipDurability, IPConfig::setTooltipDurability))

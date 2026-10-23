@@ -64,8 +64,14 @@ public final class Tooltips {
         });
         // Hold the hide key (Space by default) to hide every tooltip, on any
         // screen. Read raw, so it works where vanilla releases key states.
-        MKTooltip.hideWhen(() -> IPConfig.tooltipsEnabled() && IPConfig.hideTooltipsOnKey()
-                && IPKeybinds.isHeld(IPKeybinds.HIDE_TOOLTIPS));
+        // Reversed (tooltipKeyShows), item tooltips stay hidden and the key
+        // shows them; buttons and menus keep theirs, so the settings menu
+        // that turns this off can still be read.
+        MKTooltip.hideWhen(kind -> {
+            if (!IPConfig.tooltipsEnabled() || !IPConfig.hideTooltipsOnKey()) return false;
+            boolean held = IPKeybinds.isHeld(IPKeybinds.HIDE_TOOLTIPS);
+            return IPConfig.tooltipKeyShows() ? kind == MKTooltip.Kind.ITEM && !held : held;
+        });
         // Hide until the mouse moves (Trev, 2026-10-15): a screen that opens
         // shows no tooltip until the mouse leaves where it was when it opened,
         // so the slot that happens to sit under the cursor doesn't pop one up.
