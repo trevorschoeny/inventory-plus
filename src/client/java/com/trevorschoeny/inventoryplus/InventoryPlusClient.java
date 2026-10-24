@@ -68,7 +68,7 @@ public class InventoryPlusClient implements ClientModInitializer {
         // overlay mixin) and every button through MenuKit/SlotKit's own
         // panel placement, so nothing here computes a chest's grid position
         // itself; it follows the scroll with no further change.
-        ScreenFrames.scrollWhenShort(ModeScope.BOTH, ScreenMatcher.only(ContainerScreen.class));
+        ScreenFrames.scrollsWhenShort(ModeScope.BOTH, ScreenMatcher.only(ContainerScreen.class));
 
         // Slot operations are defined by the common initializer (InventoryPlus),
         // so a server knows them too. Every feature asks SlotOperations.allows
