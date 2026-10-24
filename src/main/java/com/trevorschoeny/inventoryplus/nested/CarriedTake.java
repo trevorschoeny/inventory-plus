@@ -32,6 +32,7 @@ import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import java.util.function.Predicate;
 
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.AUTO_TOOL_SWITCH;
+import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.PICK_BLOCK;
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.RESTOCK_PUT;
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.RESTOCK_TAKE;
 
@@ -95,10 +96,11 @@ public final class CarriedTake {
         AMMO(RESTOCK_TAKE),
         /**
          * Pick block: a whole stack into an empty inventory slot, ahead of vanilla's own
-         * pick, which then finds it there and brings it to the hand. Judged as the hotbar
-         * swap vanilla's pick is, so a slot lock that stops swaps stops it.
+         * pick, which then finds it there and brings it to the hand. Judged as its own
+         * operation, so a lock can stop it reaching into a container without stopping
+         * number keys.
          */
-        PICK(BehaviorKeys.HOTBAR_SWAP),
+        PICK(PICK_BLOCK),
         /**
          * Auto Tool Switch: the tool or weapon the client chose for the block or mob into
          * an empty inventory slot, where the switch finds it. Only from a {@link Take}: which

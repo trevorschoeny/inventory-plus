@@ -68,6 +68,13 @@ public final class InventoryPlusOperations {
     /** Hotbar Cycler may rotate items through a slot. Role BOTH. */
     public static final BehaviorKey<TriBool> HOTBAR_CYCLE = operation("hotbar_cycle");
 
+    /**
+     * Pick block may take a stack out of a container carried in a slot, when
+     * the inventory has none of the block. Role TAKE. Vanilla's own pick, from
+     * the inventory itself, is not judged.
+     */
+    public static final BehaviorKey<TriBool> PICK_BLOCK = operation("pick_block");
+
     /** MenuKit's recipe for an operation of one's own, under this mod's namespace. */
     private static BehaviorKey<TriBool> operation(String path) {
         return BehaviorKey.of(Identifier.fromNamespaceAndPath("inventoryplus", path),

@@ -158,10 +158,10 @@ public final class HotbarCycler {
     /**
      * Whether player slot {@code containerSlot} is in Hotbar Cycler's reach
      * group now: a slot of a cycling row. Registered with
-     * {@code Reach.registerFeature}, which asks per slot at veto time, so the
-     * protection belongs to the position, stays put while items rotate
-     * through it, and leaves the player's own locks alone. Which moves leave
-     * these slots alone is the player's choice, per move, in Reach.
+     * {@code Reach.registerFeature}, which asks per slot at veto time, so a
+     * move the player unticks for them belongs to the position, stays put
+     * while items rotate through it, and leaves the player's own locks alone.
+     * No move is unticked by default.
      */
     public static boolean inReachGroup(int containerSlot) {
         if (!IPConfig.hotbarCyclerEnabled()) return false;

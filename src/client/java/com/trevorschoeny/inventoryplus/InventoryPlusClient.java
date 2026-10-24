@@ -134,8 +134,8 @@ public class InventoryPlusClient implements ClientModInitializer {
         // Column Cycler is off by default (columnCyclerEnabled). Slot
         // membership is per world (config/inventoryplus/column-cycler.json).
         // The C key toggles membership, and its inventory button turns the
-        // feature on and off. The cycle slots are a feature reach group:
-        // every move Slot lock stops by default leaves them alone, per move.
+        // feature on and off. The cycle slots are a feature reach group: no
+        // move leaves them alone by default, and the player can untick any.
         Reach.registerFeature(Reach.COLUMN_CYCLER, "Column Cycler", "inventoryplus:column_cycle",
                 ColumnCycler::inReachGroup);
         ColumnCyclerKeybind.register();
@@ -149,16 +149,12 @@ public class InventoryPlusClient implements ClientModInitializer {
         // columns, which is what keeps items in their own column.
         //
         // The cycled rows are a feature reach group, asked per slot at veto
-        // time: the protection belongs to the position, stays put while items
-        // rotate through it, and follows a row's toggle at once.
+        // time, so a move the player unticks for them belongs to the position,
+        // stays put while items rotate through it, and follows a row's toggle
+        // at once. No move is unticked by default.
         HotbarCycler.load();
         Reach.registerFeature(Reach.HOTBAR_CYCLER, "Hotbar Cycler", "inventoryplus:hotbar_cycle",
                 HotbarCycler::inReachGroup);
-        // A player who had either old cycle-lock switch off keeps that answer
-        // as explicit reach entries, once.
-        IPConfig.LegacyCycleLocks legacyCycleLocks = IPConfig.legacyCycleLocks();
-        if (!legacyCycleLocks.cycleSlotsLocked()) Reach.allowEverywhere(Reach.COLUMN_CYCLER, Reach.HOTBAR_CYCLER);
-        else if (!legacyCycleLocks.lockCycledRows()) Reach.allowEverywhere(Reach.HOTBAR_CYCLER);
         HotbarCyclerRowButtons.register();
         HotbarCyclerKeybind.register();
         ClientTickEvents.END_CLIENT_TICK.register(HotbarCyclerKeybind::tick);

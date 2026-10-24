@@ -238,9 +238,6 @@ final class SettingsTabs {
         }
         operations(b, "Vanilla", vanilla);
         operations(b, "Inventory Plus", ours);
-        // Pick block isn't one of MenuKit's operations, so it has no reach of
-        // its own; its carried places get a section here all the same.
-        pickBlockSection(b);
         operations(b, "Other mods", others);
         // Shown now: from the next build on, none of these reads as new.
         List<String> shown = new ArrayList<>();
@@ -346,7 +343,6 @@ final class SettingsTabs {
         });
     }
 
-    /** Pick block's key in {@link #PLACE_KEYS}; not a MenuKit operation id. */
     private static final String PICK_BLOCK = "inventoryplus:pick_block";
 
     /**
@@ -425,24 +421,6 @@ final class SettingsTabs {
             default -> { }
         }
         return out;
-    }
-
-    /**
-     * Pick block's section: only its places, since it has no slot reach to
-     * set. Closed, the same live count every operation shows.
-     */
-    private static void pickBlockSection(SettingsBody b) {
-        List<Place> places = placesOf(PICK_BLOCK).get("Places");
-        Supplier<Component> summary = () -> {
-            long on = places.stream().filter(p -> p.on().getAsBoolean()).count();
-            return Component.literal(on == places.size() ? "all " + on + " on" : on + " of " + places.size() + " on");
-        };
-        b.section("Pick block", summary, null, c -> {
-            c.line(0, Component.literal("Where pick block may take a block from when your inventory has none."));
-            c.actions(new SettingsBody.Action("Revert to default",
-                    () -> IPConfig.reset(PLACE_KEYS.get(PICK_BLOCK).toArray(String[]::new))));
-            block(c, "Places", places);
-        });
     }
 
     /** One labeled block of checkboxes, left out when nothing in it applies. */

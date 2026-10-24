@@ -11,7 +11,6 @@ import com.mojang.serialization.JsonOps;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.api.WorldStore;
-import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockgroups.LockGroup;
 import com.trevorschoeny.inventoryplus.lockgroups.Reach;
 
@@ -35,7 +34,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -164,29 +162,12 @@ public final class LockedItems {
     }
 
     /**
-     * The "Locked items" group for 1.5.x item locks. 1.5.0 blocked sort, Move
-     * Matching and the cyclers, plus restock and Auto Tool Switch only if the
-     * player had turned off "use locked items" for them, and nothing else. Its
-     * kind's default (Exact item's table) differs from that, so the differences
-     * are written as entries, once. Restock is one operation here but was three
-     * settings then. It is blocked if any of the three said so, since
-     * protection wins.
+     * The "Locked items" group for 1.5.x item locks. It stops what its kind's
+     * default stops; what 1.5.0 blocked is not carried over, since every
+     * player moved to the current defaults.
      */
     private static LockGroup makeLockedItemsGroup() {
-        LockGroup group = Reach.createGroup(LockKind.ITEM, "Locked items", "gray");
-        Set<String> blocked = new HashSet<>(Set.of(
-                "inventoryplus:sort", "inventoryplus:move_matching_out", "inventoryplus:move_matching_in",
-                "inventoryplus:column_cycle", "inventoryplus:hotbar_cycle"));
-        // The settings themselves are gone; the file's last values are kept for this.
-        IPConfig.LegacyUsesLockedItems legacy = IPConfig.legacyUsesLockedItems();
-        if (!(legacy.restockArmor() && legacy.restockTool() && legacy.restockItem())) {
-            blocked.add("inventoryplus:restock_take");
-        }
-        if (!legacy.autoToolSwitch()) blocked.add("inventoryplus:auto_tool_switch");
-        Set<String> ops = new HashSet<>(blocked);
-        ops.addAll(Reach.EXACT_ITEM_DENIES);
-        for (String op : ops) Reach.setLockDenies(group.id(), op, blocked.contains(op));
-        return group;
+        return Reach.createGroup(LockKind.ITEM, "Locked items", "gray");
     }
 
     // The decoded view of the current world
