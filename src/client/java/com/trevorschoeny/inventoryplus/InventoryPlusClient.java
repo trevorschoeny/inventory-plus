@@ -34,8 +34,13 @@ import com.trevorschoeny.inventoryplus.toolbar.PowerUsersToolbar;
 import com.trevorschoeny.inventoryplus.settings.SettingsKeybind;
 import com.trevorschoeny.inventoryplus.toolbar.Toolbar;
 
+import com.trevlar.menukit.api.panel.ModeScope;
+import com.trevlar.menukit.api.panel.ScreenFrames;
+import com.trevlar.menukit.api.panel.ScreenMatcher;
+
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.minecraft.client.gui.screens.inventory.ContainerScreen;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,6 +60,15 @@ public class InventoryPlusClient implements ClientModInitializer {
         // Loaded once at startup; toggles persist on change through the
         // IPConfig setters. Must load before any feature reads a toggle.
         IPConfig.load();
+
+        // Lets a vanilla chest's own rows scroll inside its frame on a short
+        // window, instead of the frame overflowing it. Every slot-position
+        // read in Inventory Plus already goes through slot.x/slot.y
+        // (ScreenLayout, SortKeybind, the lock/cycle drag controllers, the
+        // overlay mixin) and every button through MenuKit/SlotKit's own
+        // panel placement, so nothing here computes a chest's grid position
+        // itself; it follows the scroll with no further change.
+        ScreenFrames.scrollWhenShort(ModeScope.BOTH, ScreenMatcher.only(ContainerScreen.class));
 
         // Slot operations are defined by the common initializer (InventoryPlus),
         // so a server knows them too. Every feature asks SlotOperations.allows
