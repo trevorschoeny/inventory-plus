@@ -4,28 +4,28 @@ Inventory Plus brings the inventory features you'd normally collect from a handf
 
 It's client-side, so it works on any server.
 
-## Features
+### Features
 
-### Restock
+#### Restock
 
 - Refills the stack in your hand from your inventory when it runs out.
 - Replaces a broken tool or armor piece with the same item from your inventory, or the closest match you have.
 - Can also swap out a tool or armor piece just before it breaks. You set how low its durability gets before it swaps.
 - Can also take from shulker boxes and bundles in your inventory, and from your ender chest, when your inventory has nothing that fits. It's off by default.
 
-### Sort
+#### Sort
 
 - Sorts any container, or your own inventory, with a button or a key.
 - Right-click the button to sort by category, quantity, ID, or rarity.
 - The key sorts whichever container your mouse is over.
 
-### Move Matching
+#### Move Matching
 
 - Moves every item that the other side already has between your inventory and an open container, in one click.
 - Right-click a button to choose how much moves. It can move everything, all but one of each stack, all but one stack of each item, or only items that all fit.
 - A setting can be pinned to one container, so that container always uses it.
 
-### Auto Tool Switch
+#### Auto Tool Switch
 
 - Puts the right tool in your hand when you start mining a block.
 - Can also switch to a weapon when you attack a mob, using the weapon type you prefer.
@@ -33,58 +33,60 @@ It's client-side, so it works on any server.
 - Can also take a tool or weapon from a shulker box or bundle in your inventory.
 - It's off until you turn it on.
 
-### Lock groups
+#### Lock groups
 
-- Locks a slot so sorting, shift-clicks, drags, drops, and number-key swaps leave it alone.
+- Locks a slot so sorting, shift-clicks, drags, and drops leave it alone. Number keys and the offhand swap still work on it.
 - Locks one exact item, with its enchantments and name, wherever it goes and however worn it gets.
 - Works in your inventory, your ender chest, and the chests, barrels, shulker boxes, hoppers, and dispensers you open.
 - You can make your own groups, each with its own color, that lock slots, every item of a type, or one exact item.
 
-### Reach
+#### Reach
 
 - Decides which slots each move is allowed to use, for every Inventory Plus feature and for vanilla moves like shift-clicking and dropping.
 - Each lock group has a checkbox under each move, so you choose exactly what a lock stops.
 - Also sets whether Restock, Auto Tool Switch, and pick block may take from shulker boxes and bundles in your inventory, and from your ender chest.
 
-### Tooltips
+#### Tooltips
 
 - Adds durability, tool stats, food values, food effects, and a short description of each enchantment to item tooltips.
 - Compares armor and tools with what you're wearing or holding.
-- Hold Space to hide every tooltip and see what's behind it.
+- Hold Space to hide every tooltip and see what's behind it. Or turn it around, so item tooltips stay hidden until you hold Space.
 - Tooltips stay hidden when a screen opens until you move the mouse, so none pops up under the cursor.
 - Long tooltips scroll with the mouse wheel, and wide ones wrap to fit the screen.
 
-### Column Cycler and Hotbar Cycler
+#### Column Cycler and Hotbar Cycler
 
 - Column Cycler rotates the items in one inventory column through a hotbar slot.
 - Hotbar Cycler rotates whole inventory rows through your hotbar, so a second set of hotbar items is one key away.
 - Both are off by default.
 
-### One settings menu
+#### One settings menu
 
 - Every feature has its own tab, with its switch, its keys, and its settings.
 - Ctrl-click (Cmd on a Mac) any Inventory Plus button to open that feature's tab.
 
-## Requirements
+### Requirements
 
 - [Keybindery](https://modrinth.com/mod/keybindery) 1.1.0 or newer, for the keys and the key buttons in the settings menu.
 - [MenuKit](https://modrinth.com/mod/menukit) 7.4.0 or newer, below 8.0.0, which draws the buttons, the settings menu, the strip beside the hotbar, and the tooltip changes.
 - [SlotKit](https://modrinth.com/mod/slotkit) 2.1.0 or newer, below 3.0.0, which tells Inventory Plus what each slot is, so locks and Reach know what a move may touch.
 - [Fabric API](https://modrinth.com/mod/fabric-api).
 
-## Pairs well with
+### Pairs well with
 
 - [Hotbar Pockets](https://modrinth.com/mod/hotbar-pockets), my mod that adds extra slots behind your hotbar. It adds a Pockets tab to the Inventory Plus settings menu and a switch to the inventory's right column.
 
-## Compatibility
+### Compatibility
 
 It runs on Minecraft 26.3 with Fabric. Install it on your client, and it works on any server with nothing installed there. It can also be installed on a server, with Keybindery, MenuKit, SlotKit, and Fabric API alongside it, and nothing changes for players. It can't be installed together with Inventory Max, which is now Hotbar Pockets.
 
-## How to use
+### How to use
 
-### The buttons on your inventory
+#### The buttons on your inventory
 
 Open your inventory or any container to see the buttons. In creative they're on the inventory tab too, but not on the item tabs, which have no inventory.
+
+On a game window too short for a chest's screen, the chest's rows scroll inside its frame, so the screen fits.
 
 The row of small buttons above your inventory is for actions. From left to right, it has Move Matching out, Move Matching in, and Sort. The Move Matching buttons only appear while a container is open next to your inventory. A container with a Sort button of its own (a chest, barrel, ender chest, shulker box, hopper, dispenser, or dropper) has it above its slots.
 
@@ -97,7 +99,7 @@ Every button works the same way.
 - Ctrl-click (Cmd on a Mac) any Inventory Plus button to open that feature's tab in the settings menu. Holding Ctrl changes the tooltip to say so.
 - Hover a button to see its tooltip, which shows the current mode and what each click does.
 
-### In creative
+#### In creative
 
 Most of Inventory Plus works in creative the same as in survival.
 
@@ -108,20 +110,21 @@ Most of Inventory Plus works in creative the same as in survival.
 - Move Matching works in any container you open in creative.
 - Auto Tool Switch does nothing in creative, and Restock and pick block don't take from shulker boxes, bundles, or your ender chest there.
 
-### Sort
+#### Sort
 
 - Left-click the Sort button above your inventory to sort your inventory. Your hotbar is never sorted.
 - Left-click the Sort button above a container to sort that container.
 - Right-click a Sort button to change the order. The orders are Category (the creative menu's order, the default), Quantity (most of an item first), ID (alphabetical by item ID), and Rarity (rarest first).
 - Middle-click the Sort button above a container to pin the current order to that container. A pinned button is tinted pink, and middle-clicking it again unpins it.
 - Press S over a container to sort it. With no container open, S sorts your inventory wherever your mouse is.
-- When another mod shows more than one container on a screen, such as a shulker box opened below a chest, each keeps its own order and pin, and S sorts whichever one your mouse is over.
+- When another mod shows more than one container on a screen, such as a shulker box opened below a chest, each one gets its own Sort button and keeps its own order and pin, and S sorts whichever one your mouse is over. A shulker box, ender chest, or bundle opened this way has a Sort button too.
+- A bundle sorts its stacks into the chosen order. If one of its slots is locked, the bundle is left as it is.
 - A box like that keeps its order and pin only while its screen stays open; closing it clears both. Its slot locks aren't affected, and hold the next time you open it.
 - Locked slots and locked items stay where they are while everything else is sorted around them.
 
 The Sort tab has the Sort switch (on by default), Show the Sort button (on), and the Sort key (S).
 
-### Move Matching
+#### Move Matching
 
 - Left-click Move Matching out to move items from your inventory into the open container, but only items the container already has.
 - Left-click Move Matching in to move items from the container into your inventory, but only items your inventory already has.
@@ -133,7 +136,7 @@ The Sort tab has the Sort switch (on by default), Show the Sort button (on), and
 
 The Move Matching tab has the Move Matching switch (on by default), Show the Move Matching buttons (on), and the keys Move Matching Out of Inventory (O) and Move Matching Into Inventory (I).
 
-### Restock
+#### Restock
 
 Restock is on by default and works while you play, with no screen open.
 
@@ -155,7 +158,7 @@ Restock is on by default and works while you play, with no screen open.
 | Restock armor | On |
 | Swap before it breaks (under Armor) | Off |
 
-### Auto Tool Switch
+#### Auto Tool Switch
 
 Auto Tool Switch is off by default. Turn it on with its switch in the inventory's right column, or on its tab.
 
@@ -178,12 +181,12 @@ Auto Tool Switch is off by default. Turn it on with its switch in the inventory'
 | All mobs, not just hostile ones | Off |
 | Preferred weapon | Sword (or Axe, Mace, Trident, or Spear) |
 
-### Lock groups
+#### Lock groups
 
 A lock group is a named, colored set of locks. There are two to start with.
 
-- Slot lock locks a slot. Whatever is in it stays put, and moves leave the slot alone even after you put something else in it. By default it stops sorting, Move Matching, shift-clicks, double-click collecting, item pickup into the slot, dropping, drag-filling, number-key and offhand swaps, and Restock taking from it.
-- Exact item locks one item as it is, with its enchantments and name, however worn it gets. Another item of the same type isn't locked. By default it stops dropping, shift-clicking it out, double-click collecting, sorting, Move Matching, and both cyclers. Restock and Auto Tool Switch can still use it.
+- Slot lock locks a slot. Whatever is in it stays put, and moves leave the slot alone even after you put something else in it. By default it stops sorting, Move Matching, shift-clicks, double-click collecting, item pickup into the slot, dropping, drag-filling, Restock taking from it, and pick block reaching into a carried container. Number keys and the offhand swap still work on a locked slot.
+- Exact item locks one item as it is, with its enchantments and name, however worn it gets. Another item of the same type isn't locked. By default it stops dropping, shift-clicking it out, sorting, and moving it out with Move Matching. Collecting, the cyclers, Restock, Auto Tool Switch, and Move Matching topping up a stack can still use it, and it counts only while you're carrying the item: one left in a chest comes back out like anything else.
 
 To lock something:
 
@@ -207,22 +210,23 @@ On the Lock groups tab, your groups are a list:
 
 What each group stops can be changed in Reach.
 
-### Reach
+#### Reach
 
 The Reach tab lists every move that can change your slots, under Vanilla, Inventory Plus, and Other mods. Each move has a section with checkboxes for the slot groups, lock groups, and cycler slots it can use. A cleared box means that move never touches that group.
 
 - For example, clearing Exact item in the Restock takes from section stops Restock from using items locked with Exact item.
 - Clearing Slot lock in the Auto Tool Switch section stops Auto Tool Switch from taking tools out of locked slots.
-- The Restock takes from, Auto Tool Switch, and Pick block sections also have boxes for the shulker boxes and bundles in your inventory, and Restock and Pick block have one for your ender chest. Restock's are split into items, tools, armor, and ammo. They all start off.
+- Restock takes from, Auto Tool Switch, and Pick block also have boxes for the shulker boxes and bundles in your inventory, and Restock and Pick block have one for your ender chest. Restock's are split into items, tools, armor, and ammo. They all start off.
 - With those boxes ticked, pick block takes the picked block's item from those containers when your inventory has none. Creative isn't affected.
 - The closed section shows how many boxes are on and which lock groups stop the move. A move that's new since you last opened the tab is marked new.
 - Revert to default puts one move back. Reset to Defaults at the top puts every move back.
 
-### Tooltips
+#### Tooltips
 
 The Tooltips switch is on by default. Turning it off leaves every tooltip as vanilla shows it.
 
 - Hold Space to hide every tooltip. Space is shared with Jump, and both still work. You can change the key on the Tooltips tab or in Controls.
+- With Instead, hide item tooltips and show them while the key is held turned on, item tooltips stay hidden and holding the key shows them. Tooltips on buttons and menus still show.
 - When a screen opens, tooltips stay hidden until you move the mouse.
 - A tooltip taller than the screen scrolls with the mouse wheel, and one wider than the screen wraps. These are always on.
 - With Dock tooltips at top or bottom turned on, a tooltip that would open beside your mouse sits at the bottom center of the screen instead, or at the top center when your mouse is down there.
@@ -232,7 +236,8 @@ The Tooltips switch is on by default. Turning it off leaves every tooltip as van
 | Dock tooltips at top or bottom | Off |
 | Hide tooltips until the mouse moves | On |
 | Hold a key to hide tooltips | On |
-| Hide Tooltips key | Space |
+| Instead, hide item tooltips and show them while the key is held | Off |
+| Hide or Show Tooltips key | Space |
 | Durability | On |
 | Food: nutrition and saturation | On |
 | Food effects | On |
@@ -243,7 +248,7 @@ The Tooltips switch is on by default. Turning it off leaves every tooltip as van
 | Condense armor trim lines | On |
 | Mod name | Off |
 
-### The settings menu
+#### The settings menu
 
 Open it with the Settings button at the top of the inventory's right column, with Inventory Plus's config button in Mod Menu, or with the Open Settings key, which has no key until you set one. Ctrl-click (Cmd on a Mac) any Inventory Plus button to open it on that feature's tab.
 
@@ -273,9 +278,9 @@ Every key is also in Minecraft's Controls menu, under Inventory Plus.
 | Hotbar Cycle Backward | \[ |
 | Auto-Switch: Return to Previous Tool | Left Shift |
 | Open Settings | Not set |
-| Hide Tooltips | Space |
+| Hide or Show Tooltips | Space |
 
-### Column Cycler
+#### Column Cycler
 
 Column Cycler is off by default. Turn it on from its tab. To put its switch in the inventory's right column, turn on Show the Column Cycler button.
 
@@ -296,7 +301,7 @@ Column Cycler is off by default. Turn it on from its tab. To put its switch in t
 | Column Cycle Backward | Down arrow |
 | Scroll to cycle | Off |
 
-### Hotbar Cycler
+#### Hotbar Cycler
 
 Hotbar Cycler is off by default. Turn it on from its tab. To put its switch in the inventory's right column, turn on Show the Hotbar Cycler button.
 
@@ -314,7 +319,7 @@ Hotbar Cycler is off by default. Turn it on from its tab. To put its switch in t
 | Hotbar Cycle Backward | \[ |
 | Scroll to cycle | Off |
 
-## For mod developers
+### For mod developers
 
 Other mods can add their own tab and switch to Inventory Plus, and work with its cyclers, Restock, and Reach. The public API is the `com.trevorschoeny.inventoryplus.api` package, and nothing in it changes shape without a major version.
 
@@ -336,6 +341,6 @@ InventoryPlusApi.registerSettingsReset(PocketsSettingsTab::reset);
 
 Inventory Plus is a client mod, so depend on it as an optional or required mod and don't bundle it with Jar-in-Jar. The API is documented in the Javadoc of the [source code](https://github.com/trevorschoeny/inventory-plus).
 
-## License
+### License
 
 MIT.
