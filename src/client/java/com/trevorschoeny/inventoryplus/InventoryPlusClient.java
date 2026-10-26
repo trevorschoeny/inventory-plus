@@ -21,6 +21,7 @@ import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 import com.trevorschoeny.inventoryplus.tooltips.Tooltips;
 import com.trevorschoeny.inventoryplus.lockgroups.LockTooltips;
 import com.trevorschoeny.inventoryplus.lockgroups.Locks;
+import com.trevorschoeny.inventoryplus.lockgroups.SlotMarks;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockgroups.Reach;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsDragController;
@@ -118,6 +119,9 @@ public class InventoryPlusClient implements ClientModInitializer {
         LockedItems.load();
         Locks.registerVeto();
         LockTooltips.register();
+        // Padlock, cycle icon and locked-item corner mark draw as one MenuKit
+        // slot decoration (7.5.0), in place of the old extractSlot mixin.
+        SlotMarks.register();
         // Tooltips: every line Inventory Plus adds or changes, and the hide key.
         Tooltips.register();
         ClientTickEvents.END_CLIENT_TICK.register(LockedSlotKeybind::tick);
