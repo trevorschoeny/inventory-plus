@@ -68,8 +68,8 @@ It's client-side, so it works on any server.
 ### Requirements
 
 - [Keybindery](https://modrinth.com/mod/keybindery) 1.1.0 or newer, for the keys and the key buttons in the settings menu.
-- [MenuKit](https://modrinth.com/mod/menukit) 7.4.0 or newer, below 8.0.0, which draws the buttons, the settings menu, the strip beside the hotbar, and the tooltip changes.
-- [SlotKit](https://modrinth.com/mod/slotkit) 2.1.0 or newer, below 3.0.0, which tells Inventory Plus what each slot is, so locks and Reach know what a move may touch.
+- [MenuKit](https://modrinth.com/mod/menukit) 7.5.0 or newer, below 8.0.0, which draws the buttons, the settings menu, the strip beside the hotbar, and the tooltip changes.
+- [SlotKit](https://modrinth.com/mod/slotkit) 2.2.0 or newer, below 3.0.0, which tells Inventory Plus what each slot is, so locks and Reach know what a move may touch.
 - [Fabric API](https://modrinth.com/mod/fabric-api).
 
 ### Pairs well with
