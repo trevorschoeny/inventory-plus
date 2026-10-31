@@ -123,6 +123,46 @@ public class CarriedPutChecks implements FabricClientGameTest {
                         "Move Matching in's first pass takes what it was asked for into the shulker");
                 p.closeContainer();
             });
+
+            // Move Matching in end to end, from the client: cobblestone, which the shulker
+            // holds, goes into it on the server; stone, which only the inventory holds,
+            // follows into the inventory once the server has answered.
+            stock(world);
+            ctx.runOnClient(mc -> IPConfig.setMoveMatchingIntoShulkers(true));
+            BlockPos[] chestAt = {null};
+            onServer(world, p -> {
+                p.getInventory().setItem(9, new ItemStack(Items.STONE, 1));
+                BlockPos at = p.blockPosition().offset(-2, 0, 0);
+                p.level().setBlockAndUpdate(at, Blocks.CHEST.defaultBlockState());
+                Container chest = (Container) p.level().getBlockEntity(at);
+                chest.setItem(0, new ItemStack(Items.COBBLESTONE, 64));
+                chest.setItem(1, new ItemStack(Items.COBBLESTONE, 64));
+                chest.setItem(2, new ItemStack(Items.STONE, 16));
+                chestAt[0] = at;
+                p.openMenu((MenuProvider) chest);
+            });
+            ctx.waitTicks(25);
+            ctx.runOnClient(mc -> {
+                var groups = com.trevorschoeny.inventoryplus.movematching.SlotGroupDetector.detect(mc.gui.screen());
+                var inv = com.trevorschoeny.inventoryplus.movematching.MoveMatchingButtons.findPlayerMainInv(groups);
+                expect(inv != null, "the chest screen has the player's main inventory");
+                com.trevorschoeny.inventoryplus.movematching.MoveMatchingExecutor.execute(mc, inv,
+                        com.trevorschoeny.inventoryplus.movematching.Direction.IN,
+                        com.trevorschoeny.inventoryplus.movematching.MoveMatchingMode.ALL);
+            });
+            ctx.waitTicks(20);
+            onServer(world, p -> {
+                Container chest = (Container) p.level().getBlockEntity(chestAt[0]);
+                int inShulker = contents(p.getInventory().getItem(20)).stream()
+                        .filter(x -> x.is(Items.COBBLESTONE)).mapToInt(ItemStack::getCount).sum();
+                expect(chest.isEmpty() && inShulker == 138 && count(p, Items.COBBLESTONE) == 0
+                                && count(p, Items.STONE) == 17,
+                        "Move Matching in fills the shulker first and the inventory with the rest (shulker "
+                                + inShulker + ", loose cobblestone " + count(p, Items.COBBLESTONE) + ", stone "
+                                + count(p, Items.STONE) + ", chest empty " + chest.isEmpty() + ")");
+                p.closeContainer();
+            });
+            ctx.runOnClient(mc -> IPConfig.setMoveMatchingIntoShulkers(false));
         }
     }
 

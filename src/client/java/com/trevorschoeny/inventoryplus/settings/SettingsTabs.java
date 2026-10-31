@@ -455,16 +455,10 @@ final class SettingsTabs {
         b.heading("Containers")
                 .line("Use the shulker boxes and bundles you carry, and your ender chest, for every move at once. "
                         + "New items go into a container that already holds them, and your inventory takes the rest.");
-        Bool sp1 = Bool.of(IPConfig::pickupIntoShulkers, IPConfig::setPickupIntoShulkers);
-        Bool sp2 = Bool.of(IPConfig::shiftClickIntoShulkers, IPConfig::setShiftClickIntoShulkers);
-        Bool sp3 = Bool.of(IPConfig::moveMatchingIntoShulkers, IPConfig::setMoveMatchingIntoShulkers);
-        Bool bp1 = Bool.of(IPConfig::pickupIntoBundles, IPConfig::setPickupIntoBundles);
-        Bool bp2 = Bool.of(IPConfig::shiftClickIntoBundles, IPConfig::setShiftClickIntoBundles);
-        Bool bp3 = Bool.of(IPConfig::moveMatchingIntoBundles, IPConfig::setMoveMatchingIntoBundles);
-        Bool ep1 = Bool.of(IPConfig::pickupIntoEnderChest, IPConfig::setPickupIntoEnderChest);
-        Bool ep2 = Bool.of(IPConfig::shiftClickIntoEnderChest, IPConfig::setShiftClickIntoEnderChest);
-        Bool ep3 = Bool.of(IPConfig::moveMatchingIntoEnderChest, IPConfig::setMoveMatchingIntoEnderChest);
-        master(b, "Shulker Boxes: put new items in", true, sp1, sp2, sp3);
+        master(b, "Shulker Boxes: put new items in", true,
+                Bool.of(IPConfig::pickupIntoShulkers, IPConfig::setPickupIntoShulkers),
+                Bool.of(IPConfig::shiftClickIntoShulkers, IPConfig::setShiftClickIntoShulkers),
+                Bool.of(IPConfig::moveMatchingIntoShulkers, IPConfig::setMoveMatchingIntoShulkers));
         master(b, "Shulker Boxes: take from", false,
                 Bool.of(IPConfig::restockItemsFromShulkers, IPConfig::setRestockItemsFromShulkers),
                 Bool.of(IPConfig::restockToolsFromShulkers, IPConfig::setRestockToolsFromShulkers),
@@ -472,7 +466,10 @@ final class SettingsTabs {
                 Bool.of(IPConfig::restockAmmoFromShulkers, IPConfig::setRestockAmmoFromShulkers),
                 Bool.of(IPConfig::autoToolSwitchFromShulkers, IPConfig::setAutoToolSwitchFromShulkers),
                 Bool.of(IPConfig::pickFromShulkers, IPConfig::setPickFromShulkers));
-        master(b, "Bundles: put new items in", true, bp1, bp2, bp3);
+        master(b, "Bundles: put new items in", true,
+                Bool.of(IPConfig::pickupIntoBundles, IPConfig::setPickupIntoBundles),
+                Bool.of(IPConfig::shiftClickIntoBundles, IPConfig::setShiftClickIntoBundles),
+                Bool.of(IPConfig::moveMatchingIntoBundles, IPConfig::setMoveMatchingIntoBundles));
         master(b, "Bundles: take from", false,
                 Bool.of(IPConfig::restockItemsFromBundles, IPConfig::setRestockItemsFromBundles),
                 Bool.of(IPConfig::restockToolsFromBundles, IPConfig::setRestockToolsFromBundles),
@@ -480,7 +477,10 @@ final class SettingsTabs {
                 Bool.of(IPConfig::restockAmmoFromBundles, IPConfig::setRestockAmmoFromBundles),
                 Bool.of(IPConfig::autoToolSwitchFromBundles, IPConfig::setAutoToolSwitchFromBundles),
                 Bool.of(IPConfig::pickFromBundles, IPConfig::setPickFromBundles));
-        master(b, "Your Ender Chest: put new items in", true, ep1, ep2, ep3);
+        master(b, "Your Ender Chest: put new items in", true,
+                Bool.of(IPConfig::pickupIntoEnderChest, IPConfig::setPickupIntoEnderChest),
+                Bool.of(IPConfig::shiftClickIntoEnderChest, IPConfig::setShiftClickIntoEnderChest),
+                Bool.of(IPConfig::moveMatchingIntoEnderChest, IPConfig::setMoveMatchingIntoEnderChest));
         master(b, "Your Ender Chest: take from", false,
                 Bool.of(IPConfig::restockItemsFromEnderChest, IPConfig::setRestockItemsFromEnderChest),
                 Bool.of(IPConfig::restockToolsFromEnderChest, IPConfig::setRestockToolsFromEnderChest),
