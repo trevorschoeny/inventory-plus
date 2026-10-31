@@ -17,6 +17,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import com.trevlar.slotkit.api.group.SlotGroupId;
+import com.trevlar.slotkit.api.slot.CreatedSlot;
 import com.trevlar.slotkit.api.window.BehaviorKey;
 import com.trevlar.slotkit.api.window.BehaviorKeys;
 import com.trevlar.slotkit.api.window.SlotOperations;
@@ -31,6 +32,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.Container;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -43,7 +45,8 @@ import java.util.List;
  * Collect and a top-up through but not Sort or Q, and counts only on items the
  * player carries; a Slot lock lets number keys and F through; cycled slots are
  * ordinary slots; Move Matching leaves the hotbar alone until ticked; a
- * companion's protected slots refuse all but what it allows; and a saved
+ * companion's protected slots refuse all but what it allows, and take a
+ * shift-click only once their box is ticked; and a saved
  * record from before these defaults loads without its choices.
  */
 public class ReachDefaultChecks implements FabricClientGameTest {
@@ -149,6 +152,8 @@ public class ReachDefaultChecks implements FabricClientGameTest {
             });
             ctx.setScreen(() -> null);
 
+            shiftClickIntoProtected(world);
+
             // A record saved before these defaults loads without its choices; a current one keeps them.
             ctx.runOnClient(mc -> {
                 JsonObject saved = Reach.write();
@@ -160,6 +165,69 @@ public class ReachDefaultChecks implements FabricClientGameTest {
                 ColumnCycler.setCycle(CYCLE, false);
             });
         }
+    }
+
+    /**
+     * A companion's slot that asks for shift-clicks (Hotbar Pockets' pockets
+     * once Reach decides for them) and protects itself in reach: a shift-click
+     * stays out of it by default, and lands in it once its Shift-click in box
+     * is ticked. Same stack, same slot, same click both times; only the box
+     * changes.
+     */
+    private void shiftClickIntoProtected(TestSingleplayerContext world) {
+        SlotGroupId pocket = ListFixture.POCKET.id();
+        // The chest above is still the open menu until it is closed properly.
+        ctx.runOnClient(mc -> {
+            mc.player.closeContainer();
+            InventoryPlusApi.protectInReach(List.of(pocket), List.of(BehaviorKeys.CLICK_PUT));
+        });
+        ctx.waitTicks(3);
+
+        expect(shiftClickLands(world), false, "a protected slot takes no shift-click by default");
+        ctx.runOnClient(mc -> Reach.setDenied("menukit:shift_click_in", List.of(pocket.asString()), false));
+        expect(shiftClickLands(world), true, "ticking its Shift-click in box lets a shift-click land in it");
+
+        ctx.runOnClient(mc -> Reach.revert("menukit:shift_click_in"));
+        onServer(world, p -> {
+            ListFixture.POCKET.setActiveCount(p, 0);
+            clear(p);
+        });
+        ctx.waitTicks(5);
+    }
+
+    /**
+     * Shift-clicks 5 dirt alone in main slot {@link #FREE} on the inventory
+     * menu and says whether it reached the pocket. On the integrated server,
+     * where the move is decided, with the same veto as the player's own click;
+     * from the client the next round races the inventory sync. The click must
+     * move the dirt somewhere, so a click that never ran can't pass as refused.
+     */
+    private boolean shiftClickLands(TestSingleplayerContext world) {
+        int[] counts = new int[2];
+        onServer(world, p -> {
+            clear(p);
+            ListFixture.POCKET.setActiveCount(p, 1);
+            Slot pocketSlot = pocketSlot(p.inventoryMenu);
+            pocketSlot.set(ItemStack.EMPTY);
+            p.getInventory().setItem(FREE, new ItemStack(Items.DIRT, 5));
+            p.inventoryMenu.clicked(menuSlot(p, FREE).index, 0, ContainerInput.QUICK_MOVE, p);
+            counts[0] = pocketSlot.getItem().getCount();
+            counts[1] = p.getInventory().getItem(FREE).getCount();
+        });
+        expect(counts[1] == 0, "the shift-click ran (dirt left in its slot: " + counts[1] + ")");
+        return counts[0] == 5;
+    }
+
+    private static Slot pocketSlot(AbstractContainerMenu menu) {
+        for (Slot s : menu.slots) {
+            CreatedSlot c = CreatedSlot.of(s);
+            if (c != null && c.panelId().equals(ListFixture.POCKET.id().panelId())) return s;
+        }
+        throw new AssertionError("Reach defaults: the fixture pocket is not on the inventory menu");
+    }
+
+    private static void expect(boolean got, boolean want, String what) {
+        expect(got == want, what + " (landed " + got + ")");
     }
 
     /** A reach record of {@code version} with one choice: Sort may use everything. */
