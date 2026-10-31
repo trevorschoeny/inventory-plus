@@ -85,6 +85,9 @@ public class InventoryPlusClient implements ClientModInitializer {
         // and refills them from the main inventory. It sends vanilla
         // slot-click packets, so any vanilla server accepts the move.
         ClientTickEvents.END_CLIENT_TICK.register(AutoRestockTicker::tick);
+        // Container first: the client's choices for putting incoming items into
+        // carried containers, sent to the server whenever they change.
+        com.trevorschoeny.inventoryplus.carried.CarriedPutClient.register();
 
         // Auto Tool Switch swaps in the right tool or weapon on hit, using the
         // HotbarCyclableRegistry for the cyclable tier. Off by default.

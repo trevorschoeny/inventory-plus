@@ -98,6 +98,18 @@ public final class IPConfig {
     private static boolean pickFromShulkers = false;
     private static boolean pickFromBundles = false;
     private static boolean pickFromEnderChest = false;
+    // Container first: an item coming into the inventory by a pickup, a shift-click
+    // in or Move Matching in goes into a carried container that already holds it
+    // (nested/CarriedPut). Reach places on those three moves. Off by default.
+    private static boolean pickupIntoShulkers = false;
+    private static boolean pickupIntoBundles = false;
+    private static boolean pickupIntoEnderChest = false;
+    private static boolean shiftClickIntoShulkers = false;
+    private static boolean shiftClickIntoBundles = false;
+    private static boolean shiftClickIntoEnderChest = false;
+    private static boolean moveMatchingIntoShulkers = false;
+    private static boolean moveMatchingIntoBundles = false;
+    private static boolean moveMatchingIntoEnderChest = false;
     // The four "use locked items" settings are gone: what a lock stops is its
     // lock group's choice in the reach record now. Their old values are still
     // read from the file once, for the 1.5.x migration of item locks
@@ -296,6 +308,15 @@ public final class IPConfig {
         pickFromShulkers             = readBool(root, "pickFromShulkers",             pickFromShulkers);
         pickFromBundles              = readBool(root, "pickFromBundles",              pickFromBundles);
         pickFromEnderChest           = readBool(root, "pickFromEnderChest",           pickFromEnderChest);
+        pickupIntoShulkers = readBool(root, "pickupIntoShulkers", pickupIntoShulkers);
+        pickupIntoBundles = readBool(root, "pickupIntoBundles", pickupIntoBundles);
+        pickupIntoEnderChest = readBool(root, "pickupIntoEnderChest", pickupIntoEnderChest);
+        shiftClickIntoShulkers = readBool(root, "shiftClickIntoShulkers", shiftClickIntoShulkers);
+        shiftClickIntoBundles = readBool(root, "shiftClickIntoBundles", shiftClickIntoBundles);
+        shiftClickIntoEnderChest = readBool(root, "shiftClickIntoEnderChest", shiftClickIntoEnderChest);
+        moveMatchingIntoShulkers = readBool(root, "moveMatchingIntoShulkers", moveMatchingIntoShulkers);
+        moveMatchingIntoBundles = readBool(root, "moveMatchingIntoBundles", moveMatchingIntoBundles);
+        moveMatchingIntoEnderChest = readBool(root, "moveMatchingIntoEnderChest", moveMatchingIntoEnderChest);
         autoRestockBeforeBreakThreshold = readInt(root, "autoRestockBeforeBreakThreshold",
                 autoRestockBeforeBreakThreshold);
         autoToolSwitchEnabled  = readBool(root, "autoToolSwitchEnabled",  autoToolSwitchEnabled);
@@ -425,6 +446,15 @@ public final class IPConfig {
         root.addProperty("pickFromShulkers",            pickFromShulkers);
         root.addProperty("pickFromBundles",             pickFromBundles);
         root.addProperty("pickFromEnderChest",          pickFromEnderChest);
+        root.addProperty("pickupIntoShulkers", pickupIntoShulkers);
+        root.addProperty("pickupIntoBundles", pickupIntoBundles);
+        root.addProperty("pickupIntoEnderChest", pickupIntoEnderChest);
+        root.addProperty("shiftClickIntoShulkers", shiftClickIntoShulkers);
+        root.addProperty("shiftClickIntoBundles", shiftClickIntoBundles);
+        root.addProperty("shiftClickIntoEnderChest", shiftClickIntoEnderChest);
+        root.addProperty("moveMatchingIntoShulkers", moveMatchingIntoShulkers);
+        root.addProperty("moveMatchingIntoBundles", moveMatchingIntoBundles);
+        root.addProperty("moveMatchingIntoEnderChest", moveMatchingIntoEnderChest);
         root.addProperty("autoRestockBeforeBreakThreshold", autoRestockBeforeBreakThreshold);
         root.addProperty("autoToolSwitchEnabled",   autoToolSwitchEnabled);
         root.addProperty("autoToolSwitchReturnAuto", autoToolSwitchReturnAuto);
@@ -566,6 +596,15 @@ public final class IPConfig {
     public static boolean pickFromShulkers()            { return pickFromShulkers; }
     public static boolean pickFromBundles()             { return pickFromBundles; }
     public static boolean pickFromEnderChest()          { return pickFromEnderChest; }
+    public static boolean pickupIntoShulkers() { return pickupIntoShulkers; }
+    public static boolean pickupIntoBundles() { return pickupIntoBundles; }
+    public static boolean pickupIntoEnderChest() { return pickupIntoEnderChest; }
+    public static boolean shiftClickIntoShulkers() { return shiftClickIntoShulkers; }
+    public static boolean shiftClickIntoBundles() { return shiftClickIntoBundles; }
+    public static boolean shiftClickIntoEnderChest() { return shiftClickIntoEnderChest; }
+    public static boolean moveMatchingIntoShulkers() { return moveMatchingIntoShulkers; }
+    public static boolean moveMatchingIntoBundles() { return moveMatchingIntoBundles; }
+    public static boolean moveMatchingIntoEnderChest() { return moveMatchingIntoEnderChest; }
     public static int autoRestockBeforeBreakThreshold() { return autoRestockBeforeBreakThreshold; }
     public static boolean autoToolSwitchEnabled()       { return autoToolSwitchEnabled; }
     public static boolean autoToolSwitchReturnAuto() { return autoToolSwitchReturnAuto; }
@@ -611,6 +650,15 @@ public final class IPConfig {
     public static void setPickFromShulkers(boolean v)            { pickFromShulkers = v; save(); }
     public static void setPickFromBundles(boolean v)             { pickFromBundles = v; save(); }
     public static void setPickFromEnderChest(boolean v)          { pickFromEnderChest = v; save(); }
+    public static void setPickupIntoShulkers(boolean v) { pickupIntoShulkers = v; save(); }
+    public static void setPickupIntoBundles(boolean v) { pickupIntoBundles = v; save(); }
+    public static void setPickupIntoEnderChest(boolean v) { pickupIntoEnderChest = v; save(); }
+    public static void setShiftClickIntoShulkers(boolean v) { shiftClickIntoShulkers = v; save(); }
+    public static void setShiftClickIntoBundles(boolean v) { shiftClickIntoBundles = v; save(); }
+    public static void setShiftClickIntoEnderChest(boolean v) { shiftClickIntoEnderChest = v; save(); }
+    public static void setMoveMatchingIntoShulkers(boolean v) { moveMatchingIntoShulkers = v; save(); }
+    public static void setMoveMatchingIntoBundles(boolean v) { moveMatchingIntoBundles = v; save(); }
+    public static void setMoveMatchingIntoEnderChest(boolean v) { moveMatchingIntoEnderChest = v; save(); }
     public static void setAutoRestockBeforeBreakThreshold(int v) { autoRestockBeforeBreakThreshold = v; save(); }
     public static void setAutoToolSwitchEnabled(boolean v)       { autoToolSwitchEnabled = v; save(); }
     public static void setAutoToolSwitchReturnAuto(boolean v) { autoToolSwitchReturnAuto = v; save(); }

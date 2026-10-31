@@ -1,6 +1,8 @@
 package com.trevorschoeny.inventoryplus.movematching;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
+import com.trevorschoeny.inventoryplus.carried.CarriedPutClient;
+import com.trevorschoeny.inventoryplus.nested.CarriedPut;
 import com.trevorschoeny.inventoryplus.operations.CursorShelf;
 import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
 
@@ -75,6 +77,16 @@ public final class MoveMatchingExecutor {
     private MoveMatchingExecutor() {}
 
     public static void execute(Minecraft mc, SlotGroup clickedGroup, Direction direction, MoveMatchingMode mode) {
+        execute(mc, clickedGroup, direction, mode, true);
+    }
+
+    /**
+     * @param intoCarried In only: first put the sources into the carried containers that
+     *                    hold their kind ({@code CarriedPut}, container first), then, once
+     *                    the server has answered, run again without this for the rest
+     */
+    private static void execute(Minecraft mc, SlotGroup clickedGroup, Direction direction, MoveMatchingMode mode,
+                                boolean intoCarried) {
         if (!clickedGroup.targetable()) return;
 
         LocalPlayer player = mc.player;
@@ -107,6 +119,10 @@ public final class MoveMatchingExecutor {
         }
 
         Set<Item> matchSet = buildMatchSet(matchSetSlots);
+        // Container first: what the carried containers Move Matching may fill hold counts
+        // as already in the inventory, so a shulker of cobblestone pulls cobblestone.
+        boolean carried = direction == Direction.IN && CarriedPutClient.moveMatchingInto();
+        if (carried) matchSet.addAll(CarriedPutClient.moveMatchingKinds(player));
         if (matchSet.isEmpty()) {
             InventoryPlusClient.LOGGER.debug("[move-matching {} {}] match-set empty", direction, mode);
             return;
@@ -120,6 +136,22 @@ public final class MoveMatchingExecutor {
         // Group by type, in source order, so a mode can decide a whole type at once.
         Map<Item, List<Slot>> byType = new LinkedHashMap<>();
         for (Slot s : sources) byType.computeIfAbsent(s.getItem().getItem(), k -> new ArrayList<>()).add(s);
+
+        if (carried && intoCarried) {
+            // First pass, on the server: each source gives what the mode would move to the
+            // containers that hold its kind. The second pass reads what's left.
+            List<CarriedPut.Source> first = new ArrayList<>();
+            for (List<Slot> stacks : byType.values()) {
+                leaves(stacks, mode).forEach((slot, leave) ->
+                        first.add(new CarriedPut.Source(slot.index, slot.getItem().getCount() - leave)));
+            }
+            CarriedPutClient.moveIn(menu.containerId, first, () -> {
+                if (mc.player != null && mc.player.containerMenu == menu) {
+                    execute(mc, clickedGroup, direction, mode, false);
+                }
+            });
+            return;
+        }
 
         // The "in" key is about the slot being filled, whichever way the player
         // pointed Move Matching, so destinations are screened for it once here.
@@ -163,16 +195,35 @@ public final class MoveMatchingExecutor {
     /** Applies the mode to one item type's source stacks. Returns stacks that moved anything. */
     private static int moveType(MultiPlayerGameMode gameMode, LocalPlayer player, AbstractContainerMenu menu,
                                 Item item, List<Slot> stacks, List<Slot> destinations, MoveMatchingMode mode) {
-        int moved = 0;
-        switch (mode) {
-            case ALL -> {
-                for (Slot s : stacks) if (moveSourceIntoSlots(gameMode, player, menu, s, destinations, 0) > 0) moved++;
+        if (mode == MoveMatchingMode.NO_OVERFLOW) {
+            int total = 0;
+            for (Slot s : stacks) total += s.getItem().getCount();
+            int room = roomFor(menu, stacks.get(0).getItem(), destinations);
+            if (room < total) {
+                InventoryPlusClient.LOGGER.debug("[move-matching no-overflow] {} needs {}, room {}; left in place",
+                        item, total, room);
+                return 0;
             }
+        }
+        int moved = 0;
+        for (Map.Entry<Slot, Integer> e : leaves(stacks, mode).entrySet()) {
+            if (moveSourceIntoSlots(gameMode, player, menu, e.getKey(), destinations, e.getValue()) > 0) moved++;
+        }
+        return moved;
+    }
+
+    /**
+     * The stacks of one item type the mode moves, each with how many it leaves behind;
+     * a stack the mode leaves whole is absent. No-overflow moves everything (whether it
+     * fits is the caller's check).
+     */
+    private static Map<Slot, Integer> leaves(List<Slot> stacks, MoveMatchingMode mode) {
+        Map<Slot, Integer> out = new LinkedHashMap<>();
+        switch (mode) {
+            case ALL, NO_OVERFLOW -> { for (Slot s : stacks) out.put(s, 0); }
             case BUT_ONE -> {
-                for (Slot s : stacks) {
-                    if (s.getItem().getCount() <= 1) continue; // already at the minimum, untouched
-                    if (moveSourceIntoSlots(gameMode, player, menu, s, destinations, 1) > 0) moved++;
-                }
+                // A stack of 1 is already at the minimum, untouched.
+                for (Slot s : stacks) if (s.getItem().getCount() > 1) out.put(s, 1);
             }
             case BUT_ONE_STACK -> {
                 // Keep the biggest stacks first so the kept amount costs at most one split.
@@ -182,24 +233,12 @@ public final class MoveMatchingExecutor {
                 for (Slot s : ordered) {
                     int count = s.getItem().getCount();
                     if (keep >= count) { keep -= count; continue; }   // whole stack stays
-                    int leave = keep;                                  // split this one, then keep nothing more
+                    out.put(s, keep);                                  // split this one, then keep nothing more
                     keep = 0;
-                    if (moveSourceIntoSlots(gameMode, player, menu, s, destinations, leave) > 0) moved++;
                 }
-            }
-            case NO_OVERFLOW -> {
-                int total = 0;
-                for (Slot s : stacks) total += s.getItem().getCount();
-                int room = roomFor(menu, stacks.get(0).getItem(), destinations);
-                if (room < total) {
-                    InventoryPlusClient.LOGGER.debug("[move-matching no-overflow] {} needs {}, room {}; left in place",
-                            item, total, room);
-                    return 0;
-                }
-                for (Slot s : stacks) if (moveSourceIntoSlots(gameMode, player, menu, s, destinations, 0) > 0) moved++;
             }
         }
-        return moved;
+        return out;
     }
 
     /**

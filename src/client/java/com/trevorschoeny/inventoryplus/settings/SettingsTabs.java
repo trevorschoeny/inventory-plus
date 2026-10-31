@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.settings;
 
+import com.trevorschoeny.inventoryplus.carried.CarriedPutClient;
 import com.trevorschoeny.inventoryplus.autotoolswitch.WeaponPreference;
 import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
@@ -236,6 +237,7 @@ final class SettingsTabs {
             else if (isOurs(ns)) ours.add(op);
             else others.add(op);
         }
+        containersSection(b);
         operations(b, "Vanilla", vanilla);
         operations(b, "Inventory Plus", ours);
         operations(b, "Other mods", others);
@@ -356,7 +358,11 @@ final class SettingsTabs {
                     "restockArmorFromShulkers", "restockArmorFromBundles", "restockArmorFromEnderChest",
                     "restockAmmoFromShulkers", "restockAmmoFromBundles", "restockAmmoFromEnderChest"),
             "inventoryplus:auto_tool_switch", List.of("autoToolSwitchFromShulkers", "autoToolSwitchFromBundles"),
-            PICK_BLOCK, List.of("pickFromShulkers", "pickFromBundles", "pickFromEnderChest"));
+            PICK_BLOCK, List.of("pickFromShulkers", "pickFromBundles", "pickFromEnderChest"),
+            "menukit:world_pickup", List.of("pickupIntoShulkers", "pickupIntoBundles", "pickupIntoEnderChest"),
+            "menukit:shift_click_in", List.of("shiftClickIntoShulkers", "shiftClickIntoBundles", "shiftClickIntoEnderChest"),
+            "inventoryplus:move_matching_in", List.of("moveMatchingIntoShulkers", "moveMatchingIntoBundles",
+                    "moveMatchingIntoEnderChest"));
 
     /** A carried place backed by its own setting, grayed while {@code unavailable}. */
     private static Place place(String name, Bool setting, BooleanSupplier unavailable) {
@@ -413,6 +419,23 @@ final class SettingsTabs {
                     Bool.of(IPConfig::autoToolSwitchFromShulkers, IPConfig::setAutoToolSwitchFromShulkers),
                     Bool.of(IPConfig::autoToolSwitchFromBundles, IPConfig::setAutoToolSwitchFromBundles),
                     null, () -> false));
+            // Container first (nested/CarriedPut): an incoming item goes into a carried
+            // container that holds it. Needs Inventory Plus on the server.
+            case "menukit:world_pickup" -> out.put("Places", carried(
+                    Bool.of(IPConfig::pickupIntoShulkers, IPConfig::setPickupIntoShulkers),
+                    Bool.of(IPConfig::pickupIntoBundles, IPConfig::setPickupIntoBundles),
+                    Bool.of(IPConfig::pickupIntoEnderChest, IPConfig::setPickupIntoEnderChest),
+                    () -> !CarriedPutClient.available()));
+            case "menukit:shift_click_in" -> out.put("Places", carried(
+                    Bool.of(IPConfig::shiftClickIntoShulkers, IPConfig::setShiftClickIntoShulkers),
+                    Bool.of(IPConfig::shiftClickIntoBundles, IPConfig::setShiftClickIntoBundles),
+                    Bool.of(IPConfig::shiftClickIntoEnderChest, IPConfig::setShiftClickIntoEnderChest),
+                    () -> !CarriedPutClient.available()));
+            case "inventoryplus:move_matching_in" -> out.put("Places", carried(
+                    Bool.of(IPConfig::moveMatchingIntoShulkers, IPConfig::setMoveMatchingIntoShulkers),
+                    Bool.of(IPConfig::moveMatchingIntoBundles, IPConfig::setMoveMatchingIntoBundles),
+                    Bool.of(IPConfig::moveMatchingIntoEnderChest, IPConfig::setMoveMatchingIntoEnderChest),
+                    () -> !CarriedPutClient.available()));
             case PICK_BLOCK -> out.put("Places", carried(
                     Bool.of(IPConfig::pickFromShulkers, IPConfig::setPickFromShulkers),
                     Bool.of(IPConfig::pickFromBundles, IPConfig::setPickFromBundles),
@@ -421,6 +444,63 @@ final class SettingsTabs {
             default -> { }
         }
         return out;
+    }
+
+    /**
+     * Reach's first section: one switch per carried container for putting new items in
+     * and one for taking from it, each setting that container's box on every move it
+     * covers. Moves set apart below gray the switch out (Trev, 2026-10-30).
+     */
+    private static void containersSection(SettingsBody b) {
+        b.heading("Containers")
+                .line("Use the shulker boxes and bundles you carry, and your ender chest, for every move at once. "
+                        + "New items go into a container that already holds them, and your inventory takes the rest.");
+        Bool sp1 = Bool.of(IPConfig::pickupIntoShulkers, IPConfig::setPickupIntoShulkers);
+        Bool sp2 = Bool.of(IPConfig::shiftClickIntoShulkers, IPConfig::setShiftClickIntoShulkers);
+        Bool sp3 = Bool.of(IPConfig::moveMatchingIntoShulkers, IPConfig::setMoveMatchingIntoShulkers);
+        Bool bp1 = Bool.of(IPConfig::pickupIntoBundles, IPConfig::setPickupIntoBundles);
+        Bool bp2 = Bool.of(IPConfig::shiftClickIntoBundles, IPConfig::setShiftClickIntoBundles);
+        Bool bp3 = Bool.of(IPConfig::moveMatchingIntoBundles, IPConfig::setMoveMatchingIntoBundles);
+        Bool ep1 = Bool.of(IPConfig::pickupIntoEnderChest, IPConfig::setPickupIntoEnderChest);
+        Bool ep2 = Bool.of(IPConfig::shiftClickIntoEnderChest, IPConfig::setShiftClickIntoEnderChest);
+        Bool ep3 = Bool.of(IPConfig::moveMatchingIntoEnderChest, IPConfig::setMoveMatchingIntoEnderChest);
+        master(b, "Shulker Boxes: put new items in", true, sp1, sp2, sp3);
+        master(b, "Shulker Boxes: take from", false,
+                Bool.of(IPConfig::restockItemsFromShulkers, IPConfig::setRestockItemsFromShulkers),
+                Bool.of(IPConfig::restockToolsFromShulkers, IPConfig::setRestockToolsFromShulkers),
+                Bool.of(IPConfig::restockArmorFromShulkers, IPConfig::setRestockArmorFromShulkers),
+                Bool.of(IPConfig::restockAmmoFromShulkers, IPConfig::setRestockAmmoFromShulkers),
+                Bool.of(IPConfig::autoToolSwitchFromShulkers, IPConfig::setAutoToolSwitchFromShulkers),
+                Bool.of(IPConfig::pickFromShulkers, IPConfig::setPickFromShulkers));
+        master(b, "Bundles: put new items in", true, bp1, bp2, bp3);
+        master(b, "Bundles: take from", false,
+                Bool.of(IPConfig::restockItemsFromBundles, IPConfig::setRestockItemsFromBundles),
+                Bool.of(IPConfig::restockToolsFromBundles, IPConfig::setRestockToolsFromBundles),
+                Bool.of(IPConfig::restockArmorFromBundles, IPConfig::setRestockArmorFromBundles),
+                Bool.of(IPConfig::restockAmmoFromBundles, IPConfig::setRestockAmmoFromBundles),
+                Bool.of(IPConfig::autoToolSwitchFromBundles, IPConfig::setAutoToolSwitchFromBundles),
+                Bool.of(IPConfig::pickFromBundles, IPConfig::setPickFromBundles));
+        master(b, "Your Ender Chest: put new items in", true, ep1, ep2, ep3);
+        master(b, "Your Ender Chest: take from", false,
+                Bool.of(IPConfig::restockItemsFromEnderChest, IPConfig::setRestockItemsFromEnderChest),
+                Bool.of(IPConfig::restockToolsFromEnderChest, IPConfig::setRestockToolsFromEnderChest),
+                Bool.of(IPConfig::restockArmorFromEnderChest, IPConfig::setRestockArmorFromEnderChest),
+                Bool.of(IPConfig::restockAmmoFromEnderChest, IPConfig::setRestockAmmoFromEnderChest),
+                Bool.of(IPConfig::pickFromEnderChest, IPConfig::setPickFromEnderChest));
+    }
+
+    /**
+     * One switch over {@code boxes}: on when all are on, setting all at once. When they
+     * differ it is grayed and says so. {@code put} switches gray too where the server
+     * can't put into containers.
+     */
+    private static void master(SettingsBody b, String label, boolean put, Bool... boxes) {
+        BooleanSupplier allOn = () -> java.util.Arrays.stream(boxes).allMatch(x -> x.get().getAsBoolean());
+        BooleanSupplier mixed = () -> !allOn.getAsBoolean()
+                && java.util.Arrays.stream(boxes).anyMatch(x -> x.get().getAsBoolean());
+        b.checkbox(() -> Component.literal(mixed.getAsBoolean() ? label + " (custom settings below)" : label),
+                new Bool(allOn, v -> { for (Bool x : boxes) x.set().accept(v); },
+                        () -> mixed.getAsBoolean() || (put && !CarriedPutClient.available())));
     }
 
     /** One labeled block of checkboxes, left out when nothing in it applies. */

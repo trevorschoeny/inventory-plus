@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus;
 
+import com.trevorschoeny.inventoryplus.nested.CarriedPut;
 import com.trevorschoeny.inventoryplus.nested.CarriedTake;
 
 import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
@@ -26,5 +27,8 @@ public final class InventoryPlus implements ModInitializer {
         // server's half. A server without Inventory Plus has no receiver, which
         // is how the client knows to fall back to plain clicks.
         CarriedTake.register();
+        // Putting incoming items into carried containers, container first: the
+        // server's half, and the hooks for pickups and shift-clicks.
+        CarriedPut.register();
     }
 }

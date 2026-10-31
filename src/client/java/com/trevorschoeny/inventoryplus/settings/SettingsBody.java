@@ -334,6 +334,16 @@ final class SettingsBody {
         return checkbox(0, label, Bool.placeholder(on));
     }
 
+    /** A checkbox whose label is read every frame. */
+    SettingsBody checkbox(Supplier<Component> label, Bool setting) {
+        out.add(Checkbox.builder().at(0, y).label(label)
+                .state(setting.get(), setting.set())
+                .disabledWhen(gated(setting.unavailable()))
+                .build());
+        y += TEXT_ROW + 4;
+        return this;
+    }
+
     private SettingsBody checkbox(int x, String label, Bool setting) {
         out.add(Checkbox.builder().at(x, y).label(Component.literal(label))
                 .state(setting.get(), setting.set())
