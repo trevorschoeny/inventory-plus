@@ -49,6 +49,8 @@ import java.util.List;
  * <ul>
  *   <li>Each box has its own Sort button, and box B's sorts box B, not the
  *       chest or box A.</li>
+ *   <li>Every container's Sort button lines up with the inventory toolbar's
+ *       right edge, the bundle's too while it shows one slot.</li>
  *   <li>The bundle's Sort button and the sort key over it put its stacks in
  *       order, though a stack taken out of a bundle moves the rest up.</li>
  *   <li>The sort key over a box sorts that box, and the chest and the other box
@@ -111,6 +113,7 @@ public class ContainerListChecks implements FabricClientGameTest {
 
             sortChecks(world);
             buttonChecks(world);
+            headerChecks(world);
             bundleChecks(world);
             lockChecks(world);
             moveMatchingChecks(world);
@@ -184,6 +187,32 @@ public class ContainerListChecks implements FabricClientGameTest {
         onServer(world, p -> expect(stacks(p, In.A, Items.DIRT).equals("1x10"),
                 "Box A's Sort button merges box A's dirt (" + stacks(p, In.A, Items.DIRT) + ")"));
         emptyAll(world);
+    }
+
+    /**
+     * A container's Sort sits at the right end of its title row, where the
+     * inventory toolbar's sits, however narrow its grid. With one slot showing
+     * (an empty bundle has only its add slot) the bundle's box is one slot wide,
+     * and a toolbar placed on that box alone lands on the bundle's title.
+     */
+    private void headerChecks(TestSingleplayerContext world) {
+        onServer(world, p -> ListFixture.BUNDLE.setActiveCount(p, 1));
+        ctx.waitTicks(10);
+        ctx.runOnClient(mc -> {
+            Reference inventory = Toolbar.inventoryToolbar().placedBounds();
+            expect(inventory != null, "the inventory toolbar shows");
+            int right = inventory.leftPos() + inventory.imageWidth();
+            for (String which : List.of("chest_storage", "shulker_storage", "shulker_storage.1", "bundle_storage")) {
+                Reference r = Toolbar.externalToolbars().stream()
+                        .filter(t -> t.id().equals("inventoryplus.toolbar.external." + which))
+                        .findFirst().orElseThrow().placedBounds();
+                expect(r != null, "the " + which + " Sort toolbar shows");
+                expect(r.leftPos() + r.imageWidth() == right, "the " + which + " Sort toolbar's right edge ("
+                        + (r.leftPos() + r.imageWidth()) + ") lines up with the inventory toolbar's (" + right + ")");
+            }
+        });
+        onServer(world, p -> ListFixture.BUNDLE.setActiveCount(p, ListFixture.SIZE));
+        ctx.waitTicks(10);
     }
 
     /**

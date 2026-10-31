@@ -14,7 +14,13 @@ import com.trevlar.slotkit.api.group.SlotGroupCategory;
 import com.trevlar.menukit.api.panel.OutsideRegion;
 import com.trevlar.slotkit.api.group.SlotGroupPanelAdapter;
 import com.trevlar.slotkit.api.slot.SlotPlacement;
+import com.trevlar.menukit.api.panel.Anchor;
+import com.trevlar.menukit.api.panel.Placement;
+import com.trevlar.menukit.api.panel.Reference;
 
+import net.minecraft.resources.Identifier;
+
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -47,8 +53,10 @@ import java.util.List;
  *
  * Both toolbars use {@link OutsideRegion#TOP_ALIGN_RIGHT} with
  * {@link PanelStyle#NONE} (zero padding through {@link
- * Panel#interiorPadding}). The right edge sits flush with the slot group's
- * right edge, and children run left to right with a 1 px gap.
+ * Panel#interiorPadding}). The inventory toolbar's right edge sits flush with
+ * the 3x9's right edge, and each container's lines up with it, however narrow
+ * the container's grid ({@link #headerRow}). Children run left to right with
+ * a 1 px gap.
  *
  * <h3>Per-screen scope</h3>
  *
@@ -120,19 +128,40 @@ public final class Toolbar {
      * panel per category had.
      */
     private static void registerExternalToolbar() {
+        PanelPosition aboveRight = PanelPosition.region(OutsideRegion.TOP_ALIGN_RIGHT);
+        Anchor inventory = SlotPlacement.group(SlotGroupCategory.PLAYER_INVENTORY, aboveRight).anchor();
         for (SlotGroupCategory category : SORTABLE) {
             CategoryPanels.declare(category, on -> {
                 String id = "inventoryplus.toolbar.external." + category.path();
+                Anchor group = on.around(aboveRight).anchor();
+                Anchor header = Anchor.of(Identifier.fromNamespaceAndPath("inventoryplus",
+                                "toolbar_header/" + category.path() + "/" + on.index()),
+                        screen -> headerRow(group.box(screen), inventory.box(screen)));
                 Panel panel = Panel.builder(on.index() == 0 ? id : id + "." + on.index())
                         // The group is read on each click: a tab switch can move the panel to another.
                         .elements(List.of(SortButton.externalToolbarButton(0, 0, on::group)))
                         .style(PanelStyle.NONE)
-                        .in(ModeScope.BOTH, on.around(PanelPosition.region(OutsideRegion.TOP_ALIGN_RIGHT)))
+                        .in(ModeScope.BOTH, Placement.around(header, aboveRight))
                         .build();
                 externalToolbars.add(panel);
                 return panel;
             });
         }
+    }
+
+    /**
+     * The container's header row, which its toolbar sits on: the group's box,
+     * run right to the player inventory's right edge where the group stops short
+     * of it. A group's box is its slots' frames, so a narrow grid (a hopper, a
+     * centered dispenser, a bundle showing one slot) would put the toolbar over
+     * the container's title; widened, every container's Sort lines up with the
+     * inventory toolbar's. A group wider than the inventory keeps its own edge,
+     * and a screen without the inventory keeps the group's box.
+     */
+    static @Nullable Reference headerRow(@Nullable Reference group, @Nullable Reference inventory) {
+        if (group == null || inventory == null) return group;
+        int right = Math.max(group.leftPos() + group.imageWidth(), inventory.leftPos() + inventory.imageWidth());
+        return new Reference(group.leftPos(), group.topPos(), right - group.leftPos(), group.imageHeight());
     }
 
     // The panels, for the self-checks to ask whether they show (placedBounds).
