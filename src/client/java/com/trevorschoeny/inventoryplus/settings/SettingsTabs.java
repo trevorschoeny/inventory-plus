@@ -454,7 +454,9 @@ final class SettingsTabs {
     private static void containersSection(SettingsBody b) {
         b.heading("Containers")
                 .line("Use the shulker boxes and bundles you carry, and your ender chest, for every move at once. "
-                        + "New items go into a container that already holds them, and your inventory takes the rest.");
+                        + "New items go into a container that already holds them, and your inventory takes the rest. "
+                        + "Take from covers Restock (items, tools, armor, and ammo such as arrows), Pick block, "
+                        + "and Auto Tool Switch for shulker boxes and bundles.");
         master(b, "Shulker Boxes: put new items in", true,
                 Bool.of(IPConfig::pickupIntoShulkers, IPConfig::setPickupIntoShulkers),
                 Bool.of(IPConfig::shiftClickIntoShulkers, IPConfig::setShiftClickIntoShulkers),
