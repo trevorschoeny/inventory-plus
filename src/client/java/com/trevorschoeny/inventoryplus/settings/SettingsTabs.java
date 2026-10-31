@@ -449,7 +449,7 @@ final class SettingsTabs {
     /**
      * Reach's first section: one switch per carried container for putting new items in
      * and one for taking from it, each setting that container's box on every move it
-     * covers. Moves set apart below gray the switch out (Trev, 2026-10-30).
+     * covers. When a move below is set apart, the switch grays out.
      */
     private static void containersSection(SettingsBody b) {
         b.heading("Containers")

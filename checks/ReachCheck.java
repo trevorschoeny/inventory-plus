@@ -56,7 +56,7 @@ public class ReachCheck {
         Reach.read(JsonParser.parseString("{\"groups\":[{\"id\":\"g5\",\"kind\":\"exact\",\"name\":\"x\"}]}").getAsJsonObject());
         check(Reach.groups().size() == 3 && Reach.groups().get(0).id().equals("slot_lock"), "defaults restored");
         check(Reach.createGroup(LockKind.SLOT, "n", "gray").id().equals("g6"), "ids never below the max");
-        // ── stage 3 writes ──
+        // writes
         Reach.read(null);
         check(Reach.lockDenies("exact_item", "inventorymax:pocket_cycle"), "exact stops pocket cycle (09-27)");
         Reach.setDenied("inventoryplus:sort", List.of("vanilla|menukit|chest_storage"), true);
