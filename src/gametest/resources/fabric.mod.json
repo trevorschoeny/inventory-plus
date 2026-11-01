@@ -13,7 +13,8 @@
       "com.trevorschoeny.inventoryplus.checks.ContainerListChecks",
       "com.trevorschoeny.inventoryplus.checks.WorldSwitchLockChecks",
       "com.trevorschoeny.inventoryplus.checks.ReachDefaultChecks",
-      "com.trevorschoeny.inventoryplus.checks.PadlockDecorationChecks"
+      "com.trevorschoeny.inventoryplus.checks.PadlockDecorationChecks",
+      "com.trevorschoeny.inventoryplus.checks.LaggyServerChecks"
     ],
     "main": [
       "com.trevorschoeny.inventoryplus.checks.ListFixture"
