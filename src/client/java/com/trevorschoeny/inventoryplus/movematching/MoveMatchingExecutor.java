@@ -81,6 +81,9 @@ public final class MoveMatchingExecutor {
         if (gameMode == null) return;
         AbstractContainerMenu menu = player.containerMenu;
         if (menu == null) return;
+        // The moves lift each source onto the cursor, so a stack already held
+        // would be put down in the first source instead.
+        if (!menu.getCarried().isEmpty()) return;
 
         Inventory playerInv = player.getInventory();
         List<Slot> otherSlots = collectOtherSlots(menu, clickedGroup, playerInv);

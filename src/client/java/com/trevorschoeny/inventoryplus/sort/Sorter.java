@@ -90,6 +90,10 @@ public final class Sorter {
      */
     public static void sort(AbstractContainerMenu menu, MultiPlayerGameMode gameMode,
                             Player player, List<Slot> region, SortType type) {
+        // Every click below is planned for an empty cursor. With a stack held,
+        // the first one would put it down in the container, so sort waits.
+        if (!menu.getCarried().isEmpty()) return;
+
         // Each stop owns its chunk ordering.
         Comparator<ItemStack> order = type.comparator();
 
