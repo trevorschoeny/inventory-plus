@@ -468,8 +468,8 @@ public class ModeChecks implements FabricClientGameTest {
     }
 
     // The screens' own click and tab methods, as a player's click reaches them.
-    // ponytail: reflection by name, since the game is unobfuscated in dev; an
-    // invoker mixin in the checks if a rename ever breaks it.
+    // Reflection by name, since the game is unobfuscated in dev; an invoker
+    // mixin in the checks if a rename ever breaks it.
     private static final Method SLOT_CLICKED = method(AbstractContainerScreen.class, "slotClicked",
             Slot.class, int.class, int.class, ContainerInput.class);
     private static final Method SELECT_TAB = method(CreativeModeInventoryScreen.class, "selectTab", CreativeModeTab.class);

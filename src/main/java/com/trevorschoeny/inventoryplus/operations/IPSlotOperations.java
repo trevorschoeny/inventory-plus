@@ -105,10 +105,9 @@ public final class IPSlotOperations {
 
     /**
      * {@link #allowsPlayerSlot}, but with {@code incoming} so a Matching-only row judges
-     * the real item, not an empty one. Restock's own pre-checks skipped this (the known
-     * limit in Reach's Matching plan), so a hotbar row left on Matching alone answered
-     * yes here and refused the click itself; Move Matching and the shift-click router
-     * already pass the stack this way.
+     * the real item, not an empty one. Restock's own pre-checks used to skip this, so
+     * a hotbar row left on Matching alone answered yes here and refused the click
+     * itself; Move Matching and the shift-click router already pass the stack this way.
      */
     public static boolean allowsPlayerSlotPut(Player player, int containerSlot, BehaviorKey<TriBool> op,
                                               ItemStack incoming) {

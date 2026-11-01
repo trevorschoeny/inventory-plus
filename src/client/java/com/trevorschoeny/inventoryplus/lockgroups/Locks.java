@@ -82,7 +82,7 @@ public final class Locks {
             if (denied && PROBED.contains(operation.id().toString())) probe(ref, group, operation);
             return denied;
         });
-        // ponytail: works the rows out a second time for a put the plain veto let through; cache per question if a profile ever shows it
+        // Works the rows out a second time for a put the plain veto let through; cache per question if a profile ever shows it
         SlotOperations.vetoPut(ModeScope.BOTH, (ref, group, operation, incoming) ->
                 isPut(operation) && putVerdict(ref, group, operation) == PutVerdict.MATCHING
                         && !SlotGroups.holds(ref, incoming));

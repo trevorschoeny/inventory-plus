@@ -236,9 +236,9 @@ public final class CarriedPut {
     /**
      * Whether every row on the container at {@code path} lets {@code move} put in: its
      * own place, and the inventory slot it sits in, or the ender chest it sits in.
-     * ponytail: a container inside another is judged by its own place and the top slot
-     * only, not the places of the containers around it; judge each level if nesting
-     * ever matters.
+     * A container inside another is judged by its own place and the top slot only,
+     * not the places of the containers around it; judge each level if nesting ever
+     * matters.
      */
     private static boolean lets(Prefs prefs, Move move, ItemPath path, int place, boolean holds) {
         if (!prefs.place(move, place, holds)) return false;
