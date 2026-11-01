@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.movematching;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
+import com.trevorschoeny.inventoryplus.operations.CursorShelf;
 import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
 
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.MOVE_MATCHING_IN;
@@ -82,9 +83,6 @@ public final class MoveMatchingExecutor {
         if (gameMode == null) return;
         AbstractContainerMenu menu = player.containerMenu;
         if (menu == null) return;
-        // The moves lift each source onto the cursor, so a stack already held
-        // would be put down in the first source instead.
-        if (!menu.getCarried().isEmpty()) return;
 
         Inventory playerInv = player.getInventory();
         List<Slot> otherSlots = collectOtherSlots(menu, clickedGroup, playerInv);
@@ -129,16 +127,23 @@ public final class MoveMatchingExecutor {
         for (Slot d : destinationSlots) {
             if (SlotOperations.allows(menu, d, player, MOVE_MATCHING_IN)) allowedDestinations.add(d);
         }
-        int stacksMoved = 0;
-        for (Map.Entry<Item, List<Slot>> entry : byType.entrySet()) {
-            // Out, an item goes only into a container that already holds it, so
-            // with several containers on screen (a chest's container list) each
-            // keeps to its own kinds. In, the destination is the inventory alone.
-            List<Slot> destinations = direction == Direction.IN ? allowedDestinations
-                    : holding(entry.getKey(), allowedDestinations, matchSetSlots);
-            stacksMoved += moveType(gameMode, player, menu, entry.getKey(), entry.getValue(), destinations, mode);
-        }
-        InventoryPlusClient.LOGGER.debug("[move-matching {} {}] moved from {} stack(s)", direction, mode, stacksMoved);
+        // The moves lift each source onto the cursor, so a stack already
+        // held would be put down in the first source instead. It is set
+        // aside outside every slot this run can touch, and handed back after.
+        List<Slot> touched = new ArrayList<>(sources);
+        touched.addAll(allowedDestinations);
+        int[] stacksMoved = {0};
+        CursorShelf.runWithEmptyCursor(menu, gameMode, player, touched, () -> {
+            for (Map.Entry<Item, List<Slot>> entry : byType.entrySet()) {
+                // Out, an item goes only into a container that already holds it, so
+                // with several containers on screen (a chest's container list) each
+                // keeps to its own kinds. In, the destination is the inventory alone.
+                List<Slot> destinations = direction == Direction.IN ? allowedDestinations
+                        : holding(entry.getKey(), allowedDestinations, matchSetSlots);
+                stacksMoved[0] += moveType(gameMode, player, menu, entry.getKey(), entry.getValue(), destinations, mode);
+            }
+        });
+        InventoryPlusClient.LOGGER.debug("[move-matching {} {}] moved from {} stack(s)", direction, mode, stacksMoved[0]);
     }
 
     /**

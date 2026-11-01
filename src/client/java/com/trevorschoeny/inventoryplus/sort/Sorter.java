@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.sort;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
+import com.trevorschoeny.inventoryplus.operations.CursorShelf;
 import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
 
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.SORT;
@@ -65,6 +66,11 @@ import java.util.Map;
  * primary slot), the second PICKUP merges instead of swapping, and the
  * order matters. See {@link #consolidateInto}.
  *
+ * <p>Both rely on the cursor starting and ending empty. With a real stack
+ * held, {@link CursorShelf} sets it aside outside the region for the run and
+ * hands it back after, so sorting works the same whether or not the cursor
+ * was free.
+ *
  * <h3>Sort types</h3>
  *
  * Every {@link SortType} carries its own comparator, so this class never
@@ -91,16 +97,15 @@ public final class Sorter {
      */
     public static void sort(AbstractContainerMenu menu, MultiPlayerGameMode gameMode,
                             Player player, List<Slot> region, SortType type) {
-        // Every click below is planned for an empty cursor. With a stack held,
-        // the first one would put it down in the container, so sort waits.
-        if (!menu.getCarried().isEmpty()) return;
-
         // Each stop owns its chunk ordering.
         Comparator<ItemStack> order = type.comparator();
 
         if (!region.isEmpty() && SlotGroupCategories.categoriesBySlot(menu).get(region.get(0))
                 == SlotGroupCategory.BUNDLE_STORAGE) {
-            sortBundle(menu, gameMode, player, region, order);
+            // Every click below is planned for an empty cursor. With a stack
+            // held, it is set aside outside the bundle for the run.
+            CursorShelf.runWithEmptyCursor(menu, gameMode, player, region,
+                    () -> sortBundle(menu, gameMode, player, region, order));
             return;
         }
 
@@ -118,8 +123,11 @@ public final class Sorter {
         List<ItemStack> target = computeTarget(unlocked, order);
         if (target.isEmpty()) return;
 
-        // Every click the sort sends is judged as sorting, not as a plain click.
-        SlotOperations.as(SORT, () -> applyTarget(menu, gameMode, player, unlocked, target));
+        // Every click the sort sends is judged as sorting, not as a plain
+        // click. They are also planned for an empty cursor; with a stack
+        // held, it is set aside outside the region for the run.
+        CursorShelf.runWithEmptyCursor(menu, gameMode, player, region, () ->
+                SlotOperations.as(SORT, () -> applyTarget(menu, gameMode, player, unlocked, target)));
 
         InventoryPlusClient.LOGGER.debug(
                 "[sort] sorted {} unlocked slots with {}", unlocked.size(), type);

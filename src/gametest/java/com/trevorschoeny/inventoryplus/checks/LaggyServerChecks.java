@@ -51,9 +51,10 @@ import java.util.function.Function;
  *       slot's rim, outside its 16 pixels but highlighted.</li>
  *   <li>A sort whose clicks land after another player changed the chest
  *       keeps every item and leaves nothing on the cursor.</li>
- *   <li>With an item on the cursor, Sort and Move Matching leave the
- *       containers and the cursor as they were. Their clicks assume an empty
- *       cursor; with one held they put it down in the container.</li>
+ *   <li>With an item on the cursor, Sort and Move Matching still act on the
+ *       slots and leave the held item on the cursor untouched. Their clicks
+ *       assume an empty cursor, so the held item is parked on an empty slot
+ *       outside the ones in play for the run, then handed back.</li>
  *   <li>Move Matching in with the inventory nearly full: no item lost.</li>
  *   <li>Restock while placing blocks: the hand refills once from one stack.</li>
  * </ul>
@@ -160,7 +161,11 @@ public class LaggyServerChecks implements FabricClientGameTest {
         expectClientMatches("after a sort raced another player");
     }
 
-    /** A diamond on the cursor: Sort and Move Matching send nothing. */
+    /**
+     * A diamond on the cursor: Sort still consolidates the chest's two dirt
+     * stacks and Move Matching out still moves the inventory's dirt into it,
+     * with the diamond never leaving the cursor.
+     */
     private void cursorChecks() {
         fillChest(p -> {
             chestSlot(p, 2).set(new ItemStack(Items.DIRT, 10));
@@ -170,24 +175,27 @@ public class LaggyServerChecks implements FabricClientGameTest {
         });
         expect(ctx.computeOnClient(mc -> mc.player.containerMenu.getCarried().is(Items.DIAMOND)),
                 "the client sees the diamond on the cursor");
-        String before = onServer(LaggyServerChecks::chestOf);
 
         hoverChest(2);
         ctx.getInput().pressKey(IPKeybinds.SORT);
         settle();
         onServer(p -> {
-            expect(chestOf(p).equals(before), "Sort with a diamond on the cursor leaves the chest as it was ("
+            expect(total(p, Items.DIRT) == 20, "Sort with a diamond on the cursor still sorts the chest ("
                     + chestOf(p) + ")");
+            expect(packed(p), "and leaves no gap before the last stack (" + chestOf(p) + ")");
             expect(p.containerMenu.getCarried().is(Items.DIAMOND), "and the diamond stays on the cursor ("
                     + p.containerMenu.getCarried() + ")");
             return null;
         });
+        expectClientMatches("after sorting with a diamond on the cursor");
 
         ctx.getInput().pressKey(IPKeybinds.MOVE_MATCHING_OUT);
         settle();
         onServer(p -> {
-            expect(chestOf(p).equals(before) && p.getInventory().getItem(15).getCount() == 5,
-                    "Move Matching with a diamond on the cursor moves nothing (" + chestOf(p) + ")");
+            expect(total(p, Items.DIRT) == 25, "Move Matching out with a diamond on the cursor still moves the dirt ("
+                    + chestOf(p) + ")");
+            expect(p.getInventory().getItem(15).isEmpty(), "and empties the inventory slot it came from ("
+                    + p.getInventory().getItem(15) + ")");
             expect(p.containerMenu.getCarried().is(Items.DIAMOND), "and the diamond stays on the cursor ("
                     + p.containerMenu.getCarried() + ")");
             p.containerMenu.setCarried(ItemStack.EMPTY);
