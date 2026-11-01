@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.movematching;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
+import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
 
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.MOVE_MATCHING_IN;
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.MOVE_MATCHING_OUT;
@@ -184,7 +185,7 @@ public final class MoveMatchingExecutor {
             case NO_OVERFLOW -> {
                 int total = 0;
                 for (Slot s : stacks) total += s.getItem().getCount();
-                int room = roomFor(stacks.get(0).getItem(), destinations);
+                int room = roomFor(menu, stacks.get(0).getItem(), destinations);
                 if (room < total) {
                     InventoryPlusClient.LOGGER.debug("[move-matching no-overflow] {} needs {}, room {}; left in place",
                             item, total, room);
@@ -196,14 +197,22 @@ public final class MoveMatchingExecutor {
         return moved;
     }
 
-    /** Free room for {@code sample}'s type across the destinations, as the game would fill them. */
-    private static int roomFor(ItemStack sample, List<Slot> destinations) {
+    /**
+     * Free room for {@code sample}'s type across the destinations, as the game would fill
+     * them. An empty destination that would refuse {@code sample} (a shulker box's own slots
+     * refuse another shulker box) offers none, so No-overflow doesn't count room it can't
+     * actually use.
+     */
+    private static int roomFor(AbstractContainerMenu menu, ItemStack sample, List<Slot> destinations) {
         int room = 0;
         for (Slot dest : destinations) {
             int limit = Math.min(dest.getMaxStackSize(sample), sample.getMaxStackSize());
             ItemStack in = dest.getItem();
-            if (in.isEmpty()) room += limit;
-            else if (in.is(sample.getItem())) room += Math.max(0, limit - in.getCount());
+            if (in.isEmpty()) {
+                if (IPSlotOperations.mayAccept(menu, dest, sample)) room += limit;
+            } else if (in.is(sample.getItem())) {
+                room += Math.max(0, limit - in.getCount());
+            }
         }
         return room;
     }
@@ -242,6 +251,7 @@ public final class MoveMatchingExecutor {
             for (Slot dest : destinationSlots) {
                 if (menu.getCarried().isEmpty()) break;
                 if (!dest.getItem().isEmpty()) continue;
+                if (!IPSlotOperations.mayAccept(menu, dest, menu.getCarried())) continue;
                 clickPickup(gameMode, player, menu, dest.index);
             }
         });

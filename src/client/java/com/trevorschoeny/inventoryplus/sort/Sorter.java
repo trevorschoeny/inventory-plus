@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.sort;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
+import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
 
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.SORT;
 
@@ -312,6 +313,10 @@ public final class Sorter {
      * <p>Afterwards the contents of slots {@code a} and {@code b} are
      * exchanged, or merged into one with the other left empty if they are the
      * same item type.
+     *
+     * <p>Does nothing if either destination refuses what would land there (a
+     * shulker box's own slots refuse another shulker box): sort leaves both
+     * slots as they are rather than forcing an illegal swap.
      */
     private static void doSwap(AbstractContainerMenu menu, MultiPlayerGameMode gameMode,
                                 Player player, List<Slot> unlocked, ItemStack[] current,
@@ -319,6 +324,8 @@ public final class Sorter {
         if (a == b) return;
         Slot slotA = unlocked.get(a);
         Slot slotB = unlocked.get(b);
+        if (!IPSlotOperations.mayAccept(menu, slotB, current[a])
+                || !IPSlotOperations.mayAccept(menu, slotA, current[b])) return;
         gameMode.handleContainerInput(menu.containerId, slotA.index, 0, ContainerInput.PICKUP, player);
         gameMode.handleContainerInput(menu.containerId, slotB.index, 0, ContainerInput.PICKUP, player);
         gameMode.handleContainerInput(menu.containerId, slotA.index, 0, ContainerInput.PICKUP, player);
@@ -360,6 +367,10 @@ public final class Sorter {
             doSwap(menu, gameMode, player, unlocked, current, dest, source);
             return;
         }
+        // dest doesn't refuse source's item (a shulker box's own slots refuse another
+        // shulker box): true already when dest holds this same item, checked again for
+        // when dest is empty.
+        if (!IPSlotOperations.mayAccept(menu, unlocked.get(dest), current[source])) return;
 
         Slot slotSrc = unlocked.get(source);
         Slot slotDst = unlocked.get(dest);

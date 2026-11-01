@@ -61,6 +61,8 @@ import java.util.List;
  *   <li>Move Matching out puts each item only in a container that already holds
  *       it: sand that overflows box A's full stack goes to box A's free slot, not
  *       the chest's first one.</li>
+ *   <li>Move Matching out never nests a shulker box inside box A's, even though box
+ *       A already holds one (vanilla's own rule for the slots it would move through).</li>
  * </ul>
  */
 public class ContainerListChecks implements FabricClientGameTest {
@@ -117,6 +119,7 @@ public class ContainerListChecks implements FabricClientGameTest {
             bundleChecks(world);
             lockChecks(world);
             moveMatchingChecks(world);
+            shulkerNestingChecks(world);
 
             ctx.setScreen(() -> null);
             ctx.runOnClient(mc -> {
@@ -348,6 +351,29 @@ public class ContainerListChecks implements FabricClientGameTest {
                     + total(p, In.CHEST, Items.SAND) + ")");
             expect(total(p, In.A, Items.SAND) == 74, "Move Matching out puts the sand in box A ("
                     + total(p, In.A, Items.SAND) + ")");
+        });
+        emptyAll(world);
+    }
+
+    /**
+     * Box A already holds a shulker box, which makes it a destination for Move
+     * Matching out (as {@link #moveMatchingChecks} shows for sand). Without a slot
+     * accept check, the inventory's own shulker box would join it there, which
+     * vanilla forbids for a real shulker box's slots; with the check, it stays on
+     * the player.
+     */
+    private void shulkerNestingChecks(TestSingleplayerContext world) {
+        fill(world, In.A, 0, Items.SHULKER_BOX, 1);
+        onServer(world, p -> p.getInventory().setItem(20, new ItemStack(Items.SHULKER_BOX, 1)));
+        ctx.waitTicks(10);
+        ctx.runOnClient(mc -> IPConfig.setMoveMatchingEnabled(true));
+        ctx.getInput().setCursorPos(1, 1);
+        ctx.getInput().pressKey(IPKeybinds.MOVE_MATCHING_OUT);
+        ctx.waitTicks(15);
+        onServer(world, p -> {
+            expect(total(p, In.A, Items.SHULKER_BOX) == 1, "Move Matching out doesn't nest a second shulker box in box A ("
+                    + total(p, In.A, Items.SHULKER_BOX) + ")");
+            expect(p.getInventory().getItem(20).is(Items.SHULKER_BOX), "Move Matching out leaves the inventory's shulker box where it was");
         });
         emptyAll(world);
     }

@@ -13,6 +13,7 @@ import static com.trevlar.slotkit.api.group.SlotGroupCategory.SHULKER_STORAGE;
 import com.trevorschoeny.inventoryplus.api.PlayerMenuSlots;
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.*;
 
+import com.trevlar.slotkit.api.group.SlotGroupCategories;
 import com.trevlar.slotkit.api.window.BehaviorKey;
 import com.trevlar.slotkit.api.window.SlotOperations.AppliesTo;
 import com.trevlar.slotkit.api.window.SlotOperations;
@@ -22,6 +23,7 @@ import com.trevlar.slotkit.api.window.TriBool;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 
 /**
  * Inventory Plus's side of SlotKit's slot operations: defining its nine
@@ -98,5 +100,21 @@ public final class IPSlotOperations {
         AbstractContainerMenu menu = player.inventoryMenu;
         if (menuIndex < 0 || menuIndex >= menu.slots.size()) return false;
         return SlotOperations.allows(menu, menu.getSlot(menuIndex), player, op);
+    }
+
+    /**
+     * Whether {@code dest} may newly hold {@code stack}, so a move that reaches across slot
+     * groups never lands an item somewhere vanilla would refuse it.
+     *
+     * <p>{@code dest.mayPlace} alone covers a real {@code ShulkerBoxSlot} (any item that
+     * can't {@code canFitInsideContainerItems}, which is only a shulker box), but a
+     * SlotKit-created shulker group's slot is a generic {@code Slot} with no such override,
+     * so the same rule is checked again by category for a created group.
+     */
+    public static boolean mayAccept(AbstractContainerMenu menu, Slot dest, ItemStack stack) {
+        if (!dest.mayPlace(stack)) return false;
+        if (SlotGroupCategories.categoriesBySlot(menu).get(dest) == SHULKER_STORAGE
+                && !stack.getItem().canFitInsideContainerItems()) return false;
+        return true;
     }
 }
