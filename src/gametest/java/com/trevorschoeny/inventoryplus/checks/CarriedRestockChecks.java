@@ -1,5 +1,7 @@
 package com.trevorschoeny.inventoryplus.checks;
 
+import com.trevlar.slotkit.api.group.SlotGroupCategory;
+import com.trevlar.slotkit.api.group.SlotGroupId;
 import com.trevlar.slotkit.api.item.ItemPath;
 import com.trevlar.slotkit.api.item.ItemRef;
 
@@ -50,6 +52,8 @@ import static com.trevorschoeny.inventoryplus.nested.CarriedTake.Purpose.RESTOCK
 public class CarriedRestockChecks implements FabricClientGameTest {
 
     private static final String NO_SERVER_MOD = "inventoryplus.checks.noServerMod";
+    private static final String RESTOCK_PUT_OP = "inventoryplus:restock_put";
+    private static final String HOTBAR = new SlotGroupId.Category(SlotGroupCategory.PLAYER_HOTBAR).asString();
 
     @Override
     public void runTest(ClientGameTestContext ctx) {
@@ -107,6 +111,40 @@ public class CarriedRestockChecks implements FabricClientGameTest {
                             && contents(p.getInventory().getItem(20)).get(4).getCount() == 30,
                     "a shulker in a locked slot is left alone (" + p.getInventory().getItem(0) + ")"));
             ctx.runOnClient(mc -> LockedSlots.setLockedSlot(menuSlot(mc.player, 20), null));
+
+            // Known limit closed: room()'s RESTOCK case now judges the real incoming stack,
+            // not an empty one, so a hotbar row left on Matching alone (Empty slots off)
+            // refuses a shulker's item the hotbar doesn't already hold.
+            ctx.runOnClient(mc -> {
+                Reach.setDenied(RESTOCK_PUT_OP, List.of(HOTBAR), true);               // Empty slots: off
+                Reach.setDenied(Reach.matching(RESTOCK_PUT_OP), List.of(HOTBAR), false); // Matching: on
+            });
+            ctx.waitTicks(25);   // the client's choices reach the server twice a second
+            ranOut(ctx, world, 0, p -> {
+                p.getInventory().setItem(0, new ItemStack(Items.TORCH, 3));
+                p.getInventory().setItem(20, shulker(4, new ItemStack(Items.TORCH, 40)));
+            });
+            onServer(world, p -> expect(p.getInventory().getItem(0).isEmpty()
+                            && contents(p.getInventory().getItem(20)).get(4).getCount() == 40,
+                    "Matching alone: a hotbar holding no torches refuses the shulker's torches ("
+                            + p.getInventory().getItem(0) + ")"));
+
+            // The same setup, but the hotbar already holds a torch (in a slot Restock can't
+            // take from, so it isn't picked as the source itself): Matching is satisfied.
+            ctx.runOnClient(mc -> LockedSlots.setLockedSlot(menuSlot(mc.player, 1), Reach.defaultOf(LockKind.SLOT)));
+            ranOut(ctx, world, 0, p -> {
+                p.getInventory().setItem(0, new ItemStack(Items.TORCH, 3));
+                p.getInventory().setItem(1, new ItemStack(Items.TORCH, 1));
+                p.getInventory().setItem(20, shulker(4, new ItemStack(Items.TORCH, 40)));
+            });
+            onServer(world, p -> expect(p.getInventory().getItem(0).getCount() == 40,
+                    "Matching: a hotbar already holding a torch lets the shulker's torches in ("
+                            + p.getInventory().getItem(0) + ")"));
+            ctx.runOnClient(mc -> {
+                LockedSlots.setLockedSlot(menuSlot(mc.player, 1), null);
+                Reach.revert(RESTOCK_PUT_OP);
+            });
+            ctx.waitTicks(25);
 
             // ── The server's own checks, by sending requests directly ──
 

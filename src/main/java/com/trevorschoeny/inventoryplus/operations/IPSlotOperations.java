@@ -18,6 +18,7 @@ import com.trevlar.slotkit.api.window.BehaviorKey;
 import com.trevlar.slotkit.api.window.SlotOperations.AppliesTo;
 import com.trevlar.slotkit.api.window.SlotOperations;
 import com.trevlar.slotkit.api.window.SlotOperations.Role;
+import com.trevlar.slotkit.api.window.SlotRef;
 import com.trevlar.slotkit.api.window.TriBool;
 
 import net.minecraft.world.entity.player.Player;
@@ -100,6 +101,28 @@ public final class IPSlotOperations {
         AbstractContainerMenu menu = player.inventoryMenu;
         if (menuIndex < 0 || menuIndex >= menu.slots.size()) return false;
         return SlotOperations.allows(menu, menu.getSlot(menuIndex), player, op);
+    }
+
+    /**
+     * {@link #allowsPlayerSlot}, but with {@code incoming} so a Matching-only row judges
+     * the real item, not an empty one. Restock's own pre-checks skipped this (the known
+     * limit in Reach's Matching plan), so a hotbar row left on Matching alone answered
+     * yes here and refused the click itself; Move Matching and the shift-click router
+     * already pass the stack this way.
+     */
+    public static boolean allowsPlayerSlotPut(Player player, int containerSlot, BehaviorKey<TriBool> op,
+                                              ItemStack incoming) {
+        AbstractContainerMenu menu = player.inventoryMenu;
+        int menuIndex = PlayerMenuSlots.menuIndexOf(menu, player, containerSlot);
+        if (menuIndex >= 0) return SlotOperations.allowsPut(SlotRef.of(menu, menu.getSlot(menuIndex), player), op, incoming);
+        return SlotOperations.allowsPut(SlotRef.of(player.getInventory(), containerSlot, player), op, incoming);
+    }
+
+    /** {@link #allowsMenuSlot}, but with {@code incoming}; see {@link #allowsPlayerSlotPut}. */
+    public static boolean allowsMenuSlotPut(Player player, int menuIndex, BehaviorKey<TriBool> op, ItemStack incoming) {
+        AbstractContainerMenu menu = player.inventoryMenu;
+        if (menuIndex < 0 || menuIndex >= menu.slots.size()) return false;
+        return SlotOperations.allowsPut(SlotRef.of(menu, menu.getSlot(menuIndex), player), op, incoming);
     }
 
     /**

@@ -276,7 +276,7 @@ public final class CarriedTake {
         Inventory inv = player.getInventory();
         return switch (purpose) {
             case RESTOCK -> {
-                if (!restockTarget(target) || !IPSlotOperations.allowsPlayerSlot(player, target, RESTOCK_PUT)) yield 0;
+                if (!restockTarget(target) || !IPSlotOperations.allowsPlayerSlotPut(player, target, RESTOCK_PUT, kind)) yield 0;
                 ItemStack there = inv.getItem(target);
                 EquipmentSlot armour = Inventory.EQUIPMENT_SLOT_MAPPING.get(target);
                 if (armour != null && armour != EquipmentSlot.OFFHAND) {
@@ -293,7 +293,7 @@ public final class CarriedTake {
                 // A worn piece with Curse of Binding stays on, as vanilla's armour slot keeps it.
                 if (target >= 36 && target <= 39 && !player.isCreative()
                         && EnchantmentHelper.has(worn, EnchantmentEffectComponents.PREVENT_ARMOR_CHANGE)) yield 0;
-                yield IPSlotOperations.allowsPlayerSlot(player, target, RESTOCK_PUT)
+                yield IPSlotOperations.allowsPlayerSlotPut(player, target, RESTOCK_PUT, kind)
                         && IPSlotOperations.allowsPlayerSlot(player, target, RESTOCK_TAKE) ? 1 : 0;
             }
             case AMMO, PICK, TOOL -> emptyInventorySlot(player, target) ? kind.getMaxStackSize() : 0;

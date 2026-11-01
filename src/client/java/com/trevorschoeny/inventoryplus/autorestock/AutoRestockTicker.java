@@ -394,8 +394,9 @@ public final class AutoRestockTicker {
         // A pocket source moves server-side (inert client-side in-world). An
         // ordinary 0-35 source falls through to the client quick-move, which
         // vanilla routes to the now-empty armor slot.
-        // The armour slot is the one being filled, whichever source fills it.
-        if (!IPSlotOperations.allowsMenuSlot(player, menuArmorSlot(slot), RESTOCK_PUT)) {
+        // The armour slot is the one being filled, whichever source fills it. The
+        // incoming stack is the search's find: real inventory index, or one of extras.
+        if (!IPSlotOperations.allowsMenuSlotPut(player, menuArmorSlot(slot), RESTOCK_PUT, stackAt(inv, source, extras))) {
             InventoryPlusClient.LOGGER.debug("[break-restock] armor[{}] refuses restock", slot);
             return;
         }
@@ -492,9 +493,9 @@ public final class AutoRestockTicker {
         // piece on the cursor. Every judgement the sequence will meet is asked
         // first, all or nothing: the source is emptied (click 1) and refilled
         // with the worn piece (click 3), and the armour slot swaps (click 2).
-        if (!IPSlotOperations.allowsPlayerSlot(player, source, RESTOCK_PUT)
+        if (!IPSlotOperations.allowsPlayerSlotPut(player, source, RESTOCK_PUT, now)
                 || !IPSlotOperations.allowsMenuSlot(player, menuArmorSlot, RESTOCK_TAKE)
-                || !IPSlotOperations.allowsMenuSlot(player, menuArmorSlot, RESTOCK_PUT)) {
+                || !IPSlotOperations.allowsMenuSlotPut(player, menuArmorSlot, RESTOCK_PUT, inv.getItem(source))) {
             InventoryPlusClient.LOGGER.debug("[durability-restock] armor[{}] swap refused", slot);
             return;
         }
@@ -629,8 +630,9 @@ public final class AutoRestockTicker {
         }
         // Tier 3: main inventory source, a standard SWAP into the active slot,
         // judged as a restock. The source was already screened for RESTOCK_TAKE
-        // by the search. The slot being refilled is asked here.
-        if (!IPSlotOperations.allowsPlayerSlot(player, activeSlot, RESTOCK_PUT)) {
+        // by the search. The slot being refilled is asked here, with the stack
+        // it's about to receive, so a Matching-only row judges the real item.
+        if (!IPSlotOperations.allowsPlayerSlotPut(player, activeSlot, RESTOCK_PUT, player.getInventory().getItem(source))) {
             InventoryPlusClient.LOGGER.debug("[{}] hotbar[{}] refuses restock", logTag, activeSlot);
             return;
         }
@@ -660,7 +662,8 @@ public final class AutoRestockTicker {
      */
     private static void swapIntoOffhand(MultiPlayerGameMode gameMode, LocalPlayer player, int source,
                                         String logTag, ItemStack itemForLog) {
-        if (!IPSlotOperations.allowsMenuSlot(player, InventoryMenu.SHIELD_SLOT, RESTOCK_PUT)) {
+        if (!IPSlotOperations.allowsMenuSlotPut(player, InventoryMenu.SHIELD_SLOT, RESTOCK_PUT,
+                player.getInventory().getItem(source))) {
             InventoryPlusClient.LOGGER.debug("[{}] offhand refuses restock", logTag);
             return;
         }
@@ -669,6 +672,16 @@ public final class AutoRestockTicker {
         SlotOperations.as(RESTOCK_TAKE, RESTOCK_PUT, () -> gameMode.handleContainerInput(
                 player.inventoryMenu.containerId, sourceMenu, SWAP_OFFHAND_KEY, ContainerInput.SWAP, player));
         InventoryPlusClient.LOGGER.debug("[{}] offhand ← src[{}] ({})", logTag, source, itemForLog.getItem());
+    }
+
+    /**
+     * The stack a search result points at: a real inventory index (0-35), or one of
+     * {@code extras} by its encoded id. Empty if {@code source} is neither.
+     */
+    private static ItemStack stackAt(Inventory inv, int source, List<ExtraSlot> extras) {
+        if (source >= 0 && source < 36) return inv.getItem(source);
+        for (ExtraSlot ex : extras) if (ex.id() == source) return ex.stack();
+        return ItemStack.EMPTY;
     }
 
     /** Inventory-menu index of an armour equipment slot, or -1 for anything else. */
