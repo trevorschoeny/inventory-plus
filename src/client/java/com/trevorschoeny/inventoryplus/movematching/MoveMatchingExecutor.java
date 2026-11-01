@@ -10,6 +10,7 @@ import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.MOVE_M
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.MOVE_MATCHING_OUT;
 
 import com.trevlar.slotkit.api.window.SlotOperations;
+import com.trevlar.slotkit.api.window.SlotRef;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
@@ -172,6 +173,12 @@ public final class MoveMatchingExecutor {
                 // keeps to its own kinds. In, the destination is the inventory alone.
                 List<Slot> destinations = direction == Direction.IN ? allowedDestinations
                         : holding(entry.getKey(), allowedDestinations, matchSetSlots);
+                // Reach's Matching list lets an item into some groups only where
+                // the group already holds it, which needs the item to judge.
+                ItemStack sample = entry.getValue().get(0).getItem();
+                destinations = destinations.stream()
+                        .filter(d -> SlotOperations.allowsPut(SlotRef.of(menu, d, player), MOVE_MATCHING_IN, sample))
+                        .toList();
                 stacksMoved[0] += moveType(gameMode, player, menu, entry.getKey(), entry.getValue(), destinations, mode);
             }
         });

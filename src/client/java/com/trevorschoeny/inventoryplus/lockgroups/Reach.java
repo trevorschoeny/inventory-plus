@@ -38,7 +38,12 @@ import java.util.function.Predicate;
  * <ul>
  *   <li><b>denied</b>: operation id to the exact set of group keys that
  *       operation may not use. An operation with no entry uses the default;
- *       an operation with an entry uses exactly that set, nothing added.</li>
+ *       an operation with an entry uses exactly that set, nothing added. This
+ *       is a put operation's <b>Empty slots</b> list.</li>
+ *   <li><b>matching</b>: the same, for a put operation's <b>Matching</b> list:
+ *       the keys it may not use even where the slot's container already holds
+ *       the item. Held in memory under {@link #matching}'s id, so every entry
+ *       below works on either list unchanged.</li>
  *   <li><b>groups</b>: the lock groups, defaults first.</li>
  *   <li><b>seen</b>: operation ids the player has been shown, so a new one is
  *       marked new in its reach.</li>
@@ -52,10 +57,11 @@ import java.util.function.Predicate;
  * kind's default does ({@link #SLOT_LOCK_DENIES}, {@link #EXACT_ITEM_DENIES};
  * Item groups copy Exact item), denies the slot groups its slot-group defaults
  * name ({@link #denyByDefault}: the hotbar for Move Matching, a companion's
- * protected slots), and denies no feature group and no place. So an untouched
- * operation treats a new custom group like its kind's default without
- * anything being written, and a changed default table reaches everyone who
- * never touched that operation.
+ * protected slots, the carried places for the moves that put into them), and
+ * denies no feature group. So an untouched operation treats a new custom group
+ * like its kind's default without anything being written, and a changed
+ * default table reaches everyone who never touched that operation. Both of a
+ * put operation's lists share its default.
  *
  * <h2>Keys</h2>
  *
@@ -98,6 +104,26 @@ public final class Reach {
 
     public static boolean isFeatureKey(String key) {
         return key.startsWith(FEATURE_PREFIX);
+    }
+
+    // The Matching list
+
+    private static final String MATCHING_SUFFIX = "#matching";
+
+    /**
+     * The id {@code operation}'s Matching list is kept under, which every read
+     * and write here takes in place of an operation id. A row ticked in Matching
+     * lets the put through where the slot's container already holds the item;
+     * one ticked in Empty slots (the operation's own id) lets anything through.
+     * Only put operations consult it ({@code Locks}).
+     */
+    public static String matching(String operation) {
+        return operation.endsWith(MATCHING_SUFFIX) ? operation : operation + MATCHING_SUFFIX;
+    }
+
+    /** The operation a list id belongs to: itself, or the operation of a {@link #matching} id. */
+    private static String operationOf(String list) {
+        return list.endsWith(MATCHING_SUFFIX) ? list.substring(0, list.length() - MATCHING_SUFFIX.length()) : list;
     }
 
     /** The cyclers' slots, as reach groups of their own. */
@@ -148,10 +174,21 @@ public final class Reach {
     private static final Set<String> MOVE_MATCHING = Set.of(
             "inventoryplus:move_matching_out", "inventoryplus:move_matching_in");
 
-    /** Move Matching never takes from or fills the hotbar unless the player ticks it. */
+    /** The moves that can put into carried containers (nested/CarriedPut). */
+    private static final Set<String> CARRIED_PUT = Set.of(
+            "menukit:world_pickup", "menukit:shift_click_in", "inventoryplus:move_matching_in");
+
+    /** The carried places, which those moves leave alone until the player ticks them. */
+    private static final Set<String> PLACES = Set.of(SHULKER_BOXES, BUNDLES, ENDER_CHEST);
+
+    /**
+     * Move Matching never takes from or fills the hotbar unless the player ticks
+     * it, and no move puts into a carried container unless the player ticks it.
+     */
     private static final List<GroupDefault> GROUP_DEFAULTS = new CopyOnWriteArrayList<>(List.of(
             new GroupDefault(Set.of(new SlotGroupId.Category(SlotGroupCategory.PLAYER_HOTBAR).asString()),
-                    MOVE_MATCHING::contains)));
+                    MOVE_MATCHING::contains),
+            new GroupDefault(PLACES, CARRIED_PUT::contains)));
 
     /**
      * Denies slot groups {@code keys} by default to every operation
@@ -163,10 +200,11 @@ public final class Reach {
         GROUP_DEFAULTS.add(new GroupDefault(Set.copyOf(keys), Objects.requireNonNull(operations, "operations")));
     }
 
-    /** The slot-group keys {@code operation} leaves alone when it has no entry. */
+    /** The slot-group keys list {@code operation} leaves alone when it has no entry. Both lists share them. */
     private static Set<String> defaultGroupDenies(String operation) {
         Set<String> out = new HashSet<>();
-        for (GroupDefault d : GROUP_DEFAULTS) if (d.operations().test(operation)) out.addAll(d.keys());
+        String op = operationOf(operation);
+        for (GroupDefault d : GROUP_DEFAULTS) if (d.operations().test(op)) out.addAll(d.keys());
         return out;
     }
 
@@ -212,7 +250,7 @@ public final class Reach {
 
     /** True when {@code operation} may not touch feature {@code key}'s slots. */
     public static boolean featureDenies(String key, String operation) {
-        for (Feature f : FEATURES) if (f.key().equals(key) && f.owner().equals(operation)) return false;
+        for (Feature f : FEATURES) if (f.key().equals(key) && f.owner().equals(operationOf(operation))) return false;
         Set<String> entry = state.denied().get(operation);
         return entry != null && entry.contains(key);
     }
@@ -269,7 +307,11 @@ public final class Reach {
             Map<String, Set<String>> groupDenies = new HashMap<>();
             for (LockGroup g : ordered) {
                 Set<String> ops = new HashSet<>();
-                for (String op : defaultDenies(g.kind())) if (!frozenDenied.containsKey(op)) ops.add(op);
+                // Both lists of an untouched operation share the kind's default.
+                for (String op : defaultDenies(g.kind())) {
+                    if (!frozenDenied.containsKey(op)) ops.add(op);
+                    if (!frozenDenied.containsKey(matching(op))) ops.add(matching(op));
+                }
                 frozenDenied.forEach((op, keys) -> { if (keys.contains(g.reachKey())) ops.add(op); });
                 lockDenies.put(g.id(), Set.copyOf(ops));
             }
@@ -336,9 +378,9 @@ public final class Reach {
         return keys != null && keys.contains(key);
     }
 
-    /** True when the player has changed {@code operation}'s reach. */
+    /** True when the player has changed {@code operation}'s reach, in either list. */
     public static boolean hasEntry(String operation) {
-        return state.denied().containsKey(operation);
+        return state.denied().containsKey(operation) || state.denied().containsKey(matching(operation));
     }
 
     /** The group the lock button has selected, which {@code L} applies. */
@@ -424,12 +466,13 @@ public final class Reach {
         replace(State.of(denied, s.groups(), s.seen(), s.active()));
     }
 
-    /** Revert to default: {@code operation}'s entry goes, so it uses the defaults again. */
+    /** Revert to default: {@code operation}'s entries in both lists go, so it uses the defaults again. */
     public static void revert(String operation) {
         State s = state;
-        if (!s.denied().containsKey(operation)) return;
+        if (!hasEntry(operation)) return;
         Map<String, Set<String>> denied = new TreeMap<>(s.denied());
         denied.remove(operation);
+        denied.remove(matching(operation));
         replace(State.of(denied, s.groups(), s.seen(), s.active()));
     }
 
@@ -548,7 +591,7 @@ public final class Reach {
         if (entry != null) return entry;
         Set<String> out = new TreeSet<>();
         for (LockGroup g : s.groups()) {
-            if (defaultDenies(g.kind()).contains(operation)) out.add(g.reachKey());
+            if (defaultDenies(g.kind()).contains(operationOf(operation))) out.add(g.reachKey());
         }
         out.addAll(defaultGroupDenies(operation));
         return Collections.unmodifiableSet(out);
@@ -561,8 +604,11 @@ public final class Reach {
      * defaults of that release (cycled slots unprotected, item locks letting
      * the cyclers and Collect through, Slot lock letting number keys and F
      * through, pockets protected). A file below 2 is read without its choices.
+     * 3 added the Matching list: a version 2 file's choices are copied into
+     * it, so nothing a player had changes on upgrade.
      */
-    private static final int VERSION = 2;
+    private static final int VERSION = 3;
+    private static final int OLDEST_KEPT = 2;
 
     /**
      * A saved key as this MenuKit writes it. MenuKit 6.0.0 renamed a category
@@ -592,19 +638,20 @@ public final class Reach {
             return;
         }
         Map<String, Set<String>> denied = new TreeMap<>();
-        boolean current = json.has("version") && json.get("version").isJsonPrimitive()
-                && json.get("version").getAsInt() >= VERSION;
-        if (current && json.has("denied") && json.get("denied").isJsonObject()) {
-            for (var e : json.getAsJsonObject("denied").entrySet()) {
-                if (retired(e.getKey())) continue;
-                Set<String> keys = new HashSet<>();
-                if (e.getValue().isJsonArray()) {
-                    for (JsonElement k : e.getValue().getAsJsonArray()) {
-                        String key = key(k.getAsString());
-                        if (!retired(key)) keys.add(key);
-                    }
-                }
-                denied.put(e.getKey(), keys);
+        int version = json.has("version") && json.get("version").isJsonPrimitive() ? json.get("version").getAsInt() : 0;
+        if (version >= OLDEST_KEPT) {
+            Map<String, Set<String>> empty = entries(json, "denied");
+            denied.putAll(empty);
+            if (version >= 3) {
+                entries(json, "matching").forEach((op, keys) -> denied.put(matching(op), keys));
+            } else {
+                // Version 2: one list, which becomes both. The carried places
+                // came with 3 and are off by default; an entry written before
+                // them gets them unticked, as an untouched operation has them.
+                empty.forEach((op, keys) -> {
+                    if (CARRIED_PUT.contains(op)) keys.addAll(PLACES);
+                    denied.put(matching(op), new HashSet<>(keys));
+                });
             }
         }
         List<LockGroup> groups = new ArrayList<>();
@@ -631,6 +678,24 @@ public final class Reach {
         state = State.of(denied, groups, seen, active == null ? SLOT_LOCK : active);
     }
 
+    /** One list's entries ({@code "denied"} or {@code "matching"}), keys migrated, Inventory Max dropped. */
+    private static Map<String, Set<String>> entries(JsonObject json, String list) {
+        Map<String, Set<String>> out = new TreeMap<>();
+        if (!json.has(list) || !json.get(list).isJsonObject()) return out;
+        for (var e : json.getAsJsonObject(list).entrySet()) {
+            if (retired(e.getKey())) continue;
+            Set<String> keys = new HashSet<>();
+            if (e.getValue().isJsonArray()) {
+                for (JsonElement k : e.getValue().getAsJsonArray()) {
+                    String key = key(k.getAsString());
+                    if (!retired(key)) keys.add(key);
+                }
+            }
+            out.put(e.getKey(), keys);
+        }
+        return out;
+    }
+
     /**
      * Whether {@code key} names Inventory Max: an operation id
      * ({@code inventorymax:pocket_cycle}) or a group key, whose parts are split
@@ -650,12 +715,15 @@ public final class Reach {
         JsonObject json = new JsonObject();
         json.addProperty("version", VERSION);
         JsonObject denied = new JsonObject();
-        s.denied().forEach((op, keys) -> {
+        JsonObject matching = new JsonObject();
+        s.denied().forEach((list, keys) -> {
             JsonArray arr = new JsonArray();
             for (String k : keys) arr.add(k);
-            denied.add(op, arr);
+            String op = operationOf(list);
+            (op.equals(list) ? denied : matching).add(op, arr);
         });
         json.add("denied", denied);
+        json.add("matching", matching);
         JsonArray groups = new JsonArray();
         for (LockGroup g : s.groups()) {
             JsonObject o = new JsonObject();

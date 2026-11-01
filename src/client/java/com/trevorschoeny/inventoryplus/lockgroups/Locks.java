@@ -4,9 +4,11 @@ import com.trevlar.menukit.api.panel.ModeScope;
 import com.trevlar.slotkit.api.group.SlotGroupCategory;
 import com.trevlar.slotkit.api.group.SlotGroupId;
 import com.trevlar.slotkit.api.group.SlotGroups;
+import com.trevlar.slotkit.api.window.BehaviorKey;
 import com.trevlar.slotkit.api.window.SlotOperations;
 import com.trevlar.slotkit.api.window.SlotRef;
 
+import com.trevorschoeny.inventoryplus.api.PlayerMenuSlots;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockeditems.LockKind;
 import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
@@ -21,6 +23,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
 
 /**
  * The one lock question and the one veto.
@@ -49,6 +52,17 @@ import java.util.List;
  * With no acting player (a hopper), or another player (a LAN guest of this
  * host), it has no opinion, since this record is this player's alone.
  *
+ * <h2>Put operations: Empty slots and Matching</h2>
+ *
+ * <p>A put operation ({@code Role.PUT}) has two lists in the reach record.
+ * Each row on the slot (its slot group, a feature group it is in, a lock
+ * group on it) lets a put through if its Empty slots box is ticked, or its
+ * Matching box is ticked and the slot's container already holds the item
+ * ({@link SlotGroups#holds}); any row refusing refuses the put
+ * ({@link #putVerdict}). The plain veto, which never sees the item, refuses
+ * only where some row has neither box; the put veto, handed the item, does
+ * the rest.
+ *
  * <p>The slot's group comes from MenuKit itself: {@code allows} resolves it
  * once per question and hands it to every registered {@link
  * SlotOperations.GroupVeto}, so no veto re-derives it.
@@ -68,6 +82,48 @@ public final class Locks {
             if (denied && PROBED.contains(operation.id().toString())) probe(ref, group, operation);
             return denied;
         });
+        // ponytail: works the rows out a second time for a put the plain veto let through; cache per question if a profile ever shows it
+        SlotOperations.vetoPut(ModeScope.BOTH, (ref, group, operation, incoming) ->
+                isPut(operation) && putVerdict(ref, group, operation) == PutVerdict.MATCHING
+                        && !SlotGroups.holds(ref, incoming));
+    }
+
+    /** What a slot's rows let a put operation bring in. */
+    public enum PutVerdict {
+        /** Every row has Empty slots ticked: anything. */
+        ANY,
+        /** Every row has one box ticked, some only Matching: only what the slot's container already holds. */
+        MATCHING,
+        /** Some row has neither: nothing. */
+        NONE
+    }
+
+    /** Whether {@code operation} is a put, the operations with a Matching list. */
+    public static boolean isPut(BehaviorKey<?> operation) {
+        return SlotOperations.role(operation) == SlotOperations.Role.PUT;
+    }
+
+    /** {@link PutVerdict} for put {@code operation} on {@code ref}'s slot, for the local player. */
+    public static PutVerdict putVerdict(SlotRef ref, @Nullable SlotGroupId group, BehaviorKey<?> operation) {
+        if (!isLocalPlayer(ref.player())) return PutVerdict.ANY;
+        String op = operation.id().toString();
+        String matching = Reach.matching(op);
+        boolean onlyMatching = false;
+        for (Predicate<String> refuses : rows(ref, group)) {
+            if (!refuses.test(op)) continue;                    // Empty slots ticked: lets anything in
+            if (refuses.test(matching)) return PutVerdict.NONE; // neither box
+            onlyMatching = true;
+        }
+        return onlyMatching ? PutVerdict.MATCHING : PutVerdict.ANY;
+    }
+
+    /** {@link #putVerdict} for the player's own inventory slot {@code containerSlot}, as {@code IPSlotOperations.allowsPlayerSlot} addresses it. */
+    public static PutVerdict playerSlotVerdict(Player player, int containerSlot, BehaviorKey<?> operation) {
+        var menu = player.inventoryMenu;
+        int menuIndex = PlayerMenuSlots.menuIndexOf(menu, player, containerSlot);
+        SlotRef ref = menuIndex >= 0 ? SlotRef.of(menu, menu.getSlot(menuIndex), player)
+                : SlotRef.of(player.getInventory(), containerSlot, player);
+        return putVerdict(ref, SlotGroups.of(ref), operation);
     }
 
     // [reach-probe] diagnostic for the rare "can't place, reopening fixes it"
@@ -79,8 +135,7 @@ public final class Locks {
             "menukit:click_put", "menukit:click_take", "menukit:drag_fill",
             "menukit:hotbar_swap", "menukit:offhand_swap", "menukit:shift_click_out");
 
-    private static void probe(SlotRef ref, @Nullable com.trevlar.slotkit.api.group.SlotGroupId group,
-                              com.trevlar.slotkit.api.window.BehaviorKey<?> operation) {
+    private static void probe(SlotRef ref, @Nullable SlotGroupId group, BehaviorKey<?> operation) {
         com.trevorschoeny.inventoryplus.InventoryPlusClient.LOGGER.info(
                 "[reach-probe] DENY thread={} op={} menu={} slot={} containerSlot={} container={} group={} on={} key={}",
                 Thread.currentThread().getName(), operation.id(),
@@ -90,26 +145,37 @@ public final class Locks {
                 ref.slot() == null ? "-" : LockedSlots.probeContainerKey(ref.slot()));
     }
 
-    private static boolean denies(SlotRef ref, @Nullable com.trevlar.slotkit.api.group.SlotGroupId group,
-                                  com.trevlar.slotkit.api.window.BehaviorKey<?> operation) {
-        {
-            if (!isLocalPlayer(ref.player())) return false;
-            String op = operation.id().toString();
-            if (group != null && Reach.denies(op, group.asString())) return true;
-            List<String> on = on(ref);
-            // Feature reach groups are reach, like slot groups: the Lock groups
-            // switch does not pause them.
-            for (String key : on) {
-                if (Reach.isFeatureKey(key) && Reach.featureDenies(key, op)) return true;
-            }
-            // The Lock groups switch pauses every lock without deleting any;
-            // the slot groups' own reach still holds.
-            if (!IPConfig.lockGroupsEnabled()) return false;
-            for (String lock : on) {
-                if (!Reach.isFeatureKey(lock) && Reach.lockDenies(lock, op)) return true;
-            }
-            return false;
+    private static boolean denies(SlotRef ref, @Nullable SlotGroupId group, BehaviorKey<?> operation) {
+        if (!isLocalPlayer(ref.player())) return false;
+        // A put is refused here only where some row has neither box; Matching
+        // needs the item, which the put veto has.
+        if (isPut(operation)) return putVerdict(ref, group, operation) == PutVerdict.NONE;
+        String op = operation.id().toString();
+        for (Predicate<String> refuses : rows(ref, group)) if (refuses.test(op)) return true;
+        return false;
+    }
+
+    /**
+     * The rows on {@code ref}'s slot, each as "does this list refuse", given a
+     * list id (an operation's, or its {@link Reach#matching} one): the slot
+     * group, the feature groups it is in, and its lock groups. Feature groups
+     * are reach, like slot groups, so the Lock groups switch, which pauses
+     * every lock without deleting any, leaves them and the slot group's own
+     * reach in force.
+     */
+    private static List<Predicate<String>> rows(SlotRef ref, @Nullable SlotGroupId group) {
+        List<Predicate<String>> rows = new ArrayList<>(4);
+        if (group != null) {
+            String key = group.asString();
+            rows.add(list -> Reach.denies(list, key));
         }
+        List<String> on = on(ref);
+        boolean locks = IPConfig.lockGroupsEnabled();
+        for (String key : on) {
+            if (Reach.isFeatureKey(key)) rows.add(list -> Reach.featureDenies(key, list));
+            else if (locks) rows.add(list -> Reach.lockDenies(key, list));
+        }
+        return rows;
     }
 
     /**

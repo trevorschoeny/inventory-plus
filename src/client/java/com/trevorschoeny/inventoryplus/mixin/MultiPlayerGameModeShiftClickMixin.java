@@ -4,6 +4,7 @@ import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 
 import com.trevlar.slotkit.api.window.BehaviorKeys;
 import com.trevlar.slotkit.api.window.SlotOperations;
+import com.trevlar.slotkit.api.window.SlotRef;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
@@ -119,7 +120,8 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
             if (menu.getCarried().isEmpty()) break;
             Slot dest = menu.slots.get(i);
             if (dest == source) continue;
-            if (!SlotOperations.allows(menu, dest, player, BehaviorKeys.SHIFT_CLICK_IN)) continue;
+            if (!SlotOperations.allowsPut(SlotRef.of(menu, dest, player), BehaviorKeys.SHIFT_CLICK_IN,
+                    menu.getCarried())) continue;
 
             // Vanilla doesn't shift-click within a half.
             if (LockedSlots.isLockable(dest)) {
@@ -175,7 +177,7 @@ public abstract class MultiPlayerGameModeShiftClickMixin {
 
         for (Slot dest : menu.slots) {
             if (dest == source) continue;
-            if (SlotOperations.allows(menu, dest, player, BehaviorKeys.SHIFT_CLICK_IN)) continue;
+            if (SlotOperations.allowsPut(SlotRef.of(menu, dest, player), BehaviorKeys.SHIFT_CLICK_IN, sourceStack)) continue;
             int destCS = dest.getContainerSlot();
             boolean destInMain = destCS >= 9 && destCS <= 35;
             boolean destInHotbar = destCS >= 0 && destCS <= 8;

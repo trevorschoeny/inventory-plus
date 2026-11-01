@@ -1,7 +1,8 @@
 package com.trevorschoeny.inventoryplus.carried;
 
-import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
+import com.trevorschoeny.inventoryplus.lockgroups.Locks;
+import com.trevorschoeny.inventoryplus.lockgroups.Reach;
 import com.trevorschoeny.inventoryplus.nested.CarriedPut;
 import com.trevorschoeny.inventoryplus.nested.CarriedPut.Move;
 import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
@@ -62,41 +63,58 @@ public final class CarriedPutClient {
         return Minecraft.getInstance().getConnection() == null || CarriedFetch.serverHelps(CarriedPut.Prefs.TYPE);
     }
 
-    /** Whether {@code move} may put into the place: its three Reach boxes. */
-    private static boolean place(Move move, int place) {
-        return switch (move) {
-            case PICKUP -> place == CarriedPut.SHULKERS ? IPConfig.pickupIntoShulkers()
-                    : place == CarriedPut.BUNDLES ? IPConfig.pickupIntoBundles() : IPConfig.pickupIntoEnderChest();
-            case SHIFT_CLICK -> place == CarriedPut.SHULKERS ? IPConfig.shiftClickIntoShulkers()
-                    : place == CarriedPut.BUNDLES ? IPConfig.shiftClickIntoBundles() : IPConfig.shiftClickIntoEnderChest();
-            case MOVE_MATCHING -> place == CarriedPut.SHULKERS ? IPConfig.moveMatchingIntoShulkers()
-                    : place == CarriedPut.BUNDLES ? IPConfig.moveMatchingIntoBundles() : IPConfig.moveMatchingIntoEnderChest();
-        };
+    /** Reach's keys for the places, in {@link CarriedPut}'s order. */
+    private static final List<String> PLACES = List.of(Reach.SHULKER_BOXES, Reach.BUNDLES, Reach.ENDER_CHEST);
+
+    /** Whether {@code move}'s box for {@code place} is ticked in {@code list} ({@code CarriedPut.EMPTY_SLOTS} or {@code MATCHING}). */
+    private static boolean ticked(Move move, int place, int list) {
+        String op = move.operation.id().toString();
+        return !Reach.denies(list == CarriedPut.MATCHING ? Reach.matching(op) : op, PLACES.get(place));
+    }
+
+    /** Whether {@code move} may put into the place by either list. */
+    private static boolean opens(Move move, int place) {
+        return ticked(move, place, CarriedPut.EMPTY_SLOTS) || ticked(move, place, CarriedPut.MATCHING);
     }
 
     private static void sync(LocalPlayer player) {
         if (!CarriedFetch.serverHelps(CarriedPut.Prefs.TYPE)) return;
-        int places = 0;
-        List<Long> slots = new ArrayList<>(Move.values().length);
-        for (Move move : Move.values()) {
-            for (int p = 0; p < 3; p++) if (place(move, p)) places |= 1 << (move.ordinal() * 3 + p);
-            // A slot the move may not put into keeps the container in it closed too.
-            long mask = 0;
-            for (int i = 0; i <= 40; i++) if (IPSlotOperations.allowsPlayerSlot(player, i, move.operation)) mask |= 1L << i;
-            slots.add(mask);
-        }
-        int enderLocked = 0;
-        for (int i = 0; i < LockedSlots.ENDER_SLOT_COUNT; i++) if (LockedSlots.isEnderLocked(i)) enderLocked |= 1 << i;
-        CarriedPut.Prefs now = new CarriedPut.Prefs(places, slots, enderLocked);
+        CarriedPut.Prefs now = prefs(player);
         if (now.equals(sent)) return;
         ClientPlayNetworking.send(now);
         sent = now;
     }
 
+    /** The player's choices as the server needs them. */
+    public static CarriedPut.Prefs prefs(LocalPlayer player) {
+        int places = 0;
+        List<Long> slots = new ArrayList<>(Move.values().length * 2);
+        for (Move move : Move.values()) {
+            for (int p = 0; p < 3; p++) {
+                for (int list : new int[] {CarriedPut.EMPTY_SLOTS, CarriedPut.MATCHING}) {
+                    if (ticked(move, p, list)) places |= CarriedPut.Prefs.bit(move, p, list);
+                }
+            }
+            // A slot the move may not put into keeps the container in it closed too: by
+            // either list where the container holds the item, by Empty slots where not.
+            long any = 0, matching = 0;
+            for (int i = 0; i <= 40; i++) {
+                if (!IPSlotOperations.allowsPlayerSlot(player, i, move.operation)) continue;
+                matching |= 1L << i;
+                if (Locks.playerSlotVerdict(player, i, move.operation) == Locks.PutVerdict.ANY) any |= 1L << i;
+            }
+            slots.add(any);
+            slots.add(matching);
+        }
+        int enderLocked = 0;
+        for (int i = 0; i < LockedSlots.ENDER_SLOT_COUNT; i++) if (LockedSlots.isEnderLocked(i)) enderLocked |= 1 << i;
+        return new CarriedPut.Prefs(places, slots, enderLocked);
+    }
+
     /** Whether Move Matching in puts into carried containers in this world. */
     public static boolean moveMatchingInto() {
         if (!CarriedFetch.serverHelps(CarriedPut.MoveIn.TYPE)) return false;
-        for (int p = 0; p < 3; p++) if (place(Move.MOVE_MATCHING, p)) return true;
+        for (int p = 0; p < 3; p++) if (opens(Move.MOVE_MATCHING, p)) return true;
         return false;
     }
 
@@ -107,8 +125,8 @@ public final class CarriedPutClient {
      */
     public static Set<Item> moveMatchingKinds(LocalPlayer player) {
         Set<Item> out = new HashSet<>();
-        boolean shulkers = place(Move.MOVE_MATCHING, CarriedPut.SHULKERS);
-        boolean bundles = place(Move.MOVE_MATCHING, CarriedPut.BUNDLES);
+        boolean shulkers = opens(Move.MOVE_MATCHING, CarriedPut.SHULKERS);
+        boolean bundles = opens(Move.MOVE_MATCHING, CarriedPut.BUNDLES);
         if (!shulkers && !bundles) return out;
         ItemScope scope = ItemScope.inventory().shulkers(shulkers).bundles(bundles);
         for (ItemSources.Found f : ItemSources.find(player, scope, s -> true)) {

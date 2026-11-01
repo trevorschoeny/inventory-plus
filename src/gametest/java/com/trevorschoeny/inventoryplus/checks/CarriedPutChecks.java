@@ -9,7 +9,7 @@ import static com.trevorschoeny.inventoryplus.checks.CarriedItems.onServer;
 import static com.trevorschoeny.inventoryplus.checks.CarriedItems.shulker;
 
 import com.trevorschoeny.inventoryplus.api.InventoryPlusOperations;
-import com.trevorschoeny.inventoryplus.config.IPConfig;
+import com.trevorschoeny.inventoryplus.lockgroups.Reach;
 import com.trevorschoeny.inventoryplus.nested.CarriedPut;
 
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
@@ -34,9 +34,24 @@ import java.util.List;
  */
 public class CarriedPutChecks implements FabricClientGameTest {
 
-    /** Every place for every move, every slot open. */
-    private static final CarriedPut.Prefs ALL = new CarriedPut.Prefs(0b111_111_111,
-            List.of(-1L, -1L, -1L), 0);
+    /** Every place's Matching box for every move, every slot open. */
+    private static final CarriedPut.Prefs ALL = new CarriedPut.Prefs(matchingEverywhere(),
+            List.of(-1L, -1L, -1L, -1L, -1L, -1L), 0);
+
+    private static int matchingEverywhere() {
+        int places = 0;
+        for (CarriedPut.Move move : CarriedPut.Move.values()) {
+            for (int p = 0; p < 3; p++) places |= CarriedPut.Prefs.bit(move, p, CarriedPut.MATCHING);
+        }
+        return places;
+    }
+
+    private static final String PICKUP = "menukit:world_pickup", MOVE_MATCHING_IN = "inventoryplus:move_matching_in";
+
+    /** Ticks or clears {@code op}'s Matching box for Shulker Boxes, as the Reach tab does. */
+    private static void shulkersMatching(String op, boolean on) {
+        Reach.setDenied(Reach.matching(op), List.of(Reach.SHULKER_BOXES), !on);
+    }
 
     @Override
     public void runTest(ClientGameTestContext ctx) {
@@ -44,8 +59,17 @@ public class CarriedPutChecks implements FabricClientGameTest {
             ctx.waitTicks(20);
             world.getServer().runCommand("gamemode survival @a");
 
+            // Every carried place is off until ticked: with nothing ticked, a pickup the
+            // shulker holds lands loose (the same pickup lands in the shulker below).
+            stock(world);
+            ctx.waitTicks(25);
+            onServer(world, p -> {
+                p.getInventory().add(new ItemStack(Items.COBBLESTONE, 5));
+                expect(count(p, Items.COBBLESTONE) == 5, "by default a pickup never goes into a carried shulker");
+            });
+
             // The client's choice reaches the server: pickups into shulkers only.
-            ctx.runOnClient(mc -> IPConfig.setPickupIntoShulkers(true));
+            ctx.runOnClient(mc -> shulkersMatching(PICKUP, true));
             stock(world);
             ctx.waitTicks(25);
             onServer(world, p -> {
@@ -59,7 +83,7 @@ public class CarriedPutChecks implements FabricClientGameTest {
                 expect(count(p, Items.DIRT) == 4 && p.getEnderChestInventory().getItem(0).getCount() == 5,
                         "the ender chest box off: dirt stays in the inventory");
             });
-            ctx.runOnClient(mc -> IPConfig.setPickupIntoShulkers(false));
+            ctx.runOnClient(mc -> Reach.revert(PICKUP));
             ctx.waitTicks(25);
             stock(world);
             onServer(world, p -> {
@@ -91,7 +115,8 @@ public class CarriedPutChecks implements FabricClientGameTest {
             stock(world);
             onServer(world, p -> {
                 long notTwenty = ~(1L << 20);
-                CarriedPut.setPrefs(p.getUUID(), new CarriedPut.Prefs(0b111_111_111, List.of(notTwenty, -1L, -1L), 0));
+                CarriedPut.setPrefs(p.getUUID(), new CarriedPut.Prefs(matchingEverywhere(),
+                        List.of(notTwenty, notTwenty, -1L, -1L, -1L, -1L), 0));
                 p.getInventory().add(new ItemStack(Items.COBBLESTONE, 5));
                 expect(count(p, Items.COBBLESTONE) == 5, "a slot the pickup may not use keeps the shulker in it closed");
                 CarriedPut.setPrefs(p.getUUID(), ALL);
@@ -128,7 +153,7 @@ public class CarriedPutChecks implements FabricClientGameTest {
             // holds, goes into it on the server; stone, which only the inventory holds,
             // follows into the inventory once the server has answered.
             stock(world);
-            ctx.runOnClient(mc -> IPConfig.setMoveMatchingIntoShulkers(true));
+            ctx.runOnClient(mc -> shulkersMatching(MOVE_MATCHING_IN, true));
             BlockPos[] chestAt = {null};
             onServer(world, p -> {
                 p.getInventory().setItem(9, new ItemStack(Items.STONE, 1));
@@ -162,7 +187,7 @@ public class CarriedPutChecks implements FabricClientGameTest {
                                 + count(p, Items.STONE) + ", chest empty " + chest.isEmpty() + ")");
                 p.closeContainer();
             });
-            ctx.runOnClient(mc -> IPConfig.setMoveMatchingIntoShulkers(false));
+            ctx.runOnClient(mc -> Reach.revert(MOVE_MATCHING_IN));
         }
     }
 

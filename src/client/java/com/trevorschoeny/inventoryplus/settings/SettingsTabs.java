@@ -257,63 +257,22 @@ final class SettingsTabs {
     /**
      * One operation's section. Only what applies is offered: the slot groups MenuKit says the operation can act on
      * ({@code SlotOperations.groups}), the lock groups whose kind fits its
-     * role, and the places Inventory Plus declares for it. Closed, it shows a
-     * live count and what stops it. Open, it shows its blocks.
+     * role, and the places Inventory Plus declares for it. A put operation
+     * shows the same rows twice: Empty slots, which lets any item in, and
+     * Matching, which lets one in only where the container already holds it.
+     * Closed, it shows a live count and what stops it. Open, it shows its blocks.
      */
     private static void operationSection(SettingsBody b, BehaviorKey<?> op) {
         String id = op.id().toString();
         boolean putOnly = SlotOperations.role(op) == SlotOperations.Role.PUT;
-        Set<String> applies = new HashSet<>();
-        for (SlotGroupId g : SlotOperations.groups(op)) applies.add(g.asString());
-
-        List<Place> slotGroups = new ArrayList<>();
-        List<Place> ourGroups = new ArrayList<>();
-        List<Place> otherGroups = new ArrayList<>();
-        for (SlotGroups.Entry e : SlotGroups.listing()) {
-            // A set (Hotbar Pockets' 27 pockets) is one box that writes each member.
-            List<String> keys = new ArrayList<>();
-            for (SlotGroupId g : e.groups()) if (applies.contains(g.asString())) keys.add(g.asString());
-            if (keys.isEmpty()) continue;
-            Place box = new Place(e.source() == null || isOurs(namespaceOf(e)) ? e.name() : groupLabel(e),
-                    () -> keys.stream().noneMatch(k -> Reach.denies(id, k)),
-                    v -> Reach.setDenied(id, keys, !v), () -> false);
-            if (e.source() == null) slotGroups.add(box);
-            else if (isOurs(namespaceOf(e))) ourGroups.add(box);
-            else otherGroups.add(box);
-        }
-        // The cyclers' slots, as reach options. They are offered by every group that applies to the player's
-        // inventory or hotbar, since they are subsets of those, first in the
-        // Inventory Plus row. A cycler's own group keeps its
-        // own option checked and fixed: it must rotate its own slots.
-        boolean carried = applies.contains(new SlotGroupId.Category(SlotGroupCategory.PLAYER_INVENTORY).asString())
-                || applies.contains(new SlotGroupId.Category(SlotGroupCategory.PLAYER_HOTBAR).asString());
-        if (carried) {
-            List<Place> features = new ArrayList<>();
-            for (Reach.Feature f : Reach.features()) {
-                features.add(f.owner().equals(id)
-                        ? Place.fixed(Component.literal(f.label()), true)
-                        : new Place(Component.literal(f.label()), () -> !Reach.featureDenies(f.key(), id),
-                                v -> Reach.setDenied(id, List.of(f.key()), !v), () -> false));
-            }
-            ourGroups.addAll(0, features);
-        }
-        List<Place> lockGroups = new ArrayList<>();
+        Map<String, List<Place>> empty = rows(op, id);
+        Map<String, List<Place>> matching = putOnly ? rows(op, Reach.matching(id)) : Map.of();
         List<LockGroup> offered = new ArrayList<>();
-        for (LockGroup g : Reach.groups()) {
-            // An item lock protects an item already there; put-only moves never apply.
-            if (g.kind().locksItems() && putOnly) continue;
-            offered.add(g);
-            lockGroups.add(new Place(Component.literal(g.name()), () -> !Reach.lockDenies(g.id(), id),
-                    v -> Reach.setLockDenies(g.id(), id, !v), () -> false));
-        }
-        List<Place> places = new ArrayList<>();
-        for (List<Place> block : placesOf(id).values()) places.addAll(block);
+        for (LockGroup g : Reach.groups()) if (offers(g, putOnly)) offered.add(g);
 
-        List<Place> all = new ArrayList<>(slotGroups);
-        all.addAll(lockGroups);
-        all.addAll(places);
-        all.addAll(ourGroups);
-        all.addAll(otherGroups);
+        List<Place> all = new ArrayList<>();
+        empty.values().forEach(all::addAll);
+        matching.values().forEach(all::addAll);
         boolean isNew = !Reach.seen(id);
         Supplier<Component> summary = () -> {
             long on = all.stream().filter(p -> p.on().getAsBoolean()).count();
@@ -335,14 +294,76 @@ final class SettingsTabs {
             }));
             // Shift-click in's fill order waits on MenuKit, so it is grayed.
             if (op == BehaviorKeys.SHIFT_CLICK_IN) c.buttons("Priority…");
-            block(c, "Slot groups", slotGroups);
-            block(c, "Lock groups", lockGroups);
-            // Carried containers, one block per kind where the feature
-            // splits them (Restock: Items, Tools, Armor, Ammo).
-            placesOf(id).forEach((label, block) -> block(c, label, block));
-            block(c, "Inventory Plus", ourGroups);
-            block(c, "Other mods", otherGroups);
+            if (putOnly) c.line(0, Component.literal("Empty slots: may put in an item the container doesn't hold yet."));
+            empty.forEach((label, block) -> block(c, label, block));
+            if (putOnly) {
+                c.line(0, Component.literal("Matching: may put in an item only where the container already holds it."));
+                matching.forEach((label, block) -> block(c, label, block));
+            }
         });
+    }
+
+    /** An item lock protects an item already there; put-only moves never apply. */
+    private static boolean offers(LockGroup g, boolean putOnly) {
+        return !(g.kind().locksItems() && putOnly);
+    }
+
+    /**
+     * One list's blocks of boxes for {@code op}, labeled, in order: slot groups,
+     * lock groups, carried places (one block per kind where the feature splits
+     * them, as Restock's Items, Tools, Armor, Ammo), Inventory Plus's own, other
+     * mods'. {@code list} is the operation's id, or its {@link Reach#matching} one.
+     */
+    private static Map<String, List<Place>> rows(BehaviorKey<?> op, String list) {
+        String id = op.id().toString();
+        boolean putOnly = SlotOperations.role(op) == SlotOperations.Role.PUT;
+        Set<String> applies = new HashSet<>();
+        for (SlotGroupId g : SlotOperations.groups(op)) applies.add(g.asString());
+
+        List<Place> slotGroups = new ArrayList<>();
+        List<Place> ourGroups = new ArrayList<>();
+        List<Place> otherGroups = new ArrayList<>();
+        for (SlotGroups.Entry e : SlotGroups.listing()) {
+            // A set (Hotbar Pockets' 27 pockets) is one box that writes each member.
+            List<String> keys = new ArrayList<>();
+            for (SlotGroupId g : e.groups()) if (applies.contains(g.asString())) keys.add(g.asString());
+            if (keys.isEmpty()) continue;
+            Place box = new Place(e.source() == null || isOurs(namespaceOf(e)) ? e.name() : groupLabel(e),
+                    () -> keys.stream().noneMatch(k -> Reach.denies(list, k)),
+                    v -> Reach.setDenied(list, keys, !v), () -> false);
+            if (e.source() == null) slotGroups.add(box);
+            else if (isOurs(namespaceOf(e))) ourGroups.add(box);
+            else otherGroups.add(box);
+        }
+        // The cyclers' slots, as reach options. They are offered by every group that applies to the player's
+        // inventory or hotbar, since they are subsets of those, first in the
+        // Inventory Plus row. A cycler's own group keeps its
+        // own option checked and fixed: it must rotate its own slots.
+        boolean carried = applies.contains(new SlotGroupId.Category(SlotGroupCategory.PLAYER_INVENTORY).asString())
+                || applies.contains(new SlotGroupId.Category(SlotGroupCategory.PLAYER_HOTBAR).asString());
+        if (carried) {
+            List<Place> features = new ArrayList<>();
+            for (Reach.Feature f : Reach.features()) {
+                features.add(f.owner().equals(id)
+                        ? Place.fixed(Component.literal(f.label()), true)
+                        : new Place(Component.literal(f.label()), () -> !Reach.featureDenies(f.key(), list),
+                                v -> Reach.setDenied(list, List.of(f.key()), !v), () -> false));
+            }
+            ourGroups.addAll(0, features);
+        }
+        List<Place> lockGroups = new ArrayList<>();
+        for (LockGroup g : Reach.groups()) {
+            if (!offers(g, putOnly)) continue;
+            lockGroups.add(new Place(Component.literal(g.name()), () -> !Reach.lockDenies(g.id(), list),
+                    v -> Reach.setLockDenies(g.id(), list, !v), () -> false));
+        }
+        Map<String, List<Place>> out = new LinkedHashMap<>();
+        out.put("Slot groups", slotGroups);
+        out.put("Lock groups", lockGroups);
+        out.putAll(placesOf(id, list));
+        out.put("Inventory Plus", ourGroups);
+        out.put("Other mods", otherGroups);
+        return out;
     }
 
     private static final String PICK_BLOCK = "inventoryplus:pick_block";
@@ -358,11 +379,7 @@ final class SettingsTabs {
                     "restockArmorFromShulkers", "restockArmorFromBundles", "restockArmorFromEnderChest",
                     "restockAmmoFromShulkers", "restockAmmoFromBundles", "restockAmmoFromEnderChest"),
             "inventoryplus:auto_tool_switch", List.of("autoToolSwitchFromShulkers", "autoToolSwitchFromBundles"),
-            PICK_BLOCK, List.of("pickFromShulkers", "pickFromBundles", "pickFromEnderChest"),
-            "menukit:world_pickup", List.of("pickupIntoShulkers", "pickupIntoBundles", "pickupIntoEnderChest"),
-            "menukit:shift_click_in", List.of("shiftClickIntoShulkers", "shiftClickIntoBundles", "shiftClickIntoEnderChest"),
-            "inventoryplus:move_matching_in", List.of("moveMatchingIntoShulkers", "moveMatchingIntoBundles",
-                    "moveMatchingIntoEnderChest"));
+            PICK_BLOCK, List.of("pickFromShulkers", "pickFromBundles", "pickFromEnderChest"));
 
     /** A carried place backed by its own setting, grayed while {@code unavailable}. */
     private static Place place(String name, Bool setting, BooleanSupplier unavailable) {
@@ -388,9 +405,11 @@ final class SettingsTabs {
      * in the inventory that it may reach into, each a real setting (Trev,
      * 2026-10-20: moved here from the Restock, General and Auto Tool Switch
      * tabs). Restock's keep their split by kind, each block grayed while its
-     * kind is off; Ammo has no switch of its own. Labels in order.
+     * kind is off; Ammo has no switch of its own. The moves that put into carried
+     * containers keep their places in the reach record, one box per list.
+     * Labels in order.
      */
-    private static Map<String, List<Place>> placesOf(String operation) {
+    private static Map<String, List<Place>> placesOf(String operation, String list) {
         Map<String, List<Place>> out = new LinkedHashMap<>();
         switch (operation) {
             case "inventoryplus:restock_take" -> {
@@ -420,22 +439,10 @@ final class SettingsTabs {
                     Bool.of(IPConfig::autoToolSwitchFromBundles, IPConfig::setAutoToolSwitchFromBundles),
                     null, () -> false));
             // Container first (nested/CarriedPut): an incoming item goes into a carried
-            // container that holds it. Needs Inventory Plus on the server.
-            case "menukit:world_pickup" -> out.put("Places", carried(
-                    Bool.of(IPConfig::pickupIntoShulkers, IPConfig::setPickupIntoShulkers),
-                    Bool.of(IPConfig::pickupIntoBundles, IPConfig::setPickupIntoBundles),
-                    Bool.of(IPConfig::pickupIntoEnderChest, IPConfig::setPickupIntoEnderChest),
-                    () -> !CarriedPutClient.available()));
-            case "menukit:shift_click_in" -> out.put("Places", carried(
-                    Bool.of(IPConfig::shiftClickIntoShulkers, IPConfig::setShiftClickIntoShulkers),
-                    Bool.of(IPConfig::shiftClickIntoBundles, IPConfig::setShiftClickIntoBundles),
-                    Bool.of(IPConfig::shiftClickIntoEnderChest, IPConfig::setShiftClickIntoEnderChest),
-                    () -> !CarriedPutClient.available()));
-            case "inventoryplus:move_matching_in" -> out.put("Places", carried(
-                    Bool.of(IPConfig::moveMatchingIntoShulkers, IPConfig::setMoveMatchingIntoShulkers),
-                    Bool.of(IPConfig::moveMatchingIntoBundles, IPConfig::setMoveMatchingIntoBundles),
-                    Bool.of(IPConfig::moveMatchingIntoEnderChest, IPConfig::setMoveMatchingIntoEnderChest),
-                    () -> !CarriedPutClient.available()));
+            // container. Needs Inventory Plus on the server.
+            case "menukit:world_pickup", "menukit:shift_click_in", "inventoryplus:move_matching_in" ->
+                    out.put("Places", carried(placeBox(list, Reach.SHULKER_BOXES), placeBox(list, Reach.BUNDLES),
+                            placeBox(list, Reach.ENDER_CHEST), () -> !CarriedPutClient.available()));
             case PICK_BLOCK -> out.put("Places", carried(
                     Bool.of(IPConfig::pickFromShulkers, IPConfig::setPickFromShulkers),
                     Bool.of(IPConfig::pickFromBundles, IPConfig::setPickFromBundles),
@@ -444,6 +451,17 @@ final class SettingsTabs {
             default -> { }
         }
         return out;
+    }
+
+    /** A carried place's box in a reach list, kept in the reach record. */
+    private static Bool placeBox(String list, String place) {
+        return Bool.of(() -> !Reach.denies(list, place), v -> Reach.setDenied(list, List.of(place), !v));
+    }
+
+    /** {@code place}'s Matching box on each move that puts into carried containers. */
+    private static Bool[] matchingBoxes(String place) {
+        return java.util.stream.Stream.of("menukit:world_pickup", "menukit:shift_click_in", "inventoryplus:move_matching_in")
+                .map(op -> placeBox(Reach.matching(op), place)).toArray(Bool[]::new);
     }
 
     /**
@@ -458,9 +476,7 @@ final class SettingsTabs {
                         + "Take from covers Restock (items, tools, armor, and ammo such as arrows), Pick block, "
                         + "and Auto Tool Switch for shulker boxes and bundles.");
         master(b, "Shulker Boxes: put new items in", true,
-                Bool.of(IPConfig::pickupIntoShulkers, IPConfig::setPickupIntoShulkers),
-                Bool.of(IPConfig::shiftClickIntoShulkers, IPConfig::setShiftClickIntoShulkers),
-                Bool.of(IPConfig::moveMatchingIntoShulkers, IPConfig::setMoveMatchingIntoShulkers));
+                matchingBoxes(Reach.SHULKER_BOXES));
         master(b, "Shulker Boxes: take from", false,
                 Bool.of(IPConfig::restockItemsFromShulkers, IPConfig::setRestockItemsFromShulkers),
                 Bool.of(IPConfig::restockToolsFromShulkers, IPConfig::setRestockToolsFromShulkers),
@@ -469,9 +485,7 @@ final class SettingsTabs {
                 Bool.of(IPConfig::autoToolSwitchFromShulkers, IPConfig::setAutoToolSwitchFromShulkers),
                 Bool.of(IPConfig::pickFromShulkers, IPConfig::setPickFromShulkers));
         master(b, "Bundles: put new items in", true,
-                Bool.of(IPConfig::pickupIntoBundles, IPConfig::setPickupIntoBundles),
-                Bool.of(IPConfig::shiftClickIntoBundles, IPConfig::setShiftClickIntoBundles),
-                Bool.of(IPConfig::moveMatchingIntoBundles, IPConfig::setMoveMatchingIntoBundles));
+                matchingBoxes(Reach.BUNDLES));
         master(b, "Bundles: take from", false,
                 Bool.of(IPConfig::restockItemsFromBundles, IPConfig::setRestockItemsFromBundles),
                 Bool.of(IPConfig::restockToolsFromBundles, IPConfig::setRestockToolsFromBundles),
@@ -480,9 +494,7 @@ final class SettingsTabs {
                 Bool.of(IPConfig::autoToolSwitchFromBundles, IPConfig::setAutoToolSwitchFromBundles),
                 Bool.of(IPConfig::pickFromBundles, IPConfig::setPickFromBundles));
         master(b, "Your Ender Chest: put new items in", true,
-                Bool.of(IPConfig::pickupIntoEnderChest, IPConfig::setPickupIntoEnderChest),
-                Bool.of(IPConfig::shiftClickIntoEnderChest, IPConfig::setShiftClickIntoEnderChest),
-                Bool.of(IPConfig::moveMatchingIntoEnderChest, IPConfig::setMoveMatchingIntoEnderChest));
+                matchingBoxes(Reach.ENDER_CHEST));
         master(b, "Your Ender Chest: take from", false,
                 Bool.of(IPConfig::restockItemsFromEnderChest, IPConfig::setRestockItemsFromEnderChest),
                 Bool.of(IPConfig::restockToolsFromEnderChest, IPConfig::setRestockToolsFromEnderChest),

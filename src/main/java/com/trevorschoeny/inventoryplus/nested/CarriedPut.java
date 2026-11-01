@@ -27,9 +27,14 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.ShulkerBoxBlock;
 
-import java.util.LinkedHashSet;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -39,8 +44,12 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Putting incoming items into carried containers: the server's half. "Container
  * first": an item that comes into the inventory goes into a carried shulker box, bundle
- * or the ender chest that already holds that item, and the inventory takes only what
- * doesn't fit.
+ * or the ender chest, and the inventory takes only what doesn't fit.
+ *
+ * <p>Which containers is Reach's rule for a put. Each row (the container's place, and
+ * the inventory slot it sits in) lets the item in if its Empty slots box is ticked, or
+ * its Matching box is ticked and the container already holds the item
+ * ({@code ItemStack.isSameItem}). Containers that already hold it fill first.
  *
  * <p>Three moves do it, each with its own Reach places (Shulker Boxes, Bundles, Your
  * Ender Chest), all off by default:
@@ -78,36 +87,52 @@ public final class CarriedPut {
         }
     }
 
-    /** Bit offsets within one move's three bits of {@link Prefs#places}. */
+    /** The places, in the order {@link Prefs} packs them. */
     public static final int SHULKERS = 0, BUNDLES = 1, ENDER_CHEST = 2;
 
+    /** The two lists, in the order {@link Prefs} packs them. */
+    public static final int EMPTY_SLOTS = 0, MATCHING = 1;
+
     /**
-     * The player's choices. {@code places} has three bits per {@link Move} (bit
-     * {@code move * 3 + place}); {@code slots} has, per move, bit {@code i} set for each
-     * inventory slot (0 to 40) whose container the move may put into;
-     * {@code enderLocked} has bit {@code i} set for each ender chest slot the player
-     * locked.
+     * The player's choices. {@code places} has a bit per {@link Move}, place and list
+     * (bit {@code move * 6 + place * 2 + list}), set where that box is ticked.
+     * {@code slots} has two masks per move ({@code move * 2 + list}), bit {@code i} set
+     * for each inventory slot (0 to 40) whose rows let a put in: every row by Empty
+     * slots, or every row by one box or the other. {@code enderLocked} has bit {@code i}
+     * set for each ender chest slot the player locked.
      */
     public record Prefs(int places, List<Long> slots, int enderLocked) implements CustomPacketPayload {
         public static final Type<Prefs> TYPE = new Type<>(Identifier.fromNamespaceAndPath("inventoryplus", "carried_put_prefs"));
         public static final StreamCodec<RegistryFriendlyByteBuf, Prefs> CODEC = StreamCodec.composite(
                 ByteBufCodecs.VAR_INT, Prefs::places,
-                ByteBufCodecs.VAR_LONG.apply(ByteBufCodecs.list(Move.values().length)), Prefs::slots,
+                ByteBufCodecs.VAR_LONG.apply(ByteBufCodecs.list(Move.values().length * 2)), Prefs::slots,
                 ByteBufCodecs.VAR_INT, Prefs::enderLocked,
                 Prefs::new);
         @Override public Type<Prefs> type() { return TYPE; }
 
-        public boolean place(Move move, int place) {
-            return (places >> (move.ordinal() * 3 + place) & 1) != 0;
+        /** Bit {@code list} of {@code place} for {@code move}. */
+        public static int bit(Move move, int place, int list) {
+            return 1 << (move.ordinal() * 6 + place * 2 + list);
+        }
+
+        /** Whether the place's row lets an item in: Empty slots, or Matching where the container {@code holds} it. */
+        public boolean place(Move move, int place, boolean holds) {
+            return (places & bit(move, place, EMPTY_SLOTS)) != 0 || holds && (places & bit(move, place, MATCHING)) != 0;
+        }
+
+        /** Whether the move may use the place at all, so it is worth looking inside. */
+        public boolean opens(Move move, int place) {
+            return place(move, place, true);
         }
 
         public boolean any(Move move) {
-            return (places >> (move.ordinal() * 3) & 0b111) != 0;
+            return (places >> (move.ordinal() * 6) & 0b111111) != 0;
         }
 
-        public boolean slot(Move move, int slot) {
-            return slot >= 0 && slot < 64 && move.ordinal() < slots.size()
-                    && (slots.get(move.ordinal()) >> slot & 1) != 0;
+        /** Whether the rows of inventory slot {@code slot} let the move put into the container there. */
+        public boolean slot(Move move, int slot, boolean holds) {
+            int mask = move.ordinal() * 2 + (holds ? MATCHING : EMPTY_SLOTS);
+            return slot >= 0 && slot < 64 && mask < slots.size() && (slots.get(mask) >> slot & 1) != 0;
         }
     }
 
@@ -159,38 +184,44 @@ public final class CarriedPut {
     }
 
     /**
-     * Puts as much of {@code stack} as fits into the player's carried containers that
-     * already hold it, as {@code move} may, shrinking {@code stack} by what went in.
-     * Nearest first: containers in the inventory (hotbar first, then deeper), then the
-     * ender chest. Returns how many went in.
+     * Puts as much of {@code stack} as fits into the player's carried containers, as
+     * {@code move}'s rows allow, shrinking {@code stack} by what went in. Containers
+     * that already hold the item first, then those that may take it new; each nearest
+     * first (in the inventory, hotbar first, then deeper; then the ender chest's own).
+     * The ender chest itself comes last. Returns how many went in.
      */
     public static int into(ServerPlayer player, ItemStack stack, Move move) {
         if (stack.isEmpty()) return 0;
         Prefs prefs = PREFS.get(player.getUUID());
         if (prefs == null || !prefs.any(move)) return 0;
-        boolean shulkers = prefs.place(move, SHULKERS), bundles = prefs.place(move, BUNDLES);
-        boolean ender = prefs.place(move, ENDER_CHEST);
-        ItemScope scope = ItemScope.inventory().shulkers(shulkers).bundles(bundles).enderChest(ender);
+        ItemScope scope = ItemScope.inventory().shulkers(prefs.opens(move, SHULKERS))
+                .bundles(prefs.opens(move, BUNDLES)).enderChest(prefs.opens(move, ENDER_CHEST));
 
-        // The containers that hold the item, by path, in walk order; the ender chest
-        // itself when one of its own slots does.
-        Set<ItemPath> containers = new LinkedHashSet<>();
+        // Every carried container by path, in walk order, with its place; which of them
+        // already hold the item; and whether the ender chest's own slots do.
+        Map<ItemPath, Integer> containers = new LinkedHashMap<>();
+        Set<ItemPath> holding = new HashSet<>();
         boolean[] enderHolds = {false};
         ItemSources.walk(player, scope, ref -> {
-            if (!ItemStack.isSameItemSameComponents(ref.stack(), stack)) return true;
             ItemPath path = ref.path();
-            if (ref.source() == ItemRef.Source.ENDER_CHEST) {
-                if (enderLocked(prefs, path.slot())) return true;
-                if (path.depth() == 0) enderHolds[0] = true;
-                else containers.add(parent(path));
-            } else if (ref.source() == ItemRef.Source.INVENTORY && path.depth() > 0) {
-                if (prefs.slot(move, path.slot())) containers.add(parent(path));
+            if (ref.source() == ItemRef.Source.ENDER_CHEST && enderLocked(prefs, path.slot())) return true;
+            int place = placeOf(ref.stack());
+            if (place >= 0) containers.put(path, place);
+            if (ItemStack.isSameItem(ref.stack(), stack)) {
+                if (path.depth() > 0) holding.add(parent(path));
+                else if (ref.source() == ItemRef.Source.ENDER_CHEST) enderHolds[0] = true;
             }
             return true;
         });
 
+        List<ItemPath> order = new ArrayList<>(containers.size());
+        for (ItemPath path : containers.keySet()) if (holding.contains(path)) order.add(path);
+        for (ItemPath path : containers.keySet()) if (!holding.contains(path)) order.add(path);
+
         int before = stack.getCount();
-        for (ItemPath path : containers) {
+        for (ItemPath path : order) {
+            boolean holds = holding.contains(path);
+            if (!lets(prefs, move, path, containers.get(path), holds)) continue;
             // A put makes the walk's other refs into that container stale: resolve afresh.
             ItemRef container = ItemSources.at(player, path);
             if (container == null) continue;
@@ -198,8 +229,30 @@ public final class CarriedPut {
             stack.setCount(left.getCount());
             if (stack.isEmpty()) break;
         }
-        if (!stack.isEmpty() && enderHolds[0]) intoEnderChest(player, stack, prefs);
+        if (!stack.isEmpty() && prefs.place(move, ENDER_CHEST, enderHolds[0])) intoEnderChest(player, stack, prefs);
         return before - stack.getCount();
+    }
+
+    /**
+     * Whether every row on the container at {@code path} lets {@code move} put in: its
+     * own place, and the inventory slot it sits in, or the ender chest it sits in.
+     * ponytail: a container inside another is judged by its own place and the top slot
+     * only, not the places of the containers around it; judge each level if nesting
+     * ever matters.
+     */
+    private static boolean lets(Prefs prefs, Move move, ItemPath path, int place, boolean holds) {
+        if (!prefs.place(move, place, holds)) return false;
+        return switch (path.source()) {
+            case INVENTORY -> prefs.slot(move, path.slot(), holds);
+            case ENDER_CHEST -> prefs.place(move, ENDER_CHEST, holds);
+            default -> false;
+        };
+    }
+
+    /** The place a carried container counts as: a shulker box, a bundle, or -1 for anything else. */
+    private static int placeOf(ItemStack stack) {
+        if (stack.getItem() instanceof BlockItem block && block.getBlock() instanceof ShulkerBoxBlock) return SHULKERS;
+        return stack.has(DataComponents.BUNDLE_CONTENTS) ? BUNDLES : -1;
     }
 
     /** The path of the container {@code path}'s item sits in. */

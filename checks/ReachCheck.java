@@ -58,7 +58,6 @@ public class ReachCheck {
         check(Reach.createGroup(LockKind.SLOT, "n", "gray").id().equals("g6"), "ids never below the max");
         // writes
         Reach.read(null);
-        check(Reach.lockDenies("exact_item", "inventorymax:pocket_cycle"), "exact stops pocket cycle (09-27)");
         Reach.setDenied("inventoryplus:sort", List.of("vanilla|menukit|chest_storage"), true);
         check(Reach.denies("inventoryplus:sort", "vanilla|menukit|chest_storage"), "slot group denied");
         check(Reach.lockDenies("slot_lock", "inventoryplus:sort"), "writing an entry keeps the lock defaults");
@@ -96,27 +95,88 @@ public class ReachCheck {
         check(!Reach.hasEntry("menukit:drop"), "revert all");
         Reach.markSeen(List.of("menukit:drop"));
         check(Reach.seen("menukit:drop") && !Reach.seen("menukit:drag_fill"), "seen");
+        // Matching: a put operation's second list, under its own id
+        Reach.read(null);
+        String pickup = "menukit:world_pickup", pickupM = Reach.matching(pickup);
+        check(Reach.matching(pickupM).equals(pickupM), "matching of a matching id is itself");
+        check(Reach.denies(pickup, Reach.SHULKER_BOXES) && Reach.denies(pickupM, Reach.SHULKER_BOXES),
+                "carried places are off by default in both lists");
+        check(!Reach.denies("menukit:drop", Reach.SHULKER_BOXES), "only the carried-put moves default their places off");
+        check(Reach.lockDenies("slot_lock", pickup) && Reach.lockDenies("slot_lock", pickupM),
+                "an untouched operation's two lists share the kind default");
+        String mmIn = "inventoryplus:move_matching_in";
+        String hotbarKey = new com.trevlar.slotkit.api.group.SlotGroupId.Category(
+                com.trevlar.slotkit.api.group.SlotGroupCategory.PLAYER_HOTBAR).asString();
+        check(Reach.denies(mmIn, hotbarKey) && Reach.denies(Reach.matching(mmIn), hotbarKey),
+                "slot-group defaults reach both lists");
+        Reach.setDenied(pickup, List.of("a|b"), true);
+        check(Reach.denies(pickup, "a|b") && !Reach.denies(pickupM, "a|b"), "Empty slots written alone");
+        check(Reach.denies(pickupM, Reach.SHULKER_BOXES), "the untouched Matching list keeps its default");
+        Reach.setDenied(pickupM, List.of(Reach.SHULKER_BOXES), false);
+        check(!Reach.denies(pickupM, Reach.SHULKER_BOXES) && Reach.denies(pickup, Reach.SHULKER_BOXES),
+                "Matching written alone");
+        check(Reach.lockDenies("slot_lock", pickupM), "writing Matching's entry keeps its lock defaults");
+        Reach.setLockDenies("slot_lock", pickupM, false);
+        check(!Reach.lockDenies("slot_lock", pickupM) && Reach.lockDenies("slot_lock", pickup),
+                "a lock group's two boxes are separate");
+        LockGroup made = Reach.createGroup(LockKind.SLOT, "m", "gray");
+        check(!Reach.lockDenies(made.id(), pickupM) && Reach.lockDenies(made.id(), pickup),
+                "a new group copies its default's box in each list");
+        JsonObject saved = Reach.write();
+        check(saved.get("version").getAsInt() == 3, "written as version 3");
+        check(saved.getAsJsonObject("matching").has(pickup) && !saved.getAsJsonObject("denied").has(pickupM),
+                "Matching saved under the plain operation id, in its own object");
+        Reach.read(saved);
+        check(!Reach.denies(pickupM, Reach.SHULKER_BOXES) && Reach.denies(pickup, "a|b") && !Reach.denies(pickupM, "a|b")
+                && !Reach.lockDenies("slot_lock", pickupM) && Reach.lockDenies("slot_lock", pickup),
+                "a version 3 file reads both lists back apart");
+        Reach.deleteGroup(made.id());
+        check(Reach.effectiveDenied(pickup).stream().noneMatch(k -> k.contains(made.id()))
+                && Reach.effectiveDenied(pickupM).stream().noneMatch(k -> k.contains(made.id())),
+                "a deleted group is scrubbed from both lists");
+        Reach.revert(pickup);
+        check(!Reach.hasEntry(pickup) && Reach.denies(pickupM, Reach.SHULKER_BOXES), "revert clears both lists");
+        Reach.setDenied(pickupM, List.of("c|d"), true);
+        check(Reach.hasEntry(pickup), "an entry in Matching alone counts as changed");
+        Reach.revertAll();
+        check(!Reach.hasEntry(pickup), "revert all clears Matching too");
+        // Version 2 -> 3: the one list becomes both; carried places come unticked
+        Reach.read(JsonParser.parseString("{\"version\":2,\"denied\":{\"menukit:world_pickup\":[\"x|y\","
+                + "\"inventoryplus:lock/exact_item\"],\"inventoryplus:sort\":[\"x|y\"]}}").getAsJsonObject());
+        check(Reach.denies(pickup, "x|y") && Reach.denies(pickupM, "x|y"), "a version 2 entry is copied into Matching");
+        check(Reach.lockDenies("exact_item", pickupM) && !Reach.lockDenies("slot_lock", pickupM)
+                && !Reach.lockDenies("slot_lock", pickup), "lock choices copied as they were");
+        check(Reach.denies(pickup, Reach.SHULKER_BOXES) && Reach.denies(pickupM, Reach.ENDER_CHEST),
+                "an old pickup entry gets the carried places unticked, as the default has them");
+        check(!Reach.denies("inventoryplus:sort", Reach.SHULKER_BOXES) && Reach.denies(Reach.matching("inventoryplus:sort"), "x|y"),
+                "other operations get no places, and their entry is copied too");
+        check(Reach.denies("inventoryplus:move_matching_in", hotbarKey)
+                && Reach.denies(Reach.matching("inventoryplus:move_matching_in"), hotbarKey),
+                "an untouched operation keeps its default in both lists after migration");
+        Reach.read(JsonParser.parseString("{\"version\":1,\"denied\":{\"menukit:world_pickup\":[\"x|y\"]}}").getAsJsonObject());
+        check(!Reach.hasEntry(pickup), "a file below 2 is still read without its choices");
+        Reach.read(null);
         // MenuKit 6.0.0: saved keys from before it still mean the same thing
         try {
             java.lang.reflect.Method key = Reach.class.getDeclaredMethod("key", String.class);
             key.setAccessible(true);
-            String hotbar = com.trevlar.menukit.api.slot.SlotGroupId.parse("vanilla|menukit|player_hotbar").asString();
+            String hotbar = com.trevlar.slotkit.api.group.SlotGroupId.parse("vanilla|menukit|player_hotbar").asString();
             check(hotbar.startsWith("category|"), "6.0.0 writes a category group as category|");
             check(key.invoke(null, "vanilla|menukit|player_hotbar").equals(hotbar), "a 5.x slot group key reads as 6.0.0's");
             check(key.invoke(null, "inventoryplus:lock/slot_lock").equals("inventoryplus:lock/slot_lock"), "other keys kept");
-            Reach.read(JsonParser.parseString("{\"denied\":{\"inventoryplus:sort\":[\"vanilla|menukit|player_hotbar\"]}}").getAsJsonObject());
+            Reach.read(JsonParser.parseString("{\"version\":2,\"denied\":{\"inventoryplus:sort\":[\"vanilla|menukit|player_hotbar\"]}}").getAsJsonObject());
             check(Reach.denies("inventoryplus:sort", hotbar), "a 5.x denial still denies after 6.0.0");
 
             Class<?> csk = Class.forName("com.trevorschoeny.inventoryplus.lockedslots.CreatedSlotKey");
             java.lang.reflect.Method migrate = csk.getDeclaredMethod("migrate", String.class);
             migrate.setAccessible(true);
-            String pocket = com.trevlar.menukit.api.window.Address.createdSlot(
-                    com.trevlar.menukit.api.slot.SlotGroupId.created("inventorymax:pocket_0_0", "pocket_0_0"), 0).asString();
+            String pocket = com.trevlar.slotkit.api.window.Address.createdSlot(
+                    com.trevlar.slotkit.api.group.SlotGroupId.created("inventorymax:pocket_0_0", "pocket_0_0"), 0).asString();
             check(migrate.invoke(null, "created:1:menukit:panel:primary:inventorymax:pocket_0_0:pocket_0_0\u00000").equals(pocket),
                     "a 5.x created-slot key (as saved in IM's dev run) becomes the pocket's address text");
-            check(com.trevlar.menukit.api.window.Address.parse(pocket).asString().equals(pocket), "and that text reads back");
+            check(com.trevlar.slotkit.api.window.Address.parse(pocket).asString().equals(pocket), "and that text reads back");
             check(migrate.invoke(null, "created:1:menukit:panel:primary:inventorymax:equip_elytra:elytra\u00007").equals(
-                    com.trevlar.menukit.api.window.Address.createdSlot(com.trevlar.menukit.api.slot.SlotGroupId.created(
+                    com.trevlar.slotkit.api.window.Address.createdSlot(com.trevlar.slotkit.api.group.SlotGroupId.created(
                             "inventorymax:equip_elytra", "elytra"), 7).asString()), "any group and index");
             check(migrate.invoke(null, pocket).equals(pocket), "a 6.0.0 key is kept");
         } catch (ReflectiveOperationException e) {

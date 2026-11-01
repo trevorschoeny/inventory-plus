@@ -251,12 +251,16 @@ public final class InventoryPlusApi {
 
     /**
      * Takes {@code groups} out of what {@code operation} may use, in the
-     * player's reach (as unticking their boxes in the Reach tab would). For a
-     * companion upgrading a setting of its own that the reach now holds.
+     * player's reach (as unticking their boxes in the Reach tab would, in
+     * both of a put operation's lists). For a companion upgrading a setting of
+     * its own that the reach now holds.
      */
     public static void denyInReach(BehaviorKey<?> operation, Collection<SlotGroupId> groups) {
-        com.trevorschoeny.inventoryplus.lockgroups.Reach.setDenied(operation.id().toString(),
-                groups.stream().map(SlotGroupId::asString).toList(), true);
+        List<String> keys = groups.stream().map(SlotGroupId::asString).toList();
+        String id = operation.id().toString();
+        com.trevorschoeny.inventoryplus.lockgroups.Reach.setDenied(id, keys, true);
+        com.trevorschoeny.inventoryplus.lockgroups.Reach.setDenied(
+                com.trevorschoeny.inventoryplus.lockgroups.Reach.matching(id), keys, true);
     }
 
     /**
