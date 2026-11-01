@@ -16,8 +16,8 @@ import java.util.Collection;
  * consolidation, its deposit-merge rule); a real held stack would otherwise
  * be the first thing a click puts down.
  *
- * <p>Sets the held stack aside on an empty slot of the player's own
- * inventory that {@code action} never reads or writes, runs {@code action}
+ * <p>Sets the held stack aside on an empty main-inventory or hotbar slot
+ * that {@code action} never reads or writes, runs {@code action}
  * with the cursor genuinely empty, then picks the held stack back up. If no
  * such slot takes it (none is empty and untouched, or something like a lock
  * refuses every candidate), the held stack is left exactly as it was and
@@ -44,15 +44,20 @@ public final class CursorShelf {
     }
 
     /**
-     * Tries each empty, untouched slot of the player's own inventory in turn,
-     * actually clicking it, until one takes {@code held}. Returns the slot it
-     * landed on, or {@code null} if every candidate refused (a lock can veto
-     * the click itself, which {@link IPSlotOperations#mayAccept} can't see).
+     * Tries each empty, untouched slot of the player's main inventory or
+     * hotbar in turn, actually clicking it, until one takes {@code held}.
+     * Returns the slot it landed on, or {@code null} if every candidate
+     * refused (a lock can veto the click itself, which
+     * {@link IPSlotOperations#mayAccept} can't see) or none exists (the
+     * inventory is full). Armor and offhand are never candidates: a PICKUP
+     * there equips the item rather than merely storing it, which could curse
+     * the player with whatever they happened to be holding.
      */
     private static Slot park(AbstractContainerMenu menu, MultiPlayerGameMode gameMode, Player player,
                               Collection<Slot> touched, ItemStack held) {
         for (Slot s : menu.slots) {
             if (s.container != player.getInventory()) continue;
+            if (s.getContainerSlot() >= 36) continue;
             if (touched.contains(s)) continue;
             if (!s.getItem().isEmpty()) continue;
             if (!IPSlotOperations.mayAccept(menu, s, held)) continue;
