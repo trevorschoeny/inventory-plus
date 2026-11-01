@@ -181,6 +181,7 @@ public final class CarriedTake {
     }
 
     static void take(ServerPlayer player, Take request) {
+        if (player.isSpectator()) return;
         ItemPath path = request.path();
         // Only containers in the inventory; the ender chest goes through FromEnderChest.
         if (path.source() != ItemRef.Source.INVENTORY || path.depth() == 0) return;
@@ -196,6 +197,7 @@ public final class CarriedTake {
     }
 
     static void fromEnderChest(ServerPlayer player, FromEnderChest request) {
+        if (player.isSpectator()) return;
         ItemStack probe = request.probe();
         if (probe.isEmpty()) return;
         Purpose purpose = request.purpose();

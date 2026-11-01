@@ -37,9 +37,12 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.jspecify.annotations.Nullable;
 
 /**
  * Putting incoming items into carried containers: the server's half. "Container
@@ -191,6 +194,15 @@ public final class CarriedPut {
      * The ender chest itself comes last. Returns how many went in.
      */
     public static int into(ServerPlayer player, ItemStack stack, Move move) {
+        return into(player, stack, move, null);
+    }
+
+    /**
+     * {@link #into(ServerPlayer, ItemStack, Move)} for an item taken out of the player's own
+     * container at {@code from} (an ender chest or carried slot): nothing in that container,
+     * nor the container itself, takes it, so the move takes the item out of it.
+     */
+    private static int into(ServerPlayer player, ItemStack stack, Move move, @Nullable ItemPath from) {
         if (stack.isEmpty()) return 0;
         Prefs prefs = PREFS.get(player.getUUID());
         if (prefs == null || !prefs.any(move)) return 0;
@@ -204,6 +216,7 @@ public final class CarriedPut {
         boolean[] enderHolds = {false};
         ItemSources.walk(player, scope, ref -> {
             ItemPath path = ref.path();
+            if (from != null && path.source() == from.source() && Objects.equals(path.attachment(), from.attachment())) return true;
             if (ref.source() == ItemRef.Source.ENDER_CHEST && enderLocked(prefs, path.slot())) return true;
             int place = placeOf(ref.stack());
             if (place >= 0) containers.put(path, place);
@@ -229,7 +242,8 @@ public final class CarriedPut {
             stack.setCount(left.getCount());
             if (stack.isEmpty()) break;
         }
-        if (!stack.isEmpty() && prefs.place(move, ENDER_CHEST, enderHolds[0])) intoEnderChest(player, stack, prefs);
+        boolean fromEnder = from != null && from.source() == ItemRef.Source.ENDER_CHEST;
+        if (!stack.isEmpty() && !fromEnder && prefs.place(move, ENDER_CHEST, enderHolds[0])) intoEnderChest(player, stack, prefs);
         return before - stack.getCount();
     }
 
@@ -297,17 +311,23 @@ public final class CarriedPut {
      */
     public static int fromSlot(ServerPlayer player, AbstractContainerMenu menu, Slot slot, int count,
                                Move move, BehaviorKey<TriBool> takeAs) {
-        if (count <= 0 || !slot.hasItem() || slot.container == player.getInventory()) return 0;
+        if (player.isSpectator() || count <= 0 || !slot.hasItem() || slot.container == player.getInventory()) return 0;
         Prefs prefs = PREFS.get(player.getUUID());
         if (prefs == null || !prefs.any(move)) return 0;
         if (!STORAGE.contains(SlotRef.of(menu, slot, player).category())) return 0;
         if (!slot.mayPickup(player) || !SlotOperations.allows(menu, slot, player, takeAs)) return 0;
-        ItemStack moving = slot.getItem().copyWithCount(Math.min(count, slot.getItem().getCount()));
-        int moved = into(player, moving, move);
-        if (moved > 0) {
-            slot.remove(moved);
-            slot.setChanged();
-        }
+        // Take before putting: the item has left its slot before any container is looked
+        // at, so a bundle or box can't be put into itself, or into something it holds,
+        // and then removed with its own copy inside. A slot over a container the walk
+        // can't name (a box opened from the inventory) is covered by this alone.
+        int wanted = Math.min(count, slot.getItem().getCount());
+        ItemStack moving = slot.remove(wanted);
+        int moved = into(player, moving, move, ItemSources.pathOf(player, slot));
+        // What found no container goes back. Only this item can have filled the slot since,
+        // so the slot takes it all; the inventory is the fallback so nothing is ever lost.
+        if (!moving.isEmpty()) moving = slot.safeInsert(moving);
+        if (!moving.isEmpty()) player.getInventory().placeItemBackInInventory(moving, net.minecraft.util.Prediction.SERVER_ONLY);
+        slot.setChanged();
         return moved;
     }
 

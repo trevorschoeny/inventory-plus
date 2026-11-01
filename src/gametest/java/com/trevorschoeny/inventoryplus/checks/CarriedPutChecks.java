@@ -16,7 +16,17 @@ import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 
+import com.trevlar.slotkit.api.window.BehaviorKeys;
+
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.NonNullList;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.SimpleMenuProvider;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.ChestMenu;
+import net.minecraft.world.inventory.ShulkerBoxMenu;
+import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.Container;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.inventory.ContainerInput;
@@ -188,7 +198,78 @@ public class CarriedPutChecks implements FabricClientGameTest {
                 p.closeContainer();
             });
             ctx.runOnClient(mc -> Reach.revert(MOVE_MATCHING_IN));
+
+            // A bundle shift-clicked out of the open ender chest, holding a bundle: every
+            // Bundles Matching box is on, so the bundle itself (it holds a bundle) is a
+            // container the move could fill. It must leave the ender chest whole, never go
+            // into itself and be removed with its own copy inside.
+            stock(world);
+            onServer(world, p -> {
+                p.getEnderChestInventory().setItem(1, bundle(bundle()));
+                p.openMenu(new SimpleMenuProvider((id, inv, pl) -> ChestMenu.threeRows(id, inv, p.getEnderChestInventory()),
+                        Component.empty()));
+            });
+            ctx.waitTicks(8);
+            onServer(world, p -> {
+                // Set here, not before the wait: the client's own choices (all off since the
+                // revert above) may reach the server during it.
+                CarriedPut.setPrefs(p.getUUID(), ALL);
+                p.containerMenu.clicked(1, 0, ContainerInput.QUICK_MOVE, p);
+                expect(count(p, Items.BUNDLE) == 2 && p.getEnderChestInventory().getItem(1).isEmpty(),
+                        "a bundle shift-clicked from the ender chest lands in the inventory, not inside itself ("
+                                + count(p, Items.BUNDLE) + " bundles)");
+                p.closeContainer();
+            });
+
+            // The same from a box opened from the inventory (as Open Anywhere opens one),
+            // whose slots the walk sees only as the box in inventory slot 20.
+            stock(world);
+            onServer(world, p -> {
+                CarriedPut.setPrefs(p.getUUID(), ALL);
+                ItemStack box = shulker(5, bundle(bundle()));
+                p.getInventory().setItem(20, box);
+                var menu = new ShulkerBoxMenu(0, p.getInventory(), new BoxView(box));
+                CarriedPut.fromSlot(p, menu, menu.getSlot(5), 1, CarriedPut.Move.SHIFT_CLICK, BehaviorKeys.SHIFT_CLICK_OUT);
+                ItemStack back = contents(p.getInventory().getItem(20)).get(5);
+                expect(back.is(Items.BUNDLE) && bundleItems(back).size() == 1,
+                        "a bundle in an opened box never goes into itself (slot 5: " + back + ")");
+            });
         }
+    }
+
+    /**
+     * A box in the inventory opened as a screen, as Open Anywhere opens one: its slots are
+     * the box's own contents, read fresh and written back on every change.
+     */
+    private record BoxView(ItemStack box) implements Container {
+        private NonNullList<ItemStack> items() {
+            NonNullList<ItemStack> items = NonNullList.withSize(27, ItemStack.EMPTY);
+            List<ItemStack> read = contents(box);
+            for (int i = 0; i < 27; i++) items.set(i, read.get(i));
+            return items;
+        }
+        private void write(List<ItemStack> items) {
+            box.set(DataComponents.CONTAINER, ItemContainerContents.fromItems(items));
+        }
+        @Override public int getContainerSize() { return 27; }
+        @Override public boolean isEmpty() { return items().stream().allMatch(ItemStack::isEmpty); }
+        // A copy: every change goes through setItem or removeItem.
+        @Override public ItemStack getItem(int i) { return items().get(i); }
+        @Override public ItemStack removeItem(int i, int n) {
+            NonNullList<ItemStack> items = items();
+            ItemStack out = items.get(i).split(n);
+            write(items);
+            return out;
+        }
+        @Override public ItemStack removeItemNoUpdate(int i) { return removeItem(i, Integer.MAX_VALUE); }
+        @Override public void setItem(int i, ItemStack stack) {
+            NonNullList<ItemStack> items = items();
+            items.set(i, stack);
+            write(items);
+        }
+        @Override public void setChanged() {}
+        @Override public boolean stillValid(Player player) { return true; }
+        @Override public void clearContent() { write(List.of()); }
     }
 
     /** A shulker in slot 20 with 10 cobblestone, a bundle in 21 with a dandelion, 5 dirt in the ender chest. */
