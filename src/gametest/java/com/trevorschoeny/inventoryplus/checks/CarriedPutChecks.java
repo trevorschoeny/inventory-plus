@@ -16,6 +16,9 @@ import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 
+import com.trevlar.slotkit.api.item.ItemContents;
+import com.trevlar.slotkit.api.item.ItemPath;
+import com.trevlar.slotkit.api.item.ItemRef;
 import com.trevlar.slotkit.api.window.BehaviorKeys;
 
 import net.minecraft.core.BlockPos;
@@ -33,6 +36,8 @@ import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
@@ -221,27 +226,37 @@ public class CarriedPutChecks implements FabricClientGameTest {
                 p.closeContainer();
             });
 
-            // The same from a box opened from the inventory (as Open Anywhere opens one),
-            // whose slots the walk sees only as the box in inventory slot 20.
+            // The same from a box opened from the inventory (as Open Anywhere opens one):
+            // ItemContents names its slots inside inventory slot 20, so the walk can see
+            // this box holds a bundle (slot 10's, left behind) and would otherwise treat
+            // it as a Matching destination for the bundle taken from slot 5.
             stock(world);
             onServer(world, p -> {
                 CarriedPut.setPrefs(p.getUUID(), ALL);
-                ItemStack box = shulker(5, bundle(bundle()));
+                ItemStack box = shulker(5, bundle(bundle()), 10, bundle());
                 p.getInventory().setItem(20, box);
-                var menu = new ShulkerBoxMenu(0, p.getInventory(), new BoxView(box));
+                var menu = new ShulkerBoxMenu(0, p.getInventory(), new BoxView(box, p, 20));
                 CarriedPut.fromSlot(p, menu, menu.getSlot(5), 1, CarriedPut.Move.SHIFT_CLICK, BehaviorKeys.SHIFT_CLICK_OUT);
-                ItemStack back = contents(p.getInventory().getItem(20)).get(5);
+                List<ItemStack> after = contents(p.getInventory().getItem(20));
+                ItemStack back = after.get(5);
                 expect(back.is(Items.BUNDLE) && bundleItems(back).size() == 1,
                         "a bundle in an opened box never goes into itself (slot 5: " + back + ")");
+                expect(bundleItems(after.get(10)).isEmpty(),
+                        "nor into another slot of the same box, even though the box still holds a bundle (slot 10: "
+                                + after.get(10) + ")");
             });
         }
     }
 
     /**
      * A box in the inventory opened as a screen, as Open Anywhere opens one: its slots are
-     * the box's own contents, read fresh and written back on every change.
+     * the box's own contents, read fresh and written back on every change, and the box's
+     * own path ({@link ItemContents}) is {@code opener}'s inventory slot {@code slot}.
      */
-    private record BoxView(ItemStack box) implements Container {
+    private record BoxView(ItemStack box, Player opener, int slot) implements Container, ItemContents {
+        @Override public @Nullable ItemPath itemPath(Player asker) {
+            return asker == opener ? new ItemPath(ItemRef.Source.INVENTORY, slot, List.of()) : null;
+        }
         private NonNullList<ItemStack> items() {
             NonNullList<ItemStack> items = NonNullList.withSize(27, ItemStack.EMPTY);
             List<ItemStack> read = contents(box);

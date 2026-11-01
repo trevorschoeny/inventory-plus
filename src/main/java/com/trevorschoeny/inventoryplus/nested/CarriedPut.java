@@ -216,7 +216,7 @@ public final class CarriedPut {
         boolean[] enderHolds = {false};
         ItemSources.walk(player, scope, ref -> {
             ItemPath path = ref.path();
-            if (from != null && path.source() == from.source() && Objects.equals(path.attachment(), from.attachment())) return true;
+            if (from != null && skips(path, from)) return true;
             if (ref.source() == ItemRef.Source.ENDER_CHEST && enderLocked(prefs, path.slot())) return true;
             int place = placeOf(ref.stack());
             if (place >= 0) containers.put(path, place);
@@ -242,7 +242,7 @@ public final class CarriedPut {
             stack.setCount(left.getCount());
             if (stack.isEmpty()) break;
         }
-        boolean fromEnder = from != null && from.source() == ItemRef.Source.ENDER_CHEST;
+        boolean fromEnder = from != null && from.depth() == 0 && from.source() == ItemRef.Source.ENDER_CHEST;
         if (!stack.isEmpty() && !fromEnder && prefs.place(move, ENDER_CHEST, enderHolds[0])) intoEnderChest(player, stack, prefs);
         return before - stack.getCount();
     }
@@ -272,6 +272,13 @@ public final class CarriedPut {
     /** The path of the container {@code path}'s item sits in. */
     private static ItemPath parent(ItemPath path) {
         return new ItemPath(path.source(), path.slot(), path.inside().subList(0, path.depth() - 1), path.attachment());
+    }
+
+    /** A top-level slot's whole container (the ender chest, a carried attachment), or, for an item
+     *  taken from inside a box or bundle, that box and everything in it. */
+    private static boolean skips(ItemPath path, ItemPath from) {
+        if (from.depth() == 0) return path.source() == from.source() && Objects.equals(path.attachment(), from.attachment());
+        return path.within(parent(from));
     }
 
     private static boolean enderLocked(Prefs prefs, int slot) {
@@ -318,8 +325,9 @@ public final class CarriedPut {
         if (!slot.mayPickup(player) || !SlotOperations.allows(menu, slot, player, takeAs)) return 0;
         // Take before putting: the item has left its slot before any container is looked
         // at, so a bundle or box can't be put into itself, or into something it holds,
-        // and then removed with its own copy inside. A slot over a container the walk
-        // can't name (a box opened from the inventory) is covered by this alone.
+        // and then removed with its own copy inside. A slot over a box opened from the
+        // inventory is named by ItemSources.pathOf through ItemContents, so skips() keeps
+        // the item out of that box and everything in it, same as any other source.
         int wanted = Math.min(count, slot.getItem().getCount());
         ItemStack moving = slot.remove(wanted);
         int moved = into(player, moving, move, ItemSources.pathOf(player, slot));
