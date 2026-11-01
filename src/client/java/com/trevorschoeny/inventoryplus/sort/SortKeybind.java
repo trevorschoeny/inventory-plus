@@ -83,7 +83,7 @@ public final class SortKeybind {
         if (mc.player == null || mc.gameMode == null) return;
 
         AbstractContainerMenu menu = acs.getMenu();
-        Slot hovered = slotUnderMouse(acs, mc);
+        Slot hovered = slotUnderMouse(acs);
         ContainerIdentity identity = hovered == null ? null : ContainerIdentity.fromHoveredSlot(hovered, menu);
         // With nothing sortable open but the inventory (the inventory screen, a
         // furnace, a crafting table), the key sorts the inventory wherever the
@@ -154,23 +154,13 @@ public final class SortKeybind {
         return region;
     }
 
-    private static @Nullable Slot slotUnderMouse(AbstractContainerScreen<?> acs, Minecraft mc) {
-        double mouseX = mc.mouseHandler.xpos()
-                * (double) mc.getWindow().getGuiScaledWidth()
-                / (double) mc.getWindow().getScreenWidth();
-        double mouseY = mc.mouseHandler.ypos()
-                * (double) mc.getWindow().getGuiScaledHeight()
-                / (double) mc.getWindow().getScreenHeight();
-        int leftPos = ScreenLayout.leftPos(acs);
-        int topPos = ScreenLayout.topPos(acs);
-        for (Slot slot : acs.getMenu().slots) {
-            int sx = leftPos + slot.x;
-            int sy = topPos + slot.y;
-            if (mouseX >= sx && mouseX < sx + 16
-                    && mouseY >= sy && mouseY < sy + 16) {
-                return slot;
-            }
-        }
-        return null;
+    /**
+     * The slot vanilla highlights under the cursor ({@link ScreenLayout#hoveredSlot}):
+     * a created slot ahead of a vanilla one it covers, and the slot's 1-pixel rim
+     * included, so the gaps between a grid's slots count too.
+     */
+    private static @Nullable Slot slotUnderMouse(AbstractContainerScreen<?> acs) {
+        Slot slot = ScreenLayout.hoveredSlot(acs);
+        return (slot != null && slot.isActive()) ? slot : null;
     }
 }

@@ -96,13 +96,7 @@ public final class ColumnCyclerRotationKeybind {
                         if (!(innerScreen instanceof AbstractContainerScreen<?> currentAcs)) return;
 
                         Minecraft mc = Minecraft.getInstance();
-                        double mouseX = mc.mouseHandler.xpos()
-                                * (double) mc.getWindow().getGuiScaledWidth()
-                                / (double) mc.getWindow().getScreenWidth();
-                        double mouseY = mc.mouseHandler.ypos()
-                                * (double) mc.getWindow().getGuiScaledHeight()
-                                / (double) mc.getWindow().getScreenHeight();
-                        Slot hovered = slotUnderMouse(currentAcs, mouseX, mouseY);
+                        Slot hovered = slotUnderMouse(currentAcs);
                         if (hovered == null) return;
 
                         // Must be hovering a CYCLE slot in the local player's
@@ -129,18 +123,13 @@ public final class ColumnCyclerRotationKeybind {
         return inv.player.getUUID().equals(mc.player.getUUID());
     }
 
-    private static @Nullable Slot slotUnderMouse(AbstractContainerScreen<?> acs,
-                                                 double mouseX, double mouseY) {
-        int leftPos = ScreenLayout.leftPos(acs);
-        int topPos = ScreenLayout.topPos(acs);
-        for (Slot slot : acs.getMenu().slots) {
-            int sx = leftPos + slot.x;
-            int sy = topPos + slot.y;
-            if (mouseX >= sx && mouseX < sx + 16
-                    && mouseY >= sy && mouseY < sy + 16) {
-                return slot;
-            }
-        }
-        return null;
+    /**
+     * The slot vanilla highlights under the cursor ({@link ScreenLayout#hoveredSlot}):
+     * a created slot ahead of a vanilla one it covers, and the slot's 1-pixel rim
+     * included, so the gaps between a grid's slots count too.
+     */
+    private static @Nullable Slot slotUnderMouse(AbstractContainerScreen<?> acs) {
+        Slot slot = ScreenLayout.hoveredSlot(acs);
+        return (slot != null && slot.isActive()) ? slot : null;
     }
 }

@@ -7,7 +7,6 @@ import com.trevorschoeny.inventoryplus.movematching.ScreenLayout;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.Slot;
 
@@ -44,15 +43,7 @@ public final class ColumnCyclerKeybind {
                         if (ColumnCyclerDragController.isCKeyDragActive()) return;
                         if (!(innerScreen instanceof AbstractContainerScreen<?> currentAcs)) return;
 
-                        Minecraft mc = Minecraft.getInstance();
-                        double mouseX = mc.mouseHandler.xpos()
-                                * (double) mc.getWindow().getGuiScaledWidth()
-                                / (double) mc.getWindow().getScreenWidth();
-                        double mouseY = mc.mouseHandler.ypos()
-                                * (double) mc.getWindow().getGuiScaledHeight()
-                                / (double) mc.getWindow().getScreenHeight();
-
-                        Slot hovered = slotUnderMouse(currentAcs, mouseX, mouseY);
+                        Slot hovered = slotUnderMouse(currentAcs);
                         if (hovered == null || !ColumnCycler.isCycleable(hovered)) return;
                         int slotIdx = hovered.getContainerSlot();
                         ColumnCycler.toggleByContainerSlot(slotIdx);
@@ -65,18 +56,13 @@ public final class ColumnCyclerKeybind {
         });
     }
 
-    private static @Nullable Slot slotUnderMouse(AbstractContainerScreen<?> acs,
-                                                 double mouseX, double mouseY) {
-        int leftPos = ScreenLayout.leftPos(acs);
-        int topPos = ScreenLayout.topPos(acs);
-        for (Slot slot : acs.getMenu().slots) {
-            int sx = leftPos + slot.x;
-            int sy = topPos + slot.y;
-            if (mouseX >= sx && mouseX < sx + 16
-                    && mouseY >= sy && mouseY < sy + 16) {
-                return slot;
-            }
-        }
-        return null;
+    /**
+     * The slot vanilla highlights under the cursor ({@link ScreenLayout#hoveredSlot}):
+     * a created slot ahead of a vanilla one it covers, and the slot's 1-pixel rim
+     * included, so the gaps between a grid's slots count too.
+     */
+    private static @Nullable Slot slotUnderMouse(AbstractContainerScreen<?> acs) {
+        Slot slot = ScreenLayout.hoveredSlot(acs);
+        return (slot != null && slot.isActive()) ? slot : null;
     }
 }
