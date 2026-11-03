@@ -4,9 +4,7 @@ import com.trevlar.slotkit.api.item.ItemPath;
 import com.trevlar.slotkit.api.item.ItemRef;
 
 import com.trevorschoeny.inventoryplus.config.IPConfig;
-import com.trevorschoeny.inventoryplus.lockeditems.LockKind;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
-import com.trevorschoeny.inventoryplus.lockgroups.Reach;
 import com.trevorschoeny.inventoryplus.nested.CarriedTake;
 
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
@@ -84,12 +82,12 @@ public class CarriedPickChecks implements FabricClientGameTest {
 
             // A slot lock stops the pick reaching into the shulker in that slot: the same
             // setup as the first case.
-            ctx.runOnClient(mc -> LockedSlots.setLockedSlot(menuSlot(mc.player, 20), Reach.defaultOf(LockKind.SLOT)));
+            ctx.runOnClient(mc -> LockedSlots.setLocked(menuSlot(mc.player, 20), true));
             pick(ctx, world, p -> p.getInventory().setItem(20, shulker(4, new ItemStack(Items.GRANITE, 10))));
             onServer(world, p -> expect(contents(p.getInventory().getItem(20)).get(4).getCount() == 10
                             && count(p, Items.GRANITE) == 0,
                     "a shulker in a locked slot is left alone"));
-            ctx.runOnClient(mc -> LockedSlots.setLockedSlot(menuSlot(mc.player, 20), null));
+            ctx.runOnClient(mc -> LockedSlots.setLocked(menuSlot(mc.player, 20), false));
 
             // The boxes off: nothing.
             ctx.runOnClient(mc -> IPConfig.setPickFromShulkers(false));

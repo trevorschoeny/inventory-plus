@@ -8,9 +8,7 @@ import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCycler;
 import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCyclerRowButtons;
-import com.trevorschoeny.inventoryplus.lockeditems.LockKind;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
-import com.trevorschoeny.inventoryplus.lockgroups.Reach;
 import com.trevorschoeny.inventoryplus.movematching.ScreenLayout;
 import com.trevorschoeny.inventoryplus.toolbar.PowerUsersToolbar;
 import com.trevorschoeny.inventoryplus.toolbar.Toolbar;
@@ -47,7 +45,7 @@ import java.lang.reflect.Method;
 import java.util.function.Function;
 
 /**
- * Locks and Reach hold in survival and creative alike, and the
+ * Locks hold in survival and creative alike, and the
  * inventory toolbar and column show wherever the main inventory is (survival,
  * creative's inventory tab, a chest) and nowhere else (creative's item tabs).
  * The gesture is Q on a slot, which the default Slot lock stops, sent through
@@ -75,9 +73,8 @@ public class ModeChecks implements FabricClientGameTest {
             stock(world);
             ctx.waitTicks(5);
             ctx.runOnClient(mc -> {
-                String slot = Reach.defaultOf(LockKind.SLOT);
-                LockedSlots.setLockedSlot(CarriedItems.menuSlot(mc.player, MAIN_LOCKED), slot);
-                LockedSlots.setLockedSlot(CarriedItems.menuSlot(mc.player, HOTBAR_LOCKED), slot);
+                LockedSlots.setLocked(CarriedItems.menuSlot(mc.player, MAIN_LOCKED), true);
+                LockedSlots.setLocked(CarriedItems.menuSlot(mc.player, HOTBAR_LOCKED), true);
             });
 
             // Survival inventory.
@@ -158,8 +155,8 @@ public class ModeChecks implements FabricClientGameTest {
             ctx.setScreen(() -> null);
 
             ctx.runOnClient(mc -> {
-                LockedSlots.setLockedSlot(CarriedItems.menuSlot(mc.player, MAIN_LOCKED), null);
-                LockedSlots.setLockedSlot(CarriedItems.menuSlot(mc.player, HOTBAR_LOCKED), null);
+                LockedSlots.setLocked(CarriedItems.menuSlot(mc.player, MAIN_LOCKED), false);
+                LockedSlots.setLocked(CarriedItems.menuSlot(mc.player, HOTBAR_LOCKED), false);
             });
         }
     }

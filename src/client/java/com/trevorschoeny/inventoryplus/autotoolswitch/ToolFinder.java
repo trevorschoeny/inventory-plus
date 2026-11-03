@@ -45,9 +45,9 @@ import java.util.function.ToDoubleFunction;
  * <p><b>Ties broken by proximity.</b> Within a tier and at the same score,
  * the slot closer to the player's active hotbar slot wins.
  *
- * <p><b>Locks answer through the veto.</b> Every candidate slot is asked
- * whether Auto Tool Switch may use it. A lock group that stops Auto Tool
- * Switch, on the slot or on the item, refuses there.
+ * <p><b>Slot rules answer through the veto.</b> Every candidate slot is asked
+ * whether Auto Tool Switch may use it; whatever refuses it there keeps the
+ * slot out of the choice.
  */
 public final class ToolFinder {
 
@@ -223,12 +223,11 @@ public final class ToolFinder {
             if (i == activeSlot) continue;
             if (!tierFilter.test(i)) continue;
             // Auto Tool Switch has to be allowed on the slot it would use, and
-            // locks answer through the veto: a lock group that stops Auto Tool
-            // Switch keeps its slot or item out of the choice, on the hotbar
-            // too. A cyclable slot (tier 2) is judged by its cycler instead,
-            // through the tier filter findBestByTier passes, which asks every
-            // slot the cycle would move. Cycle slots need no exemption: their
-            // cycler's reach group denies nothing by default.
+            // anything that refuses it (a companion's protected slots) answers
+            // through the veto. A lock lets Auto Tool Switch through. A cyclable
+            // slot (tier 2) is judged by its cycler instead, through the tier
+            // filter findBestByTier passes, which asks every slot the cycle
+            // would move.
             if (!isCyclable(i) && !IPSlotOperations.allowsPlayerSlot(inv.player, i, AUTO_TOOL_SWITCH)) continue;
             ItemStack stack = inv.getItem(i);
             if (stack.isEmpty()) continue;

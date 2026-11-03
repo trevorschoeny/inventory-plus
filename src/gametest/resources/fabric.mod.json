@@ -12,12 +12,11 @@
       "com.trevorschoeny.inventoryplus.checks.ModeChecks",
       "com.trevorschoeny.inventoryplus.checks.ContainerListChecks",
       "com.trevorschoeny.inventoryplus.checks.WorldSwitchLockChecks",
-      "com.trevorschoeny.inventoryplus.checks.ReachDefaultChecks",
       "com.trevorschoeny.inventoryplus.checks.PadlockDecorationChecks",
       "com.trevorschoeny.inventoryplus.checks.LaggyServerChecks",
       "com.trevorschoeny.inventoryplus.checks.CursorShelfChecks",
-      "com.trevorschoeny.inventoryplus.checks.CarriedPutChecks",
-      "com.trevorschoeny.inventoryplus.checks.ReachMatchingChecks"
+      "com.trevorschoeny.inventoryplus.checks.IntakeChecks",
+      "com.trevorschoeny.inventoryplus.checks.SlotRulesChecks"
     ],
     "main": [
       "com.trevorschoeny.inventoryplus.checks.ListFixture"

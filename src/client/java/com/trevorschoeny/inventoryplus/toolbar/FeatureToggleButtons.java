@@ -25,8 +25,8 @@ import java.util.function.Supplier;
  * switch. The same three gestures on every one:
  * <ul>
  *   <li><b>Left click</b> turns the feature on or off. The icon inverts while on.</li>
- *   <li><b>Right click</b> cycles, where the feature has something to cycle
- *       (the lock group a key press applies). Shift-right click goes back.</li>
+ *   <li><b>Right click</b> cycles, where the feature has something to cycle.
+ *       Shift-right click goes back.</li>
  *   <li><b>Ctrl-click</b> (Cmd on a Mac) opens the feature's tab, and holding
  *       Ctrl says so in the tooltip.</li>
  * </ul>
@@ -98,10 +98,10 @@ public final class FeatureToggleButtons {
 
     /**
      * A feature's switch: "Restock: On", then {@code detail} (state worth
-     * knowing: the lock group's name) and {@code hints} (how to use it) in
+     * knowing) and {@code hints} (how to use it) in
      * gray when given, left click toggling {@code on} through {@code set}.
      * With Compact tooltips on (General) it is one line, the detail after a
-     * dot and no hints: "Lock groups: On · Default slots".
+     * dot and no hints: "Restock: On · Items".
      */
     private static Toggle.Builder builder(int x, int y, String sprite, String name, String tab,
                                           BooleanSupplier on, Consumer<Boolean> set, BooleanSupplier shown,

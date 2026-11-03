@@ -46,8 +46,8 @@ public final class IPSlotOperations {
      * common initializer, so a server knows them too. Idempotent.
      */
     public static void define() {
-        // Which vanilla groups each can act on (MenuKit's AppliesTo), so the
-        // Reach tab offers only boxes that mean something. Groups a mod adds apply too unless
+        // Which vanilla groups each can act on (MenuKit's AppliesTo), so a
+        // settings list offers only what means something. Groups a mod adds apply too unless
         // excepted; one that declared a vanilla category follows that category.
         AppliesTo storage = AppliesTo.vanilla(PLAYER_INVENTORY, CHEST_STORAGE, SHULKER_STORAGE,
                 DISPENSER_STORAGE, HOPPER_STORAGE, MOUNT_STORAGE);

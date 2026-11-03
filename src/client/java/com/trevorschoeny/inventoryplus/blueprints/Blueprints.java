@@ -97,13 +97,19 @@ public final class Blueprints {
     // The container's slots
 
     /**
-     * The open menu's container slots, by container index: every slot not the
-     * player's own inventory. For a screen with one container (a chest, a box); a
-     * screen listing several passes the one container's slots itself.
+     * The open menu's own container's slots, by container index: the container of the
+     * menu's first slot that isn't the player's (a chest's, a box's; a double chest is
+     * one container). Slot groups a mod adds to the menu are containers of their own and
+     * stay out; a screen listing several containers passes the one it means itself.
      */
     public static List<Slot> containerSlots(AbstractContainerMenu menu) {
         List<Slot> out = new ArrayList<>();
-        for (Slot s : menu.slots) if (!(s.container instanceof Inventory)) out.add(s);
+        Object own = null;
+        for (Slot s : menu.slots) {
+            if (s.container instanceof Inventory) continue;
+            if (own == null) own = s.container;
+            if (s.container == own) out.add(s);
+        }
         out.sort(Comparator.comparingInt(Slot::getContainerSlot));
         return out;
     }

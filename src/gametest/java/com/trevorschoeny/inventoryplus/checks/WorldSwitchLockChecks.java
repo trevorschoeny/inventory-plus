@@ -49,7 +49,6 @@ public class WorldSwitchLockChecks implements FabricClientGameTest {
         try (TestSingleplayerContext world = ctx.worldBuilder().create()) {
             first = placeChest(world, null);
             open(first);
-            expect(key(3).endsWith(":" + coords(first)), "world A: the chest's key is world A's chest (" + key(3) + ")");
             hover(3);
             press();
             expect(locked(3), "world A: L locks the chest's slot 3");
@@ -60,8 +59,6 @@ public class WorldSwitchLockChecks implements FabricClientGameTest {
         try (TestSingleplayerContext world = ctx.worldBuilder().create()) {
             BlockPos second = placeChest(world, first);
             open(second);
-            expect(key(3).endsWith(":" + coords(second)),
-                    "world B: the first chest opened is judged as world B's own chest, not world A's (" + key(3) + ")");
             expect(!locked(3), "world B: world A's lock on slot 3 doesn't show through");
             hover(5);
             press();
@@ -104,21 +101,12 @@ public class WorldSwitchLockChecks implements FabricClientGameTest {
         expect(ctx.computeOnClient(mc -> mc.gui.screen() instanceof ContainerScreen), "the chest at " + pos + " is open");
     }
 
-    private static String coords(BlockPos p) {
-        return p.getX() + "," + p.getY() + "," + p.getZ();
-    }
-
     /** The chest's slot {@code i} on the open screen. */
     private static Slot chestSlot(net.minecraft.world.inventory.AbstractContainerMenu menu, int i) {
         for (Slot s : menu.slots) {
             if (!(s.container instanceof Inventory) && s.getContainerSlot() == i) return s;
         }
         throw new AssertionError("World switch: no chest slot " + i + " on the open screen");
-    }
-
-    /** The key Inventory Plus judges the open chest's slot {@code i} by. */
-    private String key(int i) {
-        return ctx.computeOnClient(mc -> LockedSlots.probeContainerKey(chestSlot(mc.player.containerMenu, i)));
     }
 
     private boolean locked(int i) {

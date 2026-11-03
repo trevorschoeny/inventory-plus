@@ -52,10 +52,7 @@ public class CarriedWearChecks implements FabricClientGameTest {
                 IPConfig.setAutoRestockArmor(true);
                 IPConfig.setAutoRestockArmorBeforeBreak(true);
                 IPConfig.setAutoRestockBeforeBreakThreshold(10);
-                IPConfig.setRestockToolsFromShulkers(true);
-                IPConfig.setRestockToolsFromBundles(true);
-                IPConfig.setRestockArmorFromShulkers(true);
-                IPConfig.setRestockAmmoFromShulkers(true);
+                IPConfig.setRestockFromShulkers(true);
             });
 
             // A pickaxe in the hand breaks; a shulker in slot 20 holds a worn one (slot 1)
@@ -144,7 +141,7 @@ public class CarriedWearChecks implements FabricClientGameTest {
             onServer(world, p -> expect(count(p, Items.ARROW) == 0,
                     "ammo with no ranged weapon in hand does nothing"));
 
-            // ── A server without Inventory Plus: the swap by clicks, from a bundle ──
+            // ── A server without Inventory Plus: a bundle is never restocked from ──
 
             ctx.runOnClient(mc -> System.setProperty(NO_SERVER_MOD, "true"));
             change(ctx, world, p -> {
@@ -152,12 +149,9 @@ public class CarriedWearChecks implements FabricClientGameTest {
                 p.getInventory().setItem(15, bundle(pick(0)));
             }, p -> p.getInventory().getItem(0).setDamageValue(IRON_PICK - 5));
             onServer(world, p -> {
-                expect(p.getInventory().getItem(0).getDamageValue() == 0,
-                        "plain clicks swap the bundle's fresh pickaxe in (" + p.getInventory().getItem(0) + ")");
-                expect(p.getInventory().getItem(1).getDamageValue() == IRON_PICK - 5,
-                        "and leave the worn one in hotbar 1 (" + p.getInventory().getItem(1) + ")");
-                expect(bundleItems(p.getInventory().getItem(15)).isEmpty(), "the bundle is empty");
-                expect(p.containerMenu.getCarried().isEmpty(), "nothing is left on the cursor");
+                expect(p.getInventory().getItem(0).getDamageValue() == IRON_PICK - 5,
+                        "the worn pickaxe stays in hand (" + p.getInventory().getItem(0) + ")");
+                expect(bundleItems(p.getInventory().getItem(15)).size() == 1, "the bundle keeps its fresh pickaxe");
             });
             ctx.runOnClient(mc -> System.clearProperty(NO_SERVER_MOD));
         }

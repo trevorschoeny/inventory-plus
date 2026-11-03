@@ -35,20 +35,11 @@ public class ListFixture implements ModInitializer {
 
     public static ParityGroup BOX_A, BOX_B, BUNDLE;
 
-    /**
-     * For {@link ReachDefaultChecks}: one slot shaped like a Hotbar Pockets
-     * pocket (player inventory, a shift-click destination), so the check can
-     * show the Reach box alone decides whether a shift-click lands in it.
-     */
-    public static ParityGroup POCKET;
-
     @Override
     public void onInitialize() {
         BOX_A = group("inventoryplus_checks:box_a", SlotGroupCategory.SHULKER_STORAGE, player -> EphemeralStorage.of(SIZE));
         BOX_B = group("inventoryplus_checks:box_b", SlotGroupCategory.SHULKER_STORAGE, player -> EphemeralStorage.of(SIZE));
         BUNDLE = group("inventoryplus_checks:bundle", SlotGroupCategory.BUNDLE_STORAGE, player -> new BundleLike());
-        POCKET = ParityGroup.register("inventoryplus_checks:pocket", SlotSpec.at("slots", SlotGroupCategory.PLAYER_INVENTORY)
-                .count(1).storage(player -> EphemeralStorage.of(1)).shiftClickIn(true).activeCount(0));
         for (int i = 0; i < SIZE; i++) Window.slot(ModeScope.BOTH, Address.createdSlot(BUNDLE.id(), i)).gate(BUNDLE_RULES);
     }
 

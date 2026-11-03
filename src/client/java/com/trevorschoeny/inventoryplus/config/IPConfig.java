@@ -126,9 +126,8 @@ public final class IPConfig {
     // feature. When off, the toolbar button hides and the C keybind is a
     // no-op. showButton hides the button while the feature stays enabled, for
     // players who prefer the keybind alone (off by default: the inventory had
-    // too many buttons). The cycle slots' protection belongs to Reach: Column
-    // Cycler's slots are a feature reach group, and the global
-    // cycleSlotsLocked is gone (read once below, for the upgrade).
+    // too many buttons). The global cycleSlotsLocked is gone (read once below,
+    // for the upgrade).
     private static boolean columnCyclerEnabled = false;
     private static boolean columnCyclerShowButton = false;
     // Scroll wheel as an alternative trigger for forward and backward cycle.
@@ -137,9 +136,8 @@ public final class IPConfig {
     private static boolean columnCyclerScrollToCycle = false;
 
     // Hotbar Cycler (Power Users). Rotates whole inventory rows through the
-    // hotbar. Off by default like every Power Users feature. Its rows are a
-    // feature reach group, and lockCycledRows is gone (read once below, for
-    // the upgrade).
+    // hotbar. Off by default like every Power Users feature. lockCycledRows is
+    // gone (read once below, for the upgrade).
     private static boolean hotbarCyclerEnabled = false;
     private static boolean hotbarCyclerShowButtons = true;
     // The on/off switch in the inventory's right column, off by default.
@@ -265,15 +263,7 @@ public final class IPConfig {
         autoRestockItem              = readBool(root, "autoRestockItem",              autoRestockItem);
         autoRestockShulker           = readBool(root, "autoRestockShulker",           autoRestockShulker);
         autoRestockShulkerAmmo       = readBool(root, "autoRestockShulkerAmmo",       autoRestockShulkerAmmo);
-        // Before 3.4.0 each restock type had its own Shulker Boxes, Bundles and
-        // Your Ender Chest switches. One setting now: on if any type reached into
-        // shulker boxes. Bundles and the ender chest are no longer restocked from.
-        restockFromShulkers = root.has("restockFromShulkers")
-                ? readBool(root, "restockFromShulkers", restockFromShulkers)
-                : restockFromShulkers || readBool(root, "restockItemsFromShulkers", false)
-                        || readBool(root, "restockToolsFromShulkers", false)
-                        || readBool(root, "restockArmorFromShulkers", false)
-                        || readBool(root, "restockAmmoFromShulkers", false);
+        restockFromShulkers = restockFromShulkersOf(root, restockFromShulkers);
         pickFromShulkers             = readBool(root, "pickFromShulkers",             pickFromShulkers);
         pickFromBundles              = readBool(root, "pickFromBundles",              pickFromBundles);
         pickFromEnderChest           = readBool(root, "pickFromEnderChest",           pickFromEnderChest);
@@ -498,7 +488,7 @@ public final class IPConfig {
      * held (Before inventory, Matching only). An untouched operation left boxes alone.
      * Bundles and the ender chest have no Intake, so their boxes are dropped.
      */
-    static @Nullable Intake pickupIntakeOf(@Nullable JsonObject reach) {
+    public static @Nullable Intake pickupIntakeOf(@Nullable JsonObject reach) {
         if (reach == null) return null;
         int version = reach.has("version") ? reach.get("version").getAsInt() : 0;
         if (version < 3) return null;   // version 2 had no carried places
@@ -506,6 +496,21 @@ public final class IPConfig {
         if (ticks(reach, "denied", op, shulkers)) return new Intake(Intake.When.BEFORE, false);
         if (ticks(reach, "matching", op, shulkers)) return new Intake(Intake.When.BEFORE, true);
         return null;
+    }
+
+    /**
+     * "Also restock from shulker boxes" as {@code root} has it. Before 3.4.0 each restock
+     * type had its own Shulker Boxes, Bundles and Your Ender Chest switches: a file from
+     * then turns it on if any type reached into shulker boxes. Bundles and the ender
+     * chest are no longer restocked from. {@code current} when {@code root} says nothing.
+     */
+    public static boolean restockFromShulkersOf(JsonObject root, boolean current) {
+        if (root.has("restockFromShulkers")) return readBool(root, "restockFromShulkers", current);
+        boolean any = false;
+        for (String kind : new String[] {"Items", "Tools", "Armor", "Ammo"}) {
+            any |= readBool(root, "restock" + kind + "FromShulkers", false);
+        }
+        return current || any;
     }
 
     /** Whether {@code list}'s saved entry for {@code op} leaves {@code key} ticked. No entry: the default, unticked. */

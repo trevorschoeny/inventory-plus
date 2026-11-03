@@ -8,7 +8,9 @@ import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.SORT;
 
 import com.trevlar.slotkit.api.group.SlotGroupCategories;
 import com.trevlar.slotkit.api.group.SlotGroupCategory;
+import com.trevlar.slotkit.api.reserve.Reservations;
 import com.trevlar.slotkit.api.window.SlotOperations;
+import com.trevlar.slotkit.api.window.SlotRef;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
@@ -111,11 +113,13 @@ public final class Sorter {
 
         // A slot that refuses sorting stays put, and sort operates only on what
         // is left: dropped from this list, the slot is never read as a source
-        // and never written as a destination. Locks refuse through Inventory
-        // Plus's veto (Locks), so a locked slot or item sits out the same way.
+        // and never written as a destination. A lock refuses Sort through its
+        // veto (rules.SlotLocks), and a reserved slot keeps its item where the
+        // player reserved it, so both sit out.
         List<Slot> unlocked = new ArrayList<>();
         for (Slot s : region) {
             if (!SlotOperations.allows(menu, s, player, SORT)) continue;
+            if (!Reservations.get(SlotRef.of(menu, s, player)).isNone()) continue;
             unlocked.add(s);
         }
         if (unlocked.size() < 2) return;

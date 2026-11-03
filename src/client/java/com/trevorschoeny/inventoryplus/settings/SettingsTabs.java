@@ -150,9 +150,8 @@ final class SettingsTabs {
                     SettingsMenu.reopen();
                 })
                 .build()), 20);
-        // Pick block's carried containers live in Reach (Trev, 2026-10-20).
-        b.heading("Pick block")
-                .line("Pick block can reach into containers you carry. Which ones is set on the Reach tab.");
+        // Pick block's carried containers (IPConfig.pickFrom*) have no control
+        // while their Reach rows are gone; their GUI is to be settled with Trev.
         b.heading("Presets")
                 .actions("Save or load a file", "Save to file", "Load from file")
                 .actions("Share by pasting", "Copy to clipboard", "Paste from clipboard");
@@ -341,9 +340,9 @@ final class SettingsTabs {
                         SettingsTabs::titleCase,
                         IPConfig::autoToolSwitchWeaponPreference, IPConfig::setAutoToolSwitchWeaponPreference,
                         () -> !IPConfig.autoToolSwitchWeapons())
-                // Carried containers it may take a tool from are Reach's (Trev, 2026-10-20).
-                .heading("Containers")
-                .line("Containers to take tools from (shulker boxes, bundles) are set on the Reach tab.")
+                // The carried containers it may take a tool from
+                // (IPConfig.autoToolSwitchFrom*) have no control while their Reach
+                // rows are gone; their GUI is to be settled with Trev.
                 .build();
     }
 

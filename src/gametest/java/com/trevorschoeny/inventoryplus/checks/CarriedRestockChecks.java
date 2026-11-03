@@ -1,15 +1,11 @@
 package com.trevorschoeny.inventoryplus.checks;
 
-import com.trevlar.slotkit.api.group.SlotGroupCategory;
-import com.trevlar.slotkit.api.group.SlotGroupId;
 import com.trevlar.slotkit.api.item.ItemPath;
 import com.trevlar.slotkit.api.item.ItemRef;
 
 import com.trevorschoeny.inventoryplus.api.PlayerMenuSlots;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
-import com.trevorschoeny.inventoryplus.lockeditems.LockKind;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
-import com.trevorschoeny.inventoryplus.lockgroups.Reach;
 import com.trevorschoeny.inventoryplus.nested.CarriedTake;
 
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
@@ -52,8 +48,6 @@ import static com.trevorschoeny.inventoryplus.nested.CarriedTake.Purpose.RESTOCK
 public class CarriedRestockChecks implements FabricClientGameTest {
 
     private static final String NO_SERVER_MOD = "inventoryplus.checks.noServerMod";
-    private static final String RESTOCK_PUT_OP = "inventoryplus:restock_put";
-    private static final String HOTBAR = new SlotGroupId.Category(SlotGroupCategory.PLAYER_HOTBAR).asString();
 
     @Override
     public void runTest(ClientGameTestContext ctx) {
@@ -62,9 +56,7 @@ public class CarriedRestockChecks implements FabricClientGameTest {
             ctx.runOnClient(mc -> {
                 IPConfig.setRestockEnabled(true);
                 IPConfig.setAutoRestockItem(true);
-                IPConfig.setRestockItemsFromShulkers(true);
-                IPConfig.setRestockItemsFromBundles(true);
-                IPConfig.setRestockItemsFromEnderChest(false);
+                IPConfig.setRestockFromShulkers(true);
             });
 
             // ── With Inventory Plus on the server (path 1) ──
@@ -80,16 +72,15 @@ public class CarriedRestockChecks implements FabricClientGameTest {
                 expect(contents(p.getInventory().getItem(20)).get(4).isEmpty(), "and the shulker's slot 4 is empty");
             });
 
-            // Two deep: dirt in a bundle in a shulker; the bundle keeps its stone.
+            // Restock reaches into shulker boxes only, never a bundle, even one inside a shulker.
             ranOut(ctx, world, 0, p -> {
                 p.getInventory().setItem(0, new ItemStack(Items.DIRT, 2));
                 p.getInventory().setItem(10, shulker(3, bundle(new ItemStack(Items.STONE, 2), new ItemStack(Items.DIRT, 9))));
             });
             onServer(world, p -> {
-                expect(p.getInventory().getItem(0).getCount() == 9 && p.getInventory().getItem(0).is(Items.DIRT),
-                        "dirt two containers deep refills the hand (" + p.getInventory().getItem(0) + ")");
-                List<ItemStack> left = bundleItems(contents(p.getInventory().getItem(10)).get(3));
-                expect(left.size() == 1 && left.get(0).is(Items.STONE), "the bundle keeps its stone");
+                expect(p.getInventory().getItem(0).isEmpty(),
+                        "dirt in a bundle in a shulker is left alone (" + p.getInventory().getItem(0) + ")");
+                expect(bundleItems(contents(p.getInventory().getItem(10)).get(3)).size() == 2, "the bundle keeps both");
             });
 
             // The offhand runs out too.
@@ -102,7 +93,7 @@ public class CarriedRestockChecks implements FabricClientGameTest {
 
             // A locked slot stops Restock reaching into the shulker in it: the same setup
             // as the first case, which refills, but slot 20 is locked.
-            ctx.runOnClient(mc -> LockedSlots.setLockedSlot(menuSlot(mc.player, 20), Reach.defaultOf(LockKind.SLOT)));
+            ctx.runOnClient(mc -> LockedSlots.setLocked(menuSlot(mc.player, 20), true));
             ranOut(ctx, world, 0, p -> {
                 p.getInventory().setItem(0, new ItemStack(Items.COBBLESTONE, 5));
                 p.getInventory().setItem(20, shulker(4, new ItemStack(Items.COBBLESTONE, 30)));
@@ -110,41 +101,7 @@ public class CarriedRestockChecks implements FabricClientGameTest {
             onServer(world, p -> expect(p.getInventory().getItem(0).isEmpty()
                             && contents(p.getInventory().getItem(20)).get(4).getCount() == 30,
                     "a shulker in a locked slot is left alone (" + p.getInventory().getItem(0) + ")"));
-            ctx.runOnClient(mc -> LockedSlots.setLockedSlot(menuSlot(mc.player, 20), null));
-
-            // Known limit closed: room()'s RESTOCK case now judges the real incoming stack,
-            // not an empty one, so a hotbar row left on Matching alone (Empty slots off)
-            // refuses a shulker's item the hotbar doesn't already hold.
-            ctx.runOnClient(mc -> {
-                Reach.setDenied(RESTOCK_PUT_OP, List.of(HOTBAR), true);               // Empty slots: off
-                Reach.setDenied(Reach.matching(RESTOCK_PUT_OP), List.of(HOTBAR), false); // Matching: on
-            });
-            ctx.waitTicks(25);   // the client's choices reach the server twice a second
-            ranOut(ctx, world, 0, p -> {
-                p.getInventory().setItem(0, new ItemStack(Items.TORCH, 3));
-                p.getInventory().setItem(20, shulker(4, new ItemStack(Items.TORCH, 40)));
-            });
-            onServer(world, p -> expect(p.getInventory().getItem(0).isEmpty()
-                            && contents(p.getInventory().getItem(20)).get(4).getCount() == 40,
-                    "Matching alone: a hotbar holding no torches refuses the shulker's torches ("
-                            + p.getInventory().getItem(0) + ")"));
-
-            // The same setup, but the hotbar already holds a torch (in a slot Restock can't
-            // take from, so it isn't picked as the source itself): Matching is satisfied.
-            ctx.runOnClient(mc -> LockedSlots.setLockedSlot(menuSlot(mc.player, 1), Reach.defaultOf(LockKind.SLOT)));
-            ranOut(ctx, world, 0, p -> {
-                p.getInventory().setItem(0, new ItemStack(Items.TORCH, 3));
-                p.getInventory().setItem(1, new ItemStack(Items.TORCH, 1));
-                p.getInventory().setItem(20, shulker(4, new ItemStack(Items.TORCH, 40)));
-            });
-            onServer(world, p -> expect(p.getInventory().getItem(0).getCount() == 40,
-                    "Matching: a hotbar already holding a torch lets the shulker's torches in ("
-                            + p.getInventory().getItem(0) + ")"));
-            ctx.runOnClient(mc -> {
-                LockedSlots.setLockedSlot(menuSlot(mc.player, 1), null);
-                Reach.revert(RESTOCK_PUT_OP);
-            });
-            ctx.waitTicks(25);
+            ctx.runOnClient(mc -> LockedSlots.setLocked(menuSlot(mc.player, 20), false));
 
             // ── The server's own checks, by sending requests directly ──
 
@@ -193,34 +150,14 @@ public class CarriedRestockChecks implements FabricClientGameTest {
 
             ctx.runOnClient(mc -> System.setProperty(NO_SERVER_MOD, "true"));
 
-            // A bundle in slot 15 with dirt, stone, cobblestone: the middle one is taken by
-            // clicks, the others stay in order. This is 26.3's bundle index: the path's
-            // index is the item vanilla's selection takes.
+            // A bundle is never restocked from, by clicks either.
             ranOut(ctx, world, 0, p -> {
                 p.getInventory().setItem(0, new ItemStack(Items.STONE, 3));
-                p.getInventory().setItem(15, bundle(new ItemStack(Items.DIRT, 4), new ItemStack(Items.STONE, 6),
-                        new ItemStack(Items.COBBLESTONE, 2)));
+                p.getInventory().setItem(15, bundle(new ItemStack(Items.DIRT, 4), new ItemStack(Items.STONE, 6)));
             });
-            onServer(world, p -> {
-                expect(p.getInventory().getItem(0).is(Items.STONE) && p.getInventory().getItem(0).getCount() == 6,
-                        "plain clicks take the bundle's stone, its second item (" + p.getInventory().getItem(0) + ")");
-                List<ItemStack> left = bundleItems(p.getInventory().getItem(15));
-                expect(left.size() == 2 && left.get(0).is(Items.DIRT) && left.get(1).is(Items.COBBLESTONE),
-                        "the bundle keeps dirt then cobblestone");
-                expect(p.containerMenu.getCarried().isEmpty(), "nothing is left on the cursor");
-            });
-
-            // Selecting is a toggle: with the stone already selected, the clicks still take
-            // the stone, not the first item.
-            ranOut(ctx, world, 0, p -> {
-                p.getInventory().setItem(0, new ItemStack(Items.STONE, 3));
-                ItemStack b = bundle(new ItemStack(Items.DIRT, 4), new ItemStack(Items.STONE, 6));
-                BundleItem.toggleSelectedItem(b, 1);
-                p.getInventory().setItem(15, b);
-            });
-            onServer(world, p -> expect(p.getInventory().getItem(0).is(Items.STONE)
-                            && bundleItems(p.getInventory().getItem(15)).get(0).is(Items.DIRT),
-                    "an already-selected item is the one taken (" + p.getInventory().getItem(0) + ")"));
+            onServer(world, p -> expect(p.getInventory().getItem(0).isEmpty()
+                            && bundleItems(p.getInventory().getItem(15)).size() == 2,
+                    "without the server mod a bundle's stone is left where it is (" + p.getInventory().getItem(0) + ")"));
 
             // A shulker can't be opened with clicks, so without the server mod it's passed over.
             ranOut(ctx, world, 0, p -> {
