@@ -27,7 +27,6 @@ import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -350,35 +349,6 @@ final class SettingsBody {
                 .disabledWhen(gated(setting.unavailable()))
                 .build());
         y += TEXT_ROW + 4;
-        return this;
-    }
-
-    /**
-     * One checkbox in a reach list, bound to the record: checked while the
-     * operation may use this group ({@code on}), and {@code set} writes it.
-     * {@code unavailable} grays a box the player cannot change yet.
-     */
-    record Place(Component name, BooleanSupplier on, Consumer<Boolean> set, BooleanSupplier unavailable) {
-
-        /** A box with nothing behind it yet, shown at {@code on} and grayed. */
-        static Place fixed(Component name, boolean on) {
-            return new Place(name, () -> on, v -> {}, DISABLED);
-        }
-    }
-
-    /**
-     * A reach list: one checkbox per place, flowing left to right and wrapping
-     * to the body width. Titled when a feature has more than one list.
-     */
-    SettingsBody reach(@Nullable String title, Collection<Place> places) {
-        if (title != null) line(0, Component.literal(title));
-        Flow.Builder boxes = Flow.builder().at(INDENT, y).gap(10, 4);
-        for (Place place : places) {
-            boxes.add(Checkbox.builder().label(place.name()).state(place.on(), place.set())
-                    .disabledWhen(gated(place.unavailable())).build());
-        }
-        out.add(boxes.build());
-        y += TEXT_ROW + 2;
         return this;
     }
 

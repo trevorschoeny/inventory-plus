@@ -46,14 +46,12 @@ import java.util.Set;
  * <p>Armor and offhand can't be cycled at all. They're equipment, not
  * inventory positions.
  *
- * <h3>Reach group</h3>
+ * <h3>Locks</h3>
  *
- * The cycle slots and the hotbar slot of every active column are Column
- * Cycler's feature reach group ({@link #inReachGroup}). No move leaves them
- * alone by default: they are ordinary slots until the player unticks a move
- * for them in Reach. They carry no lock. {@code L} puts a real Slot lock on top, and
- * the cycle mark is what they show. This replaced the "Lock the slots the
- * cyclers use" pairing, a derived Slot lock behind one global switch.
+ * The cycle slots are ordinary slots with a cycle mark. {@code L} puts a lock on
+ * top, which the cycle still turns (a lock lets Column Cycler through). This
+ * replaced the "Lock the slots the cyclers use" pairing, a derived lock behind
+ * one global switch.
  *
  * <h3>Persistence</h3>
  *
@@ -246,15 +244,6 @@ public final class ColumnCycler {
             }
         });
         return out;
-    }
-
-    /**
-     * Whether player slot {@code containerSlotIndex} is in Column Cycler's
-     * reach group now: a cycle slot, or the hotbar slot below an active
-     * column. Registered with {@code Reach.registerFeature}.
-     */
-    public static boolean inReachGroup(int containerSlotIndex) {
-        return isCycleSlot(containerSlotIndex);
     }
 
     private static void save() {

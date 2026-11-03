@@ -18,8 +18,8 @@ import java.util.Comparator;
 
 /**
  * Restock's last resort when the inventory has nothing that fits: the item from inside a
- * shulker box or bundle the player carries, or from the ender chest, under each kind's
- * "Pull from" boxes on the Restock tab (Items, Tools, Armor, Ammo). How the item is
+ * shulker box the player carries, when "Also restock from shulker boxes" is on (one
+ * setting for every kind: items, tools, armor, ammo). How the item is
  * fetched, and what the server checks, is {@link CarriedFetch}'s.
  */
 final class CarriedRestock {
@@ -29,24 +29,12 @@ final class CarriedRestock {
     /** Fresher first: less damage, so more durability left. */
     private static final Comparator<ItemStack> FRESHER = Comparator.comparingInt(s -> -s.getDamageValue());
 
-    private static CarriedFetch.Reach items() {
-        return new CarriedFetch.Reach(IPConfig.restockItemsFromShulkers(), IPConfig.restockItemsFromBundles(),
-                IPConfig.restockItemsFromEnderChest());
-    }
-
-    private static CarriedFetch.Reach tools() {
-        return new CarriedFetch.Reach(IPConfig.restockToolsFromShulkers(), IPConfig.restockToolsFromBundles(),
-                IPConfig.restockToolsFromEnderChest());
-    }
-
-    private static CarriedFetch.Reach armor() {
-        return new CarriedFetch.Reach(IPConfig.restockArmorFromShulkers(), IPConfig.restockArmorFromBundles(),
-                IPConfig.restockArmorFromEnderChest());
-    }
-
-    private static CarriedFetch.Reach ammo() {
-        return new CarriedFetch.Reach(IPConfig.restockAmmoFromShulkers(), IPConfig.restockAmmoFromBundles(),
-                IPConfig.restockAmmoFromEnderChest());
+    /**
+     * Where every restock kind may pull from: carried shulker boxes, under the one
+     * "Also restock from shulker boxes" setting. Never bundles or the ender chest.
+     */
+    private static CarriedFetch.Reach shulkers() {
+        return new CarriedFetch.Reach(IPConfig.restockFromShulkers(), false, false);
     }
 
     /**
@@ -54,7 +42,7 @@ final class CarriedRestock {
      * {@code wanted}. Returns true when it sent a request or clicks.
      */
     static boolean refill(MultiPlayerGameMode gameMode, LocalPlayer player, ItemStack wanted, int target) {
-        CarriedFetch.Reach reach = items();
+        CarriedFetch.Reach reach = shulkers();
         if (!reach.any()) return false;
         return CarriedFetch.fetch(gameMode, player, reach, Purpose.RESTOCK, s -> s.is(wanted.getItem()), null,
                 wanted, target);
@@ -65,7 +53,7 @@ final class CarriedRestock {
      * slot, or the offhand) with the freshest of the same item.
      */
     static boolean toolBroke(MultiPlayerGameMode gameMode, LocalPlayer player, ItemStack broken, int target) {
-        CarriedFetch.Reach reach = tools();
+        CarriedFetch.Reach reach = shulkers();
         if (!reach.any()) return false;
         return CarriedFetch.fetch(gameMode, player, reach, Purpose.RESTOCK, s -> s.is(broken.getItem()), FRESHER,
                 broken, target);
@@ -76,7 +64,7 @@ final class CarriedRestock {
      * the freshest of the same item.
      */
     static boolean armorBroke(MultiPlayerGameMode gameMode, LocalPlayer player, ItemStack broken, int target) {
-        CarriedFetch.Reach reach = armor();
+        CarriedFetch.Reach reach = shulkers();
         if (!reach.any()) return false;
         return CarriedFetch.fetch(gameMode, player, reach, Purpose.RESTOCK, s -> s.is(broken.getItem()), FRESHER,
                 broken, target);
@@ -90,7 +78,7 @@ final class CarriedRestock {
      */
     static boolean beforeBreak(MultiPlayerGameMode gameMode, LocalPlayer player, ItemStack worn, int target) {
         boolean armour = target >= 36 && target <= 39;
-        CarriedFetch.Reach reach = armour ? armor() : tools();
+        CarriedFetch.Reach reach = shulkers();
         if (!reach.any()) return false;
         if (armour && EnchantmentHelper.has(worn, EnchantmentEffectComponents.PREVENT_ARMOR_CHANGE)) return false;
         int spare = CarriedFetch.emptySlot(player, BehaviorKeys.INVENTORY_INSERT, target);
@@ -115,7 +103,7 @@ final class CarriedRestock {
             ammoCooldown--;
             return;
         }
-        CarriedFetch.Reach reach = ammo();
+        CarriedFetch.Reach reach = shulkers();
         if (!reach.any() || !ModeScope.SURVIVAL.includes(player)) return;
         ItemStack weapon = player.getMainHandItem().getItem() instanceof ProjectileWeaponItem
                 ? player.getMainHandItem() : player.getOffhandItem();

@@ -92,7 +92,7 @@ public final class PowerUsersToolbar {
     private static List<PanelElement> buildChildren() {
         Flow.Builder column = Flow.builder().vertical().gap(BUTTON_GAP, BUTTON_GAP)
                 .add(settingsButton(0, 0))
-                .add(FeatureToggleButtons.lockGroups(0, 0))
+                .add(FeatureToggleButtons.locks(0, 0))
                 .add(FeatureToggleButtons.restock(0, 0))
                 .add(FeatureToggleButtons.autoToolSwitch(0, 0))
                 .add(FeatureToggleButtons.columnCycler(0, 0))

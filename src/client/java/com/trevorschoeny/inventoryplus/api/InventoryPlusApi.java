@@ -250,32 +250,22 @@ public final class InventoryPlusApi {
     }
 
     /**
-     * Takes {@code groups} out of what {@code operation} may use, in the
-     * player's reach (as unticking their boxes in the Reach tab would, in
-     * both of a put operation's lists). For a companion upgrading a setting of
-     * its own that the reach now holds.
-     */
-    public static void denyInReach(BehaviorKey<?> operation, Collection<SlotGroupId> groups) {
-        List<String> keys = groups.stream().map(SlotGroupId::asString).toList();
-        String id = operation.id().toString();
-        com.trevorschoeny.inventoryplus.lockgroups.Reach.setDenied(id, keys, true);
-        com.trevorschoeny.inventoryplus.lockgroups.Reach.setDenied(
-                com.trevorschoeny.inventoryplus.lockgroups.Reach.matching(id), keys, true);
-    }
-
-    /**
-     * Keeps every operation off {@code groups} by default except
-     * {@code allowed}, as unticked boxes in the Reach tab that the player can
-     * tick. For a companion whose slots hold things the player placed on
-     * purpose (Hotbar Pockets' pockets): a pickup, a shift-click in or a sort
-     * would otherwise fill them or empty them. The companion's own operation
-     * belongs in {@code allowed}. A player who has changed an operation's
-     * reach keeps exactly what they saved. Call once at client init.
+     * Keeps every operation off {@code groups} except {@code allowed}. For a companion
+     * whose slots hold things the player placed on purpose (Hotbar Pockets' pockets):
+     * a pickup, a shift-click in or a sort would otherwise fill them or empty them.
+     * The companion's own operation belongs in {@code allowed}. Call once at client init.
+     *
+     * <p>Before 3.4.0 these were unticked boxes in the Reach tab the player could
+     * tick. Reach is retired, so this is a fixed rule now, judged on this client only;
+     * a companion that wants a player's choice keeps that setting itself and gates its
+     * own groups with SlotKit.
      */
     public static void protectInReach(Collection<SlotGroupId> groups, Collection<BehaviorKey<?>> allowed) {
+        Set<SlotGroupId> protectedGroups = Set.copyOf(groups);
         Set<String> allowedIds = new java.util.HashSet<>();
         for (BehaviorKey<?> op : allowed) allowedIds.add(op.id().toString());
-        com.trevorschoeny.inventoryplus.lockgroups.Reach.denyByDefault(
-                groups.stream().map(SlotGroupId::asString).toList(), op -> !allowedIds.contains(op));
+        com.trevlar.slotkit.api.window.SlotOperations.veto(com.trevlar.menukit.api.panel.ModeScope.BOTH,
+                (ref, group, operation) -> group != null && protectedGroups.contains(group)
+                        && !allowedIds.contains(operation.id().toString()));
     }
 }

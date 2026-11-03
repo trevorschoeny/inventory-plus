@@ -34,14 +34,14 @@ public final class LockedSlotsDragController {
     private LockedSlotsDragController() {}
 
     private static boolean active;
-    /** The group every entered slot gets, or {@code null} to unlock them. */
-    private static @Nullable String targetGroup;
+    /** The state every entered slot gets: locked, or unlocked. */
+    private static boolean targetLocked;
     /** Menu-unique slot.index values already coerced this drag. */
     private static final Set<Integer> touchedSlots = new HashSet<>();
 
-    public static void startLKeyDrag(int firstSlotMenuIndex, @Nullable String groupId) {
+    public static void startLKeyDrag(int firstSlotMenuIndex, boolean locked) {
         active = true;
-        targetGroup = groupId;
+        targetLocked = locked;
         touchedSlots.clear();
         touchedSlots.add(firstSlotMenuIndex);
     }
@@ -89,7 +89,7 @@ public final class LockedSlotsDragController {
         if (!LockedSlots.isLockableHere(hovered)) return;
 
         touchedSlots.add(key);
-        LockedSlots.setLockedSlot(hovered, targetGroup);
+        LockedSlots.setLocked(hovered, targetLocked);
     }
 
     private static boolean isKeyHeld(Minecraft mc, int key) {

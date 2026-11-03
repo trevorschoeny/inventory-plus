@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.mixin;
 
 import com.trevorschoeny.inventoryplus.nested.CarriedPut;
+import com.trevorschoeny.inventoryplus.rules.Intake;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
@@ -15,10 +16,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Item pickup into carried containers ({@link CarriedPut}): every item given to the
- * inventory with no slot named (a pickup, {@code /give}, a crafting grid's returns) goes
- * first into a carried container that holds it. Server only. What's left goes on into
- * the inventory as vanilla puts it; when nothing is left the item counts as picked up.
+ * Pickups into carried shulker boxes by their Intake ({@link CarriedPut}): every item
+ * given to the inventory with no slot named (a pickup, {@code /give}, a crafting grid's
+ * returns). Boxes set to Before inventory take it first; the inventory takes what's left
+ * as vanilla puts it; boxes set to After inventory take what the inventory had no room
+ * for. When nothing is left the item counts as picked up. Server only.
  */
 @Mixin(Inventory.class)
 public abstract class InventoryAddCarriedPutMixin {
@@ -26,8 +28,14 @@ public abstract class InventoryAddCarriedPutMixin {
     @Shadow @Final public Player player;
 
     @Inject(method = "add(ILnet/minecraft/world/item/ItemStack;)Z", at = @At("HEAD"), cancellable = true)
-    private void inventoryplus$intoCarried(int slot, ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
+    private void inventoryplus$beforeInventory(int slot, ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
         if (slot != -1 || stack.isEmpty() || !(player instanceof ServerPlayer sp)) return;
-        if (CarriedPut.into(sp, stack, CarriedPut.Move.PICKUP) > 0 && stack.isEmpty()) cir.setReturnValue(true);
+        if (CarriedPut.into(sp, stack, Intake.When.BEFORE) > 0 && stack.isEmpty()) cir.setReturnValue(true);
+    }
+
+    @Inject(method = "add(ILnet/minecraft/world/item/ItemStack;)Z", at = @At("RETURN"), cancellable = true)
+    private void inventoryplus$afterInventory(int slot, ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
+        if (slot != -1 || stack.isEmpty() || !(player instanceof ServerPlayer sp)) return;
+        if (CarriedPut.into(sp, stack, Intake.When.AFTER) > 0) cir.setReturnValue(true);
     }
 }

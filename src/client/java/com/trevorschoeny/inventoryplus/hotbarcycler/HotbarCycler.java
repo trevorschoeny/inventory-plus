@@ -155,19 +155,6 @@ public final class HotbarCycler {
         return !toggledRows().isEmpty();
     }
 
-    /**
-     * Whether player slot {@code containerSlot} is in Hotbar Cycler's reach
-     * group now: a slot of a cycling row. Registered with
-     * {@code Reach.registerFeature}, which asks per slot at veto time, so a
-     * move the player unticks for them belongs to the position, stays put
-     * while items rotate through it, and leaves the player's own locks alone.
-     * No move is unticked by default.
-     */
-    public static boolean inReachGroup(int containerSlot) {
-        if (!IPConfig.hotbarCyclerEnabled()) return false;
-        return isCycledSlot(containerSlot);
-    }
-
     /** Toggle {@code row} (0-2) into or out of the cycle and persist. */
     public static void toggleRow(int row) {
         setRow(row, !isRowToggled(row));

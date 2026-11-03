@@ -7,9 +7,11 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
-import com.trevorschoeny.inventoryplus.lockgroups.Reach;
+import com.trevorschoeny.inventoryplus.rules.Intake;
 import com.trevorschoeny.inventoryplus.autotoolswitch.WeaponPreference;
 import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
+
+import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -34,7 +36,6 @@ import java.nio.file.Path;
  *   "autoRestockArmor":    true,
  *   "autoRestockTool":     true,
  *   "autoRestockItem":     true,
- *   "reach": { ... },          (lockgroups.Reach)
  *   "sortShowButton":      true,
  *   "moveMatchingShowButtons": true,
  *   "lockedSlotsShowButton":   true
@@ -75,33 +76,16 @@ public final class IPConfig {
     private static boolean autoRestockItem = true;
     private static boolean autoRestockShulker = false;          // parent
     private static boolean autoRestockShulkerAmmo = false;      // sub of Shulker
-    // Restock items: where an item that ran out may come from besides the
-    // inventory itself (Restock tab, Items). Off until Trev picks the defaults.
-    private static boolean restockItemsFromShulkers = false;
-    private static boolean restockItemsFromBundles = false;
-    private static boolean restockItemsFromEnderChest = false;
-    // The same three sources for Tools (broke and before break), Armor (the same)
-    // and Ammo (arrows and the like for the ranged weapon in hand). Off until
-    // Trev picks the defaults.
-    private static boolean restockToolsFromShulkers = false;
-    private static boolean restockToolsFromBundles = false;
-    private static boolean restockToolsFromEnderChest = false;
-    private static boolean restockArmorFromShulkers = false;
-    private static boolean restockArmorFromBundles = false;
-    private static boolean restockArmorFromEnderChest = false;
-    private static boolean restockAmmoFromShulkers = false;
-    private static boolean restockAmmoFromBundles = false;
-    private static boolean restockAmmoFromEnderChest = false;
+    // "Also restock from shulker boxes" (Restock): every restock type may take
+    // from a shulker box carried in the inventory, never a bundle or the ender
+    // chest. Off by default.
+    private static boolean restockFromShulkers = false;
     // Pick block from carried containers (Emerald): when the inventory has none of
     // the picked block, take it from a shulker box, a bundle or the ender chest
     // (General tab). Off until Trev picks the defaults.
     private static boolean pickFromShulkers = false;
     private static boolean pickFromBundles = false;
     private static boolean pickFromEnderChest = false;
-    // The four "use locked items" settings are gone: what a lock stops is its
-    // lock group's choice in the reach record now. Their old values are still
-    // read from the file once, for the 1.5.x migration of item locks
-    // (LockedItems).
     // Durability floor for the two Before-Break swaps (armor and tool share
     // it): a swap fires when remaining durability sits at or below this.
     private static int autoRestockBeforeBreakThreshold = 10;
@@ -168,22 +152,15 @@ public final class IPConfig {
     private static HudMode columnCyclerHudMode = HudMode.MINI_HOTBAR;
 
     // Master switches and buttons. Every feature tab has an on/off and a
-    // button toggle. lockGroupsEnabled pauses every lock without deleting any:
-    // nothing blocked, nothing drawn.
+    // button toggle. locksEnabled pauses the player's own locks without deleting
+    // any: nothing blocked, nothing drawn. A chest's or box's locks are shared
+    // and hold whatever this says. Saved as "lockGroupsEnabled", its old name.
     private static boolean sortEnabled = true;
     private static boolean moveMatchingEnabled = true;
     private static boolean restockEnabled = true;
     private static boolean restockShowButton = true;
     private static boolean autoToolSwitchShowButton = true;
-    private static boolean lockGroupsEnabled = true;
-    // "Also keep container locks on the server" (Lock groups tab; replaced
-    // Inventory Max's containerLocksEnabled). Container locks are always kept
-    // on this computer. The option wrote each new one to Inventory Max's shared
-    // channel as well, where the server kept and enforced it as a plain lock.
-    // With Inventory Max retired nothing provides that channel, so the row is
-    // hidden (SettingsTabs) and the value is only carried over. Off by default,
-    // because container locks are the player's own.
-    private static boolean containerLocksOnServer = false;
+    private static boolean locksEnabled = true;
     // Tooltips: everything Inventory Plus does to tooltips. tooltipsEnabled off
     // means Inventory Plus leaves every tooltip alone. One boolean per line
     // Inventory Plus adds or changes (tooltips/, one provider each). Durability
@@ -250,9 +227,6 @@ public final class IPConfig {
     public static void load() {
         if (loaded) return;
         loaded = true;
-        // The reach record lives in this file, so every change to it saves the
-        // whole file, like any setting.
-        Reach.onChange(IPConfig::save);
         Path path = filePath();
         if (!Files.exists(path)) {
             InventoryPlusClient.LOGGER.info(
@@ -264,7 +238,17 @@ public final class IPConfig {
             JsonObject root = JsonParser.parseString(json).getAsJsonObject();
             apply(root);
             legacyCycleSlotsLocked = readBool(root, "cycleSlotsLocked", true);
-            Reach.read(root.has("reach") && root.get("reach").isJsonObject() ? root.getAsJsonObject("reach") : null);
+            // Reach's pickup choice, kept as an Intake until every world has had it.
+            legacyPickupIntake = root.has("legacyPickupIntake")
+                    ? Intake.CODEC.parse(com.mojang.serialization.JsonOps.INSTANCE, root.get("legacyPickupIntake"))
+                            .result().orElse(null)
+                    : pickupIntakeOf(root.has("reach") && root.get("reach").isJsonObject()
+                            ? root.getAsJsonObject("reach") : null);
+            // The file is written without "reach" from now on; its pickup choice
+            // lives on in config until every world has had it (IntakeClient).
+            if (legacyPickupIntake != null && root.has("intakeMigratedWorlds")) {
+                for (var w : root.getAsJsonArray("intakeMigratedWorlds")) intakeMigratedWorlds.add(w.getAsString());
+            }
             InventoryPlusClient.LOGGER.info("[config] loaded from {}", path);
         } catch (IOException | JsonSyntaxException | IllegalStateException e) {
             InventoryPlusClient.LOGGER.error(
@@ -281,18 +265,15 @@ public final class IPConfig {
         autoRestockItem              = readBool(root, "autoRestockItem",              autoRestockItem);
         autoRestockShulker           = readBool(root, "autoRestockShulker",           autoRestockShulker);
         autoRestockShulkerAmmo       = readBool(root, "autoRestockShulkerAmmo",       autoRestockShulkerAmmo);
-        restockItemsFromShulkers     = readBool(root, "restockItemsFromShulkers",     restockItemsFromShulkers);
-        restockItemsFromBundles      = readBool(root, "restockItemsFromBundles",      restockItemsFromBundles);
-        restockItemsFromEnderChest   = readBool(root, "restockItemsFromEnderChest",   restockItemsFromEnderChest);
-        restockToolsFromShulkers = readBool(root, "restockToolsFromShulkers", restockToolsFromShulkers);
-        restockToolsFromBundles = readBool(root, "restockToolsFromBundles", restockToolsFromBundles);
-        restockToolsFromEnderChest = readBool(root, "restockToolsFromEnderChest", restockToolsFromEnderChest);
-        restockArmorFromShulkers = readBool(root, "restockArmorFromShulkers", restockArmorFromShulkers);
-        restockArmorFromBundles = readBool(root, "restockArmorFromBundles", restockArmorFromBundles);
-        restockArmorFromEnderChest = readBool(root, "restockArmorFromEnderChest", restockArmorFromEnderChest);
-        restockAmmoFromShulkers = readBool(root, "restockAmmoFromShulkers", restockAmmoFromShulkers);
-        restockAmmoFromBundles = readBool(root, "restockAmmoFromBundles", restockAmmoFromBundles);
-        restockAmmoFromEnderChest = readBool(root, "restockAmmoFromEnderChest", restockAmmoFromEnderChest);
+        // Before 3.4.0 each restock type had its own Shulker Boxes, Bundles and
+        // Your Ender Chest switches. One setting now: on if any type reached into
+        // shulker boxes. Bundles and the ender chest are no longer restocked from.
+        restockFromShulkers = root.has("restockFromShulkers")
+                ? readBool(root, "restockFromShulkers", restockFromShulkers)
+                : restockFromShulkers || readBool(root, "restockItemsFromShulkers", false)
+                        || readBool(root, "restockToolsFromShulkers", false)
+                        || readBool(root, "restockArmorFromShulkers", false)
+                        || readBool(root, "restockAmmoFromShulkers", false);
         pickFromShulkers             = readBool(root, "pickFromShulkers",             pickFromShulkers);
         pickFromBundles              = readBool(root, "pickFromBundles",              pickFromBundles);
         pickFromEnderChest           = readBool(root, "pickFromEnderChest",           pickFromEnderChest);
@@ -335,8 +316,7 @@ public final class IPConfig {
         restockEnabled            = readBool(root, "restockEnabled",            restockEnabled);
         restockShowButton         = readBool(root, "restockShowButton",         restockShowButton);
         autoToolSwitchShowButton  = readBool(root, "autoToolSwitchShowButton",  autoToolSwitchShowButton);
-        lockGroupsEnabled         = readBool(root, "lockGroupsEnabled",         lockGroupsEnabled);
-        containerLocksOnServer    = readBool(root, "containerLocksOnServer",    containerLocksOnServer);
+        locksEnabled              = readBool(root, "lockGroupsEnabled",         locksEnabled);
         tooltipsEnabled           = readBool(root, "tooltipsEnabled",           tooltipsEnabled);
         tooltipDurability = readBool(root, "tooltipDurability", readBool(root, "itemTipsEnabled", tooltipDurability));
         tooltipFood = readBool(root, "tooltipFood", readBool(root, "itemTipsEnabled", tooltipFood));
@@ -410,18 +390,7 @@ public final class IPConfig {
         root.addProperty("autoRestockItem",             autoRestockItem);
         root.addProperty("autoRestockShulker",          autoRestockShulker);
         root.addProperty("autoRestockShulkerAmmo",      autoRestockShulkerAmmo);
-        root.addProperty("restockItemsFromShulkers",    restockItemsFromShulkers);
-        root.addProperty("restockItemsFromBundles",     restockItemsFromBundles);
-        root.addProperty("restockItemsFromEnderChest",  restockItemsFromEnderChest);
-        root.addProperty("restockToolsFromShulkers", restockToolsFromShulkers);
-        root.addProperty("restockToolsFromBundles", restockToolsFromBundles);
-        root.addProperty("restockToolsFromEnderChest", restockToolsFromEnderChest);
-        root.addProperty("restockArmorFromShulkers", restockArmorFromShulkers);
-        root.addProperty("restockArmorFromBundles", restockArmorFromBundles);
-        root.addProperty("restockArmorFromEnderChest", restockArmorFromEnderChest);
-        root.addProperty("restockAmmoFromShulkers", restockAmmoFromShulkers);
-        root.addProperty("restockAmmoFromBundles", restockAmmoFromBundles);
-        root.addProperty("restockAmmoFromEnderChest", restockAmmoFromEnderChest);
+        root.addProperty("restockFromShulkers",         restockFromShulkers);
         root.addProperty("pickFromShulkers",            pickFromShulkers);
         root.addProperty("pickFromBundles",             pickFromBundles);
         root.addProperty("pickFromEnderChest",          pickFromEnderChest);
@@ -451,8 +420,7 @@ public final class IPConfig {
         root.addProperty("restockEnabled",            restockEnabled);
         root.addProperty("restockShowButton",         restockShowButton);
         root.addProperty("autoToolSwitchShowButton",  autoToolSwitchShowButton);
-        root.addProperty("lockGroupsEnabled",         lockGroupsEnabled);
-        root.addProperty("containerLocksOnServer",    containerLocksOnServer);
+        root.addProperty("lockGroupsEnabled",         locksEnabled);
         root.addProperty("tooltipsEnabled",           tooltipsEnabled);
         root.addProperty("tooltipDurability", tooltipDurability);
         root.addProperty("tooltipFood", tooltipFood);
@@ -479,7 +447,13 @@ public final class IPConfig {
             JsonObject root = new JsonObject();
             root.addProperty("version", CURRENT_VERSION);
             settingsJson().entrySet().forEach(e -> root.add(e.getKey(), e.getValue()));
-            root.add("reach", Reach.write());
+            if (legacyPickupIntake != null) {
+                com.google.gson.JsonArray worlds = new com.google.gson.JsonArray();
+                for (String w : intakeMigratedWorlds) worlds.add(w);
+                root.add("intakeMigratedWorlds", worlds);
+                root.add("legacyPickupIntake", Intake.CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE,
+                        legacyPickupIntake).getOrThrow());
+            }
             Files.writeString(path, GSON.toJson(root));
         } catch (IOException e) {
             InventoryPlusClient.LOGGER.error(
@@ -496,13 +470,60 @@ public final class IPConfig {
 
     public static boolean legacyCycleSlotsLocked() { return legacyCycleSlotsLocked; }
 
+    // Reach's pickup choice, for the Intake migration
+
+    /**
+     * The Intake that stands closest to what Reach's pickups did with carried shulker
+     * boxes before 3.4.0, or {@code null} when they left them alone (the default).
+     * IntakeClient puts it on the boxes the player carries, once per world.
+     */
+    private static @Nullable Intake legacyPickupIntake;
+    private static final java.util.Set<String> intakeMigratedWorlds = new java.util.TreeSet<>();
+
+    public static @Nullable Intake legacyPickupIntake() { return legacyPickupIntake; }
+
+    /** Whether world {@code worldId}'s carried boxes still need {@link #legacyPickupIntake}. */
+    public static boolean needsIntakeMigration(String worldId) {
+        return legacyPickupIntake != null && !intakeMigratedWorlds.contains(worldId);
+    }
+
+    public static void markIntakeMigrated(String worldId) {
+        if (intakeMigratedWorlds.add(worldId)) save();
+    }
+
+    /**
+     * Reach's version 3 record, read for its one choice that survives: pickups with
+     * Shulker Boxes ticked under Empty slots took anything into carried boxes before
+     * the inventory (Before inventory); ticked only under Matching, only what a box
+     * held (Before inventory, Matching only). An untouched operation left boxes alone.
+     * Bundles and the ender chest have no Intake, so their boxes are dropped.
+     */
+    static @Nullable Intake pickupIntakeOf(@Nullable JsonObject reach) {
+        if (reach == null) return null;
+        int version = reach.has("version") ? reach.get("version").getAsInt() : 0;
+        if (version < 3) return null;   // version 2 had no carried places
+        String op = "menukit:world_pickup", shulkers = "inventoryplus:place/shulker_boxes";
+        if (ticks(reach, "denied", op, shulkers)) return new Intake(Intake.When.BEFORE, false);
+        if (ticks(reach, "matching", op, shulkers)) return new Intake(Intake.When.BEFORE, true);
+        return null;
+    }
+
+    /** Whether {@code list}'s saved entry for {@code op} leaves {@code key} ticked. No entry: the default, unticked. */
+    private static boolean ticks(JsonObject reach, String list, String op, String key) {
+        if (!reach.has(list) || !reach.get(list).isJsonObject()) return false;
+        JsonObject lists = reach.getAsJsonObject(list);
+        if (!lists.has(op) || !lists.get(op).isJsonArray()) return false;
+        for (var k : lists.getAsJsonArray(op)) if (k.getAsString().equals(key)) return false;
+        return true;
+    }
+
     public static boolean sortEnabled()              { return sortEnabled; }
     public static boolean moveMatchingEnabled()      { return moveMatchingEnabled; }
     public static boolean restockEnabled()           { return restockEnabled; }
     public static boolean restockShowButton()        { return restockShowButton; }
     public static boolean autoToolSwitchShowButton() { return autoToolSwitchShowButton; }
-    public static boolean lockGroupsEnabled()        { return lockGroupsEnabled; }
-    public static boolean containerLocksOnServer()   { return containerLocksOnServer; }
+    public static boolean locksEnabled()             { return locksEnabled; }
+    public static boolean restockFromShulkers()      { return restockFromShulkers; }
     public static boolean tooltipsEnabled()          { return tooltipsEnabled; }
     public static boolean tooltipDurability() { return tooltipDurability; }
     public static boolean tooltipFood() { return tooltipFood; }
@@ -524,8 +545,8 @@ public final class IPConfig {
     public static void setRestockEnabled(boolean v)           { restockEnabled = v; save(); }
     public static void setRestockShowButton(boolean v)        { restockShowButton = v; save(); }
     public static void setAutoToolSwitchShowButton(boolean v) { autoToolSwitchShowButton = v; save(); }
-    public static void setLockGroupsEnabled(boolean v)        { lockGroupsEnabled = v; save(); }
-    public static void setContainerLocksOnServer(boolean v)   { containerLocksOnServer = v; save(); }
+    public static void setLocksEnabled(boolean v)             { locksEnabled = v; save(); }
+    public static void setRestockFromShulkers(boolean v)      { restockFromShulkers = v; save(); }
     public static void setTooltipsEnabled(boolean v)          { tooltipsEnabled = v; save(); }
     public static void setTooltipDurability(boolean v) { tooltipDurability = v; save(); }
     public static void setTooltipFood(boolean v) { tooltipFood = v; save(); }
@@ -551,18 +572,6 @@ public final class IPConfig {
     public static boolean autoRestockItem()             { return autoRestockItem; }
     public static boolean autoRestockShulker()          { return autoRestockShulker; }
     public static boolean autoRestockShulkerAmmo()      { return autoRestockShulkerAmmo; }
-    public static boolean restockItemsFromShulkers()    { return restockItemsFromShulkers; }
-    public static boolean restockItemsFromBundles()     { return restockItemsFromBundles; }
-    public static boolean restockItemsFromEnderChest()  { return restockItemsFromEnderChest; }
-    public static boolean restockToolsFromShulkers() { return restockToolsFromShulkers; }
-    public static boolean restockToolsFromBundles() { return restockToolsFromBundles; }
-    public static boolean restockToolsFromEnderChest() { return restockToolsFromEnderChest; }
-    public static boolean restockArmorFromShulkers() { return restockArmorFromShulkers; }
-    public static boolean restockArmorFromBundles() { return restockArmorFromBundles; }
-    public static boolean restockArmorFromEnderChest() { return restockArmorFromEnderChest; }
-    public static boolean restockAmmoFromShulkers() { return restockAmmoFromShulkers; }
-    public static boolean restockAmmoFromBundles() { return restockAmmoFromBundles; }
-    public static boolean restockAmmoFromEnderChest() { return restockAmmoFromEnderChest; }
     public static boolean pickFromShulkers()            { return pickFromShulkers; }
     public static boolean pickFromBundles()             { return pickFromBundles; }
     public static boolean pickFromEnderChest()          { return pickFromEnderChest; }
@@ -596,18 +605,6 @@ public final class IPConfig {
     public static void setAutoRestockItem(boolean v)             { autoRestockItem = v; save(); }
     public static void setAutoRestockShulker(boolean v)          { autoRestockShulker = v; save(); }
     public static void setAutoRestockShulkerAmmo(boolean v)      { autoRestockShulkerAmmo = v; save(); }
-    public static void setRestockItemsFromShulkers(boolean v)    { restockItemsFromShulkers = v; save(); }
-    public static void setRestockItemsFromBundles(boolean v)     { restockItemsFromBundles = v; save(); }
-    public static void setRestockItemsFromEnderChest(boolean v)  { restockItemsFromEnderChest = v; save(); }
-    public static void setRestockToolsFromShulkers(boolean v) { restockToolsFromShulkers = v; save(); }
-    public static void setRestockToolsFromBundles(boolean v) { restockToolsFromBundles = v; save(); }
-    public static void setRestockToolsFromEnderChest(boolean v) { restockToolsFromEnderChest = v; save(); }
-    public static void setRestockArmorFromShulkers(boolean v) { restockArmorFromShulkers = v; save(); }
-    public static void setRestockArmorFromBundles(boolean v) { restockArmorFromBundles = v; save(); }
-    public static void setRestockArmorFromEnderChest(boolean v) { restockArmorFromEnderChest = v; save(); }
-    public static void setRestockAmmoFromShulkers(boolean v) { restockAmmoFromShulkers = v; save(); }
-    public static void setRestockAmmoFromBundles(boolean v) { restockAmmoFromBundles = v; save(); }
-    public static void setRestockAmmoFromEnderChest(boolean v) { restockAmmoFromEnderChest = v; save(); }
     public static void setPickFromShulkers(boolean v)            { pickFromShulkers = v; save(); }
     public static void setPickFromBundles(boolean v)             { pickFromBundles = v; save(); }
     public static void setPickFromEnderChest(boolean v)          { pickFromEnderChest = v; save(); }

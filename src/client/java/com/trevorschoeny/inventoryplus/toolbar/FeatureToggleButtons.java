@@ -3,8 +3,6 @@ package com.trevorschoeny.inventoryplus.toolbar;
 import com.trevorschoeny.inventoryplus.buttonmode.PressFeedback;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
-import com.trevorschoeny.inventoryplus.lockgroups.LockColours;
-import com.trevorschoeny.inventoryplus.lockgroups.Reach;
 import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 
 import com.trevlar.menukit.api.element.Toggle;
@@ -41,29 +39,11 @@ public final class FeatureToggleButtons {
 
     public static final int SIZE = 9;
 
-    /**
-     * Lock groups: on/off pauses every lock without deleting any; right click
-     * picks the group the lock key applies, shown in the button's tint.
-     */
-    public static Toggle lockGroups(int x, int y) {
-        PressFeedback feedback = new PressFeedback();
-        return builder(x, y, "locked_slot_edit", "Lock groups", SettingsMenu.LOCK_GROUPS,
-                IPConfig::lockGroupsEnabled, IPConfig::setLockGroupsEnabled, IPConfig::lockedSlotsShowButton,
-                () -> Reach.active().name(),
-                () -> keyHint("Hover over a slot or item", IPKeybinds.LOCK_SLOT) + "\nRight click: cycle")
-                .onSecondaryClick(click -> {
-                    if (!click.isRight()) return;
-                    // A Mac's Ctrl-click arrives as a right click, and still opens the tab.
-                    if (SettingsMenu.ctrlClickOpens(SettingsMenu.LOCK_GROUPS)) return;
-                    feedback.press();
-                    Reach.cycleActive(click.isShiftRight() ? -1 : 1);
-                })
-                // The active group's color, faint; the press flash over it.
-                .tint(() -> {
-                    int flash = feedback.tint();
-                    return flash != 0 ? flash : LockColours.argb(Reach.active().colour(), 0x70);
-                })
-                .build();
+    /** Locks: on/off pauses the player's own locks without deleting any. */
+    public static Toggle locks(int x, int y) {
+        return builder(x, y, "locked_slot_edit", "Locks", SettingsMenu.LOCKS,
+                IPConfig::locksEnabled, IPConfig::setLocksEnabled, IPConfig::lockedSlotsShowButton,
+                null, () -> keyHint("Hover over a slot", IPKeybinds.LOCK_SLOT)).build();
     }
 
     public static Toggle restock(int x, int y) {

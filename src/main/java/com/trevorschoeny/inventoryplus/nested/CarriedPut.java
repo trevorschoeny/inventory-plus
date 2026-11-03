@@ -1,355 +1,128 @@
 package com.trevorschoeny.inventoryplus.nested;
 
-import com.trevlar.slotkit.api.group.SlotGroupCategory;
-import com.trevlar.slotkit.api.item.ItemPath;
-import com.trevlar.slotkit.api.item.ItemRef;
-import com.trevlar.slotkit.api.item.ItemScope;
-import com.trevlar.slotkit.api.item.ItemSources;
-import com.trevlar.slotkit.api.window.BehaviorKey;
-import com.trevlar.slotkit.api.window.BehaviorKeys;
-import com.trevlar.slotkit.api.window.SlotOperations;
-import com.trevlar.slotkit.api.window.SlotRef;
-import com.trevlar.slotkit.api.window.TriBool;
+import com.trevlar.slotkit.api.reserve.Reservation;
+import com.trevlar.slotkit.api.reserve.Reservations;
+import com.trevlar.slotkit.api.window.Automation;
 
-import com.trevorschoeny.inventoryplus.api.InventoryPlusOperations;
+import com.trevorschoeny.inventoryplus.rules.Intake;
+import com.trevorschoeny.inventoryplus.rules.SlotLocks;
 
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.Container;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.Slot;
+import net.minecraft.core.NonNullList;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.world.item.BlockItem;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.ShulkerBoxBlock;
+import net.minecraft.world.item.component.ItemContainerContents;
 
 import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-
-import org.jspecify.annotations.Nullable;
 
 /**
- * Putting incoming items into carried containers: the server's half. "Container
- * first": an item that comes into the inventory goes into a carried shulker box, bundle
- * or the ender chest, and the inventory takes only what doesn't fit.
+ * Pickups into carried shulker boxes, by each box's {@link Intake}: the server's half.
+ * Hooked at {@code Inventory.add} ({@code InventoryAddCarriedPutMixin}), so it covers
+ * every item given to the inventory with no slot named: pickups, {@code /give}, a
+ * crafting grid's returns.
  *
- * <p>Which containers is Reach's rule for a put. Each row (the container's place, and
- * the inventory slot it sits in) lets the item in if its Empty slots box is ticked, or
- * its Matching box is ticked and the container already holds the item
- * ({@code ItemStack.isSameItem}). Containers that already hold it fill first.
+ * <p>The boxes set to Before inventory are filled first, then the inventory takes the
+ * rest as vanilla does, then the boxes set to After inventory take what it had no room
+ * for. Within one tier, the most specific home wins:
+ * <ol>
+ *   <li>a stack of the item that isn't full,</li>
+ *   <li>an empty slot reserved for it,</li>
+ *   <li>an empty slot in a Matching only box that already holds it,</li>
+ *   <li>any other empty slot, in a box with Matching only off.</li>
+ * </ol>
+ * Inventory position breaks ties inside a step (hotbar first, then the main inventory).
+ * Every slot is asked through {@link Automation#room}, so a box's reservations, its
+ * locks and any other mod's automation rules hold here too.
  *
- * <p>Three moves do it, each with its own Reach places (Shulker Boxes, Bundles, Your
- * Ender Chest), all off by default:
- * <ul>
- *   <li><b>Item pickup</b> ({@code menukit:world_pickup}): every item given to the
- *       inventory, hooked at {@code Inventory.add} (pickups, {@code /give}, crafting
- *       returns).</li>
- *   <li><b>Shift-click in</b>: a shift-click on a storage slot (a chest, a barrel, a
- *       shulker box), hooked at the menu's click on the server.</li>
- *   <li><b>Move Matching in</b>: the client names the source slots ({@link MoveIn}); the
- *       rest of the move then runs as before.</li>
- * </ul>
- *
- * <p>The server decides where pickups land, so the client tells it the player's choices
- * ({@link Prefs}): which places each move may use, and which inventory slots hold a
- * container the move may put into. The second is the client's own Reach and locks (a
- * Slot lock on the slot holding a shulker keeps it closed), which the server can't see.
- * A player who never sent {@link Prefs} (no Inventory Plus on the client) gets vanilla.
+ * <p>Only boxes in the main inventory and hotbar take part, never a box inside another,
+ * a bundle or the ender chest. A player whose client doesn't run Inventory Plus
+ * ({@link SlotLocks#known}) gets vanilla.
  */
 public final class CarriedPut {
 
     private CarriedPut() {}
 
-    /** The three moves that put into carried containers, in the order {@link Prefs} packs them. */
-    public enum Move {
-        PICKUP(BehaviorKeys.INVENTORY_INSERT),
-        SHIFT_CLICK(BehaviorKeys.SHIFT_CLICK_IN),
-        MOVE_MATCHING(InventoryPlusOperations.MOVE_MATCHING_IN);
-
-        /** The operation whose Reach (and locks) decides which slots' containers this move fills. */
-        public final BehaviorKey<TriBool> operation;
-
-        Move(BehaviorKey<TriBool> operation) {
-            this.operation = operation;
-        }
-    }
-
-    /** The places, in the order {@link Prefs} packs them. */
-    public static final int SHULKERS = 0, BUNDLES = 1, ENDER_CHEST = 2;
-
-    /** The two lists, in the order {@link Prefs} packs them. */
-    public static final int EMPTY_SLOTS = 0, MATCHING = 1;
-
-    /**
-     * The player's choices. {@code places} has a bit per {@link Move}, place and list
-     * (bit {@code move * 6 + place * 2 + list}), set where that box is ticked.
-     * {@code slots} has two masks per move ({@code move * 2 + list}), bit {@code i} set
-     * for each inventory slot (0 to 40) whose rows let a put in: every row by Empty
-     * slots, or every row by one box or the other. {@code enderLocked} has bit {@code i}
-     * set for each ender chest slot the player locked.
-     */
-    public record Prefs(int places, List<Long> slots, int enderLocked) implements CustomPacketPayload {
-        public static final Type<Prefs> TYPE = new Type<>(Identifier.fromNamespaceAndPath("inventoryplus", "carried_put_prefs"));
-        public static final StreamCodec<RegistryFriendlyByteBuf, Prefs> CODEC = StreamCodec.composite(
-                ByteBufCodecs.VAR_INT, Prefs::places,
-                ByteBufCodecs.VAR_LONG.apply(ByteBufCodecs.list(Move.values().length * 2)), Prefs::slots,
-                ByteBufCodecs.VAR_INT, Prefs::enderLocked,
-                Prefs::new);
-        @Override public Type<Prefs> type() { return TYPE; }
-
-        /** Bit {@code list} of {@code place} for {@code move}. */
-        public static int bit(Move move, int place, int list) {
-            return 1 << (move.ordinal() * 6 + place * 2 + list);
-        }
-
-        /** Whether the place's row lets an item in: Empty slots, or Matching where the container {@code holds} it. */
-        public boolean place(Move move, int place, boolean holds) {
-            return (places & bit(move, place, EMPTY_SLOTS)) != 0 || holds && (places & bit(move, place, MATCHING)) != 0;
-        }
-
-        /** Whether the move may use the place at all, so it is worth looking inside. */
-        public boolean opens(Move move, int place) {
-            return place(move, place, true);
-        }
-
-        public boolean any(Move move) {
-            return (places >> (move.ordinal() * 6) & 0b111111) != 0;
-        }
-
-        /** Whether the rows of inventory slot {@code slot} let the move put into the container there. */
-        public boolean slot(Move move, int slot, boolean holds) {
-            int mask = move.ordinal() * 2 + (holds ? MATCHING : EMPTY_SLOTS);
-            return slot >= 0 && slot < 64 && mask < slots.size() && (slots.get(mask) >> slot & 1) != 0;
-        }
-    }
-
-    /** One Move Matching source: up to {@code count} from menu slot {@code menuSlot}. */
-    public record Source(int menuSlot, int count) {
-        static final StreamCodec<RegistryFriendlyByteBuf, Source> CODEC = StreamCodec.composite(
-                ByteBufCodecs.VAR_INT, Source::menuSlot, ByteBufCodecs.VAR_INT, Source::count, Source::new);
-    }
-
-    /** Move Matching in's first pass: put these sources' items into carried containers, then answer {@link Done}. */
-    public record MoveIn(int containerId, List<Source> sources, int seq) implements CustomPacketPayload {
-        public static final Type<MoveIn> TYPE = new Type<>(Identifier.fromNamespaceAndPath("inventoryplus", "carried_put_move_in"));
-        public static final StreamCodec<RegistryFriendlyByteBuf, MoveIn> CODEC = StreamCodec.composite(
-                ByteBufCodecs.VAR_INT, MoveIn::containerId,
-                Source.CODEC.apply(ByteBufCodecs.list(256)), MoveIn::sources,
-                ByteBufCodecs.VAR_INT, MoveIn::seq,
-                MoveIn::new);
-        @Override public Type<MoveIn> type() { return TYPE; }
-    }
-
-    /** The server's answer to {@link MoveIn}, sent after the menu's changes, so the client reads them first. */
-    public record Done(int seq) implements CustomPacketPayload {
-        public static final Type<Done> TYPE = new Type<>(Identifier.fromNamespaceAndPath("inventoryplus", "carried_put_done"));
-        public static final StreamCodec<RegistryFriendlyByteBuf, Done> CODEC =
-                ByteBufCodecs.VAR_INT.map(Done::new, Done::seq).cast();
-        @Override public Type<Done> type() { return TYPE; }
-    }
-
-    private static final Map<UUID, Prefs> PREFS = new ConcurrentHashMap<>();
-
-    /** Payload types on both sides, receivers on the server. Call once from the common initializer. */
+    /** Payloads and receivers. Once, from the common initializer. */
     public static void register() {
-        PayloadTypeRegistry.serverboundPlay().register(Prefs.TYPE, Prefs.CODEC);
-        PayloadTypeRegistry.serverboundPlay().register(MoveIn.TYPE, MoveIn.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(Done.TYPE, Done.CODEC);
-        ServerPlayNetworking.registerGlobalReceiver(Prefs.TYPE,
-                (payload, context) -> PREFS.put(context.player().getUUID(), payload));
-        ServerPlayNetworking.registerGlobalReceiver(MoveIn.TYPE, (payload, context) -> {
-            ServerPlayer player = context.player();
-            MinecraftServer server = player.level().getServer();
-            if (server != null) server.execute(() -> moveIn(player, payload));
-        });
-        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> PREFS.remove(handler.getPlayer().getUUID()));
+        Intake.register();
     }
 
-    /** For the self-checks: set a player's choices as if their client had sent them. */
-    public static void setPrefs(UUID player, Prefs prefs) {
-        PREFS.put(player, prefs);
+    /** One carried box and its contents as a working copy, written back after each put. */
+    private record Box(ItemStack stack, Intake intake, NonNullList<ItemStack> items) {
+        boolean holds(ItemStack item) {
+            for (ItemStack s : items) if (ItemStack.isSameItem(s, item)) return true;
+            return false;
+        }
     }
 
     /**
-     * Puts as much of {@code stack} as fits into the player's carried containers, as
-     * {@code move}'s rows allow, shrinking {@code stack} by what went in. Containers
-     * that already hold the item first, then those that may take it new; each nearest
-     * first (in the inventory, hotbar first, then deeper; then the ender chest's own).
-     * The ender chest itself comes last. Returns how many went in.
+     * Puts as much of {@code stack} as fits into the carried boxes whose Intake is
+     * {@code when} ({@code BEFORE} or {@code AFTER}), shrinking it by what went in.
+     * Returns how many went in.
      */
-    public static int into(ServerPlayer player, ItemStack stack, Move move) {
-        return into(player, stack, move, null);
-    }
-
-    /**
-     * {@link #into(ServerPlayer, ItemStack, Move)} for an item taken out of the player's own
-     * container at {@code from} (an ender chest or carried slot): nothing in that container,
-     * nor the container itself, takes it, so the move takes the item out of it.
-     */
-    private static int into(ServerPlayer player, ItemStack stack, Move move, @Nullable ItemPath from) {
-        if (stack.isEmpty()) return 0;
-        Prefs prefs = PREFS.get(player.getUUID());
-        if (prefs == null || !prefs.any(move)) return 0;
-        ItemScope scope = ItemScope.inventory().shulkers(prefs.opens(move, SHULKERS))
-                .bundles(prefs.opens(move, BUNDLES)).enderChest(prefs.opens(move, ENDER_CHEST));
-
-        // Every carried container by path, in walk order, with its place; which of them
-        // already hold the item; and whether the ender chest's own slots do.
-        Map<ItemPath, Integer> containers = new LinkedHashMap<>();
-        Set<ItemPath> holding = new HashSet<>();
-        boolean[] enderHolds = {false};
-        ItemSources.walk(player, scope, ref -> {
-            ItemPath path = ref.path();
-            if (from != null && skips(path, from)) return true;
-            if (ref.source() == ItemRef.Source.ENDER_CHEST && enderLocked(prefs, path.slot())) return true;
-            int place = placeOf(ref.stack());
-            if (place >= 0) containers.put(path, place);
-            if (ItemStack.isSameItem(ref.stack(), stack)) {
-                if (path.depth() > 0) holding.add(parent(path));
-                else if (ref.source() == ItemRef.Source.ENDER_CHEST) enderHolds[0] = true;
-            }
-            return true;
-        });
-
-        List<ItemPath> order = new ArrayList<>(containers.size());
-        for (ItemPath path : containers.keySet()) if (holding.contains(path)) order.add(path);
-        for (ItemPath path : containers.keySet()) if (!holding.contains(path)) order.add(path);
+    public static int into(ServerPlayer player, ItemStack stack, Intake.When when) {
+        if (stack.isEmpty() || when == Intake.When.OFF || player.isSpectator() || !SlotLocks.known(player)) return 0;
+        // A shulker box never goes into another; vanilla's own rule for container items.
+        if (!stack.getItem().canFitInsideContainerItems()) return 0;
+        List<Box> boxes = boxes(player.getInventory(), when);
+        if (boxes.isEmpty()) return 0;
 
         int before = stack.getCount();
-        for (ItemPath path : order) {
-            boolean holds = holding.contains(path);
-            if (!lets(prefs, move, path, containers.get(path), holds)) continue;
-            // A put makes the walk's other refs into that container stale: resolve afresh.
-            ItemRef container = ItemSources.at(player, path);
-            if (container == null) continue;
-            ItemStack left = container.put(stack);
-            stack.setCount(left.getCount());
-            if (stack.isEmpty()) break;
+        // 1. Stacks of it that aren't full.
+        for (Box b : boxes) {
+            for (int i = 0; i < b.items().size() && !stack.isEmpty(); i++) {
+                if (ItemStack.isSameItemSameComponents(b.items().get(i), stack)) put(b, i, stack);
+            }
         }
-        boolean fromEnder = from != null && from.depth() == 0 && from.source() == ItemRef.Source.ENDER_CHEST;
-        if (!stack.isEmpty() && !fromEnder && prefs.place(move, ENDER_CHEST, enderHolds[0])) intoEnderChest(player, stack, prefs);
-        return before - stack.getCount();
-    }
-
-    /**
-     * Whether every row on the container at {@code path} lets {@code move} put in: its
-     * own place, and the inventory slot it sits in, or the ender chest it sits in.
-     * A container inside another is judged by its own place and the top slot only,
-     * not the places of the containers around it; judge each level if nesting ever
-     * matters.
-     */
-    private static boolean lets(Prefs prefs, Move move, ItemPath path, int place, boolean holds) {
-        if (!prefs.place(move, place, holds)) return false;
-        return switch (path.source()) {
-            case INVENTORY -> prefs.slot(move, path.slot(), holds);
-            case ENDER_CHEST -> prefs.place(move, ENDER_CHEST, holds);
-            default -> false;
-        };
-    }
-
-    /** The place a carried container counts as: a shulker box, a bundle, or -1 for anything else. */
-    private static int placeOf(ItemStack stack) {
-        if (stack.getItem() instanceof BlockItem block && block.getBlock() instanceof ShulkerBoxBlock) return SHULKERS;
-        return stack.has(DataComponents.BUNDLE_CONTENTS) ? BUNDLES : -1;
-    }
-
-    /** The path of the container {@code path}'s item sits in. */
-    private static ItemPath parent(ItemPath path) {
-        return new ItemPath(path.source(), path.slot(), path.inside().subList(0, path.depth() - 1), path.attachment());
-    }
-
-    /** A top-level slot's whole container (the ender chest, a carried attachment), or, for an item
-     *  taken from inside a box or bundle, that box and everything in it. */
-    private static boolean skips(ItemPath path, ItemPath from) {
-        if (from.depth() == 0) return path.source() == from.source() && Objects.equals(path.attachment(), from.attachment());
-        return path.within(parent(from));
-    }
-
-    private static boolean enderLocked(Prefs prefs, int slot) {
-        return slot < 32 && (prefs.enderLocked() >> slot & 1) != 0;
-    }
-
-    /** Merges into the ender chest's matching stacks, then its empty slots, skipping locked ones. */
-    private static void intoEnderChest(ServerPlayer player, ItemStack stack, Prefs prefs) {
-        Container ender = player.getEnderChestInventory();
-        for (int pass = 0; pass < 2 && !stack.isEmpty(); pass++) {
-            for (int i = 0; i < ender.getContainerSize() && !stack.isEmpty(); i++) {
-                if (enderLocked(prefs, i)) continue;
-                ItemStack there = ender.getItem(i);
-                int limit = Math.min(ender.getMaxStackSize(stack), stack.getMaxStackSize());
-                if (pass == 0 && ItemStack.isSameItemSameComponents(there, stack) && there.getCount() < limit) {
-                    int n = Math.min(limit - there.getCount(), stack.getCount());
-                    there.grow(n);
-                    stack.shrink(n);
-                } else if (pass == 1 && there.isEmpty()) {
-                    int n = Math.min(limit, stack.getCount());
-                    ender.setItem(i, stack.split(n));
+        // 2. Empty slots reserved for it.
+        for (Box b : boxes) {
+            for (int i = 0; i < b.items().size() && !stack.isEmpty(); i++) {
+                if (!b.items().get(i).isEmpty()) continue;
+                Reservation r = Reservations.get(b.stack(), i);
+                if (!r.isNone() && r.matches(stack)) put(b, i, stack);
+            }
+        }
+        // 3. Empty slots in Matching only boxes that hold it; 4. then any box that takes anything.
+        // A slot reserved for something else refuses inside Automation.room.
+        for (boolean matchingOnly : new boolean[] {true, false}) {
+            for (Box b : boxes) {
+                if (b.intake().matchingOnly() != matchingOnly || matchingOnly && !b.holds(stack)) continue;
+                for (int i = 0; i < b.items().size() && !stack.isEmpty(); i++) {
+                    if (b.items().get(i).isEmpty()) put(b, i, stack);
                 }
             }
         }
-        ender.setChanged();
-    }
-
-    /** The storage slots a shift-click or Move Matching may take from: never a result or fuel slot. */
-    private static final Set<SlotGroupCategory> STORAGE = Set.of(
-            SlotGroupCategory.CHEST_STORAGE, SlotGroupCategory.SHULKER_STORAGE, SlotGroupCategory.DISPENSER_STORAGE,
-            SlotGroupCategory.HOPPER_STORAGE, SlotGroupCategory.MOUNT_STORAGE);
-
-    /**
-     * Takes up to {@code count} of {@code slot}'s items into carried containers, as
-     * {@code move}, when {@code slot} is a storage slot that isn't the player's own and
-     * lets {@code takeAs} take from it. Returns how many went in.
-     */
-    public static int fromSlot(ServerPlayer player, AbstractContainerMenu menu, Slot slot, int count,
-                               Move move, BehaviorKey<TriBool> takeAs) {
-        if (player.isSpectator() || count <= 0 || !slot.hasItem() || slot.container == player.getInventory()) return 0;
-        Prefs prefs = PREFS.get(player.getUUID());
-        if (prefs == null || !prefs.any(move)) return 0;
-        if (!STORAGE.contains(SlotRef.of(menu, slot, player).category())) return 0;
-        if (!slot.mayPickup(player) || !SlotOperations.allows(menu, slot, player, takeAs)) return 0;
-        // Take before putting: the item has left its slot before any container is looked
-        // at, so a bundle or box can't be put into itself, or into something it holds,
-        // and then removed with its own copy inside. A slot over a box opened from the
-        // inventory is named by ItemSources.pathOf through ItemContents, so skips() keeps
-        // the item out of that box and everything in it, same as any other source.
-        int wanted = Math.min(count, slot.getItem().getCount());
-        ItemStack moving = slot.remove(wanted);
-        int moved = into(player, moving, move, ItemSources.pathOf(player, slot));
-        // What found no container goes back. Only this item can have filled the slot since,
-        // so the slot takes it all; the inventory is the fallback so nothing is ever lost.
-        if (!moving.isEmpty()) moving = slot.safeInsert(moving);
-        if (!moving.isEmpty()) player.getInventory().placeItemBackInInventory(moving, net.minecraft.util.Prediction.SERVER_ONLY);
-        slot.setChanged();
+        int moved = before - stack.getCount();
+        if (moved > 0) player.getInventory().setChanged();
         return moved;
     }
 
-    private static void moveIn(ServerPlayer player, MoveIn request) {
-        AbstractContainerMenu menu = player.containerMenu;
-        if (menu != null && menu.containerId == request.containerId()) {
-            for (Source s : request.sources()) {
-                if (s.menuSlot() < 0 || s.menuSlot() >= menu.slots.size()) continue;
-                fromSlot(player, menu, menu.slots.get(s.menuSlot()), s.count(), Move.MOVE_MATCHING,
-                        InventoryPlusOperations.MOVE_MATCHING_OUT);
-            }
-            // Sync now, so the client reads the result before the answer.
-            menu.broadcastChanges();
+    /** The boxes in the main inventory and hotbar set to {@code when}, hotbar first. */
+    private static List<Box> boxes(Inventory inv, Intake.When when) {
+        List<Box> out = new ArrayList<>();
+        for (int slot = 0; slot < 36; slot++) {
+            ItemStack stack = inv.getItem(slot);
+            Intake intake = Intake.of(stack);
+            if (intake.when() != when) continue;
+            ItemContainerContents contents = stack.getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY);
+            NonNullList<ItemStack> items = NonNullList.withSize(Math.max(27, contents.size()), ItemStack.EMPTY);
+            contents.copyInto(items);
+            out.add(new Box(stack, intake, items));
         }
-        ServerPlayNetworking.send(player, new Done(request.seq()));
+        return out;
+    }
+
+    /** Moves what slot {@code i} of {@code b} takes of {@code stack} there, and writes the box. */
+    private static void put(Box b, int i, ItemStack stack) {
+        // Room reads the box item itself (its reservations, locks and contents), so the
+        // contents are written back after every put.
+        int n = Automation.room(b.stack(), i, stack);
+        if (n <= 0) return;
+        ItemStack there = b.items().get(i);
+        b.items().set(i, there.isEmpty() ? stack.copyWithCount(n) : there.copyWithCount(there.getCount() + n));
+        stack.shrink(n);
+        b.stack().set(DataComponents.CONTAINER, ItemContainerContents.fromItems(b.items()));
     }
 }

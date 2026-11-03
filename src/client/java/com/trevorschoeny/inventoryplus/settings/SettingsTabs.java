@@ -1,30 +1,14 @@
 package com.trevorschoeny.inventoryplus.settings;
 
-import com.trevorschoeny.inventoryplus.carried.CarriedPutClient;
 import com.trevorschoeny.inventoryplus.autotoolswitch.WeaponPreference;
 import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
-import com.trevorschoeny.inventoryplus.lockeditems.LockKind;
-import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
-import com.trevorschoeny.inventoryplus.lockgroups.LockColours;
-import com.trevorschoeny.inventoryplus.lockgroups.LockGroup;
-import com.trevorschoeny.inventoryplus.lockgroups.Reach;
 import com.trevorschoeny.inventoryplus.settings.SettingsBody.Bool;
-import com.trevorschoeny.inventoryplus.settings.SettingsBody.Place;
 
-import com.trevlar.menukit.api.element.Flow;
-import com.trevlar.menukit.api.element.ItemMatch;
-import com.trevlar.menukit.api.element.ListView;
 import com.trevlar.menukit.api.element.PanelElement;
 import com.trevlar.menukit.api.element.Toggle;
-import com.trevlar.slotkit.api.group.SlotGroupCategory;
-import com.trevlar.slotkit.api.group.SlotGroupId;
-import com.trevlar.slotkit.api.group.SlotGroups;
-import com.trevlar.slotkit.api.window.BehaviorKey;
-import com.trevlar.slotkit.api.window.BehaviorKeys;
-import com.trevlar.slotkit.api.window.SlotOperations;
 
 import com.trevorschoeny.keybindery.api.KeybinderyAPI;
 import com.trevorschoeny.keybindery.chord.IChordKeyMapping;
@@ -34,28 +18,21 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
-import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
-import java.util.function.BooleanSupplier;
-import java.util.function.Supplier;
 
 
 /**
  * The body of every settings tab.
  *
  * <p>Every tab has one frame: the title, a description,
- * Reset to Defaults, the feature's on/off checkbox (not on General or
- * Reach), a line, then its settings one per line, every one of them grayed
- * while the feature is off. Done sits below the menu panel, not in
- * a tab. Every reach lives in the Reach tab, and feature tabs have none.
+ * Reset to Defaults, the feature's on/off checkbox (not on General), a
+ * line, then its settings one per line, every one of them grayed while the
+ * feature is off. Done sits below the menu panel, not in a tab.
  *
  * <p>Controls with a real setting behind them read and write it live. The
  * rest are grayed placeholders showing their planned default (see
@@ -112,7 +89,7 @@ final class SettingsTabs {
     private static void resetRestock() {
         IPConfig.reset("restockEnabled", "restockShowButton", "autoRestockArmor", "autoRestockArmorBeforeBreak",
                 "autoRestockTool", "autoRestockToolBeforeBreak", "autoRestockItem", "autoRestockShulker",
-                "autoRestockShulkerAmmo", "autoRestockBeforeBreakThreshold");
+                "autoRestockShulkerAmmo", "autoRestockBeforeBreakThreshold", "restockFromShulkers");
     }
 
     private static void resetAutoToolSwitch() {
@@ -135,25 +112,17 @@ final class SettingsTabs {
         resetKeys(IPKeybinds.HOTBAR_CYCLE_FORWARD, IPKeybinds.HOTBAR_CYCLE_BACKWARD);
     }
 
-    /**
-     * The Lock groups tab's Reset: the two
-     * default groups as a fresh install has them, every custom group gone, and
-     * every lock kept on this computer removed, in every world. What each
-     * group stops is the Reach tab's and stays.
-     */
-    private static void resetLockGroups() {
-        LockedSlots.reassign(null, null);
-        LockedItems.reassign(null, null);
-        Reach.resetGroups();
-        IPConfig.reset("lockGroupsEnabled", "lockedSlotsShowButton", "containerLocksOnServer");
+    /** Locks' reset: the switch, the button and the key, and every lock kept on this computer, in every world. */
+    private static void resetLocks() {
+        LockedSlots.clearAll();
+        IPConfig.reset("lockGroupsEnabled", "lockedSlotsShowButton");
         resetKeys(IPKeybinds.LOCK_SLOT);
-        SettingsMenu.rebuild();
     }
 
-    /** "12 locks in 3 worlds", every lock of {@code groupId}, or every lock when {@code null}. */
-    private static String lockCount(@Nullable String groupId) {
+    /** "12 locks in 3 worlds": every lock kept on this computer. */
+    private static String lockCount() {
         Set<String> worlds = new HashSet<>();
-        int n = LockedSlots.count(groupId, worlds) + LockedItems.count(groupId, worlds);
+        int n = LockedSlots.count(worlds);
         return n + (n == 1 ? " lock" : " locks") + " in " + worlds.size() + (worlds.size() == 1 ? " world" : " worlds");
     }
 
@@ -191,7 +160,7 @@ final class SettingsTabs {
         b.heading("Reset")
                 .actions(new SettingsBody.Action("Reset everything", () -> SettingsMenu.confirm("Reset everything?",
                         "Every setting in this menu goes back to its default, and "
-                                + lockCount(null) + " are removed.",
+                                + lockCount() + " are removed.",
                         SettingsTabs::resetEverything)));
         return b.build();
     }
@@ -199,466 +168,29 @@ final class SettingsTabs {
     /** General's Reset everything: every tab's reset, other mods' tabs included. */
     private static void resetEverything() {
         IPConfig.resetAll();
-        Reach.revertAll();
         resetGeneral();
         resetSort();
         resetMoveMatching();
         resetAutoToolSwitch();
         resetColumnCycler();
         resetHotbarCycler();
-        resetLockGroups();
+        resetLocks();
         SettingsMenu.runExternalResets();
     }
 
-    // Reach
+    // Locks
 
-    /**
-     * Every operation MenuKit knows, under three headings (Vanilla, Inventory
-     * Plus, Other mods, leaving out an empty heading), one
-     * collapsible section each, every box read from and written to the reach
-     * record. A slot is reached only if every group it is in is checked, so a
-     * lock group's cleared box is the lock.
-     */
-    static List<PanelElement> reach() {
-        SettingsBody b = new SettingsBody().frame("Reach",
-                "Choose where each move may take items from and put them. A cleared box means the "
-                        + "move never touches that group. Clear a lock group's box to make it stop that move.",
-                confirmReset("Reach", () -> {
-                    Reach.revertAll();
-                    IPConfig.reset(PLACE_KEYS.values().stream().flatMap(List::stream).toArray(String[]::new));
-                }));
-        List<BehaviorKey<?>> vanilla = new ArrayList<>();
-        List<BehaviorKey<?>> ours = new ArrayList<>();
-        List<BehaviorKey<?>> others = new ArrayList<>();
-        for (BehaviorKey<?> op : SlotOperations.all()) {
-            String ns = op.id().getNamespace();
-            // Vanilla's operations are defined by MenuKit, under its namespace.
-            if (ns.equals("menukit")) vanilla.add(op);
-            else if (isOurs(ns)) ours.add(op);
-            else others.add(op);
-        }
-        containersSection(b);
-        operations(b, "Vanilla", vanilla);
-        operations(b, "Inventory Plus", ours);
-        operations(b, "Other mods", others);
-        // Shown now: from the next build on, none of these reads as new.
-        List<String> shown = new ArrayList<>();
-        for (BehaviorKey<?> op : SlotOperations.all()) shown.add(op.id().toString());
-        Reach.markSeen(shown);
-        return b.build();
-    }
-
-    private static void operations(SettingsBody b, String heading, List<BehaviorKey<?>> ops) {
-        if (ops.isEmpty()) return;
-        b.heading(heading);
-        for (BehaviorKey<?> op : ops) operationSection(b, op);
-    }
-
-    /**
-     * One operation's section. Only what applies is offered: the slot groups MenuKit says the operation can act on
-     * ({@code SlotOperations.groups}), the lock groups whose kind fits its
-     * role, and the places Inventory Plus declares for it. A put operation
-     * shows the same rows twice: Empty slots, which lets any item in, and
-     * Matching, which lets one in only where the container already holds it.
-     * Closed, it shows a live count and what stops it. Open, it shows its blocks.
-     */
-    private static void operationSection(SettingsBody b, BehaviorKey<?> op) {
-        String id = op.id().toString();
-        boolean putOnly = SlotOperations.role(op) == SlotOperations.Role.PUT;
-        Map<String, List<Place>> empty = rows(op, id);
-        Map<String, List<Place>> matching = putOnly ? rows(op, Reach.matching(id)) : Map.of();
-        List<LockGroup> offered = new ArrayList<>();
-        for (LockGroup g : Reach.groups()) if (offers(g, putOnly)) offered.add(g);
-
-        List<Place> all = new ArrayList<>();
-        empty.values().forEach(all::addAll);
-        matching.values().forEach(all::addAll);
-        boolean isNew = !Reach.seen(id);
-        Supplier<Component> summary = () -> {
-            long on = all.stream().filter(p -> p.on().getAsBoolean()).count();
-            String count = on == all.size() ? "all " + on + " on" : on + " of " + all.size() + " on";
-            List<String> stoppedBy = new ArrayList<>();
-            for (LockGroup g : offered) if (Reach.lockDenies(g.id(), id)) stoppedBy.add(g.name());
-            String text = stoppedBy.isEmpty() ? count : count + " · stopped by " + String.join(", ", stoppedBy);
-            // No "changed" marker.
-            return Component.literal((isNew ? "new · " : "") + text);
-        };
-
-        b.section(SlotOperations.name(op).getString(), summary, null, c -> {
-            c.line(0, SlotOperations.description(op));
-            // The move's own settings sit above its checkboxes.
-            c.actions(new SettingsBody.Action("Revert to default", () -> {
-                Reach.revert(id);
-                List<String> keys = PLACE_KEYS.get(id);
-                if (keys != null) IPConfig.reset(keys.toArray(String[]::new));
-            }));
-            // Shift-click in's fill order waits on MenuKit, so it is grayed.
-            if (op == BehaviorKeys.SHIFT_CLICK_IN) c.buttons("Priority…");
-            if (putOnly) c.line(0, Component.literal("Empty slots: may put in an item the container doesn't hold yet."));
-            empty.forEach((label, block) -> block(c, label, block));
-            if (putOnly) {
-                c.line(0, Component.literal("Matching: may put in an item only where the container already holds it."));
-                matching.forEach((label, block) -> block(c, label, block));
-            }
-        });
-    }
-
-    /** An item lock protects an item already there; put-only moves never apply. */
-    private static boolean offers(LockGroup g, boolean putOnly) {
-        return !(g.kind().locksItems() && putOnly);
-    }
-
-    /**
-     * One list's blocks of boxes for {@code op}, labeled, in order: slot groups,
-     * lock groups, carried places (one block per kind where the feature splits
-     * them, as Restock's Items, Tools, Armor, Ammo), Inventory Plus's own, other
-     * mods'. {@code list} is the operation's id, or its {@link Reach#matching} one.
-     */
-    private static Map<String, List<Place>> rows(BehaviorKey<?> op, String list) {
-        String id = op.id().toString();
-        boolean putOnly = SlotOperations.role(op) == SlotOperations.Role.PUT;
-        Set<String> applies = new HashSet<>();
-        for (SlotGroupId g : SlotOperations.groups(op)) applies.add(g.asString());
-
-        List<Place> slotGroups = new ArrayList<>();
-        List<Place> ourGroups = new ArrayList<>();
-        List<Place> otherGroups = new ArrayList<>();
-        for (SlotGroups.Entry e : SlotGroups.listing()) {
-            // A set (Hotbar Pockets' 27 pockets) is one box that writes each member.
-            List<String> keys = new ArrayList<>();
-            for (SlotGroupId g : e.groups()) if (applies.contains(g.asString())) keys.add(g.asString());
-            if (keys.isEmpty()) continue;
-            Place box = new Place(e.source() == null || isOurs(namespaceOf(e)) ? e.name() : groupLabel(e),
-                    () -> keys.stream().noneMatch(k -> Reach.denies(list, k)),
-                    v -> Reach.setDenied(list, keys, !v), () -> false);
-            if (e.source() == null) slotGroups.add(box);
-            else if (isOurs(namespaceOf(e))) ourGroups.add(box);
-            else otherGroups.add(box);
-        }
-        // The cyclers' slots, as reach options. They are offered by every group that applies to the player's
-        // inventory or hotbar, since they are subsets of those, first in the
-        // Inventory Plus row. A cycler's own group keeps its
-        // own option checked and fixed: it must rotate its own slots.
-        boolean carried = applies.contains(new SlotGroupId.Category(SlotGroupCategory.PLAYER_INVENTORY).asString())
-                || applies.contains(new SlotGroupId.Category(SlotGroupCategory.PLAYER_HOTBAR).asString());
-        if (carried) {
-            List<Place> features = new ArrayList<>();
-            for (Reach.Feature f : Reach.features()) {
-                features.add(f.owner().equals(id)
-                        ? Place.fixed(Component.literal(f.label()), true)
-                        : new Place(Component.literal(f.label()), () -> !Reach.featureDenies(f.key(), list),
-                                v -> Reach.setDenied(list, List.of(f.key()), !v), () -> false));
-            }
-            ourGroups.addAll(0, features);
-        }
-        List<Place> lockGroups = new ArrayList<>();
-        for (LockGroup g : Reach.groups()) {
-            if (!offers(g, putOnly)) continue;
-            lockGroups.add(new Place(Component.literal(g.name()), () -> !Reach.lockDenies(g.id(), list),
-                    v -> Reach.setLockDenies(g.id(), list, !v), () -> false));
-        }
-        Map<String, List<Place>> out = new LinkedHashMap<>();
-        out.put("Slot groups", slotGroups);
-        out.put("Lock groups", lockGroups);
-        out.putAll(placesOf(id, list));
-        out.put("Inventory Plus", ourGroups);
-        out.put("Other mods", otherGroups);
-        return out;
-    }
-
-    private static final String PICK_BLOCK = "inventoryplus:pick_block";
-
-    /**
-     * The config keys behind each operation's carried places, so Revert to
-     * default and Reach's Reset to Defaults put them back. Defaults: all off.
-     */
-    private static final Map<String, List<String>> PLACE_KEYS = Map.of(
-            "inventoryplus:restock_take", List.of(
-                    "restockItemsFromShulkers", "restockItemsFromBundles", "restockItemsFromEnderChest",
-                    "restockToolsFromShulkers", "restockToolsFromBundles", "restockToolsFromEnderChest",
-                    "restockArmorFromShulkers", "restockArmorFromBundles", "restockArmorFromEnderChest",
-                    "restockAmmoFromShulkers", "restockAmmoFromBundles", "restockAmmoFromEnderChest"),
-            "inventoryplus:auto_tool_switch", List.of("autoToolSwitchFromShulkers", "autoToolSwitchFromBundles"),
-            PICK_BLOCK, List.of("pickFromShulkers", "pickFromBundles", "pickFromEnderChest"));
-
-    /** A carried place backed by its own setting, grayed while {@code unavailable}. */
-    private static Place place(String name, Bool setting, BooleanSupplier unavailable) {
-        return new Place(Component.literal(name), setting.get(), setting.set(), unavailable);
-    }
-
-    /**
-     * Shulker boxes and bundles carried in the inventory, and the ender chest
-     * when {@code enderChest} is given (Auto Tool Switch has none: which tool is
-     * best is the client's call, and it can't see inside the ender chest).
-     */
-    private static List<Place> carried(Bool shulkers, Bool bundles, @Nullable Bool enderChest,
-                                       BooleanSupplier unavailable) {
-        List<Place> out = new ArrayList<>(3);
-        out.add(place("Shulker Boxes in your inventory", shulkers, unavailable));
-        out.add(place("Bundles in your inventory", bundles, unavailable));
-        if (enderChest != null) out.add(place("Your Ender Chest", enderChest, unavailable));
-        return out;
-    }
-
-    /**
-     * The places Inventory Plus declares for an operation: containers carried
-     * in the inventory that it may reach into, each a real setting (Trev,
-     * 2026-10-20: moved here from the Restock, General and Auto Tool Switch
-     * tabs). Restock's keep their split by kind, each block grayed while its
-     * kind is off; Ammo has no switch of its own. The moves that put into carried
-     * containers keep their places in the reach record, one box per list.
-     * Labels in order.
-     */
-    private static Map<String, List<Place>> placesOf(String operation, String list) {
-        Map<String, List<Place>> out = new LinkedHashMap<>();
-        switch (operation) {
-            case "inventoryplus:restock_take" -> {
-                out.put("Places: items", carried(
-                        Bool.of(IPConfig::restockItemsFromShulkers, IPConfig::setRestockItemsFromShulkers),
-                        Bool.of(IPConfig::restockItemsFromBundles, IPConfig::setRestockItemsFromBundles),
-                        Bool.of(IPConfig::restockItemsFromEnderChest, IPConfig::setRestockItemsFromEnderChest),
-                        () -> !IPConfig.autoRestockItem()));
-                out.put("Places: tools", carried(
-                        Bool.of(IPConfig::restockToolsFromShulkers, IPConfig::setRestockToolsFromShulkers),
-                        Bool.of(IPConfig::restockToolsFromBundles, IPConfig::setRestockToolsFromBundles),
-                        Bool.of(IPConfig::restockToolsFromEnderChest, IPConfig::setRestockToolsFromEnderChest),
-                        () -> !IPConfig.autoRestockTool()));
-                out.put("Places: armor", carried(
-                        Bool.of(IPConfig::restockArmorFromShulkers, IPConfig::setRestockArmorFromShulkers),
-                        Bool.of(IPConfig::restockArmorFromBundles, IPConfig::setRestockArmorFromBundles),
-                        Bool.of(IPConfig::restockArmorFromEnderChest, IPConfig::setRestockArmorFromEnderChest),
-                        () -> !IPConfig.autoRestockArmor()));
-                out.put("Places: ammo", carried(
-                        Bool.of(IPConfig::restockAmmoFromShulkers, IPConfig::setRestockAmmoFromShulkers),
-                        Bool.of(IPConfig::restockAmmoFromBundles, IPConfig::setRestockAmmoFromBundles),
-                        Bool.of(IPConfig::restockAmmoFromEnderChest, IPConfig::setRestockAmmoFromEnderChest),
-                        () -> false));
-            }
-            case "inventoryplus:auto_tool_switch" -> out.put("Places", carried(
-                    Bool.of(IPConfig::autoToolSwitchFromShulkers, IPConfig::setAutoToolSwitchFromShulkers),
-                    Bool.of(IPConfig::autoToolSwitchFromBundles, IPConfig::setAutoToolSwitchFromBundles),
-                    null, () -> false));
-            // Container first (nested/CarriedPut): an incoming item goes into a carried
-            // container. Needs Inventory Plus on the server.
-            case "menukit:world_pickup", "menukit:shift_click_in", "inventoryplus:move_matching_in" ->
-                    out.put("Places", carried(placeBox(list, Reach.SHULKER_BOXES), placeBox(list, Reach.BUNDLES),
-                            placeBox(list, Reach.ENDER_CHEST), () -> !CarriedPutClient.available()));
-            case PICK_BLOCK -> out.put("Places", carried(
-                    Bool.of(IPConfig::pickFromShulkers, IPConfig::setPickFromShulkers),
-                    Bool.of(IPConfig::pickFromBundles, IPConfig::setPickFromBundles),
-                    Bool.of(IPConfig::pickFromEnderChest, IPConfig::setPickFromEnderChest),
-                    () -> false));
-            default -> { }
-        }
-        return out;
-    }
-
-    /** A carried place's box in a reach list, kept in the reach record. */
-    private static Bool placeBox(String list, String place) {
-        return Bool.of(() -> !Reach.denies(list, place), v -> Reach.setDenied(list, List.of(place), !v));
-    }
-
-    /** {@code place}'s Matching box on each move that puts into carried containers. */
-    private static Bool[] matchingBoxes(String place) {
-        return java.util.stream.Stream.of("menukit:world_pickup", "menukit:shift_click_in", "inventoryplus:move_matching_in")
-                .map(op -> placeBox(Reach.matching(op), place)).toArray(Bool[]::new);
-    }
-
-    /**
-     * Reach's first section: one switch per carried container for putting new items in
-     * and one for taking from it, each setting that container's box on every move it
-     * covers. When a move below is set apart, the switch grays out.
-     */
-    private static void containersSection(SettingsBody b) {
-        b.heading("Containers")
-                .line("Use the shulker boxes and bundles you carry, and your ender chest, for every move at once. "
-                        + "New items go into a container that already holds them, and your inventory takes the rest. "
-                        + "Take from covers Restock (items, tools, armor, and ammo such as arrows), Pick block, "
-                        + "and Auto Tool Switch for shulker boxes and bundles.");
-        master(b, "Shulker Boxes: put new items in", true,
-                matchingBoxes(Reach.SHULKER_BOXES));
-        master(b, "Shulker Boxes: take from", false,
-                Bool.of(IPConfig::restockItemsFromShulkers, IPConfig::setRestockItemsFromShulkers),
-                Bool.of(IPConfig::restockToolsFromShulkers, IPConfig::setRestockToolsFromShulkers),
-                Bool.of(IPConfig::restockArmorFromShulkers, IPConfig::setRestockArmorFromShulkers),
-                Bool.of(IPConfig::restockAmmoFromShulkers, IPConfig::setRestockAmmoFromShulkers),
-                Bool.of(IPConfig::autoToolSwitchFromShulkers, IPConfig::setAutoToolSwitchFromShulkers),
-                Bool.of(IPConfig::pickFromShulkers, IPConfig::setPickFromShulkers));
-        master(b, "Bundles: put new items in", true,
-                matchingBoxes(Reach.BUNDLES));
-        master(b, "Bundles: take from", false,
-                Bool.of(IPConfig::restockItemsFromBundles, IPConfig::setRestockItemsFromBundles),
-                Bool.of(IPConfig::restockToolsFromBundles, IPConfig::setRestockToolsFromBundles),
-                Bool.of(IPConfig::restockArmorFromBundles, IPConfig::setRestockArmorFromBundles),
-                Bool.of(IPConfig::restockAmmoFromBundles, IPConfig::setRestockAmmoFromBundles),
-                Bool.of(IPConfig::autoToolSwitchFromBundles, IPConfig::setAutoToolSwitchFromBundles),
-                Bool.of(IPConfig::pickFromBundles, IPConfig::setPickFromBundles));
-        master(b, "Your Ender Chest: put new items in", true,
-                matchingBoxes(Reach.ENDER_CHEST));
-        master(b, "Your Ender Chest: take from", false,
-                Bool.of(IPConfig::restockItemsFromEnderChest, IPConfig::setRestockItemsFromEnderChest),
-                Bool.of(IPConfig::restockToolsFromEnderChest, IPConfig::setRestockToolsFromEnderChest),
-                Bool.of(IPConfig::restockArmorFromEnderChest, IPConfig::setRestockArmorFromEnderChest),
-                Bool.of(IPConfig::restockAmmoFromEnderChest, IPConfig::setRestockAmmoFromEnderChest),
-                Bool.of(IPConfig::pickFromEnderChest, IPConfig::setPickFromEnderChest));
-    }
-
-    /**
-     * One switch over {@code boxes}: on when all are on, setting all at once. When they
-     * differ it is grayed and says so. {@code put} switches gray too where the server
-     * can't put into containers.
-     */
-    private static void master(SettingsBody b, String label, boolean put, Bool... boxes) {
-        BooleanSupplier allOn = () -> java.util.Arrays.stream(boxes).allMatch(x -> x.get().getAsBoolean());
-        BooleanSupplier mixed = () -> !allOn.getAsBoolean()
-                && java.util.Arrays.stream(boxes).anyMatch(x -> x.get().getAsBoolean());
-        b.checkbox(() -> Component.literal(mixed.getAsBoolean() ? label + " (custom settings below)" : label),
-                new Bool(allOn, v -> { for (Bool x : boxes) x.set().accept(v); },
-                        () -> mixed.getAsBoolean() || (put && !CarriedPutClient.available())));
-    }
-
-    /** One labeled block of checkboxes, left out when nothing in it applies. */
-    private static void block(SettingsBody c, String label, List<Place> places) {
-        if (!places.isEmpty()) c.reach(label, places);
-    }
-
-    // Lock groups
-
-    /**
-     * The lock groups themselves: the switch that pauses every lock, the
-     * button and server settings, then one section per group and + New group. What a group stops is set in
-     * each operation's section in Reach; this tab manages the groups.
-     */
-    static List<PanelElement> lockGroups() {
-        SettingsBody b = new SettingsBody()
-                .frame("Lock groups", "Lock slots and items so moves leave them alone. Press a group's key "
-                        + "on a slot to add it to the group or take it out. What each group stops is set in Reach.",
-                        // Pauses every lock without deleting any: nothing blocked, nothing drawn.
-                        Bool.of(IPConfig::lockGroupsEnabled, IPConfig::setLockGroupsEnabled),
-                        () -> SettingsMenu.confirm("Reset Lock groups to defaults?",
-                                "Every custom group goes, and " + lockCount(null) + " kept on this computer are removed.",
-                                SettingsTabs::resetLockGroups));
-        b
-                // What the cyclers' slots are protected from is set per move in
-                // Reach, so there is no switch for it here.
-                .checkbox("Show the lock button", Bool.of(IPConfig::lockedSlotsShowButton, IPConfig::setLockedSlotsShowButton));
-        // The "keep container locks on the server" row is hidden since IP 2.0.0:
-        // the server side it needed is gone. containerLocksOnServer is still read
-        // and written so the player's choice carries over, and the row comes
-        // back with new text once container locks move into Inventory Plus.
-        // The groups go last: MenuKit's ListView keyed by group id (7.3.0), each
-        // row a card holding the group's section. Adding, deleting, renaming or
-        // recoloring a group updates it in place, with no rebuild of the menu.
-        // Its toolbar (the heading, the add buttons, delete and the arrows)
-        // isn't placed on its own, so MenuKit draws it at the list's top, the
-        // heading and the buttons on one line.
-        b.element(y -> ListView.<LockGroup>builder()
-                .at(0, y)
-                .items(Reach::groups)
-                .key(LockGroup::id)
-                .row(g -> Flow.builder().boxed().add(lockGroupSection(b, g.id())).build())
-                .selection(() -> selectedGroup, id -> selectedGroup = id)
-                .title(Component.literal("Groups"))
-                // A new group picks its kind up front and starts with its kind's
-                // default's choices. Item (every item of a type) is only ever
-                // custom. Each says on hover how its kind works.
-                .add(Component.literal("+ Slot group"), Component.literal(LockKind.SLOT.description()),
-                        () -> Reach.createGroup(LockKind.SLOT, "New slot group", Reach.nextColour()).id())
-                .add(Component.literal("+ Item group"), Component.literal(LockKind.ITEM.description()),
-                        () -> Reach.createGroup(LockKind.ITEM, "New item group", Reach.nextColour()).id())
-                .add(Component.literal("+ Exact item group"), Component.literal(LockKind.EXACT.description()),
-                        () -> Reach.createGroup(LockKind.EXACT, "New exact item group", Reach.nextColour()).id())
-                .remove(Component.literal("- Delete group"), SettingsTabs::deleteGroup)
-                // Asked while the dialog shows, so the count is the count then.
-                .confirmRemove(g -> Component.literal("Delete " + g.name() + "? " + deleteEffect(g)))
-                // The order the lock button cycles through.
-                .move(Reach::moveGroup)
-                // The two defaults can't be deleted or moved; they stay first.
-                .pinned(LockGroup::isDefault)
-                .build(), 0);
-        return b.build();
-    }
-
-    /** The group selected in the list, kept across a rebuild of the menu. */
-    private static @Nullable String selectedGroup;
-
-    /**
-     * One lock group's section, read by id every frame: its title and swatch
-     * too (MenuKit 7.3.0), so a rename or recolor shows on the same row.
-     * Closed: its color, its name, and a gray summary (its kind when the name
-     * does not say it, and its key). Open: kind, key, color (MenuKit's
-     * ColorField), name, and for an Item or Exact item group the items it
-     * locks in this world (MenuKit's ItemPicker).
-     */
-    private static PanelElement lockGroupSection(SettingsBody b, String id) {
-        LockGroup g = Reach.group(id);
-        KeyMapping key = g.key() == null ? null : keyNamed(g.key());
-        // A deleted group's row lives a frame past it: read the last one seen.
-        LockGroup[] last = {g};
-        Supplier<LockGroup> now = () -> {
-            LockGroup current = Reach.group(id);
-            if (current != null) last[0] = current;
-            return last[0];
-        };
-        Supplier<Component> summary = () -> {
-            LockGroup current = now.get();
-            String keyText = key == null ? "no key yet" : "key " + key.getTranslatedKeyMessage().getString();
-            return Component.literal(current.name().equals(current.kind().displayName()) ? keyText
-                    : current.kind().displayName() + " · " + keyText);
-        };
-        return b.sectionElement("lockgroup:" + id, () -> Component.literal(now.get().name()), summary,
-                () -> LockColours.argb(now.get().colour(), 0xFF), c -> {
-            c.line(0, Component.literal("Kind: " + g.kind().displayName()
-                    + (g.isDefault() ? " (a default group; it cannot be deleted)" : "")),
-                    Component.literal(g.kind().description()));
-            if (key != null) c.key(key, Component.literal("Key"));
-            // A key for a group made in game needs Keybindery's runtime bindings.
-            else c.line(0, Component.literal("Key: none yet"));
-            // Basic: the 16 dyes; Custom: any color, kept as #rrggbb.
-            c.colour("Color", () -> LockColours.rgb(now.get().colour()),
-                    rgb -> Reach.recolour(id, LockColours.of(rgb)));
-            c.textSetting("Name", g.name(), "Rename", name -> Reach.rename(id, name));
-            // An Item group locks every item of a type, an Exact item group one
-            // item as it is: the picker keeps the kind only, or the whole stack.
-            // Item locks are kept per world, so they're chosen in one.
-            if (g.kind().locksItems()) {
-                boolean item = g.kind() == LockKind.ITEM;
-                if (!LockedItems.inWorld()) c.line(0, Component.literal("Join a world to choose its items."));
-                c.items(item ? "Items, every one of each type" : "Items, exactly as they are",
-                        () -> item ? LockedItems.itemsOf(id) : LockedItems.exactOf(id),
-                        stacks -> { if (item) LockedItems.setItems(id, stacks); else LockedItems.setExact(id, stacks); },
-                        item ? ItemMatch.Match.ITEM : ItemMatch.Match.EXACT,
-                        () -> !LockedItems.inWorld());
-            }
-        }, 0, 0);
-    }
-
-    /**
-     * What deleting a group does to its locks, counted now: they move to the
-     * default of its kind, or, for an Item group, which has no default of its
-     * kind, they are removed.
-     */
-    private static String deleteEffect(LockGroup g) {
-        String count = lockCount(g.id());
-        return g.kind() == LockKind.ITEM
-                ? "This removes its " + count + "."
-                : "This moves its " + count + " to " + Reach.resolve(Reach.defaultOf(g.kind()), g.kind()).name() + ".";
-    }
-
-    /** Deletes group {@code id}, moving or removing its locks first (see {@link #deleteEffect}). */
-    private static void deleteGroup(String id) {
-        LockGroup g = Reach.group(id);
-        if (g == null || g.isDefault()) return;
-        String to = g.kind() == LockKind.ITEM ? null : Reach.defaultOf(g.kind());
-        LockedSlots.reassign(id, to);
-        LockedItems.reassign(id, to);
-        Reach.deleteGroup(id);
-    }
-
-    /** The registered key named {@code name}, or {@code null}. */
-    private static @Nullable KeyMapping keyNamed(String name) {
-        for (KeyMapping k : Minecraft.getInstance().options.keyMappings) if (k.getName().equals(name)) return k;
-        return null;
+    /** The switch that pauses the player's own locks, and the button. */
+    static List<PanelElement> locks() {
+        return new SettingsBody()
+                .frame("Locks", "Lock slots so moves leave them alone. Press the lock key on a slot "
+                        + "to lock it or take its lock off.",
+                        // Pauses the player's own locks without deleting any: nothing blocked, nothing drawn.
+                        Bool.of(IPConfig::locksEnabled, IPConfig::setLocksEnabled),
+                        () -> SettingsMenu.confirm("Reset Locks to defaults?",
+                                lockCount() + " kept on this computer are removed.", SettingsTabs::resetLocks))
+                .checkbox("Show the lock button", Bool.of(IPConfig::lockedSlotsShowButton, IPConfig::setLockedSlotsShowButton))
+                .build();
     }
 
     // Feature tabs
@@ -763,11 +295,9 @@ final class SettingsTabs {
                         IPConfig::autoRestockBeforeBreakThreshold, IPConfig::setAutoRestockBeforeBreakThreshold,
                         () -> !((IPConfig.autoRestockArmor() && IPConfig.autoRestockArmorBeforeBreak())
                                 || (IPConfig.autoRestockTool() && IPConfig.autoRestockToolBeforeBreak())));
-        // Items, Tools, Armor, Ammo.
-        // Where each kind may also pull from (carried shulker boxes, bundles,
-        // the ender chest) is Reach's, per kind, in Restock's take section
-        // (Trev, 2026-10-20). One note here where the boxes were.
-        b.line("Containers to pull from (shulker boxes, bundles, your ender chest) are set on the Reach tab.");
+        // Items, Tools, Armor. Whether every kind may also pull from carried
+        // shulker boxes is one setting (IPConfig.restockFromShulkers), with no
+        // control here until its GUI is settled with Trev.
         b.heading("Items").checkbox("Restock items", item);
         b.heading("Tools")
                 .checkbox("Restock tools", tool)
@@ -777,11 +307,8 @@ final class SettingsTabs {
                 .checkbox("Restock armor", armor)
                 .subCheckbox("Swap before it breaks", Bool.of(IPConfig::autoRestockArmorBeforeBreak,
                         IPConfig::setAutoRestockArmorBeforeBreak).onlyWhen(armor.get()));
-        // Ammo for the bow or crossbow in hand when the inventory has none: a bow
-        // finds arrows anywhere in the inventory already, so the only sources
-        // are carried containers, and those are all set on Reach.
-        b.heading("Ammo")
-                .line("Arrows and rockets come from carried containers only, set on the Reach tab.");
+        // Ammo for the bow or crossbow in hand comes from carried shulker boxes
+        // only, so it follows restockFromShulkers and has no heading of its own.
         return b.build();
     }
 
@@ -860,37 +387,6 @@ final class SettingsTabs {
     }
 
     // Shared
-
-    /** Inventory Plus's namespace: "ours" in Reach's headings and blocks. */
-    private static boolean isOurs(String namespace) {
-        return namespace.equals("inventoryplus");
-    }
-
-    /**
-     * The namespace a listing row is named in, by the rule MenuKit's
-     * {@code SlotGroups.source} uses: a set's namespace, a created group's
-     * panel-id namespace, or a mod's own category's namespace.
-     */
-    private static String namespaceOf(SlotGroups.Entry e) {
-        if (e.set() != null) return e.set().namespace();
-        return switch (e.groups().get(0)) {
-            case SlotGroupId.Category v -> v.category().namespace();
-            case SlotGroupId.Created c -> {
-                int colon = c.panelId().indexOf(':');
-                yield colon > 0 ? c.panelId().substring(0, colon) : "";
-            }
-        };
-    }
-
-    /**
-     * A listing row as the menu shows it: its name, and for a group a mod
-     * added, that mod in parentheses ("Pockets (Hotbar Pockets)"), so a player
-     * can tell vanilla's groups from the rest.
-     */
-    static Component groupLabel(SlotGroups.Entry e) {
-        Component source = e.source();
-        return source == null ? e.name() : e.name().copy().append(" (").append(source).append(")");
-    }
 
     /** A HUD mode's name: NONE reads "Off", the rest in sentence case. */
     private static String hudName(Enum<?> e) {

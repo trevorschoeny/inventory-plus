@@ -1,8 +1,6 @@
 package com.trevorschoeny.inventoryplus.movematching;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
-import com.trevorschoeny.inventoryplus.carried.CarriedPutClient;
-import com.trevorschoeny.inventoryplus.nested.CarriedPut;
 import com.trevorschoeny.inventoryplus.operations.CursorShelf;
 import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
 
@@ -41,8 +39,8 @@ import java.util.Set;
  * already in it, and the sources are every other non-hotbar slot). OUT makes
  * it the source (the match set and destinations are the other slots, and an
  * item goes only into a container that already holds it). The match set
- * always comes from the receiving side. The hotbar joins the player's side
- * where Reach allows it, which by default it does not.
+ * always comes from the receiving side. The hotbar is never part of the
+ * player's side: it holds what the player put in hand on purpose.
  *
  * <h3>Modes, decided per item type</h3>
  *
@@ -70,7 +68,7 @@ import java.util.Set;
  *
  * Vanilla's quick move routes to "the other half" and fills the hotbar
  * first in chest screens. Explicit PICKUPs place into chosen slots, stop
- * when the eligible ones are full, and honor Reach and locks in both
+ * when the eligible ones are full, and honor locks and reservations in both
  * directions.
  */
 public final class MoveMatchingExecutor {
@@ -78,16 +76,6 @@ public final class MoveMatchingExecutor {
     private MoveMatchingExecutor() {}
 
     public static void execute(Minecraft mc, SlotGroup clickedGroup, Direction direction, MoveMatchingMode mode) {
-        execute(mc, clickedGroup, direction, mode, true);
-    }
-
-    /**
-     * @param intoCarried In only: first put the sources into the carried containers that
-     *                    hold their kind ({@code CarriedPut}, container first), then, once
-     *                    the server has answered, run again without this for the rest
-     */
-    private static void execute(Minecraft mc, SlotGroup clickedGroup, Direction direction, MoveMatchingMode mode,
-                                boolean intoCarried) {
         if (!clickedGroup.targetable()) return;
 
         LocalPlayer player = mc.player;
@@ -99,18 +87,14 @@ public final class MoveMatchingExecutor {
 
         Inventory playerInv = player.getInventory();
         List<Slot> otherSlots = collectOtherSlots(menu, clickedGroup, playerInv);
-        // The player's side is the main inventory and the hotbar. Reach leaves
-        // the hotbar out of both keys by default (Move Matching's Hotbar box),
-        // so it takes part only once the player ticks it there.
-        List<Slot> hotbar = hotbarSlots(menu, playerInv);
+        // The player's side is the main inventory. Until 3.4.0 the hotbar could
+        // join it by a box in Reach, unticked by default; Reach is retired, so
+        // it stays out as it always did by default.
         List<Slot> playerSide = new ArrayList<>(clickedGroup.slots());
-        playerSide.addAll(hotbar);
 
         List<Slot> matchSetSlots, sourceCandidates, destinationSlots;
         if (direction == Direction.IN) {
-            // The hotbar's kinds count only where Move Matching may fill it.
             matchSetSlots = new ArrayList<>(clickedGroup.slots());
-            for (Slot h : hotbar) if (SlotOperations.allows(menu, h, player, MOVE_MATCHING_IN)) matchSetSlots.add(h);
             sourceCandidates = otherSlots;
             destinationSlots = playerSide;
         } else {
@@ -120,10 +104,6 @@ public final class MoveMatchingExecutor {
         }
 
         Set<Item> matchSet = buildMatchSet(matchSetSlots);
-        // Container first: what the carried containers Move Matching may fill hold counts
-        // as already in the inventory, so a shulker of cobblestone pulls cobblestone.
-        boolean carried = direction == Direction.IN && CarriedPutClient.moveMatchingInto();
-        if (carried) matchSet.addAll(CarriedPutClient.moveMatchingKinds(player));
         if (matchSet.isEmpty()) {
             InventoryPlusClient.LOGGER.debug("[move-matching {} {}] match-set empty", direction, mode);
             return;
@@ -137,22 +117,6 @@ public final class MoveMatchingExecutor {
         // Group by type, in source order, so a mode can decide a whole type at once.
         Map<Item, List<Slot>> byType = new LinkedHashMap<>();
         for (Slot s : sources) byType.computeIfAbsent(s.getItem().getItem(), k -> new ArrayList<>()).add(s);
-
-        if (carried && intoCarried) {
-            // First pass, on the server: each source gives what the mode would move to the
-            // containers that hold its kind. The second pass reads what's left.
-            List<CarriedPut.Source> first = new ArrayList<>();
-            for (List<Slot> stacks : byType.values()) {
-                leaves(stacks, mode).forEach((slot, leave) ->
-                        first.add(new CarriedPut.Source(slot.index, slot.getItem().getCount() - leave)));
-            }
-            CarriedPutClient.moveIn(menu.containerId, first, () -> {
-                if (mc.player != null && mc.player.containerMenu == menu) {
-                    execute(mc, clickedGroup, direction, mode, false);
-                }
-            });
-            return;
-        }
 
         // The "in" key is about the slot being filled, whichever way the player
         // pointed Move Matching, so destinations are screened for it once here.
@@ -173,8 +137,7 @@ public final class MoveMatchingExecutor {
                 // keeps to its own kinds. In, the destination is the inventory alone.
                 List<Slot> destinations = direction == Direction.IN ? allowedDestinations
                         : holding(entry.getKey(), allowedDestinations, matchSetSlots);
-                // Reach's Matching list lets an item into some groups only where
-                // the group already holds it, which needs the item to judge.
+                // A reserved slot takes only its item, which needs the item to judge.
                 ItemStack sample = entry.getValue().get(0).getItem();
                 destinations = destinations.stream()
                         .filter(d -> SlotOperations.allowsPut(SlotRef.of(menu, d, player), MOVE_MATCHING_IN, sample))
@@ -364,13 +327,6 @@ public final class MoveMatchingExecutor {
             result.add(slot);
         }
         return result;
-    }
-
-    /** The player's hotbar slots on {@code menu}, in order. */
-    private static List<Slot> hotbarSlots(AbstractContainerMenu menu, Inventory playerInv) {
-        List<Slot> out = new ArrayList<>(9);
-        for (Slot slot : menu.slots) if (isHotbarSlot(slot, playerInv)) out.add(slot);
-        return out;
     }
 
     private static boolean isHotbarSlot(Slot slot, Inventory playerInv) {

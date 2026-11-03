@@ -17,13 +17,10 @@ import com.trevorschoeny.inventoryplus.columncycler.hud.ColumnCyclerHudSource;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
-import com.trevorschoeny.inventoryplus.lockeditems.LockedItems;
 import com.trevorschoeny.inventoryplus.tooltips.Tooltips;
-import com.trevorschoeny.inventoryplus.lockgroups.LockTooltips;
-import com.trevorschoeny.inventoryplus.lockgroups.Locks;
-import com.trevorschoeny.inventoryplus.lockgroups.SlotMarks;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
-import com.trevorschoeny.inventoryplus.lockgroups.Reach;
+import com.trevorschoeny.inventoryplus.lockedslots.OwnLocks;
+import com.trevorschoeny.inventoryplus.lockedslots.SlotMarks;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsDragController;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotKeybind;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingKeybind;
@@ -87,7 +84,7 @@ public class InventoryPlusClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(AutoRestockTicker::tick);
         // Container first: the client's choices for putting incoming items into
         // carried containers, sent to the server whenever they change.
-        com.trevorschoeny.inventoryplus.carried.CarriedPutClient.register();
+        com.trevorschoeny.inventoryplus.carried.IntakeClient.register();
 
         // Auto Tool Switch swaps in the right tool or weapon on hit, using the
         // HotbarCyclableRegistry for the cyclable tier. Off by default.
@@ -99,35 +96,24 @@ public class InventoryPlusClient implements ClientModInitializer {
         MoveMatchingModes.load();
         MoveMatchingKeybind.register();
 
-        // A lock is a lock group on a slot (LockedSlots, per world) or on an item (LockedItems,
-        // per world); what each group stops is its choice in the reach record
-        // (Reach, in config.json, loaded with the config above). The lock
-        // button selects a group and L applies it. The button lives in the
-        // toolbar (Toolbar.register below).
-        //
-        // Enforcement is one MenuKit veto (Locks): every operation MenuKit asks
-        // about, vanilla's or a mod's, is refused on a slot whose group the
-        // operation may not use, or whose lock groups stop it. Inventory Plus's
-        // own features ask MenuKit before they act, so they get the same
-        // answer. Manual cursor moves are operations too (click take and put),
-        // allowed by both default groups.
+        // A lock is a slot that takes only deliberate moves (rules.SlotLocks). The
+        // player's own are kept here per world (LockedSlots) and judged by this
+        // client's veto (OwnLocks), which also sends them to a server with
+        // Inventory Plus; a chest's or box's are SHARED slot state the common
+        // veto judges on both sides. L locks the hovered slot; the lock button
+        // in the toolbar (Toolbar.register below) pauses the player's own.
         // Column Cycler's membership loads first: upgrading a 1.5.x lock file
         // drops the locks its old pairing wrote (LockedSlots.load).
         ColumnCycler.load();
         LockedSlots.load(ColumnCycler::pairedSlotsIn);
         LockedSlotKeybind.register();
         ClientTickEvents.END_CLIENT_TICK.register(LockedSlotsDragController::tick);
-        // Item locks: the file is read here; the stacks decode against the
-        // level's registries on first use inside a world.
-        LockedItems.load();
-        Locks.registerVeto();
-        LockTooltips.register();
-        // Padlock, cycle icon and locked-item corner mark draw as one MenuKit
+        OwnLocks.register();
+        // Padlock and cycle icon draw as one MenuKit
         // slot decoration (7.5.0), in place of the old extractSlot mixin.
         SlotMarks.register();
         // Tooltips: every line Inventory Plus adds or changes, and the hide key.
         Tooltips.register();
-        ClientTickEvents.END_CLIENT_TICK.register(LockedSlotKeybind::tick);
 
         // One right-aligned MenuKit panel above the player's 3x9 grid, holding
         // the action buttons. Each button's showWhen decides its own
@@ -141,10 +127,7 @@ public class InventoryPlusClient implements ClientModInitializer {
         // Column Cycler is off by default (columnCyclerEnabled). Slot
         // membership is per world (config/inventoryplus/column-cycler.json).
         // The C key toggles membership, and its inventory button turns the
-        // feature on and off. The cycle slots are a feature reach group: no
-        // move leaves them alone by default, and the player can untick any.
-        Reach.registerFeature(Reach.COLUMN_CYCLER, "Column Cycler", "inventoryplus:column_cycle",
-                ColumnCycler::inReachGroup);
+        // feature on and off.
         ColumnCyclerKeybind.register();
         ColumnCyclerRotationKeybind.register();
         ClientTickEvents.END_CLIENT_TICK.register(ColumnCyclerDragController::tick);
@@ -154,14 +137,7 @@ public class InventoryPlusClient implements ClientModInitializer {
         // Membership is per row (buttons, not a per-slot overlay), and the
         // rotation reuses ColumnCyclerRotator's engine across all nine
         // columns, which is what keeps items in their own column.
-        //
-        // The cycled rows are a feature reach group, asked per slot at veto
-        // time, so a move the player unticks for them belongs to the position,
-        // stays put while items rotate through it, and follows a row's toggle
-        // at once. No move is unticked by default.
         HotbarCycler.load();
-        Reach.registerFeature(Reach.HOTBAR_CYCLER, "Hotbar Cycler", "inventoryplus:hotbar_cycle",
-                HotbarCycler::inReachGroup);
         HotbarCyclerRowButtons.register();
         HotbarCyclerKeybind.register();
         ClientTickEvents.END_CLIENT_TICK.register(HotbarCyclerKeybind::tick);

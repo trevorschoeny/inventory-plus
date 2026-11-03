@@ -73,8 +73,7 @@ public final class SettingsMenu extends MKScreen {
 
     /** The tab the menu opens on the first time. */
     public static final String GENERAL = "general";
-    public static final String REACH = "reach";
-    public static final String LOCK_GROUPS = "lock_groups";
+    public static final String LOCKS = "locks";
     public static final String SORT = "sort";
     public static final String MOVE_MATCHING = "move_matching";
     public static final String RESTOCK = "restock";
@@ -147,11 +146,9 @@ public final class SettingsMenu extends MKScreen {
     }
 
     /**
-     * Builds the menu again on the same tab, over the same parent. The tab
-     * bodies are built once per menu; the lock groups list updates itself, so
-     * what rebuilds is a reset, and a tab switch after the groups changed (so
-     * Reach lists them as they are). Deferred to the next tick, so a button
-     * never swaps the screen out from under its own click.
+     * Builds the menu again on the same tab, over the same parent: after a
+     * reset. Deferred to the next tick, so a button never swaps the screen out
+     * from under its own click.
      */
     static void rebuild() {
         Minecraft mc = Minecraft.getInstance();
@@ -175,18 +172,8 @@ public final class SettingsMenu extends MKScreen {
         return IPConfig.settingsOptionsLook() ? ScreenKind.DEFAULT : ScreenKind.PANEL;
     }
 
-    /** The lock groups the open menu's tab bodies were built with. */
-    private static List<com.trevorschoeny.inventoryplus.lockgroups.LockGroup> builtWithGroups = List.of();
-
-    /**
-     * Switches tab. The Lock groups tab adds and deletes groups in place, but
-     * Reach lists the groups too and its body is built once per menu, so
-     * leaving for another tab after the groups changed rebuilds the menu on
-     * that tab.
-     */
     private static void selectTab(String id) {
         selectedTab = id;
-        if (!com.trevorschoeny.inventoryplus.lockgroups.Reach.groups().equals(builtWithGroups)) rebuild();
     }
 
     /** The menu's panels for {@code kind}: the confirm panel is the same on both. */
@@ -313,7 +300,6 @@ public final class SettingsMenu extends MKScreen {
      * {@code Tabs.addTo}, so this layout is the whole of it.
      */
     private static Panel main(ScreenKind kind) {
-        builtWithGroups = com.trevorschoeny.inventoryplus.lockgroups.Reach.groups();
         boolean options = kind == ScreenKind.DEFAULT;
         Tabs.Builder builder = Tabs.builder().menu(MENU);
         // Both looks put the tabs in a sidebar. On the Default look MenuKit
@@ -326,8 +312,7 @@ public final class SettingsMenu extends MKScreen {
                 .tab(tab(GENERAL, "General").body(SettingsTabs::general))
                 // Tooltips right under General.
                 .tab(tab(TOOLTIPS, "Tooltips").body(SettingsTabs::tooltips))
-                .tab(tab(REACH, "Reach").body(SettingsTabs::reach))
-                .tab(tab(LOCK_GROUPS, "Lock groups").body(SettingsTabs::lockGroups))
+                .tab(tab(LOCKS, "Locks").body(SettingsTabs::locks))
                 .tab(tab(SORT, "Sort").body(SettingsTabs::sort))
                 .tab(tab(MOVE_MATCHING, "Move Matching").body(SettingsTabs::moveMatching))
                 .tab(tab(RESTOCK, "Restock").body(SettingsTabs::restock))
