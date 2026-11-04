@@ -83,7 +83,7 @@ public final class PowerUsersToolbar {
 
     /**
      * Top to bottom: Settings, then one on/off switch per
-     * feature in the settings menu's tab order (Lock groups, Restock, Auto
+     * feature in the settings menu's tab order (Restock, Auto
      * Tool Switch, Column Cycler, Hotbar Cycler), then companions' (the suite's
      * slot mods). In one vertical Flow a
      * hidden button is skipped, and at the bottom of the inventory's frame
@@ -92,7 +92,6 @@ public final class PowerUsersToolbar {
     private static List<PanelElement> buildChildren() {
         Flow.Builder column = Flow.builder().vertical().gap(BUTTON_GAP, BUTTON_GAP)
                 .add(settingsButton(0, 0))
-                .add(FeatureToggleButtons.locks(0, 0))
                 .add(FeatureToggleButtons.restock(0, 0))
                 .add(FeatureToggleButtons.autoToolSwitch(0, 0))
                 .add(FeatureToggleButtons.columnCycler(0, 0))

@@ -31,7 +31,6 @@ public class PadlockDecorationChecks implements FabricClientGameTest {
     public void runTest(ClientGameTestContext ctx) {
         try (TestSingleplayerContext world = ctx.worldBuilder().create()) {
             ctx.waitTicks(20);
-            ctx.runOnClient(mc -> IPConfig.setLocksEnabled(true));
 
             Slot slot = ctx.computeOnClient(mc -> menuSlot(mc.player, HOTBAR_SLOT));
             // Forced rather than assumed: nothing here depends on another

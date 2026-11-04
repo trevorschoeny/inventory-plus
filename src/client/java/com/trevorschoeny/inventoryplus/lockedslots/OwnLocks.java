@@ -4,7 +4,6 @@ import com.trevlar.menukit.api.panel.ModeScope;
 import com.trevlar.slotkit.api.window.SlotOperations;
 import com.trevlar.slotkit.api.window.SlotRef;
 
-import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.rules.SlotLocks;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -37,7 +36,7 @@ public final class OwnLocks {
     /** Once, at client init. */
     public static void register() {
         SlotOperations.veto(ModeScope.BOTH, (ref, group, operation) ->
-                IPConfig.locksEnabled() && SlotLocks.refuses(operation) && isLocalPlayer(ref.player()) && locked(ref));
+                SlotLocks.refuses(operation) && isLocalPlayer(ref.player()) && locked(ref));
         // Twice a second, and again on joining: only what changed is sent.
         ClientTickEvents.END_CLIENT_TICK.register(mc -> {
             if (mc.player != null && mc.player.tickCount % 10 == 0) sync();
@@ -54,9 +53,8 @@ public final class OwnLocks {
         sent = now;
     }
 
-    /** The player's own locks as masks, none while paused. */
+    /** The player's own locks as masks. */
     public static SlotLocks.Masks masks() {
-        if (!IPConfig.locksEnabled()) return new SlotLocks.Masks(0, 0);
         long inventory = 0;
         for (int i = 0; i <= LockedSlots.MAX_PLAYER_CONTAINER_SLOT; i++) if (LockedSlots.isPlayerLocked(i)) inventory |= 1L << i;
         int ender = 0;

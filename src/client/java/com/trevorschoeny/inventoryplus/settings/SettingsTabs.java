@@ -1,13 +1,17 @@
 package com.trevorschoeny.inventoryplus.settings;
 
 import com.trevorschoeny.inventoryplus.autotoolswitch.WeaponPreference;
+import com.trevorschoeny.inventoryplus.blueprints.Blueprints;
 import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.settings.SettingsBody.Bool;
 
+import com.trevlar.menukit.api.element.Button;
+import com.trevlar.menukit.api.element.Flow;
 import com.trevlar.menukit.api.element.PanelElement;
+import com.trevlar.menukit.api.element.TextField;
 import com.trevlar.menukit.api.element.Toggle;
 
 import com.trevorschoeny.keybindery.api.KeybinderyAPI;
@@ -112,10 +116,9 @@ final class SettingsTabs {
         resetKeys(IPKeybinds.HOTBAR_CYCLE_FORWARD, IPKeybinds.HOTBAR_CYCLE_BACKWARD);
     }
 
-    /** Locks' reset: the switch, the button and the key, and every lock kept on this computer, in every world. */
+    /** Slots' reset: the lock key, and every lock kept on this computer, in every world. Blueprints stay. */
     private static void resetLocks() {
         LockedSlots.clearAll();
-        IPConfig.reset("lockGroupsEnabled", "lockedSlotsShowButton");
         resetKeys(IPKeybinds.LOCK_SLOT);
     }
 
@@ -150,8 +153,6 @@ final class SettingsTabs {
                     SettingsMenu.reopen();
                 })
                 .build()), 20);
-        // Pick block's carried containers (IPConfig.pickFrom*) have no control
-        // while their Reach rows are gone; their GUI is to be settled with Trev.
         b.heading("Presets")
                 .actions("Save or load a file", "Save to file", "Load from file")
                 .actions("Share by pasting", "Copy to clipboard", "Paste from clipboard");
@@ -177,38 +178,10 @@ final class SettingsTabs {
         SettingsMenu.runExternalResets();
     }
 
-    // Locks
-
-    /** The switch that pauses the player's own locks, and the button. */
-    static List<PanelElement> locks() {
-        return new SettingsBody()
-                .frame("Locks", "Lock slots so moves leave them alone. Press the lock key on a slot "
-                        + "to lock it or take its lock off.",
-                        // Pauses the player's own locks without deleting any: nothing blocked, nothing drawn.
-                        Bool.of(IPConfig::locksEnabled, IPConfig::setLocksEnabled),
-                        () -> SettingsMenu.confirm("Reset Locks to defaults?",
-                                lockCount() + " kept on this computer are removed.", SettingsTabs::resetLocks))
-                .checkbox("Show the lock button", Bool.of(IPConfig::lockedSlotsShowButton, IPConfig::setLockedSlotsShowButton))
-                .build();
-    }
-
     // Feature tabs
     //
     // The frame, the on/off switch, then one setting per line: the button
     // toggle, each key, each option.
-
-    static List<PanelElement> sort() {
-        return new SettingsBody()
-                .frame("Sort", "Sorts your inventory or the open container with one click. "
-                        + "Right-click the Sort button to change how it sorts.",
-                        Bool.of(IPConfig::sortEnabled, IPConfig::setSortEnabled),
-                        confirmReset("Sort", SettingsTabs::resetSort))
-                .checkbox("Show the Sort button", Bool.of(IPConfig::sortShowButton, IPConfig::setSortShowButton))
-                .key(IPKeybinds.SORT, Component.translatable(IPKeybinds.SORT.getName()),
-                        Component.literal("Sorts the container under your mouse. With only your inventory "
-                                + "open, it sorts your inventory wherever your mouse is."))
-                .build();
-    }
 
     /**
      * Tooltips (formerly Item Tips): everything Inventory Plus
@@ -262,12 +235,68 @@ final class SettingsTabs {
                 .build();
     }
 
-    static List<PanelElement> moveMatching() {
+    // Slots
+
+    /** Locks and the blueprint library. Locking and reserving happen in edit mode, on the container. */
+    static List<PanelElement> slots() {
+        SettingsBody b = new SettingsBody()
+                .frame("Slots", "Lock and reserve slots in edit mode: the edit button left of Sort on any "
+                        + "container. A lock keeps sorting and pickups out; a reservation takes one item only.",
+                        () -> SettingsMenu.confirm("Reset Slots to defaults?",
+                                lockCount() + " kept on this computer are removed. Blueprints stay.",
+                                SettingsTabs::resetLocks));
+        b.heading("Locks")
+                .key(IPKeybinds.LOCK_SLOT, Component.translatable(IPKeybinds.LOCK_SLOT.getName()),
+                        Component.literal("Locks the slot under your mouse, or unlocks it, without edit mode. "
+                                + "Hold it and sweep to do several."));
+        b.heading("Blueprints");
+        List<String> names = Blueprints.names();
+        if (names.isEmpty()) b.line("None yet. Save one with Save in edit mode.");
+        for (String name : names) b.row(y -> List.of(blueprintRow(name, y)), 20);
+        return b.build();
+    }
+
+    /** One blueprint: its name to edit, Rename and Delete. */
+    private static PanelElement blueprintRow(String name, int y) {
+        String[] draft = {name};
+        return Flow.builder().at(0, y).gap(4, 4)
+                .add(TextField.builder().size(120, 16).maxLength(48).state(() -> draft[0], v -> draft[0] = v).build())
+                .add(Button.builder().label(Component.literal("Rename")).size(0, 16)
+                        .onClick(() -> {
+                            if (Blueprints.rename(name, draft[0])) SettingsMenu.rebuild();
+                        }).build())
+                .add(Button.builder().label(Component.literal("Delete")).size(0, 16)
+                        .onClick(() -> SettingsMenu.confirm("Delete " + name + "?",
+                                "The blueprint is removed. Containers it was loaded onto keep their locks and reservations.",
+                                () -> {
+                                    Blueprints.delete(name);
+                                    SettingsMenu.rebuild();
+                                }))
+                        .build())
+                .build();
+    }
+
+    // Tabs of several features
+    //
+    // The frame with Reset to Defaults for the whole tab, then each feature's
+    // section: its heading and On/Off, then its settings, grayed while it is off.
+
+    static List<PanelElement> sortAndMove() {
         return new SettingsBody()
-                .frame("Move Matching", "Moves items between your inventory and the open container, "
-                        + "but only items the other side already has. One button moves them in, the other out.",
-                        Bool.of(IPConfig::moveMatchingEnabled, IPConfig::setMoveMatchingEnabled),
-                        confirmReset("Move Matching", SettingsTabs::resetMoveMatching))
+                .frame("Sort & Move", "Sort a container or your inventory with one click, and move items "
+                        + "between them with Move Matching.",
+                        confirmReset("Sort & Move", () -> {
+                            resetSort();
+                            resetMoveMatching();
+                        }))
+                .feature("Sort", Bool.of(IPConfig::sortEnabled, IPConfig::setSortEnabled))
+                .line("Right-click the Sort button to change how it sorts.")
+                .checkbox("Show the Sort button", Bool.of(IPConfig::sortShowButton, IPConfig::setSortShowButton))
+                .key(IPKeybinds.SORT, Component.translatable(IPKeybinds.SORT.getName()),
+                        Component.literal("Sorts the container under your mouse. With only your inventory "
+                                + "open, it sorts your inventory wherever your mouse is."))
+                .feature("Move Matching", Bool.of(IPConfig::moveMatchingEnabled, IPConfig::setMoveMatchingEnabled))
+                .line("Moves only the items the other side already has. One button moves them in, the other out.")
                 // Where Move Matching puts items first waits on MenuKit, so it is grayed.
                 .actions("Fill order", "Priority…")
                 .checkbox("Show the Move Matching buttons",
@@ -277,51 +306,44 @@ final class SettingsTabs {
                 .build();
     }
 
-    static List<PanelElement> restock() {
-        // Each kind is its own switch too, and its sub-options gray while it
-        // is off, as in the old settings screen.
+    static List<PanelElement> restockAndTools() {
+        // Each restock kind is its own switch too, and its sub-options gray while
+        // it is off, as in the old settings screen.
         Bool armor = Bool.of(IPConfig::autoRestockArmor, IPConfig::setAutoRestockArmor);
         Bool tool = Bool.of(IPConfig::autoRestockTool, IPConfig::setAutoRestockTool);
         Bool item = Bool.of(IPConfig::autoRestockItem, IPConfig::setAutoRestockItem);
         SettingsBody b = new SettingsBody()
-                .frame("Restock", "Refills your hand, hotbar and armor from your inventory when "
-                        + "something runs out or breaks. It can also swap armor and tools just before they break.",
-                        Bool.of(IPConfig::restockEnabled, IPConfig::setRestockEnabled),
-                        confirmReset("Restock", SettingsTabs::resetRestock))
+                .frame("Restock & Tools", "Keeps the right things in your hands: refills what runs out or breaks, "
+                        + "and switches to the right tool or weapon.",
+                        confirmReset("Restock & Tools", () -> {
+                            resetRestock();
+                            resetAutoToolSwitch();
+                        }));
+        // Shared by Restock, Auto Tool Switch and pick block (IPConfig.restockFromShulkers),
+        // so above all three, and on whatever each is set to.
+        b.checkbox("Also restock from shulker boxes",
+                        Bool.of(IPConfig::restockFromShulkers, IPConfig::setRestockFromShulkers))
+                .line("Restock, Auto Tool Switch and pick block take from shulker boxes in your inventory "
+                        + "when the inventory has none.");
+        b.feature("Restock", Bool.of(IPConfig::restockEnabled, IPConfig::setRestockEnabled))
                 .checkbox("Show the Restock button", Bool.of(IPConfig::restockShowButton, IPConfig::setRestockShowButton))
                 // Shared by armor's and tools' "Swap before it breaks".
                 .slider("Swap before breaking at durability", 2, 50,
                         IPConfig::autoRestockBeforeBreakThreshold, IPConfig::setAutoRestockBeforeBreakThreshold,
                         () -> !((IPConfig.autoRestockArmor() && IPConfig.autoRestockArmorBeforeBreak())
-                                || (IPConfig.autoRestockTool() && IPConfig.autoRestockToolBeforeBreak())));
-        // Items, Tools, Armor. Whether every kind may also pull from carried
-        // shulker boxes is one setting (IPConfig.restockFromShulkers), with no
-        // control here until its GUI is settled with Trev.
-        b.heading("Items").checkbox("Restock items", item);
-        b.heading("Tools")
+                                || (IPConfig.autoRestockTool() && IPConfig.autoRestockToolBeforeBreak())))
+                .checkbox("Restock items", item)
                 .checkbox("Restock tools", tool)
                 .subCheckbox("Swap before it breaks", Bool.of(IPConfig::autoRestockToolBeforeBreak,
-                        IPConfig::setAutoRestockToolBeforeBreak).onlyWhen(tool.get()));
-        b.heading("Armor")
+                        IPConfig::setAutoRestockToolBeforeBreak).onlyWhen(tool.get()))
                 .checkbox("Restock armor", armor)
                 .subCheckbox("Swap before it breaks", Bool.of(IPConfig::autoRestockArmorBeforeBreak,
                         IPConfig::setAutoRestockArmorBeforeBreak).onlyWhen(armor.get()));
-        // Ammo for the bow or crossbow in hand comes from carried shulker boxes
-        // only, so it follows restockFromShulkers and has no heading of its own.
-        return b.build();
-    }
-
-    static List<PanelElement> autoToolSwitch() {
-        return new SettingsBody()
-                .frame("Auto Tool Switch", "Switches to the right tool for the block you're mining, "
-                        + "and to a weapon when you attack. It can switch back to what you were holding afterwards.",
-                        Bool.of(IPConfig::autoToolSwitchEnabled, IPConfig::setAutoToolSwitchEnabled),
-                        confirmReset("Auto Tool Switch", SettingsTabs::resetAutoToolSwitch))
+        b.feature("Auto Tool Switch", Bool.of(IPConfig::autoToolSwitchEnabled, IPConfig::setAutoToolSwitchEnabled))
                 .checkbox("Show the Auto Tool Switch button",
                         Bool.of(IPConfig::autoToolSwitchShowButton, IPConfig::setAutoToolSwitchShowButton))
                 // By default it switches back on its own a second after you
                 // stop. The key is opt-in and returns early.
-                .heading("Switching back")
                 .checkbox("Switch back automatically", Bool.of(IPConfig::autoToolSwitchReturnAuto,
                         IPConfig::setAutoToolSwitchReturnAuto))
                 .slider("Seconds after you stop", 0, 10,
@@ -331,7 +353,6 @@ final class SettingsTabs {
                         IPConfig::setAutoToolSwitchReturnKey))
                 .key(IPKeybinds.AUTO_SWITCH_RETURN, Component.literal("Key"), null,
                         () -> !IPConfig.autoToolSwitchReturnKey())
-                .heading("Weapons")
                 .checkbox("Switch weapons too", Bool.of(IPConfig::autoToolSwitchWeapons,
                         IPConfig::setAutoToolSwitchWeapons))
                 .subCheckbox("All mobs, not just hostile ones", Bool.of(IPConfig::autoToolSwitchAllMobs,
@@ -339,45 +360,38 @@ final class SettingsTabs {
                 .choice("Preferred weapon", Arrays.asList(WeaponPreference.values()),
                         SettingsTabs::titleCase,
                         IPConfig::autoToolSwitchWeaponPreference, IPConfig::setAutoToolSwitchWeaponPreference,
-                        () -> !IPConfig.autoToolSwitchWeapons())
-                // The carried containers it may take a tool from
-                // (IPConfig.autoToolSwitchFrom*) have no control while their Reach
-                // rows are gone; their GUI is to be settled with Trev.
-                .build();
+                        () -> !IPConfig.autoToolSwitchWeapons());
+        return b.build();
     }
 
-    static List<PanelElement> columnCycler() {
+    /** Column Cycler and Hotbar Cycler; saved hotbars would join them here. */
+    static List<PanelElement> hotbarsAndCyclers() {
         return new SettingsBody()
-                .frame("Column Cycler", "Rotates the items in an inventory column through a hotbar slot. "
-                        + "Press the cycle key on a slot to add its column, then cycle it with the forward and backward keys.",
-                        Bool.of(IPConfig::columnCyclerEnabled, IPConfig::setColumnCyclerEnabled),
-                        confirmReset("Column Cycler", SettingsTabs::resetColumnCycler))
+                .frame("Hotbars & Cyclers", "Rotate items through your hotbar: one column at a time, "
+                        + "or whole inventory rows.",
+                        confirmReset("Hotbars & Cyclers", () -> {
+                            resetColumnCycler();
+                            resetHotbarCycler();
+                        }))
+                .feature("Column Cycler", Bool.of(IPConfig::columnCyclerEnabled, IPConfig::setColumnCyclerEnabled))
+                .line("Press the cycle key on a slot to add its column, then cycle it with the forward and backward keys.")
                 .choice("Beside the hotbar", Arrays.asList(HudMode.values()), SettingsTabs::hudName,
                         IPConfig::columnCyclerHudMode, IPConfig::setColumnCyclerHudMode, () -> false)
                 .checkbox("Show the Column Cycler button",
                         Bool.of(IPConfig::columnCyclerShowButton, IPConfig::setColumnCyclerShowButton))
                 .key(IPKeybinds.CYCLE_SLOT)
-                .heading("Cycling")
                 .key(IPKeybinds.CYCLE_FORWARD)
                 .key(IPKeybinds.CYCLE_BACKWARD)
                 // Turning this on turns Hotbar Cycler's off, since there is one
                 // wheel. The setter enforces it and both checkboxes read live.
                 .checkbox("Scroll to cycle", Bool.of(IPConfig::columnCyclerScrollToCycle,
                         IPConfig::setColumnCyclerScrollToCycle))
-                .build();
-    }
-
-    static List<PanelElement> hotbarCycler() {
-        return new SettingsBody()
-                .frame("Hotbar Cycler", "Rotates whole inventory rows through your hotbar. "
-                        + "Add rows with the buttons beside them, then cycle with the forward and backward keys.",
-                        Bool.of(IPConfig::hotbarCyclerEnabled, IPConfig::setHotbarCyclerEnabled),
-                        confirmReset("Hotbar Cycler", SettingsTabs::resetHotbarCycler))
+                .feature("Hotbar Cycler", Bool.of(IPConfig::hotbarCyclerEnabled, IPConfig::setHotbarCyclerEnabled))
+                .line("Add rows with the buttons beside them, then cycle with the forward and backward keys.")
                 .checkbox("Show the Hotbar Cycler button",
                         Bool.of(IPConfig::hotbarCyclerShowButton, IPConfig::setHotbarCyclerShowButton))
                 .checkbox("Show the row buttons",
                         Bool.of(IPConfig::hotbarCyclerShowButtons, IPConfig::setHotbarCyclerShowButtons))
-                .heading("Cycling")
                 .key(IPKeybinds.HOTBAR_CYCLE_FORWARD)
                 .key(IPKeybinds.HOTBAR_CYCLE_BACKWARD)
                 .checkbox("Scroll to cycle", Bool.of(IPConfig::hotbarCyclerScrollToCycle,

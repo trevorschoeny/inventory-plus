@@ -119,6 +119,10 @@ public class InventoryPlusClient implements ClientModInitializer {
         // the action buttons. Each button's showWhen decides its own
         // visibility within the panel.
         Toolbar.register();
+        // Edit mode: its buttons are on the toolbars above; its dialogs, its look and a box's Intake here.
+        com.trevorschoeny.inventoryplus.editmode.EditMode.register();
+        com.trevorschoeny.inventoryplus.editmode.BlueprintDialogs.register();
+        com.trevorschoeny.inventoryplus.editmode.EditToolbar.registerIntake();
 
         // Settings menu: the dot button lives in the toolbar above; the Open
         // settings key (unbound by default) is registered here.

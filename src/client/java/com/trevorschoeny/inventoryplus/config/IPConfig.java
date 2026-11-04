@@ -37,8 +37,7 @@ import java.nio.file.Path;
  *   "autoRestockTool":     true,
  *   "autoRestockItem":     true,
  *   "sortShowButton":      true,
- *   "moveMatchingShowButtons": true,
- *   "lockedSlotsShowButton":   true
+ *   "moveMatchingShowButtons": true
  * }
  * }</pre>
  *
@@ -78,14 +77,9 @@ public final class IPConfig {
     private static boolean autoRestockShulkerAmmo = false;      // sub of Shulker
     // "Also restock from shulker boxes" (Restock): every restock type may take
     // from a shulker box carried in the inventory, never a bundle or the ender
-    // chest. Off by default.
+    // chest. Off by default. Auto Tool Switch and pick block follow it too: one
+    // setting for everything that takes from a carried box.
     private static boolean restockFromShulkers = false;
-    // Pick block from carried containers (Emerald): when the inventory has none of
-    // the picked block, take it from a shulker box, a bundle or the ender chest
-    // (General tab). Off until Trev picks the defaults.
-    private static boolean pickFromShulkers = false;
-    private static boolean pickFromBundles = false;
-    private static boolean pickFromEnderChest = false;
     // Durability floor for the two Before-Break swaps (armor and tool share
     // it): a swap fires when remaining durability sits at or below this.
     private static int autoRestockBeforeBreakThreshold = 10;
@@ -112,15 +106,10 @@ public final class IPConfig {
     // Preferred weapon type: wins regardless of material when the player has
     // multiple weapon kinds available. Persisted as the enum name.
     private static WeaponPreference autoToolSwitchWeaponPreference = WeaponPreference.SWORD;
-    // When the inventory has no tool or weapon that fits, take one from a carried
-    // shulker box or bundle (Emerald). Off until Trev picks the defaults.
-    private static boolean autoToolSwitchFromShulkers = false;
-    private static boolean autoToolSwitchFromBundles = false;
 
     // Show Buttons
     private static boolean sortShowButton = true;
     private static boolean moveMatchingShowButtons = true;
-    private static boolean lockedSlotsShowButton = true;
 
     // Column Cycler (Power Users). Off by default, like every Power Users
     // feature. When off, the toolbar button hides and the C keybind is a
@@ -150,15 +139,13 @@ public final class IPConfig {
     private static HudMode columnCyclerHudMode = HudMode.MINI_HOTBAR;
 
     // Master switches and buttons. Every feature tab has an on/off and a
-    // button toggle. locksEnabled pauses the player's own locks without deleting
-    // any: nothing blocked, nothing drawn. A chest's or box's locks are shared
-    // and hold whatever this says. Saved as "lockGroupsEnabled", its old name.
+    // button toggle. Locks have neither: a lock always holds, and edit mode's
+    // button is on every container toolbar.
     private static boolean sortEnabled = true;
     private static boolean moveMatchingEnabled = true;
     private static boolean restockEnabled = true;
     private static boolean restockShowButton = true;
     private static boolean autoToolSwitchShowButton = true;
-    private static boolean locksEnabled = true;
     // Tooltips: everything Inventory Plus does to tooltips. tooltipsEnabled off
     // means Inventory Plus leaves every tooltip alone. One boolean per line
     // Inventory Plus adds or changes (tooltips/, one provider each). Durability
@@ -264,9 +251,6 @@ public final class IPConfig {
         autoRestockShulker           = readBool(root, "autoRestockShulker",           autoRestockShulker);
         autoRestockShulkerAmmo       = readBool(root, "autoRestockShulkerAmmo",       autoRestockShulkerAmmo);
         restockFromShulkers = restockFromShulkersOf(root, restockFromShulkers);
-        pickFromShulkers             = readBool(root, "pickFromShulkers",             pickFromShulkers);
-        pickFromBundles              = readBool(root, "pickFromBundles",              pickFromBundles);
-        pickFromEnderChest           = readBool(root, "pickFromEnderChest",           pickFromEnderChest);
         autoRestockBeforeBreakThreshold = readInt(root, "autoRestockBeforeBreakThreshold",
                 autoRestockBeforeBreakThreshold);
         autoToolSwitchEnabled  = readBool(root, "autoToolSwitchEnabled",  autoToolSwitchEnabled);
@@ -288,11 +272,8 @@ public final class IPConfig {
         autoToolSwitchWeapons  = readBool(root, "autoToolSwitchWeapons",  autoToolSwitchWeapons);
         autoToolSwitchAllMobs  = readBool(root, "autoToolSwitchAllMobs",  autoToolSwitchAllMobs);
         autoToolSwitchWeaponPreference = WeaponPreference.fromName(readString(root, "autoToolSwitchWeaponPreference", null), autoToolSwitchWeaponPreference);
-        autoToolSwitchFromShulkers = readBool(root, "autoToolSwitchFromShulkers", autoToolSwitchFromShulkers);
-        autoToolSwitchFromBundles = readBool(root, "autoToolSwitchFromBundles", autoToolSwitchFromBundles);
         sortShowButton         = readBool(root, "sortShowButton",         sortShowButton);
         moveMatchingShowButtons= readBool(root, "moveMatchingShowButtons",moveMatchingShowButtons);
-        lockedSlotsShowButton  = readBool(root, "lockedSlotsShowButton",  lockedSlotsShowButton);
         columnCyclerEnabled       = readBool(root, "columnCyclerEnabled",       columnCyclerEnabled);
         columnCyclerShowButton    = readBool(root, "columnCyclerShowButton",    columnCyclerShowButton);
         columnCyclerScrollToCycle = readBool(root, "columnCyclerScrollToCycle", columnCyclerScrollToCycle);
@@ -306,7 +287,6 @@ public final class IPConfig {
         restockEnabled            = readBool(root, "restockEnabled",            restockEnabled);
         restockShowButton         = readBool(root, "restockShowButton",         restockShowButton);
         autoToolSwitchShowButton  = readBool(root, "autoToolSwitchShowButton",  autoToolSwitchShowButton);
-        locksEnabled              = readBool(root, "lockGroupsEnabled",         locksEnabled);
         tooltipsEnabled           = readBool(root, "tooltipsEnabled",           tooltipsEnabled);
         tooltipDurability = readBool(root, "tooltipDurability", readBool(root, "itemTipsEnabled", tooltipDurability));
         tooltipFood = readBool(root, "tooltipFood", readBool(root, "itemTipsEnabled", tooltipFood));
@@ -381,9 +361,6 @@ public final class IPConfig {
         root.addProperty("autoRestockShulker",          autoRestockShulker);
         root.addProperty("autoRestockShulkerAmmo",      autoRestockShulkerAmmo);
         root.addProperty("restockFromShulkers",         restockFromShulkers);
-        root.addProperty("pickFromShulkers",            pickFromShulkers);
-        root.addProperty("pickFromBundles",             pickFromBundles);
-        root.addProperty("pickFromEnderChest",          pickFromEnderChest);
         root.addProperty("autoRestockBeforeBreakThreshold", autoRestockBeforeBreakThreshold);
         root.addProperty("autoToolSwitchEnabled",   autoToolSwitchEnabled);
         root.addProperty("autoToolSwitchReturnAuto", autoToolSwitchReturnAuto);
@@ -392,11 +369,8 @@ public final class IPConfig {
         root.addProperty("autoToolSwitchWeapons",   autoToolSwitchWeapons);
         root.addProperty("autoToolSwitchAllMobs",   autoToolSwitchAllMobs);
         root.addProperty("autoToolSwitchWeaponPreference", autoToolSwitchWeaponPreference.name());
-        root.addProperty("autoToolSwitchFromShulkers", autoToolSwitchFromShulkers);
-        root.addProperty("autoToolSwitchFromBundles", autoToolSwitchFromBundles);
         root.addProperty("sortShowButton",          sortShowButton);
         root.addProperty("moveMatchingShowButtons", moveMatchingShowButtons);
-        root.addProperty("lockedSlotsShowButton",   lockedSlotsShowButton);
         root.addProperty("columnCyclerEnabled",       columnCyclerEnabled);
         root.addProperty("columnCyclerShowButton",    columnCyclerShowButton);
         root.addProperty("columnCyclerScrollToCycle", columnCyclerScrollToCycle);
@@ -410,7 +384,6 @@ public final class IPConfig {
         root.addProperty("restockEnabled",            restockEnabled);
         root.addProperty("restockShowButton",         restockShowButton);
         root.addProperty("autoToolSwitchShowButton",  autoToolSwitchShowButton);
-        root.addProperty("lockGroupsEnabled",         locksEnabled);
         root.addProperty("tooltipsEnabled",           tooltipsEnabled);
         root.addProperty("tooltipDurability", tooltipDurability);
         root.addProperty("tooltipFood", tooltipFood);
@@ -501,8 +474,10 @@ public final class IPConfig {
     /**
      * "Also restock from shulker boxes" as {@code root} has it. Before 3.4.0 each restock
      * type had its own Shulker Boxes, Bundles and Your Ender Chest switches: a file from
-     * then turns it on if any type reached into shulker boxes. Bundles and the ender
-     * chest are no longer restocked from. {@code current} when {@code root} says nothing.
+     * then turns it on if any type reached into shulker boxes, and so does Auto Tool
+     * Switch's or pick block's own shulker box switch, which it now covers too. Bundles
+     * and the ender chest are no longer taken from. {@code current} when {@code root}
+     * says nothing.
      */
     public static boolean restockFromShulkersOf(JsonObject root, boolean current) {
         if (root.has("restockFromShulkers")) return readBool(root, "restockFromShulkers", current);
@@ -510,6 +485,7 @@ public final class IPConfig {
         for (String kind : new String[] {"Items", "Tools", "Armor", "Ammo"}) {
             any |= readBool(root, "restock" + kind + "FromShulkers", false);
         }
+        any |= readBool(root, "pickFromShulkers", false) || readBool(root, "autoToolSwitchFromShulkers", false);
         return current || any;
     }
 
@@ -527,7 +503,6 @@ public final class IPConfig {
     public static boolean restockEnabled()           { return restockEnabled; }
     public static boolean restockShowButton()        { return restockShowButton; }
     public static boolean autoToolSwitchShowButton() { return autoToolSwitchShowButton; }
-    public static boolean locksEnabled()             { return locksEnabled; }
     public static boolean restockFromShulkers()      { return restockFromShulkers; }
     public static boolean tooltipsEnabled()          { return tooltipsEnabled; }
     public static boolean tooltipDurability() { return tooltipDurability; }
@@ -550,7 +525,6 @@ public final class IPConfig {
     public static void setRestockEnabled(boolean v)           { restockEnabled = v; save(); }
     public static void setRestockShowButton(boolean v)        { restockShowButton = v; save(); }
     public static void setAutoToolSwitchShowButton(boolean v) { autoToolSwitchShowButton = v; save(); }
-    public static void setLocksEnabled(boolean v)             { locksEnabled = v; save(); }
     public static void setRestockFromShulkers(boolean v)      { restockFromShulkers = v; save(); }
     public static void setTooltipsEnabled(boolean v)          { tooltipsEnabled = v; save(); }
     public static void setTooltipDurability(boolean v) { tooltipDurability = v; save(); }
@@ -577,9 +551,6 @@ public final class IPConfig {
     public static boolean autoRestockItem()             { return autoRestockItem; }
     public static boolean autoRestockShulker()          { return autoRestockShulker; }
     public static boolean autoRestockShulkerAmmo()      { return autoRestockShulkerAmmo; }
-    public static boolean pickFromShulkers()            { return pickFromShulkers; }
-    public static boolean pickFromBundles()             { return pickFromBundles; }
-    public static boolean pickFromEnderChest()          { return pickFromEnderChest; }
     public static int autoRestockBeforeBreakThreshold() { return autoRestockBeforeBreakThreshold; }
     public static boolean autoToolSwitchEnabled()       { return autoToolSwitchEnabled; }
     public static boolean autoToolSwitchReturnAuto() { return autoToolSwitchReturnAuto; }
@@ -588,11 +559,8 @@ public final class IPConfig {
     public static boolean autoToolSwitchWeapons()       { return autoToolSwitchWeapons; }
     public static boolean autoToolSwitchAllMobs()       { return autoToolSwitchAllMobs; }
     public static WeaponPreference autoToolSwitchWeaponPreference() { return autoToolSwitchWeaponPreference; }
-    public static boolean autoToolSwitchFromShulkers() { return autoToolSwitchFromShulkers; }
-    public static boolean autoToolSwitchFromBundles() { return autoToolSwitchFromBundles; }
     public static boolean sortShowButton()              { return sortShowButton; }
     public static boolean moveMatchingShowButtons()     { return moveMatchingShowButtons; }
-    public static boolean lockedSlotsShowButton()       { return lockedSlotsShowButton; }
     public static boolean columnCyclerEnabled()         { return columnCyclerEnabled; }
     public static boolean columnCyclerShowButton()      { return columnCyclerShowButton; }
     public static boolean columnCyclerScrollToCycle()   { return columnCyclerScrollToCycle; }
@@ -610,9 +578,6 @@ public final class IPConfig {
     public static void setAutoRestockItem(boolean v)             { autoRestockItem = v; save(); }
     public static void setAutoRestockShulker(boolean v)          { autoRestockShulker = v; save(); }
     public static void setAutoRestockShulkerAmmo(boolean v)      { autoRestockShulkerAmmo = v; save(); }
-    public static void setPickFromShulkers(boolean v)            { pickFromShulkers = v; save(); }
-    public static void setPickFromBundles(boolean v)             { pickFromBundles = v; save(); }
-    public static void setPickFromEnderChest(boolean v)          { pickFromEnderChest = v; save(); }
     public static void setAutoRestockBeforeBreakThreshold(int v) { autoRestockBeforeBreakThreshold = v; save(); }
     public static void setAutoToolSwitchEnabled(boolean v)       { autoToolSwitchEnabled = v; save(); }
     public static void setAutoToolSwitchReturnAuto(boolean v) { autoToolSwitchReturnAuto = v; save(); }
@@ -621,11 +586,8 @@ public final class IPConfig {
     public static void setAutoToolSwitchWeapons(boolean v)       { autoToolSwitchWeapons = v; save(); }
     public static void setAutoToolSwitchAllMobs(boolean v)       { autoToolSwitchAllMobs = v; save(); }
     public static void setAutoToolSwitchWeaponPreference(WeaponPreference v) { autoToolSwitchWeaponPreference = v; save(); }
-    public static void setAutoToolSwitchFromShulkers(boolean v) { autoToolSwitchFromShulkers = v; save(); }
-    public static void setAutoToolSwitchFromBundles(boolean v) { autoToolSwitchFromBundles = v; save(); }
     public static void setSortShowButton(boolean v)              { sortShowButton = v; save(); }
     public static void setMoveMatchingShowButtons(boolean v)     { moveMatchingShowButtons = v; save(); }
-    public static void setLockedSlotsShowButton(boolean v)       { lockedSlotsShowButton = v; save(); }
     public static void setColumnCyclerEnabled(boolean v)         { columnCyclerEnabled = v; save(); }
     public static void setColumnCyclerShowButton(boolean v)      { columnCyclerShowButton = v; save(); }
     // Scroll-to-cycle has a single owner: the wheel is one input, so turning

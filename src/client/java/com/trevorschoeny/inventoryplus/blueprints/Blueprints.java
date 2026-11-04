@@ -171,6 +171,32 @@ public final class Blueprints {
         return List.copyOf(LIBRARY.keySet());
     }
 
+    /**
+     * Renames blueprint {@code from} to {@code to}, keeping its place in the library and
+     * replacing one already called {@code to}. Returns whether anything changed: not for
+     * a name not in the library, a blank one, or the same one.
+     */
+    public static boolean rename(String from, String to) {
+        load();
+        String name = to.strip();
+        if (!LIBRARY.containsKey(from) || name.isEmpty() || name.equals(from)) return false;
+        Map<String, JsonObject> renamed = new LinkedHashMap<>();
+        LIBRARY.forEach((key, json) -> {
+            if (key.equals(name)) return;
+            if (!key.equals(from)) {
+                renamed.put(key, json);
+                return;
+            }
+            JsonObject copy = json.deepCopy();
+            copy.addProperty("name", name);
+            renamed.put(name, copy);
+        });
+        LIBRARY.clear();
+        LIBRARY.putAll(renamed);
+        write();
+        return true;
+    }
+
     public static void delete(String name) {
         load();
         if (LIBRARY.remove(name) != null) write();

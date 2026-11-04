@@ -64,7 +64,6 @@ public class SlotRulesChecks implements FabricClientGameTest {
         try (TestSingleplayerContext world = ctx.worldBuilder().create()) {
             ctx.waitTicks(20);
             world.getServer().runCommand("gamemode survival @a");
-            ctx.runOnClient(mc -> IPConfig.setLocksEnabled(true));
             ownLocks(world);
             chestLocks(world);
         }
@@ -140,9 +139,7 @@ public class SlotRulesChecks implements FabricClientGameTest {
             expect(p.getInventory().getItem(15).is(Items.DIRT), "unlocked, slot 15 takes the pickup");
         });
 
-        // The server's own copy: the client's locks paused, so only the masks speak.
-        ctx.runOnClient(mc -> IPConfig.setLocksEnabled(false));
-        ctx.waitTicks(25);
+        // The server's own copy: slot 15 unlocked on the client, so only the masks speak.
         onServer(world, p -> {
             SlotLocks.setMasks(p.getUUID(), new SlotLocks.Masks(1L << 15, 0));
             fillExcept(p, 15, 16);
@@ -151,7 +148,6 @@ public class SlotRulesChecks implements FabricClientGameTest {
                     "the server holds the lock its client sent");
             SlotLocks.setMasks(p.getUUID(), new SlotLocks.Masks(0, 0));
         });
-        ctx.runOnClient(mc -> IPConfig.setLocksEnabled(true));
 
         // Deliberate moves out of a locked slot: Q is refused, a shift-click out goes.
         ctx.runOnClient(mc -> LockedSlots.setLocked(menuSlot(mc.player, 15), true));

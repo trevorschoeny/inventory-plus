@@ -8,6 +8,7 @@ import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.movematching.ScreenLayout;
 import com.trevorschoeny.inventoryplus.sort.SortType;
+import com.trevorschoeny.inventoryplus.sort.SortButton;
 import com.trevorschoeny.inventoryplus.toolbar.Toolbar;
 import com.trevlar.menukit.api.panel.Panel;
 import com.trevlar.menukit.api.panel.Reference;
@@ -280,7 +281,9 @@ public class ContainerListChecks implements FabricClientGameTest {
             Reference r = toolbar.placedBounds();
             expect(r != null, "the " + which + " Sort toolbar shows");
             double scale = (double) mc.getWindow().getScreenWidth() / mc.getWindow().getGuiScaledWidth();
-            return new double[]{(r.leftPos() + r.imageWidth() / 2.0) * scale, (r.topPos() + r.imageHeight() / 2.0) * scale};
+            // Sort is the toolbar's right end; the edit button sits left of it.
+            return new double[]{(r.leftPos() + r.imageWidth() - SortButton.SIZE / 2.0) * scale,
+                    (r.topPos() + r.imageHeight() / 2.0) * scale};
         });
         ctx.getInput().setCursorPos(at[0], at[1]);
         ctx.waitTicks(2);

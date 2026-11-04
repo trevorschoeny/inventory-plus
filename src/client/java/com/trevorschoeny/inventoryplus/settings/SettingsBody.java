@@ -209,6 +209,24 @@ final class SettingsBody {
     }
 
     /**
+     * One feature's section, on a tab that holds several (Sort &amp; Move): its heading,
+     * the feature's On/Off switch under it, then its settings, every one of them grayed
+     * while it is off, up to the next feature's section.
+     */
+    SettingsBody feature(String title, Bool use) {
+        featureOn = () -> true;
+        heading(title);
+        out.add(Toggle.builder().at(0, y).size(40, 16)
+                .state(use.get(), use.set())
+                .disabledWhen(use.unavailable())
+                .label(() -> Component.literal(use.get().getAsBoolean() ? "On" : "Off"))
+                .build());
+        y += CONTROL_ROW;
+        featureOn = use.get();
+        return this;
+    }
+
+    /**
      * A collapsible section: MenuKit's {@link Section}, closed to start. Its
      * header is an arrow, an optional color swatch, the title and a gray
      * {@code summary} read every frame; a click opens it. {@code content}

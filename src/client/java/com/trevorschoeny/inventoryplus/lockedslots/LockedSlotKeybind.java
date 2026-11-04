@@ -1,6 +1,5 @@
 package com.trevorschoeny.inventoryplus.lockedslots;
 
-import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.movematching.ScreenLayout;
 
@@ -34,8 +33,6 @@ public final class LockedSlotKeybind {
             ScreenKeyboardEvents.afterKeyPress(screen).register(
                     (innerScreen, event) -> {
                         if (!IPKeybinds.LOCK_SLOT.matches(event)) return;
-                        // Paused locks are paused for L too: nothing applied that cannot be seen.
-                        if (!IPConfig.locksEnabled()) return;
                         // key auto-repeat fires afterKeyPress every repeat
                         // tick while L is held; ignore once an L-drag is
                         // active so the same slot isn't re-toggled on

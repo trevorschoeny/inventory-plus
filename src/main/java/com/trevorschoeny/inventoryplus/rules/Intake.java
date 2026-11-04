@@ -4,6 +4,10 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import com.trevlar.menukit.api.panel.ModeScope;
+import com.trevlar.slotkit.api.item.ItemContents;
+import com.trevlar.slotkit.api.item.ItemPath;
+import com.trevlar.slotkit.api.item.ItemSources;
+import com.trevlar.slotkit.api.item.LiveItem;
 import com.trevlar.slotkit.api.state.SlotState;
 import com.trevlar.slotkit.api.state.SlotStateChannel;
 
@@ -16,9 +20,13 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.Container;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.ShulkerBoxBlock;
+import net.minecraft.world.level.block.entity.ShulkerBoxBlockEntity;
 
 import java.util.Locale;
 
@@ -87,6 +95,19 @@ public record Intake(When when, boolean matchingOnly) {
         return isBox(box) ? CHANNEL.get(box, 0) : OFF;
     }
 
+    /**
+     * The Intake of the box whose slots the open menu shows, {@code slot} being any of
+     * them: a placed box's, read off its block, or a box opened from the inventory, read
+     * off its item. Read at the box's slot 0 as the menu shows it, so the client reads
+     * what the server synced for that slot. {@link #OFF} when the menu doesn't show it.
+     */
+    public static Intake of(AbstractContainerMenu menu, Slot slot) {
+        for (Slot s : menu.slots) {
+            if (s.container == slot.container && s.getContainerSlot() == 0) return CHANNEL.get(s);
+        }
+        return OFF;
+    }
+
     /** Sets {@code box}'s Intake. Server side; the caller puts the item back where it lives. */
     public static void set(ItemStack box, Intake intake) {
         if (isBox(box)) CHANNEL.set(box, 0, intake);
@@ -106,11 +127,53 @@ public record Intake(When when, boolean matchingOnly) {
         }
     }
 
-    /** Payload and receiver. Once, from the common initializer. */
+    /**
+     * Set the Intake of the box whose slots the open menu shows, {@code menuSlot} being
+     * one of them, as a click names a slot: a placed box, or one opened from the
+     * inventory. What edit mode's Intake row sends.
+     */
+    public record SetOpen(int containerId, int menuSlot, Intake intake) implements CustomPacketPayload {
+        public static final Type<SetOpen> TYPE = new Type<>(Identifier.fromNamespaceAndPath("inventoryplus", "set_open_intake"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, SetOpen> CODEC = StreamCodec.composite(
+                ByteBufCodecs.VAR_INT, SetOpen::containerId, ByteBufCodecs.VAR_INT, SetOpen::menuSlot,
+                STREAM_CODEC, SetOpen::intake, SetOpen::new);
+
+        @Override
+        public Type<SetOpen> type() {
+            return TYPE;
+        }
+    }
+
+    /** Payloads and receivers. Once, from the common initializer. */
     public static void register() {
         PayloadTypeRegistry.serverboundPlay().register(Set.TYPE, Set.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(Set.TYPE,
                 (payload, context) -> context.server().execute(() -> apply(context.player(), payload)));
+        PayloadTypeRegistry.serverboundPlay().register(SetOpen.TYPE, SetOpen.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(SetOpen.TYPE,
+                (payload, context) -> context.server().execute(() -> apply(context.player(), payload)));
+    }
+
+    /**
+     * A client's request for the box it has open. Only a shulker box: a placed one (its
+     * block holds the Intake, and gives it to the item when broken), or one opened from
+     * the inventory (its item holds it). Any other container is left alone.
+     */
+    public static void apply(ServerPlayer player, SetOpen request) {
+        if (player.isSpectator()) return;
+        AbstractContainerMenu menu = player.containerMenu;
+        if (menu.containerId != request.containerId()
+                || request.menuSlot() < 0 || request.menuSlot() >= menu.slots.size()) return;
+        Container box = menu.slots.get(request.menuSlot()).container;
+        if (box instanceof ShulkerBoxBlockEntity) {
+            CHANNEL.set(new Slot(box, 0, 0, 0), request.intake());
+        } else if (box instanceof ItemContents contents) {
+            ItemPath path = contents.itemPath(player);
+            LiveItem live = path == null ? null : ItemSources.live(player, path);
+            if (live == null || !isBox(live.stack())) return;
+            set(live.stack(), request.intake());
+            live.commit();
+        }
     }
 
     /** A client's request: only a box in its own main inventory or hotbar. */

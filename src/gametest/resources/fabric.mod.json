@@ -16,7 +16,8 @@
       "com.trevorschoeny.inventoryplus.checks.LaggyServerChecks",
       "com.trevorschoeny.inventoryplus.checks.CursorShelfChecks",
       "com.trevorschoeny.inventoryplus.checks.IntakeChecks",
-      "com.trevorschoeny.inventoryplus.checks.SlotRulesChecks"
+      "com.trevorschoeny.inventoryplus.checks.SlotRulesChecks",
+      "com.trevorschoeny.inventoryplus.checks.EditModeChecks"
     ],
     "main": [
       "com.trevorschoeny.inventoryplus.checks.ListFixture"

@@ -1,0 +1,55 @@
+package com.trevorschoeny.inventoryplus.mixin;
+
+import com.trevorschoeny.inventoryplus.editmode.EditMode;
+
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.Slot;
+
+import org.jetbrains.annotations.Nullable;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+/**
+ * Edit mode's hold on a container screen's slots ({@link EditMode}).
+ *
+ * <ul>
+ *   <li><b>The click</b>: once the screen's widgets and panels have passed on it (the
+ *       edit button itself, a dialog), a click in edit mode is edit mode's: a slot's
+ *       lock or reservation, and nothing else.</li>
+ *   <li><b>Every other slot action</b> (number keys, Q, pick block, offhand swap, a
+ *       release that would finish a drag or a double-click) ends in
+ *       {@code slotClicked}, so refusing there stops them all, whatever key the player
+ *       has bound.</li>
+ * </ul>
+ */
+@Mixin(AbstractContainerScreen.class)
+public abstract class AbstractContainerScreenEditModeMixin {
+
+    @Shadow
+    private @Nullable Slot getHoveredSlot(double x, double y) {
+        throw new AssertionError();
+    }
+
+    @Inject(method = "mouseClicked",
+            at = @At(value = "INVOKE", ordinal = 0,
+                    target = "Lnet/minecraft/client/gui/screens/inventory/AbstractContainerScreen;getHoveredSlot(DD)Lnet/minecraft/world/inventory/Slot;"),
+            cancellable = true)
+    private void inventoryPlus$editClick(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
+        if (!EditMode.isOn()) return;
+        Slot slot = getHoveredSlot(event.x(), event.y());
+        if (slot != null) EditMode.click(slot, event.button());
+        cir.setReturnValue(true);
+    }
+
+    @Inject(method = "slotClicked(Lnet/minecraft/world/inventory/Slot;IILnet/minecraft/world/inventory/ContainerInput;)V",
+            at = @At("HEAD"), cancellable = true)
+    private void inventoryPlus$editSwallow(Slot slot, int slotId, int button, ContainerInput input, CallbackInfo ci) {
+        if (EditMode.isOn()) ci.cancel();
+    }
+}

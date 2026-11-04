@@ -41,8 +41,8 @@ final class CarriedTools {
     private static final int WAIT_TICKS = 20;
 
     private static CarriedFetch.Reach reach() {
-        // No ender chest: which tool is best is the client's call, and it can't see in.
-        return new CarriedFetch.Reach(IPConfig.autoToolSwitchFromShulkers(), IPConfig.autoToolSwitchFromBundles(), false);
+        // Shulker boxes only, by the one setting Restock and pick block share.
+        return new CarriedFetch.Reach(IPConfig.restockFromShulkers(), false, false);
     }
 
     /** The inventory has no tool for {@code state}: fetch the best one from a carried container. */

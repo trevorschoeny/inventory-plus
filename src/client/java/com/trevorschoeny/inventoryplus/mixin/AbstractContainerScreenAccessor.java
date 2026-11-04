@@ -53,6 +53,12 @@ public interface AbstractContainerScreenAccessor {
     @Accessor("topPos")
     int inventoryPlus$getTopPos();
 
+    @Accessor("imageWidth")
+    int inventoryPlus$getImageWidth();
+
+    @Accessor("imageHeight")
+    int inventoryPlus$getImageHeight();
+
     @Accessor("hoveredSlot")
     @org.jetbrains.annotations.Nullable Slot inventoryPlus$getHoveredSlot();
 }

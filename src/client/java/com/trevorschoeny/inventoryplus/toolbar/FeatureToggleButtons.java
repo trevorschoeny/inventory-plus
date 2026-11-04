@@ -30,21 +30,15 @@ import java.util.function.Supplier;
  *   <li><b>Ctrl-click</b> (Cmd on a Mac) opens the feature's tab, and holding
  *       Ctrl says so in the tooltip.</li>
  * </ul>
- * No button holds an edit mode: a feature that acts on slots names its key in
- * the tooltip instead. Each is hidden by its tab's "Show the button" setting.
+ * Locks have no switch here: a lock always holds, and edit mode (the edit
+ * button on every container toolbar) is where slots are locked. A feature that
+ * acts on slots names its key in the tooltip. Each is hidden by its tab's "Show the button" setting.
  */
 public final class FeatureToggleButtons {
 
     private FeatureToggleButtons() {}
 
     public static final int SIZE = 9;
-
-    /** Locks: on/off pauses the player's own locks without deleting any. */
-    public static Toggle locks(int x, int y) {
-        return builder(x, y, "locked_slot_edit", "Locks", SettingsMenu.LOCKS,
-                IPConfig::locksEnabled, IPConfig::setLocksEnabled, IPConfig::lockedSlotsShowButton,
-                null, () -> keyHint("Hover over a slot", IPKeybinds.LOCK_SLOT)).build();
-    }
 
     public static Toggle restock(int x, int y) {
         return builder(x, y, "restock_button", "Restock", SettingsMenu.RESTOCK,

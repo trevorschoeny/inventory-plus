@@ -1,7 +1,6 @@
 package com.trevorschoeny.inventoryplus.lockedslots;
 
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
-import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevlar.menukit.api.panel.SlotDecorations;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -51,14 +50,9 @@ public final class SlotMarks {
      */
     private static final int INDICATOR_TINT = 0xABFFFFFF;
 
-    /**
-     * Whether {@code slot} shows as locked. The locks switch pauses the player's own
-     * locks: nothing blocked, nothing drawn. A chest's or box's lock is shared and
-     * holds whatever the switch says, so it always shows.
-     */
+    /** Whether {@code slot} shows as locked: wherever its lock lives, it always holds. */
     static boolean shownLocked(Slot slot) {
-        return IPConfig.locksEnabled() ? LockedSlots.isLockedSlot(slot)
-                : !LockedSlots.isOwnLocked(slot) && LockedSlots.isLockedSlot(slot);
+        return LockedSlots.isLockedSlot(slot);
     }
 
     /** Public so the gametest can call it directly, the same way MenuKit's render pass does. */

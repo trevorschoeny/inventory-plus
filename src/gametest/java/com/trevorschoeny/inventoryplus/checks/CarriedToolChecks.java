@@ -18,6 +18,7 @@ import net.minecraft.world.level.block.Blocks;
 
 import java.util.function.Consumer;
 
+import static com.trevorschoeny.inventoryplus.checks.CarriedItems.bundle;
 import static com.trevorschoeny.inventoryplus.checks.CarriedItems.clear;
 import static com.trevorschoeny.inventoryplus.checks.CarriedItems.contents;
 import static com.trevorschoeny.inventoryplus.checks.CarriedItems.count;
@@ -40,8 +41,8 @@ public class CarriedToolChecks implements FabricClientGameTest {
             ctx.getInput().lookAt(0f, 90f);
             ctx.runOnClient(mc -> {
                 IPConfig.setAutoToolSwitchEnabled(true);
-                IPConfig.setAutoToolSwitchFromShulkers(true);
-                IPConfig.setAutoToolSwitchFromBundles(true);
+                // Auto Tool Switch takes from shulker boxes by the setting Restock shares.
+                IPConfig.setRestockFromShulkers(true);
             });
 
             // No pickaxe in the inventory; a shulker holds a wooden one and an iron one. The
@@ -66,11 +67,16 @@ public class CarriedToolChecks implements FabricClientGameTest {
                             + p.getInventory().getSelectedItem() + ")"));
 
             // The boxes off: no reach into the shulker.
-            ctx.runOnClient(mc -> IPConfig.setAutoToolSwitchFromShulkers(false));
+            ctx.runOnClient(mc -> IPConfig.setRestockFromShulkers(false));
             dig(ctx, world, p -> p.getInventory().setItem(20, shulker(4, new ItemStack(Items.IRON_PICKAXE))),
                     p -> expect(count(p, Items.IRON_PICKAXE) == 0,
-                            "with Take tools from Shulker Boxes off, the shulker is kept"));
-            ctx.runOnClient(mc -> IPConfig.setAutoToolSwitchFromShulkers(true));
+                            "with Also restock from shulker boxes off, the shulker is kept"));
+            ctx.runOnClient(mc -> IPConfig.setRestockFromShulkers(true));
+
+            // Shulker boxes only: a bundle's pickaxe stays in the bundle.
+            dig(ctx, world, p -> p.getInventory().setItem(15, bundle(new ItemStack(Items.IRON_PICKAXE))),
+                    p -> expect(count(p, Items.IRON_PICKAXE) == 0,
+                            "a bundle's pickaxe is left where it is"));
 
             // The server never chooses a tool from the ender chest.
             onServer(world, p -> {

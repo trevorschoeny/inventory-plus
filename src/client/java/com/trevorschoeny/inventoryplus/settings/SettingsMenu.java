@@ -73,14 +73,21 @@ public final class SettingsMenu extends MKScreen {
 
     /** The tab the menu opens on the first time. */
     public static final String GENERAL = "general";
-    public static final String LOCKS = "locks";
-    public static final String SORT = "sort";
-    public static final String MOVE_MATCHING = "move_matching";
-    public static final String RESTOCK = "restock";
-    public static final String AUTO_TOOL_SWITCH = "auto_tool_switch";
-    public static final String COLUMN_CYCLER = "column_cycler";
-    public static final String HOTBAR_CYCLER = "hotbar_cycler";
     public static final String TOOLTIPS = "tooltips";
+    public static final String SLOTS = "slots";
+    public static final String SORT_AND_MOVE = "sort_and_move";
+    public static final String RESTOCK_AND_TOOLS = "restock_and_tools";
+    public static final String HOTBARS_AND_CYCLERS = "hotbars_and_cyclers";
+
+    // The tab each feature's settings are on, for its button's Ctrl-click.
+
+    public static final String LOCKS = SLOTS;
+    public static final String SORT = SORT_AND_MOVE;
+    public static final String MOVE_MATCHING = SORT_AND_MOVE;
+    public static final String RESTOCK = RESTOCK_AND_TOOLS;
+    public static final String AUTO_TOOL_SWITCH = RESTOCK_AND_TOOLS;
+    public static final String COLUMN_CYCLER = HOTBARS_AND_CYCLERS;
+    public static final String HOTBAR_CYCLER = HOTBARS_AND_CYCLERS;
 
     /**
      * The open tab, kept across reopens for the rest of the session. MenuKit's
@@ -310,15 +317,11 @@ public final class SettingsMenu extends MKScreen {
                 .state(() -> selectedTab, SettingsMenu::selectTab)
                 .bodyScroll(bodyScroll::get, bodyScroll::put)
                 .tab(tab(GENERAL, "General").body(SettingsTabs::general))
-                // Tooltips right under General.
                 .tab(tab(TOOLTIPS, "Tooltips").body(SettingsTabs::tooltips))
-                .tab(tab(LOCKS, "Locks").body(SettingsTabs::locks))
-                .tab(tab(SORT, "Sort").body(SettingsTabs::sort))
-                .tab(tab(MOVE_MATCHING, "Move Matching").body(SettingsTabs::moveMatching))
-                .tab(tab(RESTOCK, "Restock").body(SettingsTabs::restock))
-                .tab(tab(AUTO_TOOL_SWITCH, "Auto Tool Switch").body(SettingsTabs::autoToolSwitch))
-                .tab(tab(COLUMN_CYCLER, "Column Cycler").body(SettingsTabs::columnCycler))
-                .tab(tab(HOTBAR_CYCLER, "Hotbar Cycler").body(SettingsTabs::hotbarCycler))
+                .tab(tab(SLOTS, "Slots").body(SettingsTabs::slots))
+                .tab(tab(SORT_AND_MOVE, "Sort & Move").body(SettingsTabs::sortAndMove))
+                .tab(tab(RESTOCK_AND_TOOLS, "Restock & Tools").body(SettingsTabs::restockAndTools))
+                .tab(tab(HOTBARS_AND_CYCLERS, "Hotbars & Cyclers").body(SettingsTabs::hotbarsAndCyclers))
                 .build();
         Panel.Builder panel = Panel.builder("inventoryplus:settings")
                 .style(options ? PanelStyle.NONE : PanelStyle.RAISED)

@@ -39,8 +39,8 @@ public final class CarriedPick {
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null || mc.gameMode == null) return;
         if (!ModeScope.SURVIVAL.includes(player)) return;
-        CarriedFetch.Reach reach = new CarriedFetch.Reach(IPConfig.pickFromShulkers(),
-                IPConfig.pickFromBundles(), IPConfig.pickFromEnderChest());
+        // Shulker boxes only, by the one setting Restock and Auto Tool Switch share.
+        CarriedFetch.Reach reach = new CarriedFetch.Reach(IPConfig.restockFromShulkers(), false, false);
         if (!reach.any()) return;
         ItemStack wanted = pickResult(mc);
         if (wanted.isEmpty() || !wanted.isItemEnabled(mc.level.enabledFeatures())) return;

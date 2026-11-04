@@ -8,6 +8,7 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.Collection;
+import java.util.List;
 
 /**
  * Runs a click sequence planned for an empty cursor even when the player is
@@ -41,6 +42,15 @@ public final class CursorShelf {
         // Cursor is empty again by now: every click sequence this guards
         // drains it fully, onto a slot or back to its source.
         gameMode.handleContainerInput(menu.containerId, shelf.index, 0, ContainerInput.PICKUP, player);
+    }
+
+    /**
+     * Puts the held stack down on an empty main-inventory or hotbar slot, as
+     * {@link #runWithEmptyCursor} sets it aside, and leaves it there. Returns
+     * whether the cursor is empty now. Edit mode's entry.
+     */
+    public static boolean putAway(AbstractContainerMenu menu, MultiPlayerGameMode gameMode, Player player) {
+        return menu.getCarried().isEmpty() || park(menu, gameMode, player, List.of(), menu.getCarried()) != null;
     }
 
     /**

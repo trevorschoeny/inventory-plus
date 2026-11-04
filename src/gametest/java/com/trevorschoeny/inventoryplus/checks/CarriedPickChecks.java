@@ -50,9 +50,8 @@ public class CarriedPickChecks implements FabricClientGameTest {
             ctx.waitTicks(5);
             ctx.getInput().lookAt(0f, 90f);
             ctx.runOnClient(mc -> {
-                IPConfig.setPickFromShulkers(true);
-                IPConfig.setPickFromBundles(true);
-                IPConfig.setPickFromEnderChest(false);
+                // Pick block takes from shulker boxes by the setting Restock shares.
+                IPConfig.setRestockFromShulkers(true);
             });
 
             // The inventory has no granite; a shulker in slot 20 has 10 in its slot 4. The pick
@@ -90,11 +89,11 @@ public class CarriedPickChecks implements FabricClientGameTest {
             ctx.runOnClient(mc -> LockedSlots.setLocked(menuSlot(mc.player, 20), false));
 
             // The boxes off: nothing.
-            ctx.runOnClient(mc -> IPConfig.setPickFromShulkers(false));
+            ctx.runOnClient(mc -> IPConfig.setRestockFromShulkers(false));
             pick(ctx, world, p -> p.getInventory().setItem(20, shulker(4, new ItemStack(Items.GRANITE, 10))));
             onServer(world, p -> expect(count(p, Items.GRANITE) == 0,
-                    "with Pick from Shulker Boxes off, the pick does nothing"));
-            ctx.runOnClient(mc -> IPConfig.setPickFromShulkers(true));
+                    "with Also restock from shulker boxes off, the pick does nothing"));
+            ctx.runOnClient(mc -> IPConfig.setRestockFromShulkers(true));
 
             // The server refuses a pick into a slot that isn't empty.
             ItemPath shulkerSlot4 = new ItemPath(ItemRef.Source.INVENTORY, 20, List.of(4));
@@ -111,26 +110,19 @@ public class CarriedPickChecks implements FabricClientGameTest {
                             && contents(p.getInventory().getItem(20)).get(4).getCount() == 10,
                     "a pick into a slot that isn't empty does nothing"));
 
-            // The ender chest: the server chooses.
-            ctx.runOnClient(mc -> IPConfig.setPickFromEnderChest(true));
+            // Shulker boxes only: the ender chest and a bundle are left alone.
             pick(ctx, world, p -> p.getEnderChestInventory().setItem(3, new ItemStack(Items.GRANITE, 12)));
-            onServer(world, p -> expect(p.getInventory().getSelectedItem().getCount() == 12
-                            && p.getEnderChestInventory().getItem(3).isEmpty(),
-                    "the ender chest's granite ends up in the hand (" + p.getInventory().getSelectedItem() + ")"));
-            ctx.runOnClient(mc -> IPConfig.setPickFromEnderChest(false));
-
-            // Without the server mod: a bundle in slot 15, taken by clicks, then picked.
-            ctx.runOnClient(mc -> System.setProperty(NO_SERVER_MOD, "true"));
+            onServer(world, p -> expect(count(p, Items.GRANITE) == 0
+                            && p.getEnderChestInventory().getItem(3).getCount() == 12,
+                    "the ender chest's granite stays there (" + p.getInventory().getSelectedItem() + ")"));
             pick(ctx, world, p -> p.getInventory().setItem(15,
                     bundle(new ItemStack(Items.DIRT, 4), new ItemStack(Items.GRANITE, 6))));
-            onServer(world, p -> {
-                expect(p.getInventory().getSelectedItem().is(Items.GRANITE)
-                                && p.getInventory().getSelectedItem().getCount() == 6,
-                        "plain clicks take the bundle's granite, then the pick selects it ("
-                                + p.getInventory().getSelectedItem() + ")");
-                expect(bundleItems(p.getInventory().getItem(15)).size() == 1, "the bundle keeps its dirt");
-                expect(p.containerMenu.getCarried().isEmpty(), "nothing is left on the cursor");
-            });
+            onServer(world, p -> expect(bundleItems(p.getInventory().getItem(15)).size() == 2
+                            && !p.getInventory().getSelectedItem().is(Items.GRANITE),
+                    "a bundle's granite stays in the bundle"));
+
+            // Without the server mod.
+            ctx.runOnClient(mc -> System.setProperty(NO_SERVER_MOD, "true"));
             // A shulker can't be opened with clicks, so it's passed over.
             pick(ctx, world, p -> p.getInventory().setItem(20, shulker(4, new ItemStack(Items.GRANITE, 10))));
             onServer(world, p -> expect(count(p, Items.GRANITE) == 0,

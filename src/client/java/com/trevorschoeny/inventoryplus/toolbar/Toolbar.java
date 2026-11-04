@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.toolbar;
 
+import com.trevorschoeny.inventoryplus.editmode.EditToolbar;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingButtons;
 import com.trevorschoeny.inventoryplus.sort.SortButton;
 
@@ -139,7 +140,11 @@ public final class Toolbar {
                         screen -> headerRow(group.box(screen), inventory.box(screen)));
                 Panel panel = Panel.builder(on.index() == 0 ? id : id + "." + on.index())
                         // The group is read on each click: a tab switch can move the panel to another.
-                        .elements(List.of(SortButton.externalToolbarButton(0, 0, on::group)))
+                        // Save, Load and edit, then Sort at the right end; hidden ones are skipped.
+                        .elements(List.of(Flow.builder().gap(BUTTON_GAP, BUTTON_GAP)
+                                .addAll(EditToolbar.buttons(() -> EditToolbar.groupSlots(on.group())))
+                                .add(SortButton.externalToolbarButton(0, 0, on::group))
+                                .build()))
                         .style(PanelStyle.NONE)
                         .in(ModeScope.BOTH, Placement.around(header, aboveRight))
                         .build();
@@ -181,7 +186,7 @@ public final class Toolbar {
     /**
      * The top row is for acting, the right column for switching features.
      * Left to right: Move Matching out, Move Matching
-     * in, Sort at the right end. One Flow, flush right with no holes: a
+     * in, blueprint Save and Load (in edit mode), edit, Sort at the right end. One Flow, flush right with no holes: a
      * hidden button is skipped in layout, and the leading spacer takes what
      * the hidden ones leave, so the right edge never moves.
      */
@@ -190,6 +195,7 @@ public final class Toolbar {
                 .add(Flow.spacer())
                 .add(MoveMatchingButtons.toolbarOutButton(0, 0))
                 .add(MoveMatchingButtons.toolbarInButton(0, 0))
+                .addAll(EditToolbar.buttons(EditToolbar::inventorySlots))
                 // Sort targets the player's main inventory from this toolbar.
                 .add(SortButton.inventoryToolbarButton(0, 0))
                 .build());
