@@ -11,6 +11,7 @@ import com.trevorschoeny.inventoryplus.mixin.AbstractContainerScreenAccessor;
 import com.trevorschoeny.inventoryplus.rules.Intake;
 import com.trevorschoeny.inventoryplus.rules.SlotLocks;
 import com.trevlar.slotkit.api.reserve.Reservation;
+import com.trevlar.slotkit.api.reserve.ReservationEditor;
 import com.trevlar.slotkit.api.reserve.Reservations;
 import com.trevlar.slotkit.api.window.SlotRef;
 
@@ -45,7 +46,8 @@ import net.minecraft.world.phys.Vec3;
  * the only thing that can stop it; the last click, out of the mode, shows vanilla's.
  * <ul>
  *   <li>Entering puts the cursor's item back in the inventory.</li>
- *   <li>Left-click locks a slot and right-click reserves it, and neither moves the stack.</li>
+ *   <li>Left-click locks a slot; right-click opens SlotKit's reserve popup for it,
+ *       prefilled from what the slot holds. Neither click moves the stack.</li>
  *   <li>Q on a slot does nothing in the mode.</li>
  *   <li>Escape leaves the mode and keeps the screen open.</li>
  *   <li>A placed box's Intake, set from its screen, holds on the box and comes off with
@@ -108,20 +110,31 @@ public class EditModeChecks implements FabricClientGameTest {
         expect(!ctx.computeOnClient(mc -> LockedSlots.isLockedSlot(chestSlot(mc.player.containerMenu, 0))),
                 "a second left-click unlocks it");
 
-        // Right-click reserves slot 1 for what it holds, and a second one clears it.
+        // Right-click opens the reserve popup, prefilled with what slot 1 holds; it
+        // picks nothing up. Done (SlotKit's own button, called directly here) reserves it.
         ctx.runOnClient(mc -> click(mc, chestSlot(mc.player.containerMenu, 1), 1));
+        ctx.waitTicks(5);
+        expect(ctx.computeOnClient(mc -> ReservationEditor.isOpen()
+                        && ReservationEditor.draft().matches(new ItemStack(Items.STONE))
+                        && mc.player.containerMenu.getCarried().isEmpty()),
+                "a right-click opens the reserve popup, prefilled with the slot's stone, and picks nothing up");
+        ctx.runOnClient(mc -> ReservationEditor.done());
         ctx.waitTicks(5);
         onServer(world, p -> {
             Container chest = (Container) p.level().getBlockEntity(at[0]);
             Reservation r = Reservations.get(SlotRef.of(chest, 1, null));
             expect(!r.isNone() && r.matches(new ItemStack(Items.STONE)) && chest.getItem(1).getCount() == 64,
-                    "a right-click reserves slot 1 for stone and leaves the stone (" + r + ")");
+                    "Done reserves slot 1 for stone and leaves the stone (" + r + ")");
         });
-        expect(ctx.computeOnClient(mc -> mc.player.containerMenu.getCarried().isEmpty()), "and picks nothing up");
+
+        // A second right-click reopens it on the existing reservation; Remove clears it.
         ctx.runOnClient(mc -> click(mc, chestSlot(mc.player.containerMenu, 1), 1));
         ctx.waitTicks(5);
+        expect(ctx.computeOnClient(mc -> ReservationEditor.isOpen()), "a second right-click reopens the popup");
+        ctx.runOnClient(mc -> ReservationEditor.remove());
+        ctx.waitTicks(5);
         onServer(world, p -> expect(Reservations.get(SlotRef.of((Container) p.level().getBlockEntity(at[0]), 1, null)).isNone(),
-                "a second right-click clears it"));
+                "Remove clears the reservation"));
 
         // Q over slot 2 throws nothing.
         hover(2);

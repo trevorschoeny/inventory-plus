@@ -6,6 +6,7 @@ import com.trevorschoeny.inventoryplus.operations.CursorShelf;
 
 import com.trevlar.menukit.api.panel.SlotDecorations;
 import com.trevlar.slotkit.api.reserve.Reservation;
+import com.trevlar.slotkit.api.reserve.ReservationEditor;
 import com.trevlar.slotkit.api.reserve.Reservations;
 import com.trevlar.slotkit.api.window.SlotRef;
 
@@ -66,9 +67,10 @@ public final class EditMode {
         ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
             if (!(screen instanceof AbstractContainerScreen<?>)) return;
             // Escape leaves the mode first, and the screen stays open. A dialog up
-            // over the screen has Escape for itself.
+            // over the screen (the blueprint prompts, SlotKit's reserve popup) has
+            // Escape for itself.
             ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> {
-                if (!event.isEscape() || !isOn() || BlueprintDialogs.open()) return true;
+                if (!event.isEscape() || !isOn() || BlueprintDialogs.open() || ReservationEditor.isOpen()) return true;
                 leave();
                 return false;
             });
@@ -124,19 +126,11 @@ public final class EditMode {
         }
     }
 
-    /**
-     * Right-click: reserve {@code slot}.
-     * ponytail: stands in for SlotKit's item picker until it lands on SlotKit's
-     * reservations branch. It reserves the item already in the slot, or clears a slot's
-     * reservation; an empty slot with none is left alone. Swap this body for the
-     * picker's call (open it for {@code slot}) when it exists.
-     */
+    /** Right-click: open SlotKit's reserve popup for {@code slot}. */
     static void reserve(Slot slot) {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null || !LockedSlots.isLockableHere(slot)) return;
-        Reservation now = Reservations.get(SlotRef.of(player.containerMenu, slot, player));
-        if (now.isNone() && slot.getItem().isEmpty()) return;
-        Reservations.reserve(player, slot, now.isNone() ? Reservation.of(slot.getItem().copyWithCount(1)) : Reservation.NONE);
+        ReservationEditor.open(SlotRef.of(player.containerMenu, slot, player));
     }
 
     // The look
@@ -187,8 +181,7 @@ public final class EditMode {
             return lines;
         }
         lines.add(Component.literal("Left-click: " + (LockedSlots.isLockedSlot(slot) ? "Unlock" : "Lock")));
-        lines.add(Component.literal("Right-click: " + (!reserved.isNone() ? "Remove the reservation"
-                : stack.isEmpty() ? "Reserve (put the item here first)" : "Reserve " + stack.getHoverName().getString())));
+        lines.add(Component.literal("Right-click: " + (reserved.isNone() ? "Reserve…" : "Edit the reservation")));
         return lines;
     }
 }
