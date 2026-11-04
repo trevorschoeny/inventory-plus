@@ -9,6 +9,9 @@ import com.trevorschoeny.inventoryplus.editmode.EditMode;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.mixin.AbstractContainerScreenAccessor;
 import com.trevorschoeny.inventoryplus.rules.Intake;
+import com.trevorschoeny.inventoryplus.sort.SortButton;
+import com.trevorschoeny.inventoryplus.toolbar.Toolbar;
+import com.trevlar.menukit.api.panel.Reference;
 import com.trevorschoeny.inventoryplus.rules.SlotLocks;
 import com.trevlar.slotkit.api.reserve.Reservation;
 import com.trevlar.slotkit.api.reserve.ReservationEditor;
@@ -20,10 +23,7 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.Container;
@@ -87,15 +87,15 @@ public class EditModeChecks implements FabricClientGameTest {
             mc.gameMode.handleContainerInput(menu.containerId, inventorySlot(menu, 0).index, 0, ContainerInput.PICKUP, mc.player);
         });
         expect(ctx.computeOnClient(mc -> mc.player.containerMenu.getCarried().is(Items.DIRT)), "the dirt is on the cursor");
-        ctx.runOnClient(mc -> EditMode.set(true));
+        pressEditButton();
         expect(ctx.computeOnClient(mc -> EditMode.isOn() && mc.player.containerMenu.getCarried().isEmpty()),
-                "edit mode is on and the cursor is empty");
+                "the pencil turns edit mode on and the cursor is empty");
         ctx.waitTicks(5);
         onServer(world, p -> expect(count(p, Items.DIRT) == 5 && p.containerMenu.getCarried().isEmpty(),
                 "the dirt is back in the inventory"));
 
         // Left-click locks, and the stone stays; again unlocks.
-        ctx.runOnClient(mc -> click(mc, chestSlot(mc.player.containerMenu, 0), 0));
+        click(0, InputConstants.MOUSE_BUTTON_LEFT);
         ctx.waitTicks(5);
         expect(ctx.computeOnClient(mc -> LockedSlots.isLockedSlot(chestSlot(mc.player.containerMenu, 0))
                         && mc.player.containerMenu.getCarried().isEmpty()),
@@ -105,14 +105,14 @@ public class EditModeChecks implements FabricClientGameTest {
             expect(SlotLocks.CHANNEL.get(new Slot(chest, 0, 0, 0)) && chest.getItem(0).getCount() == 64,
                     "the chest holds the lock and keeps its stone");
         });
-        ctx.runOnClient(mc -> click(mc, chestSlot(mc.player.containerMenu, 0), 0));
+        click(0, InputConstants.MOUSE_BUTTON_LEFT);
         ctx.waitTicks(5);
         expect(!ctx.computeOnClient(mc -> LockedSlots.isLockedSlot(chestSlot(mc.player.containerMenu, 0))),
                 "a second left-click unlocks it");
 
         // Right-click opens the reserve popup, prefilled with what slot 1 holds; it
         // picks nothing up. Done (SlotKit's own button, called directly here) reserves it.
-        ctx.runOnClient(mc -> click(mc, chestSlot(mc.player.containerMenu, 1), 1));
+        click(1, InputConstants.MOUSE_BUTTON_RIGHT);
         ctx.waitTicks(5);
         expect(ctx.computeOnClient(mc -> ReservationEditor.isOpen()
                         && ReservationEditor.draft().matches(new ItemStack(Items.STONE))
@@ -128,7 +128,7 @@ public class EditModeChecks implements FabricClientGameTest {
         });
 
         // A second right-click reopens it on the existing reservation; Remove clears it.
-        ctx.runOnClient(mc -> click(mc, chestSlot(mc.player.containerMenu, 1), 1));
+        click(1, InputConstants.MOUSE_BUTTON_RIGHT);
         ctx.waitTicks(5);
         expect(ctx.computeOnClient(mc -> ReservationEditor.isOpen()), "a second right-click reopens the popup");
         ctx.runOnClient(mc -> ReservationEditor.remove());
@@ -201,14 +201,34 @@ public class EditModeChecks implements FabricClientGameTest {
         expect(ctx.computeOnClient(mc -> mc.gui.screen() instanceof AbstractContainerScreen<?>), "the container at " + pos + " is open");
     }
 
-    /** A press and release at the slot's centre, through the screen's own click. */
-    private static void click(Minecraft mc, Slot slot, int button) {
-        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) mc.gui.screen();
-        AbstractContainerScreenAccessor a = (AbstractContainerScreenAccessor) screen;
-        MouseButtonEvent event = new MouseButtonEvent(a.inventoryPlus$getLeftPos() + slot.x + 8,
-                a.inventoryPlus$getTopPos() + slot.y + 8, new MouseButtonInfo(button, 0));
-        screen.mouseClicked(event, false);
-        screen.mouseReleased(event);
+    /**
+     * Chest slot {@code i} clicked with mouse {@code button} as the player clicks it: the real
+     * cursor moved over it, then a real press and release, so the click goes the whole way
+     * the game sends it (MouseHandler, every mod's hooks, the screen) with that slot hovered.
+     * {@code button} is an {@link InputConstants} constant: buttons are numbered from 1 here,
+     * and a check that sent bare 0 and 1 once passed on code that read them as left and right.
+     */
+    private void click(int i, int button) {
+        hover(i);
+        ctx.getInput().pressMouse(button);
+        ctx.waitTicks(2);
+    }
+
+    /** The chest toolbar's pencil, left of Sort, pressed with the real mouse. */
+    private void pressEditButton() {
+        double[] at = ctx.computeOnClient(mc -> {
+            Reference r = Toolbar.externalToolbars().stream()
+                    .filter(t -> t.id().equals("inventoryplus.toolbar.external.chest_storage"))
+                    .findFirst().orElseThrow().placedBounds();
+            expect(r != null, "the chest's toolbar shows");
+            double scale = mc.getWindow().getGuiScale();
+            return new double[] {(r.leftPos() + r.imageWidth() - SortButton.SIZE - Toolbar.BUTTON_GAP - SortButton.SIZE / 2.0) * scale,
+                    (r.topPos() + r.imageHeight() / 2.0) * scale};
+        });
+        ctx.getInput().setCursorPos(at[0], at[1]);
+        ctx.waitTicks(2);
+        ctx.getInput().pressMouse(InputConstants.MOUSE_BUTTON_LEFT);
+        ctx.waitTicks(2);
     }
 
     /** Puts the real cursor over chest slot {@code i}, so the screen hovers it. */

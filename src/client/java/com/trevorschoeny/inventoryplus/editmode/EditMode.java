@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.editmode;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.mixin.AbstractContainerScreenAccessor;
 import com.trevorschoeny.inventoryplus.operations.CursorShelf;
@@ -117,11 +118,15 @@ public final class EditMode {
 
     // Clicks
 
-    /** A click on {@code slot} in edit mode, from the screen's own click: 0 locks, 1 reserves. */
+    /**
+     * A click on {@code slot} in edit mode, from the screen's own click: left locks, right
+     * reserves. Mouse buttons are numbered from 1 in this version ({@link InputConstants}),
+     * so compare with the constants, never a bare number.
+     */
     public static void click(Slot slot, int button) {
-        if (button == 0) {
+        if (button == InputConstants.MOUSE_BUTTON_LEFT) {
             if (LockedSlots.isLockableHere(slot)) LockedSlots.toggle(slot);
-        } else if (button == 1) {
+        } else if (button == InputConstants.MOUSE_BUTTON_RIGHT) {
             reserve(slot);
         }
     }

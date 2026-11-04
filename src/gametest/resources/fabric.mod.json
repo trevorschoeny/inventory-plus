@@ -17,7 +17,8 @@
       "com.trevorschoeny.inventoryplus.checks.CursorShelfChecks",
       "com.trevorschoeny.inventoryplus.checks.IntakeChecks",
       "com.trevorschoeny.inventoryplus.checks.SlotRulesChecks",
-      "com.trevorschoeny.inventoryplus.checks.EditModeChecks"
+      "com.trevorschoeny.inventoryplus.checks.EditModeChecks",
+      "com.trevorschoeny.inventoryplus.checks.EditModeSceneChecks"
     ],
     "main": [
       "com.trevorschoeny.inventoryplus.checks.ListFixture"
