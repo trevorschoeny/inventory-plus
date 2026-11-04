@@ -3,7 +3,6 @@ package com.trevorschoeny.inventoryplus.autotoolswitch;
 import com.trevorschoeny.inventoryplus.api.CyclerOperation;
 import com.trevorschoeny.inventoryplus.api.PlayerMenuSlots;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
-import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
 
@@ -23,7 +22,9 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.level.block.state.BlockState;
@@ -49,9 +50,11 @@ import net.minecraft.world.level.block.state.BlockState;
  *       {@link #preAttackEntity}.</li>
  * </ul>
  *
- * Commit-at-start: both paths early-return when an in-flight switch
- * exists, preventing re-triggers during sustained presses or chained
- * attacks within a cooldown window.
+ * While a switch is in flight, combat doesn't re-switch (chained attacks in
+ * one cooldown keep the weapon). Mining does when the player, still holding
+ * the button, turns to a block the tool in hand doesn't suit: the first
+ * switch is undone and the right tool for the new block is switched in, so
+ * the switch back still lands on what was held before any of it.
  *
  * <h3>Three-tier resolution</h3>
  *
@@ -73,13 +76,20 @@ import net.minecraft.world.level.block.state.BlockState;
  *
  * While the player is holding Sneak (Shift), the switch is suppressed
  * entirely, following the convention of the "Automatic Tool Swap" mod. It
- * gives the player an always-available override.
+ * gives the player an always-available override. It is the one choice here
+ * ({@link IPConfig#autoToolSwitchSneakPauses}, on by default).
  *
- * <h3>Auto-return (optional)</h3>
+ * <h3>Weapon in hand</h3>
  *
- * When it switches back at all (automatically, {@link IPConfig#autoToolSwitchReturnAuto},
- * or on the key to the previous tool, {@link IPConfig#autoToolSwitchReturnKey}), the mod captures
- * pre-switch state (previous selected slot, plus the cycler undo handle or
+ * Hitting a block with a sword, spear, mace or trident in hand switches
+ * nothing ({@link IPConfig#autoToolSwitchKeepWeapon}, on by default): in a
+ * fight, a swing that lands on the ground shouldn't swap the weapon away and
+ * dig. Axes count as tools here.
+ *
+ * <h3>Auto-return</h3>
+ *
+ * The switch always goes back {@link #RETURN_DELAY_TICKS} after the player
+ * stops. The mod captures pre-switch state (previous selected slot, plus the cycler undo handle or
  * inventory-swap reversal info) into {@link #inFlight}, then restores it
  * when the action completes:
  * <ul>
@@ -144,6 +154,9 @@ public final class AutoToolSwitch {
      */
     private static final int COMBAT_RETURN_GRACE_TICKS = 4;
 
+    /** How long after the player stops the switch goes back: one second. */
+    private static final int RETURN_DELAY_TICKS = 20;
+
     /**
      * Register the tick listener. Call once from
      * {@code InventoryPlusClient.onInitializeClient}.
@@ -174,13 +187,23 @@ public final class AutoToolSwitch {
         // it pointless, and a switch there is just noise.
         if (!ModeScope.SURVIVAL.includes(player)) return;
         // Sneak suppression: the player wants exact control.
-        if (player.isShiftKeyDown()) return;
-        // Commit-at-start: skip if a switch is already in flight
-        // (sustained mining through different materials stays on the
-        // initially picked tool).
-        if (inFlight != null) return;
-
+        if (IPConfig.autoToolSwitchSneakPauses() && player.isShiftKeyDown()) return;
         BlockState blockState = player.level().getBlockState(pos);
+
+        if (inFlight != null) {
+            // A weapon switched in for a fight stays through a stray block hit.
+            if (inFlight.action != Action.MINING) return;
+            // Still holding the button, turned to another block (vanilla starts a
+            // new break for it). The tool in hand suits it: keep mining.
+            if (ToolFinder.isMatchingToolForBlock(player.getInventory().getSelectedItem(), blockState)) return;
+            // It doesn't: undo the first switch, so this one starts from what the
+            // player held before either and the switch back returns to that.
+            doReturn(inFlight, mc);
+            inFlight = null;
+        } else if (IPConfig.autoToolSwitchKeepWeapon() && isFightingWeapon(player.getInventory().getSelectedItem())) {
+            return;
+        }
+
         ToolFinder.Match match = ToolFinder.findBestForBlock(player.getInventory(), blockState);
         if (match == null) {
             // No tool for it in the inventory, and none in the hand: one from a carried
@@ -209,16 +232,12 @@ public final class AutoToolSwitch {
         if (mc.player == null || !player.getUUID().equals(mc.player.getUUID())) return;
         if (!IPConfig.autoToolSwitchEnabled()) return;
         if (!ModeScope.SURVIVAL.includes(player)) return;
-        // Weapons toggle gates the combat path entirely.
-        if (!IPConfig.autoToolSwitchWeapons()) return;
         // Only LivingEntity targets. Projectiles, items and so on don't get
         // weapon switches.
         if (!(target instanceof LivingEntity living)) return;
-        // Hostile (Monster class) by default. The All Mobs sub-toggle widens
-        // it to passive mobs too.
-        boolean isHostile = target instanceof Monster;
-        if (!isHostile && !IPConfig.autoToolSwitchAllMobs()) return;
-        if (player.isShiftKeyDown()) return;
+        // Hostile mobs only: hitting a cow or a villager is rarely a fight.
+        if (!(target instanceof Monster)) return;
+        if (IPConfig.autoToolSwitchSneakPauses() && player.isShiftKeyDown()) return;
         // Record combat activity for the auto-return grace window before
         // the commit-at-start guard, so every qualifying attack (including
         // follow-up swings in a combo) pushes the return timer forward,
@@ -291,7 +310,12 @@ public final class AutoToolSwitch {
         // player keeps that earlier tool, and this switch's previous state
         // becomes the new thing to return to.
         pendingReturn = null;
-        inFlight = returnsAtAll() ? state : null;
+        inFlight = state;
+    }
+
+    /** A weapon held for fighting: sword, spear, mace or trident. Axes are tools here. */
+    private static boolean isFightingWeapon(ItemStack stack) {
+        return stack.is(ItemTags.SWORDS) || stack.is(ItemTags.SPEARS) || stack.is(Items.MACE) || stack.is(Items.TRIDENT);
     }
 
     /**
@@ -325,10 +349,6 @@ public final class AutoToolSwitch {
     // Auto-return
 
     private static void onClientTick(Minecraft mc) {
-        // Always drain the return keybind, even when nothing's switched, so a
-        // stray press doesn't fire on the next switch.
-        boolean keyReturn = drainReturnKeybind();
-
         Player player = mc.player;
         if (player == null) {
             // Lost the player (disconnect, dimension change and so on). Discard
@@ -339,66 +359,36 @@ public final class AutoToolSwitch {
         }
         if (inFlight == null && pendingReturn == null) return;
 
-        boolean auto = IPConfig.autoToolSwitchReturnAuto();
-        boolean key = IPConfig.autoToolSwitchReturnKey();
-
-        // The key to the previous tool returns whatever is active right now, a
-        // pending return or a switch still mid-action, with no window. With
-        // automatic on it is the early way back, with it off the only one.
-        if (key && keyReturn) {
-            if (pendingReturn != null) {
-                doReturn(pendingReturn, mc);
-                pendingReturn = null;
-            } else if (inFlight != null) {
-                doReturn(inFlight, mc);
-                inFlight = null;
-            }
-        }
-
         // When the triggering action finishes, hand the captured state off to
-        // pendingReturn. inFlight clears here, which keeps the anti-thrash
-        // guard and re-switching working.
+        // pendingReturn. inFlight clears here, which keeps re-switching working.
         if (inFlight != null && isActionComplete(inFlight, mc, player)) {
-            if (auto || key) {
-                // Snapshot the now-settled post-switch state as the baseline.
-                // If it later drifts, the player took manual control, which
-                // voids the return.
-                inFlight.baselineSlot = player.getInventory().getSelectedSlot();
-                inFlight.baselineItem = player.getInventory().getItem(inFlight.baselineSlot).copy();
-                pendingReturn = inFlight;
-                pendingReturnWindowStart = player.tickCount;
-            }
+            // Snapshot the now-settled post-switch state as the baseline. If it
+            // later drifts, the player took manual control, which voids the return.
+            inFlight.baselineSlot = player.getInventory().getSelectedSlot();
+            inFlight.baselineItem = player.getInventory().getItem(inFlight.baselineSlot).copy();
+            pendingReturn = inFlight;
+            pendingReturnWindowStart = player.tickCount;
             inFlight = null;
         }
 
         // Manual control voids the return: the instant the player's selected slot
         // or the switched tool's slot drifts from the post-switch baseline (scroll,
-        // number key, manual cycle, move, break), drop the pending return so the
-        // keybind and auto-return do nothing.
+        // number key, manual cycle, move, break), drop the pending return.
         if (pendingReturn != null && divergedFromBaseline(player)) {
             pendingReturn = null;
         }
 
         if (pendingReturn != null) {
-            if (auto) {
-                // Hold the window open while the action has resumed, so it only
-                // counts down once the player has truly stopped and the return
-                // never fires mid-action. Then return once it has passed.
-                if (!isActionComplete(pendingReturn, mc, player)) {
-                    pendingReturnWindowStart = player.tickCount;
-                } else if (windowExpired(player)) {
-                    doReturn(pendingReturn, mc);
-                    pendingReturn = null;
-                }
-            } else if (!key) {
-                pendingReturn = null; // both turned off mid-flight
+            // Hold the window open while the action has resumed, so it only
+            // counts down once the player has truly stopped and the return
+            // never fires mid-action. Then return once it has passed.
+            if (!isActionComplete(pendingReturn, mc, player)) {
+                pendingReturnWindowStart = player.tickCount;
+            } else if (player.tickCount - pendingReturnWindowStart >= RETURN_DELAY_TICKS) {
+                doReturn(pendingReturn, mc);
+                pendingReturn = null;
             }
         }
-    }
-
-    /** Whether Auto Tool Switch ever switches back: automatically, or on the key. */
-    private static boolean returnsAtAll() {
-        return IPConfig.autoToolSwitchReturnAuto() || IPConfig.autoToolSwitchReturnKey();
     }
 
     /**
@@ -417,13 +407,6 @@ public final class AutoToolSwitch {
         return combatLastAttackTick >= 0 && ticksSinceAttack >= cooldownTicks + COMBAT_RETURN_GRACE_TICKS;
     }
 
-    /** Whether the pending-return window has elapsed (config seconds, as ticks). */
-    private static boolean windowExpired(Player player) {
-        // 0 seconds is allowed: back the tick the player stops.
-        int cooldownTicks = Math.max(0, IPConfig.autoToolSwitchReturnCooldownSeconds()) * 20;
-        return player.tickCount - pendingReturnWindowStart >= cooldownTicks;
-    }
-
     /**
      * Whether the player has manually changed state since the switch: the selected
      * slot moved off the baseline, or the switched tool's slot no longer holds
@@ -436,13 +419,6 @@ public final class AutoToolSwitch {
         Inventory inv = player.getInventory();
         if (inv.getSelectedSlot() != pendingReturn.baselineSlot) return true;
         return !ItemStack.isSameItem(inv.getItem(pendingReturn.baselineSlot), pendingReturn.baselineItem);
-    }
-
-    /** Drain the return keybind. True if it was pressed this tick. */
-    private static boolean drainReturnKeybind() {
-        boolean pressed = false;
-        while (IPKeybinds.AUTO_SWITCH_RETURN.consumeClick()) pressed = true;
-        return pressed;
     }
 
     /**

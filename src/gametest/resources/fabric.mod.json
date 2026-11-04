@@ -18,7 +18,8 @@
       "com.trevorschoeny.inventoryplus.checks.IntakeChecks",
       "com.trevorschoeny.inventoryplus.checks.SlotRulesChecks",
       "com.trevorschoeny.inventoryplus.checks.EditModeChecks",
-      "com.trevorschoeny.inventoryplus.checks.EditModeSceneChecks"
+      "com.trevorschoeny.inventoryplus.checks.EditModeSceneChecks",
+      "com.trevorschoeny.inventoryplus.checks.AutoToolSwitchChecks"
     ],
     "main": [
       "com.trevorschoeny.inventoryplus.checks.ListFixture"

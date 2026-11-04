@@ -4,7 +4,9 @@
   "package": "com.trevorschoeny.inventoryplus.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
-    "InventoryAddCarriedPutMixin"
+    "InventoryAddCarriedPutMixin",
+    "LivingEntityEquipmentAccessor",
+    "PlayerAttackEquipmentMixin"
   ],
   "client": [
     "AbstractContainerScreenAccessor",

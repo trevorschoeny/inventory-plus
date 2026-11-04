@@ -6,7 +6,6 @@ import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.AUTO_T
 
 import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
 import com.trevorschoeny.inventoryplus.api.HotbarCyclable.ExtraSlot;
-import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 
 import net.minecraft.tags.ItemTags;
@@ -334,31 +333,16 @@ public final class ToolFinder {
                 || stack.is(ItemTags.TRIDENT_ENCHANTABLE);
     }
 
-    /**
-     * True if this item matches the player's currently-configured
-     * weapon preference. Used by {@link #findBestForMob}'s three-case
-     * active-slot logic and as the predicate when searching for the
-     * preferred type only.
-     */
+    /** True for a sword: the weapon Auto Tool Switch prefers whenever there is one. */
     static boolean isPreferredWeapon(ItemStack stack) {
-        if (stack.isEmpty()) return false;
-        WeaponPreference pref = IPConfig.autoToolSwitchWeaponPreference();
-        return switch (pref) {
-            case SWORD -> stack.is(ItemTags.SWORDS);
-            case AXE -> stack.is(ItemTags.AXES);
-            case MACE -> stack.is(Items.MACE);
-            case TRIDENT -> stack.is(Items.TRIDENT);
-            case SPEAR -> stack.is(ItemTags.SPEARS);
-        };
+        return stack.is(ItemTags.SWORDS);
     }
 
     /**
      * Score for a weapon. Higher is better.
      *
-     * <p>Primary signal: <b>preferred weapon type wins</b> regardless
-     * of other types' material, so a preferred AXE in iron beats a
-     * non-preferred SWORD in netherite. Set in the settings menu's
-     * "Preferred weapon" dropdown.
+     * <p>Primary signal: <b>weapon type</b>, regardless of material: sword,
+     * then spear, axe, mace, trident. So an iron sword beats a netherite axe.
      *
      * <p>Within the same type tier (all preferred, or all non-preferred),
      * material via the maxDamage proxy (Netherite > Diamond > Iron > Stone >
@@ -370,18 +354,17 @@ public final class ToolFinder {
      * through findBestForMob for it.
      */
     static double scoreWeapon(ItemStack stack) {
-        WeaponPreference pref = IPConfig.autoToolSwitchWeaponPreference();
         double typeScore;
         if (stack.is(ItemTags.SWORDS)) {
-            typeScore = (pref == WeaponPreference.SWORD) ? 100_000.0 : 10_000.0;
+            typeScore = 100_000.0;
         } else if (stack.is(ItemTags.AXES)) {
-            typeScore = (pref == WeaponPreference.AXE) ? 100_000.0 : 8_000.0;
+            typeScore = 8_000.0;
         } else if (stack.is(ItemTags.SPEARS)) {
-            typeScore = (pref == WeaponPreference.SPEAR) ? 100_000.0 : 9_000.0;
+            typeScore = 9_000.0;
         } else if (stack.is(Items.MACE)) {
-            typeScore = (pref == WeaponPreference.MACE) ? 100_000.0 : 7_000.0;
+            typeScore = 7_000.0;
         } else if (stack.is(Items.TRIDENT)) {
-            typeScore = (pref == WeaponPreference.TRIDENT) ? 100_000.0 : 6_000.0;
+            typeScore = 6_000.0;
         } else if (stack.is(ItemTags.WEAPON_ENCHANTABLE) || stack.is(ItemTags.TRIDENT_ENCHANTABLE)) {
             // Fallback for modded melee weapons that match the broad tag
             // but aren't in any of the hard-coded type buckets. Treat as

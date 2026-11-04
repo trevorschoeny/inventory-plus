@@ -8,7 +8,6 @@ import com.google.gson.JsonSyntaxException;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.rules.Intake;
-import com.trevorschoeny.inventoryplus.autotoolswitch.WeaponPreference;
 import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
 
 import org.jetbrains.annotations.Nullable;
@@ -94,18 +93,12 @@ public final class IPConfig {
     // hand. See the AutoToolSwitch class javadoc for the three-tier resolution
     // and the switch back.
     private static boolean autoToolSwitchEnabled = false;
-    // Switching back: by default the hotbar snaps back on its own once the
-    // player has stopped for the window. The key to the previous tool is
-    // opt-in, and returns early (or, with automatic off, any time). These
-    // replace the old four-way autoToolSwitchReturnMode (migrated in load()).
-    private static boolean autoToolSwitchReturnAuto = true;
-    private static boolean autoToolSwitchReturnKey = false;
-    private static int autoToolSwitchReturnCooldownSeconds = 1;  // 0 = back as soon as you stop
-    private static boolean autoToolSwitchWeapons = false;    // sub of Enabled
-    private static boolean autoToolSwitchAllMobs = false;    // sub of Weapons; false = hostile only
-    // Preferred weapon type: wins regardless of material when the player has
-    // multiple weapon kinds available. Persisted as the enum name.
-    private static WeaponPreference autoToolSwitchWeaponPreference = WeaponPreference.SWORD;
+    // The only two choices besides on/off: Sneak pauses it (the player's
+    // always-available override), and it leaves a held weapon alone when a
+    // block is hit, so a missed swing in a fight doesn't swap the sword for a
+    // shovel. Everything else is fixed behavior, see AutoToolSwitch.
+    private static boolean autoToolSwitchSneakPauses = true;
+    private static boolean autoToolSwitchKeepWeapon = true;
 
     // Show Buttons
     private static boolean sortShowButton = true;
@@ -254,24 +247,8 @@ public final class IPConfig {
         autoRestockBeforeBreakThreshold = readInt(root, "autoRestockBeforeBreakThreshold",
                 autoRestockBeforeBreakThreshold);
         autoToolSwitchEnabled  = readBool(root, "autoToolSwitchEnabled",  autoToolSwitchEnabled);
-        // Migrate the old four-way mode, or the boolean before it: AUTOMATIC
-        // returns on its own, either hotkey mode keeps the key, OFF neither.
-        // The timed hotkey (key only within the window) has no new form; it
-        // becomes the key any time.
-        String oldMode = root.has("autoToolSwitchReturn")
-                ? (readBool(root, "autoToolSwitchReturn", false) ? "AUTOMATIC" : "OFF")
-                : readString(root, "autoToolSwitchReturnMode", null);
-        if (oldMode != null) {
-            autoToolSwitchReturnAuto = oldMode.equals("AUTOMATIC");
-            autoToolSwitchReturnKey = oldMode.startsWith("HOTKEY");
-        }
-        autoToolSwitchReturnAuto = readBool(root, "autoToolSwitchReturnAuto", autoToolSwitchReturnAuto);
-        autoToolSwitchReturnKey = readBool(root, "autoToolSwitchReturnKey", autoToolSwitchReturnKey);
-        autoToolSwitchReturnCooldownSeconds = readInt(root, "autoToolSwitchReturnCooldownSeconds",
-                autoToolSwitchReturnCooldownSeconds);
-        autoToolSwitchWeapons  = readBool(root, "autoToolSwitchWeapons",  autoToolSwitchWeapons);
-        autoToolSwitchAllMobs  = readBool(root, "autoToolSwitchAllMobs",  autoToolSwitchAllMobs);
-        autoToolSwitchWeaponPreference = WeaponPreference.fromName(readString(root, "autoToolSwitchWeaponPreference", null), autoToolSwitchWeaponPreference);
+        autoToolSwitchSneakPauses = readBool(root, "autoToolSwitchSneakPauses", autoToolSwitchSneakPauses);
+        autoToolSwitchKeepWeapon = readBool(root, "autoToolSwitchKeepWeapon", autoToolSwitchKeepWeapon);
         sortShowButton         = readBool(root, "sortShowButton",         sortShowButton);
         moveMatchingShowButtons= readBool(root, "moveMatchingShowButtons",moveMatchingShowButtons);
         columnCyclerEnabled       = readBool(root, "columnCyclerEnabled",       columnCyclerEnabled);
@@ -363,12 +340,8 @@ public final class IPConfig {
         root.addProperty("restockFromShulkers",         restockFromShulkers);
         root.addProperty("autoRestockBeforeBreakThreshold", autoRestockBeforeBreakThreshold);
         root.addProperty("autoToolSwitchEnabled",   autoToolSwitchEnabled);
-        root.addProperty("autoToolSwitchReturnAuto", autoToolSwitchReturnAuto);
-        root.addProperty("autoToolSwitchReturnKey", autoToolSwitchReturnKey);
-        root.addProperty("autoToolSwitchReturnCooldownSeconds", autoToolSwitchReturnCooldownSeconds);
-        root.addProperty("autoToolSwitchWeapons",   autoToolSwitchWeapons);
-        root.addProperty("autoToolSwitchAllMobs",   autoToolSwitchAllMobs);
-        root.addProperty("autoToolSwitchWeaponPreference", autoToolSwitchWeaponPreference.name());
+        root.addProperty("autoToolSwitchSneakPauses", autoToolSwitchSneakPauses);
+        root.addProperty("autoToolSwitchKeepWeapon", autoToolSwitchKeepWeapon);
         root.addProperty("sortShowButton",          sortShowButton);
         root.addProperty("moveMatchingShowButtons", moveMatchingShowButtons);
         root.addProperty("columnCyclerEnabled",       columnCyclerEnabled);
@@ -553,12 +526,8 @@ public final class IPConfig {
     public static boolean autoRestockShulkerAmmo()      { return autoRestockShulkerAmmo; }
     public static int autoRestockBeforeBreakThreshold() { return autoRestockBeforeBreakThreshold; }
     public static boolean autoToolSwitchEnabled()       { return autoToolSwitchEnabled; }
-    public static boolean autoToolSwitchReturnAuto() { return autoToolSwitchReturnAuto; }
-    public static boolean autoToolSwitchReturnKey()  { return autoToolSwitchReturnKey; }
-    public static int autoToolSwitchReturnCooldownSeconds()       { return autoToolSwitchReturnCooldownSeconds; }
-    public static boolean autoToolSwitchWeapons()       { return autoToolSwitchWeapons; }
-    public static boolean autoToolSwitchAllMobs()       { return autoToolSwitchAllMobs; }
-    public static WeaponPreference autoToolSwitchWeaponPreference() { return autoToolSwitchWeaponPreference; }
+    public static boolean autoToolSwitchSneakPauses()   { return autoToolSwitchSneakPauses; }
+    public static boolean autoToolSwitchKeepWeapon()    { return autoToolSwitchKeepWeapon; }
     public static boolean sortShowButton()              { return sortShowButton; }
     public static boolean moveMatchingShowButtons()     { return moveMatchingShowButtons; }
     public static boolean columnCyclerEnabled()         { return columnCyclerEnabled; }
@@ -580,12 +549,8 @@ public final class IPConfig {
     public static void setAutoRestockShulkerAmmo(boolean v)      { autoRestockShulkerAmmo = v; save(); }
     public static void setAutoRestockBeforeBreakThreshold(int v) { autoRestockBeforeBreakThreshold = v; save(); }
     public static void setAutoToolSwitchEnabled(boolean v)       { autoToolSwitchEnabled = v; save(); }
-    public static void setAutoToolSwitchReturnAuto(boolean v) { autoToolSwitchReturnAuto = v; save(); }
-    public static void setAutoToolSwitchReturnKey(boolean v)  { autoToolSwitchReturnKey = v; save(); }
-    public static void setAutoToolSwitchReturnCooldownSeconds(int v)       { autoToolSwitchReturnCooldownSeconds = v; save(); }
-    public static void setAutoToolSwitchWeapons(boolean v)       { autoToolSwitchWeapons = v; save(); }
-    public static void setAutoToolSwitchAllMobs(boolean v)       { autoToolSwitchAllMobs = v; save(); }
-    public static void setAutoToolSwitchWeaponPreference(WeaponPreference v) { autoToolSwitchWeaponPreference = v; save(); }
+    public static void setAutoToolSwitchSneakPauses(boolean v)   { autoToolSwitchSneakPauses = v; save(); }
+    public static void setAutoToolSwitchKeepWeapon(boolean v)    { autoToolSwitchKeepWeapon = v; save(); }
     public static void setSortShowButton(boolean v)              { sortShowButton = v; save(); }
     public static void setMoveMatchingShowButtons(boolean v)     { moveMatchingShowButtons = v; save(); }
     public static void setColumnCyclerEnabled(boolean v)         { columnCyclerEnabled = v; save(); }
