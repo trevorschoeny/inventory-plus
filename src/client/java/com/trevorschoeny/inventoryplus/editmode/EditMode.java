@@ -7,6 +7,7 @@ import com.trevorschoeny.inventoryplus.operations.CursorShelf;
 
 import com.trevlar.menukit.api.panel.SlotDecorations;
 import com.trevlar.slotkit.api.reserve.Reservation;
+import com.trevlar.slotkit.api.reserve.ReservationDisplay;
 import com.trevlar.slotkit.api.reserve.ReservationEditor;
 import com.trevlar.slotkit.api.reserve.Reservations;
 import com.trevlar.slotkit.api.window.SlotRef;
@@ -60,12 +61,21 @@ public final class EditMode {
     private static final int GOLD = 0xFFE8B230;
     private static final int GLOW = 0x00E8B230;
     private static final int OUTLINE = 0x90E8B230;
+    /** Vanilla's slot grey, about 70% opaque: an item under it reads as faded. */
+    private static final int VEIL = 0xB08B8B8B;
 
     /** The screen edit mode is on for, or null. Any other screen is out of it. */
     private static @Nullable Screen on;
 
     public static void register() {
         SlotDecorations.under("inventoryplus:edit_mode", DECORATION);
+        // In the mode the rules take over: every item fades, and SlotKit draws the
+        // reservations' corner icons crisp above it (its decoration id sorts after this
+        // one and the padlocks', so it lands on top).
+        SlotDecorations.over("inventoryplus:edit_veil", (graphics, screen, slot, stack, x, y) -> {
+            if (screen == on && !stack.isEmpty()) graphics.fill(x, y, x + 16, y + 16, VEIL);
+        });
+        ReservationDisplay.emphasize(EditMode::isOn);
         ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
             if (!(screen instanceof AbstractContainerScreen<?>)) return;
             // Escape leaves the mode first, and the screen stays open. A dialog up
