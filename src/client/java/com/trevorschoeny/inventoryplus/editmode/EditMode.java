@@ -16,6 +16,7 @@ import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -75,7 +76,9 @@ public final class EditMode {
                 leave();
                 return false;
             });
-            ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, delta) -> {
+            // Right after the screen's background: over its texture, under everything
+            // else on it (toolbars, slots, dialogs, the reserve popup).
+            ScreenEvents.afterBackground(screen).register((s, graphics, mouseX, mouseY, delta) -> {
                 if (s == on) drawFrame(graphics, (AbstractContainerScreen<?>) s);
             });
         });
@@ -140,7 +143,13 @@ public final class EditMode {
 
     // The look
 
-    /** The frame and a glow fading out from it, outside the screen's image so nothing on it is covered. */
+    /** What the two clicks do, shown over the panel the whole time the mode is on. */
+    private static final Component HINT = Component.literal("Left-click: lock  ·  Right-click: reserve");
+
+    /**
+     * The frame and a glow fading out from it, outside the screen's image so nothing on it
+     * is covered, and the click hint centered just above it.
+     */
     private static void drawFrame(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
         AbstractContainerScreenAccessor a = (AbstractContainerScreenAccessor) screen;
         int x = a.inventoryPlus$getLeftPos();
@@ -152,9 +161,11 @@ public final class EditMode {
             int alpha = 0x90 >> (i - 2);
             graphics.outline(x - i, y - i, w + 2 * i, h + 2 * i, GLOW | alpha << 24);
         }
+        Font font = Minecraft.getInstance().font;
+        graphics.text(font, HINT, x + (w - font.width(HINT)) / 2, y - 5 - font.lineHeight, 0xFFFFFFFF, true);
     }
 
-    /** Every slot outlined, and the two clicks named on hover. Public for the self-checks. */
+    /** Every slot outlined, and its rules named on hover. Public for the self-checks. */
     public static final SlotDecorations.Decoration DECORATION = new SlotDecorations.Decoration() {
         @Override
         public void draw(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen, Slot slot,
@@ -169,7 +180,7 @@ public final class EditMode {
         }
     };
 
-    /** "Gold Ingot (reserved)", then what each click does on this slot. */
+    /** "Gold Ingot (reserved)": the clicks are in the hint over the panel. */
     public static List<Component> tooltipFor(Slot slot, ItemStack stack) {
         List<Component> lines = new ArrayList<>();
         LocalPlayer player = Minecraft.getInstance().player;
@@ -185,8 +196,6 @@ public final class EditMode {
             lines.add(Component.literal("Can't be locked or reserved here").withStyle(ChatFormatting.GRAY));
             return lines;
         }
-        lines.add(Component.literal("Left-click: " + (LockedSlots.isLockedSlot(slot) ? "Unlock" : "Lock")));
-        lines.add(Component.literal("Right-click: " + (reserved.isNone() ? "Reserve…" : "Edit the reservation")));
         return lines;
     }
 }

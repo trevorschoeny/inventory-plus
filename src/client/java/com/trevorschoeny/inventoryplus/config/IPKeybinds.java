@@ -48,12 +48,6 @@ public final class IPKeybinds {
     public static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(
             Identifier.fromNamespaceAndPath("inventoryplus", "controls"));
 
-    public static final KeyMapping LOCK_SLOT = new KeyMapping(
-            "key.inventoryplus.lock_slot",
-            InputConstants.Type.KEYBOARD,
-            InputConstants.KEY_L,
-            CATEGORY);
-
     public static final KeyMapping SORT = new KeyMapping(
             "key.inventoryplus.sort",
             InputConstants.Type.KEYBOARD,
@@ -110,20 +104,6 @@ public final class IPKeybinds {
             CATEGORY);
 
     /**
-     * Auto Tool Switch "return to previous tool". Defaults to <b>Left Shift
-     * (Sneak)</b> so "sneak to return" works out of the box. It shares the key
-     * with vanilla Sneak, and both fire. Unlike the screen-scoped keys, this
-     * one is game-world input, polled via {@link KeyMapping#consumeClick()} on
-     * the client tick. Used when the return key is on
-     * ({@code IPConfig.autoToolSwitchReturnKey}).
-     */
-    public static final KeyMapping AUTO_SWITCH_RETURN = new KeyMapping(
-            "key.inventoryplus.auto_switch_return",
-            InputConstants.Type.KEYBOARD,
-            InputConstants.KEY_LSHIFT,
-            CATEGORY);
-
-    /**
      * Opens the settings menu. Unbound until a default is chosen. Works in the
      * world (polled on the client tick) and on container screens (matched in
      * {@code afterKeyPress}, like the other screen keys).
@@ -158,7 +138,6 @@ public final class IPKeybinds {
 
     /** Register all keybinds with Fabric. Call once from client init. */
     public static void register() {
-        KeyMappingHelper.registerKeyMapping(LOCK_SLOT);
         KeyMappingHelper.registerKeyMapping(SORT);
         KeyMappingHelper.registerKeyMapping(MOVE_MATCHING_IN);
         KeyMappingHelper.registerKeyMapping(MOVE_MATCHING_OUT);
@@ -167,7 +146,6 @@ public final class IPKeybinds {
         KeyMappingHelper.registerKeyMapping(CYCLE_BACKWARD);
         KeyMappingHelper.registerKeyMapping(HOTBAR_CYCLE_FORWARD);
         KeyMappingHelper.registerKeyMapping(HOTBAR_CYCLE_BACKWARD);
-        KeyMappingHelper.registerKeyMapping(AUTO_SWITCH_RETURN);
         KeyMappingHelper.registerKeyMapping(OPEN_SETTINGS);
         KeyMappingHelper.registerKeyMapping(HIDE_TOOLTIPS);
     }

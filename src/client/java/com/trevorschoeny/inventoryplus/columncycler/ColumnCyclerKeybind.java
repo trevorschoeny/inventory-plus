@@ -26,7 +26,7 @@ import org.jetbrains.annotations.Nullable;
  * <p>Holding C sweeps across multiple slots. The key is the only way to
  * add slots now that edit mode is gone.
  *
- * <p>Pattern mirrors {@link com.trevorschoeny.inventoryplus.lockedslots.LockedSlotKeybind}.
+ * <p>A screen key: matched in {@code afterKeyPress} against the hovered slot.
  */
 public final class ColumnCyclerKeybind {
 

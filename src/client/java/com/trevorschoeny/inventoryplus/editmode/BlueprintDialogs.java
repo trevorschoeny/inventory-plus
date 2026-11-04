@@ -58,7 +58,7 @@ public final class BlueprintDialogs {
                 .id("inventoryplus:blueprint_save")
                 .title(Component.literal("Save blueprint"))
                 .content(Flow.builder().vertical().gap(4)
-                        .add(TextLabel.builder().text(Component.literal("Saves this container's locks and reservations.")).build())
+                        .add(TextLabel.builder().text(Component.literal("Save these slot edits as a blueprint to copy onto other containers.")).build())
                         .add(TextField.builder().size(LIST_WIDTH, 20).maxLength(48)
                                 .state(() -> draftName, v -> draftName = v)
                                 .onSubmit(v -> save())

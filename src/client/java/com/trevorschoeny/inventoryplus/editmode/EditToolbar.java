@@ -6,19 +6,9 @@ import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 import com.trevorschoeny.inventoryplus.toolbar.FeatureToggleButtons;
 
 import com.trevlar.menukit.api.element.Button;
-import com.trevlar.menukit.api.element.Checkbox;
-import com.trevlar.menukit.api.element.Flow;
 import com.trevlar.menukit.api.element.PanelElement;
-import com.trevlar.menukit.api.element.TextLabel;
 import com.trevlar.menukit.api.element.Toggle;
-import com.trevlar.menukit.api.panel.ModeScope;
-import com.trevlar.menukit.api.panel.OutsideRegion;
-import com.trevlar.menukit.api.panel.Panel;
-import com.trevlar.menukit.api.panel.PanelPosition;
-import com.trevlar.menukit.api.panel.PanelStyle;
-import com.trevlar.slotkit.api.group.CategoryPanels;
 import com.trevlar.slotkit.api.group.ResolvedSlotGroup;
-import com.trevlar.slotkit.api.group.SlotGroupCategory;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
@@ -37,8 +27,8 @@ import java.util.function.Supplier;
 
 /**
  * Edit mode's controls: the edit button left of Sort on every container toolbar, with
- * Save and Load (blueprints) beside it while the mode is on, and a shulker box's Intake
- * beside the box while the mode is on.
+ * Save and Load (blueprints) beside it while the mode is on, and on a shulker box's
+ * toolbar its Intake buttons too.
  *
  * <p>Each toolbar's buttons act on the container that toolbar sits above: the chest's
  * Save saves the chest, the inventory's saves the inventory. The edit button is one
@@ -51,6 +41,9 @@ public final class EditToolbar {
     private static final Identifier EDIT = Identifier.fromNamespaceAndPath("inventoryplus", "edit_button");
     private static final Identifier SAVE = Identifier.fromNamespaceAndPath("inventoryplus", "blueprint_save_button");
     private static final Identifier LOAD = Identifier.fromNamespaceAndPath("inventoryplus", "blueprint_load_button");
+    private static final Identifier BEFORE = Identifier.fromNamespaceAndPath("inventoryplus", "intake_before_button");
+    private static final Identifier AFTER = Identifier.fromNamespaceAndPath("inventoryplus", "intake_after_button");
+    private static final Identifier MATCHING = Identifier.fromNamespaceAndPath("inventoryplus", "intake_matching_button");
 
     private static final int SIZE = FeatureToggleButtons.SIZE;
 
@@ -63,7 +56,7 @@ public final class EditToolbar {
                 Button.builder().sprite(SAVE).size(SIZE, SIZE)
                         .onClick(() -> BlueprintDialogs.openSave(slots))
                         .tooltip(Component.literal("Save blueprint")
-                                .append(Component.literal("\nThis container's locks and reservations, to load onto another")
+                                .append(Component.literal("\nSave these slot edits as a blueprint to copy onto other containers")
                                         .withStyle(ChatFormatting.GRAY)))
                         .visibleWhen(EditMode::isOn)
                         .build(),
@@ -78,7 +71,7 @@ public final class EditToolbar {
                             EditMode.set(v);
                         })
                         .tooltip(SettingsMenu.tooltip("Slots", () -> Component.literal("Edit slots: " + (EditMode.isOn() ? "On" : "Off"))
-                                .append(Component.literal("\nLeft-click a slot to lock it, right-click to reserve it")
+                                .append(Component.literal("\nLock and reserve this screen's slots")
                                         .withStyle(ChatFormatting.GRAY))))
                         .visibleWhen(EditMode::available)
                         .build());
@@ -107,46 +100,38 @@ public final class EditToolbar {
     // A shulker box's Intake
 
     /**
-     * Beside each shulker box on screen, in edit mode: its Intake (Off, Before inventory,
-     * After inventory) and Matching only. A placed box keeps it on its block and gives it
-     * to the item when broken; a box opened from the inventory keeps it on its item.
-     * Needs Inventory Plus on the server, which applies it.
+     * A shulker box's Intake, as three buttons on its toolbar in edit mode: Before
+     * inventory and After inventory (one at most is lit; clicking the lit one turns
+     * Intake off), and Matching only. A placed box keeps it on its block and gives it to
+     * the item when broken; a box opened from the inventory keeps it on its item. Needs
+     * Inventory Plus on the server, which applies it.
      */
-    public static void registerIntake() {
-        CategoryPanels.declare(SlotGroupCategory.SHULKER_STORAGE, on -> Panel.builder(
-                        "inventoryplus.edit.intake" + (on.index() == 0 ? "" : "." + on.index()))
-                .elements(List.of(intakeControls(on::group)))
-                .style(PanelStyle.RAISED)
-                .in(ModeScope.BOTH, on.around(PanelPosition.region(OutsideRegion.LEFT_ALIGN_TOP)))
-                .build()
-                .visibleWhen(() -> EditMode.isOn() && IntakeClient.available()));
+    public static List<PanelElement> intakeButtons(Supplier<@Nullable ResolvedSlotGroup> group) {
+        return List.of(
+                whenButton(group, Intake.When.BEFORE, BEFORE, "Intake: before inventory",
+                        "Pickups go into this box first. Your inventory takes what doesn't fit."),
+                whenButton(group, Intake.When.AFTER, AFTER, "Intake: after inventory",
+                        "Pickups go into this box only once your inventory is full."),
+                Toggle.builder().sprite(MATCHING).size(SIZE, SIZE)
+                        .state(() -> current(group).matchingOnly(),
+                                v -> send(group, new Intake(current(group).when(), v)))
+                        .tooltip(Component.literal("Intake: matching only")
+                                .append(Component.literal("\nOnly items this box already holds go in")
+                                        .withStyle(ChatFormatting.GRAY)))
+                        // Matching only refines an Intake; with Intake off there is nothing to refine.
+                        .visibleWhen(() -> EditMode.isOn() && IntakeClient.available()
+                                && current(group).when() != Intake.When.OFF)
+                        .build());
     }
 
-    private static PanelElement intakeControls(Supplier<@Nullable ResolvedSlotGroup> group) {
-        Flow.Builder column = Flow.builder().vertical().gap(1, 1)
-                .add(TextLabel.builder().text(Component.literal("Intake")).build());
-        for (Intake.When when : Intake.When.values()) {
-            column.add(Toggle.builder().size(96, 14)
-                    .label(Component.literal(label(when)))
-                    .state(() -> current(group).when() == when, v -> {
-                        if (v) send(group, new Intake(when, current(group).matchingOnly()));
-                    })
-                    .build());
-        }
-        column.add(Checkbox.builder()
-                .label(Component.literal("Matching only"))
-                .state(() -> current(group).matchingOnly(),
-                        v -> send(group, new Intake(current(group).when(), v)))
-                .build());
-        return column.build();
-    }
-
-    static String label(Intake.When when) {
-        return switch (when) {
-            case OFF -> "Off";
-            case BEFORE -> "Before inventory";
-            case AFTER -> "After inventory";
-        };
+    private static PanelElement whenButton(Supplier<@Nullable ResolvedSlotGroup> group, Intake.When when,
+                                           Identifier sprite, String title, String body) {
+        return Toggle.builder().sprite(sprite).size(SIZE, SIZE)
+                .state(() -> current(group).when() == when,
+                        v -> send(group, new Intake(v ? when : Intake.When.OFF, current(group).matchingOnly())))
+                .tooltip(Component.literal(title).append(Component.literal("\n" + body).withStyle(ChatFormatting.GRAY)))
+                .visibleWhen(() -> EditMode.isOn() && IntakeClient.available())
+                .build();
     }
 
     /** The box's Intake as the server synced it. */

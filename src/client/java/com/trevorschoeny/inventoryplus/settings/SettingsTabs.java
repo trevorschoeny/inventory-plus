@@ -1,6 +1,5 @@
 package com.trevorschoeny.inventoryplus.settings;
 
-import com.trevorschoeny.inventoryplus.autotoolswitch.WeaponPreference;
 import com.trevorschoeny.inventoryplus.blueprints.Blueprints;
 import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
@@ -97,11 +96,8 @@ final class SettingsTabs {
     }
 
     private static void resetAutoToolSwitch() {
-        IPConfig.reset("autoToolSwitchEnabled", "autoToolSwitchShowButton", "autoToolSwitchReturnAuto",
-                "autoToolSwitchReturnKey",
-                "autoToolSwitchReturnCooldownSeconds", "autoToolSwitchWeapons", "autoToolSwitchAllMobs",
-                "autoToolSwitchWeaponPreference");
-        resetKeys(IPKeybinds.AUTO_SWITCH_RETURN);
+        IPConfig.reset("autoToolSwitchEnabled", "autoToolSwitchShowButton", "autoToolSwitchSneakPauses",
+                "autoToolSwitchKeepWeapon");
     }
 
     private static void resetColumnCycler() {
@@ -116,10 +112,9 @@ final class SettingsTabs {
         resetKeys(IPKeybinds.HOTBAR_CYCLE_FORWARD, IPKeybinds.HOTBAR_CYCLE_BACKWARD);
     }
 
-    /** Slots' reset: the lock key, and every lock kept on this computer, in every world. Blueprints stay. */
+    /** Slots' reset: every lock kept on this computer, in every world. Blueprints stay. */
     private static void resetLocks() {
         LockedSlots.clearAll();
-        resetKeys(IPKeybinds.LOCK_SLOT);
     }
 
     /** "12 locks in 3 worlds": every lock kept on this computer. */
@@ -245,10 +240,6 @@ final class SettingsTabs {
                         () -> SettingsMenu.confirm("Reset Slots to defaults?",
                                 lockCount() + " kept on this computer are removed. Blueprints stay.",
                                 SettingsTabs::resetLocks));
-        b.heading("Locks")
-                .key(IPKeybinds.LOCK_SLOT, Component.translatable(IPKeybinds.LOCK_SLOT.getName()),
-                        Component.literal("Locks the slot under your mouse, or unlocks it, without edit mode. "
-                                + "Hold it and sweep to do several."));
         b.heading("Blueprints");
         List<String> names = Blueprints.names();
         if (names.isEmpty()) b.line("None yet. Save one with Save in edit mode.");
@@ -342,25 +333,12 @@ final class SettingsTabs {
         b.feature("Auto Tool Switch", Bool.of(IPConfig::autoToolSwitchEnabled, IPConfig::setAutoToolSwitchEnabled))
                 .checkbox("Show the Auto Tool Switch button",
                         Bool.of(IPConfig::autoToolSwitchShowButton, IPConfig::setAutoToolSwitchShowButton))
-                // By default it switches back on its own a second after you
-                // stop. The key is opt-in and returns early.
-                .checkbox("Switch back automatically", Bool.of(IPConfig::autoToolSwitchReturnAuto,
-                        IPConfig::setAutoToolSwitchReturnAuto))
-                .slider("Seconds after you stop", 0, 10,
-                        IPConfig::autoToolSwitchReturnCooldownSeconds, IPConfig::setAutoToolSwitchReturnCooldownSeconds,
-                        () -> !IPConfig.autoToolSwitchReturnAuto())
-                .checkbox("Key to previous tool", Bool.of(IPConfig::autoToolSwitchReturnKey,
-                        IPConfig::setAutoToolSwitchReturnKey))
-                .key(IPKeybinds.AUTO_SWITCH_RETURN, Component.literal("Key"), null,
-                        () -> !IPConfig.autoToolSwitchReturnKey())
-                .checkbox("Switch weapons too", Bool.of(IPConfig::autoToolSwitchWeapons,
-                        IPConfig::setAutoToolSwitchWeapons))
-                .subCheckbox("All mobs, not just hostile ones", Bool.of(IPConfig::autoToolSwitchAllMobs,
-                        IPConfig::setAutoToolSwitchAllMobs).onlyWhen(IPConfig::autoToolSwitchWeapons))
-                .choice("Preferred weapon", Arrays.asList(WeaponPreference.values()),
-                        SettingsTabs::titleCase,
-                        IPConfig::autoToolSwitchWeaponPreference, IPConfig::setAutoToolSwitchWeaponPreference,
-                        () -> !IPConfig.autoToolSwitchWeapons());
+                // Everything else is fixed: weapons for hostile mobs (a sword
+                // first), and back to what you held a second after you stop.
+                .checkbox("Sneak pauses it", Bool.of(IPConfig::autoToolSwitchSneakPauses,
+                        IPConfig::setAutoToolSwitchSneakPauses))
+                .checkbox("Keep a weapon in hand when you hit a block", Bool.of(IPConfig::autoToolSwitchKeepWeapon,
+                        IPConfig::setAutoToolSwitchKeepWeapon));
         return b.build();
     }
 

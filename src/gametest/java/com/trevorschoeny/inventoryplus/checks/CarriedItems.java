@@ -1,6 +1,10 @@
 package com.trevorschoeny.inventoryplus.checks;
 
+import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
+
+import com.mojang.blaze3d.platform.InputConstants;
+import com.trevorschoeny.inventoryplus.editmode.EditMode;
 
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerPlayer;
@@ -21,6 +25,16 @@ import java.util.function.Consumer;
 final class CarriedItems {
 
     private CarriedItems() {}
+
+    /** Locks or unlocks the slot under the mouse as the player does: edit mode on, a real left-click, edit mode off. */
+    static void editLockClick(ClientGameTestContext ctx) {
+        ctx.runOnClient(mc -> EditMode.set(true));
+        ctx.waitTicks(1);
+        ctx.getInput().pressMouse(InputConstants.MOUSE_BUTTON_LEFT);
+        ctx.waitTicks(4);
+        ctx.runOnClient(mc -> EditMode.set(false));
+        ctx.waitTicks(1);
+    }
 
     static void onServer(TestSingleplayerContext world, Consumer<ServerPlayer> action) {
         world.getServer().runOnServer(server -> action.accept(server.getPlayerList().getPlayers().get(0)));

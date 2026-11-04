@@ -1,6 +1,5 @@
 {
   "key.category.inventoryplus.controls": "Inventory Plus",
-  "key.inventoryplus.lock_slot": "Lock Slot",
   "key.inventoryplus.sort": "Sort",
   "key.inventoryplus.move_matching_in": "Move Matching Into Inventory",
   "key.inventoryplus.move_matching_out": "Move Matching Out of Inventory",
@@ -9,7 +8,6 @@
   "key.inventoryplus.cycle_backward": "Column Cycle Backward",
   "key.inventoryplus.hotbar_cycle_forward": "Hotbar Cycle Forward",
   "key.inventoryplus.hotbar_cycle_backward": "Hotbar Cycle Backward",
-  "key.inventoryplus.auto_switch_return": "Auto-Switch: Return to Previous Tool",
   "key.inventoryplus.open_settings": "Open Settings",
   "key.inventoryplus.hide_tooltips": "Hide or Show Tooltips",
   "slot_operation.inventoryplus.sort": "Sort",

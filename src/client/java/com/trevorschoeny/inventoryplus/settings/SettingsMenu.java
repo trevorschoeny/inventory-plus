@@ -317,11 +317,11 @@ public final class SettingsMenu extends MKScreen {
                 .state(() -> selectedTab, SettingsMenu::selectTab)
                 .bodyScroll(bodyScroll::get, bodyScroll::put)
                 .tab(tab(GENERAL, "General").body(SettingsTabs::general))
-                .tab(tab(TOOLTIPS, "Tooltips").body(SettingsTabs::tooltips))
-                .tab(tab(SLOTS, "Slots").body(SettingsTabs::slots))
                 .tab(tab(SORT_AND_MOVE, "Sort & Move").body(SettingsTabs::sortAndMove))
                 .tab(tab(RESTOCK_AND_TOOLS, "Restock & Tools").body(SettingsTabs::restockAndTools))
                 .tab(tab(HOTBARS_AND_CYCLERS, "Hotbars & Cyclers").body(SettingsTabs::hotbarsAndCyclers))
+                .tab(tab(SLOTS, "Slots").body(SettingsTabs::slots))
+                .tab(tab(TOOLTIPS, "Tooltips").body(SettingsTabs::tooltips))
                 .build();
         Panel.Builder panel = Panel.builder("inventoryplus:settings")
                 .style(options ? PanelStyle.NONE : PanelStyle.RAISED)

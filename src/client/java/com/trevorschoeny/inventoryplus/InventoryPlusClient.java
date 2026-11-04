@@ -1,7 +1,6 @@
 package com.trevorschoeny.inventoryplus;
 
 
-import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
 import com.trevorschoeny.inventoryplus.autorestock.AutoRestockTicker;
 import com.trevorschoeny.inventoryplus.autotoolswitch.AutoToolSwitch;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
@@ -21,8 +20,6 @@ import com.trevorschoeny.inventoryplus.tooltips.Tooltips;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockedslots.OwnLocks;
 import com.trevorschoeny.inventoryplus.lockedslots.SlotMarks;
-import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsDragController;
-import com.trevorschoeny.inventoryplus.lockedslots.LockedSlotKeybind;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingKeybind;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingModes;
 import com.trevorschoeny.inventoryplus.sort.ContainerOpenTracker;
@@ -106,8 +103,6 @@ public class InventoryPlusClient implements ClientModInitializer {
         // drops the locks its old pairing wrote (LockedSlots.load).
         ColumnCycler.load();
         LockedSlots.load(ColumnCycler::pairedSlotsIn);
-        LockedSlotKeybind.register();
-        ClientTickEvents.END_CLIENT_TICK.register(LockedSlotsDragController::tick);
         OwnLocks.register();
         // Padlock and cycle icon draw as one MenuKit
         // slot decoration (7.5.0), in place of the old extractSlot mixin.
@@ -119,10 +114,9 @@ public class InventoryPlusClient implements ClientModInitializer {
         // the action buttons. Each button's showWhen decides its own
         // visibility within the panel.
         Toolbar.register();
-        // Edit mode: its buttons are on the toolbars above; its dialogs, its look and a box's Intake here.
+        // Edit mode: its buttons are on the toolbars above; its dialogs and its look here.
         com.trevorschoeny.inventoryplus.editmode.EditMode.register();
         com.trevorschoeny.inventoryplus.editmode.BlueprintDialogs.register();
-        com.trevorschoeny.inventoryplus.editmode.EditToolbar.registerIntake();
 
         // Settings menu: the dot button lives in the toolbar above; the Open
         // settings key (unbound by default) is registered here.

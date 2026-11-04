@@ -2,7 +2,6 @@ package com.trevorschoeny.inventoryplus.checks;
 
 import static com.trevorschoeny.inventoryplus.checks.CarriedItems.clear;
 
-import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.movematching.ScreenLayout;
 
@@ -129,8 +128,7 @@ public class WorldSwitchLockChecks implements FabricClientGameTest {
     }
 
     private void press() {
-        ctx.getInput().pressKey(IPKeybinds.LOCK_SLOT);
-        ctx.waitTicks(4);
+        CarriedItems.editLockClick(ctx);
     }
 
     private static void expect(boolean ok, String what) {

@@ -6,6 +6,7 @@ import static com.trevorschoeny.inventoryplus.checks.CarriedItems.onServer;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
+import com.trevorschoeny.inventoryplus.editmode.EditMode;
 import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCycler;
 import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCyclerRowButtons;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
@@ -109,7 +110,6 @@ public class ModeChecks implements FabricClientGameTest {
             expectShown(false, false, "creative item tab");
             expectRefused(HOTBAR_LOCKED, "creative item tab: a locked hotbar slot");
             expectTaken(HOTBAR_FREE, "creative item tab: an unlocked hotbar slot");
-            // The lock key works on the hotbar, the only player slots an item tab has.
             lockKeyCheck(HOTBAR_FREE, "creative item tab");
 
             // An item tab has no main inventory: Sort has nothing to sort there, and
@@ -279,9 +279,9 @@ public class ModeChecks implements FabricClientGameTest {
     }
 
     /**
-     * The keys on an open screen: L locks the slot under the mouse and L again
-     * unlocks it; C adds that slot to its column's cycle (Column Cycler on).
-     * Neither sends a click, so both work on creative's tabs today.
+     * On an open screen: locking the slot under the mouse (edit mode, outside
+     * creative), and C adding that slot to its column's cycle (Column Cycler on),
+     * which works on creative's tabs too.
      */
     private void keyChecks(int index, String where) {
         lockKeyCheck(index, where);
@@ -300,14 +300,20 @@ public class ModeChecks implements FabricClientGameTest {
         });
     }
 
+    /**
+     * Edit mode's left-click locks the slot under the mouse and again unlocks it. Creative's
+     * screen has no edit mode, so locks are set in survival and only honored there.
+     */
     private void lockKeyCheck(int index, String where) {
+        if (ctx.computeOnClient(mc -> mc.gui.screen() instanceof CreativeModeInventoryScreen)) {
+            expect(!ctx.computeOnClient(mc -> EditMode.available()), where + ": creative's screen has no edit mode");
+            return;
+        }
         hover(index);
-        ctx.getInput().pressKey(IPKeybinds.LOCK_SLOT);
-        ctx.waitTicks(4);
-        expect(isLocked(index), where + ": L locks the slot under the mouse");
-        ctx.getInput().pressKey(IPKeybinds.LOCK_SLOT);
-        ctx.waitTicks(4);
-        expect(!isLocked(index), where + ": L again unlocks it");
+        CarriedItems.editLockClick(ctx);
+        expect(isLocked(index), where + ": edit mode's left-click locks the slot under the mouse");
+        CarriedItems.editLockClick(ctx);
+        expect(!isLocked(index), where + ": a second left-click unlocks it");
     }
 
     private boolean isLocked(int index) {

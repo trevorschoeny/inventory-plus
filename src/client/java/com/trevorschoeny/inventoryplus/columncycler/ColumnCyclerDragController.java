@@ -17,8 +17,7 @@ import java.util.Set;
 /**
  * Drag-to-toggle controller for Column Cycler: coerces every slot entered
  * during a drag to the cycle-membership state set on the first touched slot.
- * Mirrors {@link com.trevorschoeny.inventoryplus.lockedslots.LockedSlotsDragController}
- * (same state semantics, polling cadence and termination conditions).
+ * Polled on the client tick; ends when the key is released or the screen closes.
  *
  * <p>Held C key, inventory and hotbar only. Started by {@link ColumnCyclerKeybind}
  * after the initial C press toggles the first slot. There is no LMB drag, since
