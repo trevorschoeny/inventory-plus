@@ -301,12 +301,12 @@ public class ModeChecks implements FabricClientGameTest {
     }
 
     /**
-     * Edit mode's left-click locks the slot under the mouse and again unlocks it. Creative's
-     * screen has no edit mode, so locks are set in survival and only honored there.
+     * Edit mode's left-click locks the slot under the mouse and again unlocks it. On
+     * creative's item tabs there is no edit mode: their slots are the catalog.
      */
     private void lockKeyCheck(int index, String where) {
-        if (ctx.computeOnClient(mc -> mc.gui.screen() instanceof CreativeModeInventoryScreen)) {
-            expect(!ctx.computeOnClient(mc -> EditMode.available()), where + ": creative's screen has no edit mode");
+        if (ctx.computeOnClient(mc -> mc.gui.screen() instanceof CreativeModeInventoryScreen c && !c.isInventoryOpen())) {
+            expect(!ctx.computeOnClient(mc -> EditMode.available()), where + ": an item tab has no edit mode");
             return;
         }
         hover(index);

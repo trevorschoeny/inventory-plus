@@ -90,8 +90,8 @@ final class SettingsTabs {
     }
 
     private static void resetRestock() {
-        IPConfig.reset("restockEnabled", "restockShowButton", "autoRestockArmor", "autoRestockArmorBeforeBreak",
-                "autoRestockTool", "autoRestockToolBeforeBreak", "autoRestockItem", "autoRestockShulker",
+        IPConfig.reset("restockEnabled", "restockShowButton", "autoRestockGear", "autoRestockGearBeforeBreak",
+                "autoRestockItem", "autoRestockShulker",
                 "autoRestockShulkerAmmo", "autoRestockBeforeBreakThreshold", "restockFromShulkers");
     }
 
@@ -300,8 +300,7 @@ final class SettingsTabs {
     static List<PanelElement> restockAndTools() {
         // Each restock kind is its own switch too, and its sub-options gray while
         // it is off, as in the old settings screen.
-        Bool armor = Bool.of(IPConfig::autoRestockArmor, IPConfig::setAutoRestockArmor);
-        Bool tool = Bool.of(IPConfig::autoRestockTool, IPConfig::setAutoRestockTool);
+        Bool gear = Bool.of(IPConfig::autoRestockGear, IPConfig::setAutoRestockGear);
         Bool item = Bool.of(IPConfig::autoRestockItem, IPConfig::setAutoRestockItem);
         SettingsBody b = new SettingsBody()
                 .frame("Restock & Tools", "Keeps the right things in your hands: refills what runs out or breaks, "
@@ -318,18 +317,13 @@ final class SettingsTabs {
                         + "when the inventory has none.");
         b.feature("Restock", Bool.of(IPConfig::restockEnabled, IPConfig::setRestockEnabled))
                 .checkbox("Show the Restock button", Bool.of(IPConfig::restockShowButton, IPConfig::setRestockShowButton))
-                // Shared by armor's and tools' "Swap before it breaks".
-                .slider("Swap before breaking at durability", 2, 50,
-                        IPConfig::autoRestockBeforeBreakThreshold, IPConfig::setAutoRestockBeforeBreakThreshold,
-                        () -> !((IPConfig.autoRestockArmor() && IPConfig.autoRestockArmorBeforeBreak())
-                                || (IPConfig.autoRestockTool() && IPConfig.autoRestockToolBeforeBreak())))
                 .checkbox("Restock items", item)
-                .checkbox("Restock tools", tool)
-                .subCheckbox("Swap before it breaks", Bool.of(IPConfig::autoRestockToolBeforeBreak,
-                        IPConfig::setAutoRestockToolBeforeBreak).onlyWhen(tool.get()))
-                .checkbox("Restock armor", armor)
-                .subCheckbox("Swap before it breaks", Bool.of(IPConfig::autoRestockArmorBeforeBreak,
-                        IPConfig::setAutoRestockArmorBeforeBreak).onlyWhen(armor.get()));
+                .checkbox("Restock tools, weapons and armor", gear)
+                .subCheckbox("Swap before it breaks", Bool.of(IPConfig::autoRestockGearBeforeBreak,
+                        IPConfig::setAutoRestockGearBeforeBreak).onlyWhen(gear.get()))
+                .slider("At durability", 2, 50,
+                        IPConfig::autoRestockBeforeBreakThreshold, IPConfig::setAutoRestockBeforeBreakThreshold,
+                        () -> !(IPConfig.autoRestockGear() && IPConfig.autoRestockGearBeforeBreak()));
         b.feature("Auto Tool Switch", Bool.of(IPConfig::autoToolSwitchEnabled, IPConfig::setAutoToolSwitchEnabled))
                 .checkbox("Show the Auto Tool Switch button",
                         Bool.of(IPConfig::autoToolSwitchShowButton, IPConfig::setAutoToolSwitchShowButton))

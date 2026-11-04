@@ -11,6 +11,7 @@
   "client": [
     "AbstractContainerScreenAccessor",
     "AbstractContainerScreenEditModeMixin",
+    "CreativeModeInventoryScreenEditModeMixin",
     "CompoundContainerAccessor",
     "HudAccessor",
     "HudHotbarSlideMixin",

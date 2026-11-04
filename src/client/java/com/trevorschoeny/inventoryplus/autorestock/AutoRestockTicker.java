@@ -226,15 +226,13 @@ public final class AutoRestockTicker {
         // non-empty and is now empty, and the previous stack can't be found
         // anywhere in the current inventory (cursor included). That second
         // check tells a real break from the player removing the item by hand.
-        if (IPConfig.autoRestockTool()) {
+        if (IPConfig.autoRestockGear()) {
             refillIfDamageableBroke(gameMode, inv, player,
                     previousSnapshot[selected], inv.getItem(selected), selected);
             refillIfDamageableBroke(gameMode, inv, player,
                     previousSnapshot[IDX_OFFHAND],
                     player.getItemBySlot(EquipmentSlot.OFFHAND),
                     SWAP_OFFHAND_KEY);
-        }
-        if (IPConfig.autoRestockArmor()) {
             refillIfArmorBroke(gameMode, inv, player, EquipmentSlot.HEAD,
                     previousSnapshot[IDX_ARMOR_HEAD]);
             refillIfArmorBroke(gameMode, inv, player, EquipmentSlot.CHEST,
@@ -248,17 +246,14 @@ public final class AutoRestockTicker {
         // 3. Durability-delta restock (before-break). For each of the six
         // watched slots, fire a swap iff the slot's current stack just took a
         // point of durability damage and now sits at or below the threshold.
-        // Gated on the parent toggle (Tool or Armor) and its "Restock Before
-        // Break" sub-toggle. See tookDamageThisTick for the trigger predicate.
+        // Gated on Gear and its "Swap before it breaks" sub-toggle. See
+        // tookDamageThisTick for the trigger predicate.
 
-        if (IPConfig.autoRestockTool() && IPConfig.autoRestockToolBeforeBreak()) {
+        if (IPConfig.autoRestockGear() && IPConfig.autoRestockGearBeforeBreak()) {
             // Mainhand: a SWAP click is a true exchange, so it works whether the
             // hotbar slot ends up empty or occupied after the swap.
             tryDurabilitySwapHotbar(gameMode, inv, player, selected);
             tryDurabilitySwapOffhand(gameMode, inv, player);
-        }
-
-        if (IPConfig.autoRestockArmor() && IPConfig.autoRestockArmorBeforeBreak()) {
             tryDurabilitySwapArmor(gameMode, inv, player, EquipmentSlot.HEAD,  MENU_ARMOR_HEAD);
             tryDurabilitySwapArmor(gameMode, inv, player, EquipmentSlot.CHEST, MENU_ARMOR_CHEST);
             tryDurabilitySwapArmor(gameMode, inv, player, EquipmentSlot.LEGS,  MENU_ARMOR_LEGS);

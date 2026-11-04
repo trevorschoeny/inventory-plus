@@ -32,8 +32,7 @@ import java.nio.file.Path;
  * {
  *   "version": 1,
  *   "autoRestockOffhand":  true,
- *   "autoRestockArmor":    true,
- *   "autoRestockTool":     true,
+ *   "autoRestockGear":     true,
  *   "autoRestockItem":     true,
  *   "sortShowButton":      true,
  *   "moveMatchingShowButtons": true
@@ -67,10 +66,10 @@ public final class IPConfig {
 
     // Auto-Restock. Offhand restock is always on: the offhand is just another
     // active slot, so there is no reason to gate it.
-    private static boolean autoRestockArmor = true;
-    private static boolean autoRestockArmorBeforeBreak = false; // sub of Armor
-    private static boolean autoRestockTool = true;
-    private static boolean autoRestockToolBeforeBreak = false;  // sub of Tool
+    // Gear: tools, weapons, shields and armor, one switch with one "Swap before it
+    // breaks" (once separate for tools and armor, merged in load()).
+    private static boolean autoRestockGear = true;
+    private static boolean autoRestockGearBeforeBreak = false; // sub of Gear
     private static boolean autoRestockItem = true;
     private static boolean autoRestockShulker = false;          // parent
     private static boolean autoRestockShulkerAmmo = false;      // sub of Shulker
@@ -236,10 +235,12 @@ public final class IPConfig {
 
     /** Reads every setting {@code root} has. The rest keep their values. */
     private static void apply(JsonObject root) {
-        autoRestockArmor             = readBool(root, "autoRestockArmor",             autoRestockArmor);
-        autoRestockArmorBeforeBreak  = readBool(root, "autoRestockArmorBeforeBreak",  autoRestockArmorBeforeBreak);
-        autoRestockTool              = readBool(root, "autoRestockTool",              autoRestockTool);
-        autoRestockToolBeforeBreak   = readBool(root, "autoRestockToolBeforeBreak",   autoRestockToolBeforeBreak);
+        // The old tools and armor switches merge: on if either was.
+        autoRestockGear = root.has("autoRestockGear") ? readBool(root, "autoRestockGear", autoRestockGear)
+                : readBool(root, "autoRestockTool", true) || readBool(root, "autoRestockArmor", true);
+        autoRestockGearBeforeBreak = root.has("autoRestockGearBeforeBreak")
+                ? readBool(root, "autoRestockGearBeforeBreak", autoRestockGearBeforeBreak)
+                : readBool(root, "autoRestockToolBeforeBreak", false) || readBool(root, "autoRestockArmorBeforeBreak", false);
         autoRestockItem              = readBool(root, "autoRestockItem",              autoRestockItem);
         autoRestockShulker           = readBool(root, "autoRestockShulker",           autoRestockShulker);
         autoRestockShulkerAmmo       = readBool(root, "autoRestockShulkerAmmo",       autoRestockShulkerAmmo);
@@ -330,10 +331,8 @@ public final class IPConfig {
     /** Every setting as the file writes it (without the version or the reach record). */
     private static JsonObject settingsJson() {
         JsonObject root = new JsonObject();
-        root.addProperty("autoRestockArmor",            autoRestockArmor);
-        root.addProperty("autoRestockArmorBeforeBreak", autoRestockArmorBeforeBreak);
-        root.addProperty("autoRestockTool",             autoRestockTool);
-        root.addProperty("autoRestockToolBeforeBreak",  autoRestockToolBeforeBreak);
+        root.addProperty("autoRestockGear",             autoRestockGear);
+        root.addProperty("autoRestockGearBeforeBreak",  autoRestockGearBeforeBreak);
         root.addProperty("autoRestockItem",             autoRestockItem);
         root.addProperty("autoRestockShulker",          autoRestockShulker);
         root.addProperty("autoRestockShulkerAmmo",      autoRestockShulkerAmmo);
@@ -517,10 +516,8 @@ public final class IPConfig {
     public static void setSettingsOptionsLook(boolean v) { settingsOptionsLook = v; save(); }
 
     // Getters
-    public static boolean autoRestockArmor()            { return autoRestockArmor; }
-    public static boolean autoRestockArmorBeforeBreak() { return autoRestockArmorBeforeBreak; }
-    public static boolean autoRestockTool()             { return autoRestockTool; }
-    public static boolean autoRestockToolBeforeBreak()  { return autoRestockToolBeforeBreak; }
+    public static boolean autoRestockGear()             { return autoRestockGear; }
+    public static boolean autoRestockGearBeforeBreak()  { return autoRestockGearBeforeBreak; }
     public static boolean autoRestockItem()             { return autoRestockItem; }
     public static boolean autoRestockShulker()          { return autoRestockShulker; }
     public static boolean autoRestockShulkerAmmo()      { return autoRestockShulkerAmmo; }
@@ -540,10 +537,8 @@ public final class IPConfig {
     public static HudMode columnCyclerHudMode()         { return columnCyclerHudMode; }
 
     // Setters
-    public static void setAutoRestockArmor(boolean v)            { autoRestockArmor = v; save(); }
-    public static void setAutoRestockArmorBeforeBreak(boolean v) { autoRestockArmorBeforeBreak = v; save(); }
-    public static void setAutoRestockTool(boolean v)             { autoRestockTool = v; save(); }
-    public static void setAutoRestockToolBeforeBreak(boolean v)  { autoRestockToolBeforeBreak = v; save(); }
+    public static void setAutoRestockGear(boolean v)             { autoRestockGear = v; save(); }
+    public static void setAutoRestockGearBeforeBreak(boolean v)  { autoRestockGearBeforeBreak = v; save(); }
     public static void setAutoRestockItem(boolean v)             { autoRestockItem = v; save(); }
     public static void setAutoRestockShulker(boolean v)          { autoRestockShulker = v; save(); }
     public static void setAutoRestockShulkerAmmo(boolean v)      { autoRestockShulkerAmmo = v; save(); }

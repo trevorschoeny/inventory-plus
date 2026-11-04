@@ -86,16 +86,20 @@ public final class EditMode {
 
     // State
 
-    /** Whether edit mode is on for the screen that is open now. */
+    /** Whether edit mode is on for the screen that is open now (off on a creative item tab). */
     public static boolean isOn() {
         Screen screen = Minecraft.getInstance().gui.screen();
-        return screen != null && screen == on;
+        return screen != null && screen == on && available();
     }
 
-    /** Whether the open screen can be edited: a container screen, not creative's. */
+    /**
+     * Whether the open screen can be edited: a container screen, and on creative's screen
+     * only its inventory tab (an item tab's slots are the catalog, not the player's).
+     */
     public static boolean available() {
         Screen screen = Minecraft.getInstance().gui.screen();
-        return screen instanceof AbstractContainerScreen<?> && !(screen instanceof CreativeModeInventoryScreen);
+        if (screen instanceof CreativeModeInventoryScreen creative) return creative.isInventoryOpen();
+        return screen instanceof AbstractContainerScreen<?>;
     }
 
     /** The edit button's lens. */

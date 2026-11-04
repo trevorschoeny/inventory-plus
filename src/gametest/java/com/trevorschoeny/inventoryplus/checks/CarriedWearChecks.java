@@ -47,10 +47,8 @@ public class CarriedWearChecks implements FabricClientGameTest {
             onServer(world, p -> p.setGameMode(GameType.SURVIVAL));
             ctx.runOnClient(mc -> {
                 IPConfig.setRestockEnabled(true);
-                IPConfig.setAutoRestockTool(true);
-                IPConfig.setAutoRestockToolBeforeBreak(true);
-                IPConfig.setAutoRestockArmor(true);
-                IPConfig.setAutoRestockArmorBeforeBreak(true);
+                IPConfig.setAutoRestockGear(true);
+                IPConfig.setAutoRestockGearBeforeBreak(true);
                 IPConfig.setAutoRestockBeforeBreakThreshold(10);
                 IPConfig.setRestockFromShulkers(true);
             });
