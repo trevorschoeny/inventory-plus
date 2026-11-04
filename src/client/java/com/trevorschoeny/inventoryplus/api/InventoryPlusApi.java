@@ -162,6 +162,15 @@ public final class InventoryPlusApi {
         return IPConfig.columnCyclerEnabled();
     }
 
+    /**
+     * Whether edit mode is on for the screen open now: the mode where the player sets up
+     * slots (locks, reservations, cycles) instead of moving items. Setup controls a
+     * companion shows on a container screen (Hotbar Pockets' + and -) show only then.
+     */
+    public static boolean isEditMode() {
+        return com.trevorschoeny.inventoryplus.editmode.EditMode.isOn();
+    }
+
     // Shared client state
 
     /**
