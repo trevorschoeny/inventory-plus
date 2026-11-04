@@ -3,7 +3,7 @@ package com.trevorschoeny.inventoryplus.checks;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 
-import com.mojang.blaze3d.platform.InputConstants;
+import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.editmode.EditMode;
 
 import net.minecraft.core.component.DataComponents;
@@ -26,11 +26,11 @@ final class CarriedItems {
 
     private CarriedItems() {}
 
-    /** Locks or unlocks the slot under the mouse as the player does: edit mode on, a real left-click, edit mode off. */
-    static void editLockClick(ClientGameTestContext ctx) {
+    /** Locks or unlocks the slot under the mouse as the player does: edit mode on, L, edit mode off. */
+    static void editLock(ClientGameTestContext ctx) {
         ctx.runOnClient(mc -> EditMode.set(true));
         ctx.waitTicks(1);
-        ctx.getInput().pressMouse(InputConstants.MOUSE_BUTTON_LEFT);
+        ctx.getInput().pressKey(IPKeybinds.EDIT_LOCK);
         ctx.waitTicks(4);
         ctx.runOnClient(mc -> EditMode.set(false));
         ctx.waitTicks(1);

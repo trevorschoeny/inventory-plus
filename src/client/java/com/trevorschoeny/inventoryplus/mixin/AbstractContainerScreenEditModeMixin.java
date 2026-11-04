@@ -20,8 +20,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  *
  * <ul>
  *   <li><b>The click</b>: once the screen's widgets and panels have passed on it (the
- *       edit button itself, a dialog), a click in edit mode is edit mode's: a slot's
- *       lock or reservation, and nothing else.</li>
+ *       edit button itself, a dialog), a click in edit mode does nothing: edit mode
+ *       works by keys on the slot under the mouse.</li>
  *   <li><b>Every other slot action</b> (number keys, Q, pick block, offhand swap, a
  *       release that would finish a drag or a double-click) ends in
  *       {@code slotClicked}, so refusing there stops them all, whatever key the player
@@ -31,20 +31,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(AbstractContainerScreen.class)
 public abstract class AbstractContainerScreenEditModeMixin {
 
-    @Shadow
-    private @Nullable Slot getHoveredSlot(double x, double y) {
-        throw new AssertionError();
-    }
-
     @Inject(method = "mouseClicked",
             at = @At(value = "INVOKE", ordinal = 0,
                     target = "Lnet/minecraft/client/gui/screens/inventory/AbstractContainerScreen;getHoveredSlot(DD)Lnet/minecraft/world/inventory/Slot;"),
             cancellable = true)
     private void inventoryPlus$editClick(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
-        if (!EditMode.isOn()) return;
-        Slot slot = getHoveredSlot(event.x(), event.y());
-        if (slot != null) EditMode.click(slot, event.button());
-        cir.setReturnValue(true);
+        if (EditMode.isOn()) cir.setReturnValue(true);
     }
 
     @Inject(method = "slotClicked(Lnet/minecraft/world/inventory/Slot;IILnet/minecraft/world/inventory/ContainerInput;)V",

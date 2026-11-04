@@ -128,7 +128,7 @@ public class WorldSwitchLockChecks implements FabricClientGameTest {
     }
 
     private void press() {
-        CarriedItems.editLockClick(ctx);
+        CarriedItems.editLock(ctx);
     }
 
     private static void expect(boolean ok, String what) {

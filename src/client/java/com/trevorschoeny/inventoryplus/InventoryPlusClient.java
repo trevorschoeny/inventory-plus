@@ -5,8 +5,6 @@ import com.trevorschoeny.inventoryplus.autorestock.AutoRestockTicker;
 import com.trevorschoeny.inventoryplus.autotoolswitch.AutoToolSwitch;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerCyclable;
-import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerDragController;
-import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerKeybind;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerRotationKeybind;
 import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCycler;
 import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCyclerHud;
@@ -124,11 +122,9 @@ public class InventoryPlusClient implements ClientModInitializer {
 
         // Column Cycler is off by default (columnCyclerEnabled). Slot
         // membership is per world (config/inventoryplus/column-cycler.json).
-        // The C key toggles membership, and its inventory button turns the
+        // Edit mode's cycle key toggles membership, and its inventory button turns the
         // feature on and off.
-        ColumnCyclerKeybind.register();
         ColumnCyclerRotationKeybind.register();
-        ClientTickEvents.END_CLIENT_TICK.register(ColumnCyclerDragController::tick);
         ClientTickEvents.END_CLIENT_TICK.register(ColumnCyclerRotationKeybind::tick);
 
         // Hotbar Cycler rotates whole inventory rows through the hotbar.

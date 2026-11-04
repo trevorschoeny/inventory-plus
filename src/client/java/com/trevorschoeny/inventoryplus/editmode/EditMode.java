@@ -1,8 +1,11 @@
 package com.trevorschoeny.inventoryplus.editmode;
 
-import com.mojang.blaze3d.platform.InputConstants;
+import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
+import com.trevorschoeny.inventoryplus.config.IPConfig;
+import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.mixin.AbstractContainerScreenAccessor;
+import com.trevorschoeny.inventoryplus.movematching.ScreenLayout;
 import com.trevorschoeny.inventoryplus.operations.CursorShelf;
 
 import com.trevlar.menukit.api.panel.SlotDecorations;
@@ -12,10 +15,12 @@ import com.trevlar.slotkit.api.reserve.ReservationEditor;
 import com.trevlar.slotkit.api.reserve.Reservations;
 import com.trevlar.slotkit.api.window.SlotRef;
 
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -24,13 +29,16 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Edit mode: a container screen's slots stop moving items and start taking rules.
@@ -38,20 +46,25 @@ import java.util.List;
  * whole screen.
  *
  * <ul>
- *   <li><b>Left-click a slot</b> locks it, or takes its lock off.</li>
- *   <li><b>Right-click a slot</b> reserves it ({@link #reserve}).</li>
- *   <li>Nothing else on a slot does anything: every click, key and drag that would
- *       move an item is swallowed ({@code AbstractContainerScreenEditModeMixin}).</li>
+ *   <li><b>Keys on the slot under the mouse</b> (their own group in Controls):
+ *       {@link IPKeybinds#EDIT_LOCK L} locks it or takes the lock off,
+ *       {@link IPKeybinds#EDIT_RESERVE R} reserves it ({@link #reserve}), and
+ *       {@link IPKeybinds#EDIT_CYCLE C} adds it to its column's cycle or takes it out
+ *       (Column Cycler on). Hold L or C and sweep: every slot the mouse passes gets the
+ *       first slot's new state.</li>
+ *   <li><b>Clicks on slots do nothing</b>, nor does any other key or drag that would
+ *       move an item ({@code AbstractContainerScreenEditModeMixin}); buttons and
+ *       dialogs still take clicks.</li>
  *   <li><b>Entering</b> puts the cursor's item back in the inventory, so no click
  *       in the mode puts it down by surprise.</li>
  *   <li><b>Leaving</b>: Escape, the edit button again, or closing the screen. The
  *       mode belongs to the screen it was turned on for, so a screen that closes
  *       takes it with it, and the next screen opens out of it.</li>
  * </ul>
- * The look: the screen's frame glows gold and every slot is outlined, and hovering
- * a slot names both clicks. Locks and reservations draw as they always do (the
- * padlock, SlotKit's ghost). Not on creative's screen, whose slots click by their
- * own path.
+ * The look: the screen's frame glows gold, every slot is outlined and every item
+ * fades, and the keys are named above the panel. Locks and reservations draw crisp
+ * over the faded items (the padlock, SlotKit's corner icon). On creative's screen,
+ * only its inventory tab.
  */
 public final class EditMode {
 
@@ -76,6 +89,7 @@ public final class EditMode {
             if (screen == on && !stack.isEmpty()) graphics.fill(x, y, x + 16, y + 16, VEIL);
         });
         ReservationDisplay.emphasize(EditMode::isOn);
+        ClientTickEvents.END_CLIENT_TICK.register(mc -> sweepTick());
         ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
             if (!(screen instanceof AbstractContainerScreen<?>)) return;
             // Escape leaves the mode first, and the screen stays open. A dialog up
@@ -88,6 +102,21 @@ public final class EditMode {
             });
             // Right after the screen's background: over its texture, under everything
             // else on it (toolbars, slots, dialogs, the reserve popup).
+            ScreenKeyboardEvents.afterKeyPress(screen).register((s, event) -> {
+                if (!isOn() || BlueprintDialogs.open() || ReservationEditor.isOpen() || sweep != null) return;
+                Slot slot = ScreenLayout.hoveredSlot((AbstractContainerScreen<?>) s);
+                if (slot == null || !slot.isActive()) return;
+                if (IPKeybinds.EDIT_LOCK.matches(event)) {
+                    if (!LockedSlots.isLockableHere(slot)) return;
+                    startSweep(IPKeybinds.EDIT_LOCK, slot, LockedSlots.toggle(slot));
+                } else if (IPKeybinds.EDIT_RESERVE.matches(event)) {
+                    reserve(slot);
+                } else if (IPKeybinds.EDIT_CYCLE.matches(event)) {
+                    if (!IPConfig.columnCyclerEnabled() || !ColumnCycler.isCycleable(slot)) return;
+                    ColumnCycler.toggle(slot);
+                    startSweep(IPKeybinds.EDIT_CYCLE, slot, ColumnCycler.isCycleSlot(slot));
+                }
+            });
             ScreenEvents.afterBackground(screen).register((s, graphics, mouseX, mouseY, delta) -> {
                 if (s == on) drawFrame(graphics, (AbstractContainerScreen<?>) s);
             });
@@ -133,22 +162,42 @@ public final class EditMode {
         BlueprintDialogs.close();
     }
 
-    // Clicks
+    // Keys
+
+    /** A held L or C being swept across slots: the key, the state each slot gets, and the slots done. */
+    private record Sweep(KeyMapping key, boolean state, Set<Integer> done) {}
+
+    private static @Nullable Sweep sweep;
+
+    private static void startSweep(KeyMapping key, Slot first, boolean state) {
+        Set<Integer> done = new HashSet<>();
+        done.add(first.index);
+        sweep = new Sweep(key, state, done);
+    }
 
     /**
-     * A click on {@code slot} in edit mode, from the screen's own click: left locks, right
-     * reserves. Mouse buttons are numbered from 1 in this version ({@link InputConstants}),
-     * so compare with the constants, never a bare number.
+     * While the key is held, each slot the mouse enters gets the sweep's state. Polled on
+     * the client tick, so a very fast sweep may skip a slot. Ends on release, or when the
+     * mode or the screen goes.
      */
-    public static void click(Slot slot, int button) {
-        if (button == InputConstants.MOUSE_BUTTON_LEFT) {
-            if (LockedSlots.isLockableHere(slot)) LockedSlots.toggle(slot);
-        } else if (button == InputConstants.MOUSE_BUTTON_RIGHT) {
-            reserve(slot);
+    private static void sweepTick() {
+        Sweep now = sweep;
+        if (now == null) return;
+        Screen screen = Minecraft.getInstance().gui.screen();
+        if (!isOn() || !IPKeybinds.isHeld(now.key())) {
+            sweep = null;
+            return;
+        }
+        Slot slot = ScreenLayout.hoveredSlot((AbstractContainerScreen<?>) screen);
+        if (slot == null || !slot.isActive() || !now.done().add(slot.index)) return;
+        if (now.key() == IPKeybinds.EDIT_LOCK) {
+            if (LockedSlots.isLockableHere(slot)) LockedSlots.setLocked(slot, now.state());
+        } else if (ColumnCycler.isCycleable(slot)) {
+            ColumnCycler.setCycle(slot.getContainerSlot(), now.state());
         }
     }
 
-    /** Right-click: open SlotKit's reserve popup for {@code slot}. */
+    /** R: open SlotKit's reserve popup for {@code slot}. */
     static void reserve(Slot slot) {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null || !LockedSlots.isLockableHere(slot)) return;
@@ -157,12 +206,25 @@ public final class EditMode {
 
     // The look
 
-    /** What the two clicks do, shown over the panel the whole time the mode is on. */
-    private static final Component HINT = Component.literal("Left-click: lock  ·  Right-click: reserve");
+    /**
+     * The keys, named over the panel the whole time the mode is on, as each is bound:
+     * "L lock · R reserve · C cycle" (cycle only with Column Cycler on).
+     */
+    private static Component hint() {
+        MutableComponent hint = Component.empty()
+                .append(keyName(IPKeybinds.EDIT_LOCK)).append(" lock  ·  ")
+                .append(keyName(IPKeybinds.EDIT_RESERVE)).append(" reserve");
+        if (IPConfig.columnCyclerEnabled()) hint.append("  ·  ").append(keyName(IPKeybinds.EDIT_CYCLE)).append(" cycle");
+        return hint;
+    }
+
+    private static Component keyName(KeyMapping key) {
+        return key.getTranslatedKeyMessage().copy().withStyle(ChatFormatting.YELLOW);
+    }
 
     /**
      * The frame and a glow fading out from it, outside the screen's image so nothing on it
-     * is covered, and the click hint centered just above it.
+     * is covered, and the key hint centered just above it.
      */
     private static void drawFrame(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
         AbstractContainerScreenAccessor a = (AbstractContainerScreenAccessor) screen;
@@ -176,7 +238,8 @@ public final class EditMode {
             graphics.outline(x - i, y - i, w + 2 * i, h + 2 * i, GLOW | alpha << 24);
         }
         Font font = Minecraft.getInstance().font;
-        graphics.text(font, HINT, x + (w - font.width(HINT)) / 2, y - 5 - font.lineHeight, 0xFFFFFFFF, true);
+        Component hint = hint();
+        graphics.text(font, hint, x + (w - font.width(hint)) / 2, y - 5 - font.lineHeight, 0xFFFFFFFF, true);
     }
 
     /** Every slot outlined, and its rules named on hover. Public for the self-checks. */
@@ -194,7 +257,7 @@ public final class EditMode {
         }
     };
 
-    /** "Gold Ingot (reserved)": the clicks are in the hint over the panel. */
+    /** "Gold Ingot (reserved)": the keys are in the hint over the panel. */
     public static List<Component> tooltipFor(Slot slot, ItemStack stack) {
         List<Component> lines = new ArrayList<>();
         LocalPlayer player = Minecraft.getInstance().player;

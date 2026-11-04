@@ -66,11 +66,22 @@ public final class IPKeybinds {
             InputConstants.KEY_O,
             CATEGORY);
 
-    public static final KeyMapping CYCLE_SLOT = new KeyMapping(
-            "key.inventoryplus.cycle_slot",
-            InputConstants.Type.KEYBOARD,
-            InputConstants.KEY_C,
-            CATEGORY);
+    /**
+     * Edit mode's keys, their own group in Controls. They act on the slot under the
+     * mouse and only while edit mode is on, so they share letters with nothing else on
+     * a container screen. Hold one and sweep to apply it to every slot passed over.
+     */
+    public static final KeyMapping.Category EDIT_CATEGORY = KeyMapping.Category.register(
+            Identifier.fromNamespaceAndPath("inventoryplus", "edit_mode"));
+
+    public static final KeyMapping EDIT_LOCK = new KeyMapping(
+            "key.inventoryplus.edit_lock", InputConstants.Type.KEYBOARD, InputConstants.KEY_L, EDIT_CATEGORY);
+
+    public static final KeyMapping EDIT_RESERVE = new KeyMapping(
+            "key.inventoryplus.edit_reserve", InputConstants.Type.KEYBOARD, InputConstants.KEY_R, EDIT_CATEGORY);
+
+    public static final KeyMapping EDIT_CYCLE = new KeyMapping(
+            "key.inventoryplus.edit_cycle", InputConstants.Type.KEYBOARD, InputConstants.KEY_C, EDIT_CATEGORY);
 
     // Column Cycler moved off the brackets to the arrows so Hotbar Cycler
     // could take them. Minecraft stores bindings in options.txt, so existing
@@ -141,7 +152,9 @@ public final class IPKeybinds {
         KeyMappingHelper.registerKeyMapping(SORT);
         KeyMappingHelper.registerKeyMapping(MOVE_MATCHING_IN);
         KeyMappingHelper.registerKeyMapping(MOVE_MATCHING_OUT);
-        KeyMappingHelper.registerKeyMapping(CYCLE_SLOT);
+        KeyMappingHelper.registerKeyMapping(EDIT_LOCK);
+        KeyMappingHelper.registerKeyMapping(EDIT_RESERVE);
+        KeyMappingHelper.registerKeyMapping(EDIT_CYCLE);
         KeyMappingHelper.registerKeyMapping(CYCLE_FORWARD);
         KeyMappingHelper.registerKeyMapping(CYCLE_BACKWARD);
         KeyMappingHelper.registerKeyMapping(HOTBAR_CYCLE_FORWARD);

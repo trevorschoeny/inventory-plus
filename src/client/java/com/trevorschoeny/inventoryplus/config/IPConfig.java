@@ -120,9 +120,7 @@ public final class IPConfig {
     // hotbar. Off by default like every Power Users feature. lockCycledRows is
     // gone (read once below, for the upgrade).
     private static boolean hotbarCyclerEnabled = false;
-    private static boolean hotbarCyclerShowButtons = true;
     // The on/off switch in the inventory's right column, off by default.
-    // hotbarCyclerShowButtons is the row buttons beside the grid.
     private static boolean hotbarCyclerShowButton = false;
     private static boolean hotbarCyclerScrollToCycle = false;
     // Column Cycler HUD overlay mode. MINI_HOTBAR by default, so the HUD strip
@@ -256,7 +254,6 @@ public final class IPConfig {
         columnCyclerShowButton    = readBool(root, "columnCyclerShowButton",    columnCyclerShowButton);
         columnCyclerScrollToCycle = readBool(root, "columnCyclerScrollToCycle", columnCyclerScrollToCycle);
         hotbarCyclerEnabled       = readBool(root, "hotbarCyclerEnabled",       hotbarCyclerEnabled);
-        hotbarCyclerShowButtons   = readBool(root, "hotbarCyclerShowButtons",   hotbarCyclerShowButtons);
         hotbarCyclerShowButton    = readBool(root, "hotbarCyclerShowButton",    hotbarCyclerShowButton);
         hotbarCyclerScrollToCycle = readBool(root, "hotbarCyclerScrollToCycle", hotbarCyclerScrollToCycle);
         columnCyclerHudMode       = HudMode.fromName(readString(root, "columnCyclerHudMode", null), columnCyclerHudMode);
@@ -347,7 +344,6 @@ public final class IPConfig {
         root.addProperty("columnCyclerShowButton",    columnCyclerShowButton);
         root.addProperty("columnCyclerScrollToCycle", columnCyclerScrollToCycle);
         root.addProperty("hotbarCyclerEnabled",       hotbarCyclerEnabled);
-        root.addProperty("hotbarCyclerShowButtons",   hotbarCyclerShowButtons);
         root.addProperty("hotbarCyclerShowButton",    hotbarCyclerShowButton);
         root.addProperty("hotbarCyclerScrollToCycle", hotbarCyclerScrollToCycle);
         root.addProperty("columnCyclerHudMode",       columnCyclerHudMode.name());
@@ -531,7 +527,6 @@ public final class IPConfig {
     public static boolean columnCyclerShowButton()      { return columnCyclerShowButton; }
     public static boolean columnCyclerScrollToCycle()   { return columnCyclerScrollToCycle; }
     public static boolean hotbarCyclerEnabled()         { return hotbarCyclerEnabled; }
-    public static boolean hotbarCyclerShowButtons()     { return hotbarCyclerShowButtons; }
     public static boolean hotbarCyclerShowButton()      { return hotbarCyclerShowButton; }
     public static boolean hotbarCyclerScrollToCycle()   { return hotbarCyclerScrollToCycle; }
     public static HudMode columnCyclerHudMode()         { return columnCyclerHudMode; }
@@ -559,7 +554,6 @@ public final class IPConfig {
         save();
     }
     public static void setHotbarCyclerEnabled(boolean v)         { hotbarCyclerEnabled = v; save(); }
-    public static void setHotbarCyclerShowButtons(boolean v)     { hotbarCyclerShowButtons = v; save(); }
     public static void setHotbarCyclerShowButton(boolean v)      { hotbarCyclerShowButton = v; save(); }
     public static void setHotbarCyclerScrollToCycle(boolean v) {
         hotbarCyclerScrollToCycle = v;

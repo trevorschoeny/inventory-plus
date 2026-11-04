@@ -51,18 +51,18 @@ public final class FeatureToggleButtons {
                 IPConfig::autoToolSwitchShowButton, null, null).build();
     }
 
-    /** Column Cycler: slots join a column's cycle by the key, not by an edit mode. */
+    /** Column Cycler: slots join a column's cycle by edit mode's cycle key. */
     public static Toggle columnCycler(int x, int y) {
         return builder(x, y, "cycle_slot_edit", "Column Cycler", SettingsMenu.COLUMN_CYCLER,
                 IPConfig::columnCyclerEnabled, IPConfig::setColumnCyclerEnabled, IPConfig::columnCyclerShowButton,
-                null, () -> keyHint("Hover over a slot", IPKeybinds.CYCLE_SLOT)).build();
+                null, () -> keyHint("In edit mode, hover over a slot", IPKeybinds.EDIT_CYCLE)).build();
     }
 
-    /** Hotbar Cycler: rows join with the buttons beside them. */
+    /** Hotbar Cycler: rows join with the buttons beside them, shown in edit mode. */
     public static Toggle hotbarCycler(int x, int y) {
         return builder(x, y, "hotbar_cycler_button", "Hotbar Cycler", SettingsMenu.HOTBAR_CYCLER,
                 IPConfig::hotbarCyclerEnabled, IPConfig::setHotbarCyclerEnabled, IPConfig::hotbarCyclerShowButton,
-                null, () -> "Add rows with the button beside each row").build();
+                null, () -> "In edit mode, add rows with the button beside each row").build();
     }
 
     /** A companion's switch ({@code InventoryPlusApi.addFeatureSwitch}). */

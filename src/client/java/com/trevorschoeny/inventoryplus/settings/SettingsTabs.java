@@ -103,18 +103,19 @@ final class SettingsTabs {
     private static void resetColumnCycler() {
         IPConfig.reset("columnCyclerEnabled", "columnCyclerShowButton", "columnCyclerScrollToCycle",
                 "columnCyclerHudMode");
-        resetKeys(IPKeybinds.CYCLE_SLOT, IPKeybinds.CYCLE_FORWARD, IPKeybinds.CYCLE_BACKWARD);
+        resetKeys(IPKeybinds.CYCLE_FORWARD, IPKeybinds.CYCLE_BACKWARD);
     }
 
     private static void resetHotbarCycler() {
-        IPConfig.reset("hotbarCyclerEnabled", "hotbarCyclerShowButton", "hotbarCyclerShowButtons",
+        IPConfig.reset("hotbarCyclerEnabled", "hotbarCyclerShowButton",
                 "hotbarCyclerScrollToCycle");
         resetKeys(IPKeybinds.HOTBAR_CYCLE_FORWARD, IPKeybinds.HOTBAR_CYCLE_BACKWARD);
     }
 
-    /** Slots' reset: every lock kept on this computer, in every world. Blueprints stay. */
+    /** Slots' reset: edit mode's keys, and every lock kept on this computer, in every world. Blueprints stay. */
     private static void resetLocks() {
         LockedSlots.clearAll();
+        resetKeys(IPKeybinds.EDIT_LOCK, IPKeybinds.EDIT_RESERVE, IPKeybinds.EDIT_CYCLE);
     }
 
     /** "12 locks in 3 worlds": every lock kept on this computer. */
@@ -236,10 +237,15 @@ final class SettingsTabs {
     static List<PanelElement> slots() {
         SettingsBody b = new SettingsBody()
                 .frame("Slots", "Lock and reserve slots in edit mode: the edit button left of Sort on any "
-                        + "container. A lock keeps sorting and pickups out; a reservation takes one item only.",
+                        + "container, then a key on the slot under your mouse. A lock keeps sorting and pickups "
+                        + "out; a reservation takes one item only.",
                         () -> SettingsMenu.confirm("Reset Slots to defaults?",
                                 lockCount() + " kept on this computer are removed. Blueprints stay.",
                                 SettingsTabs::resetLocks));
+        b.heading("Edit mode keys")
+                .key(IPKeybinds.EDIT_LOCK)
+                .key(IPKeybinds.EDIT_RESERVE)
+                .key(IPKeybinds.EDIT_CYCLE);
         b.heading("Blueprints");
         List<String> names = Blueprints.names();
         if (names.isEmpty()) b.line("None yet. Save one with Save in edit mode.");
@@ -346,12 +352,11 @@ final class SettingsTabs {
                             resetHotbarCycler();
                         }))
                 .feature("Column Cycler", Bool.of(IPConfig::columnCyclerEnabled, IPConfig::setColumnCyclerEnabled))
-                .line("Press the cycle key on a slot to add its column, then cycle it with the forward and backward keys.")
+                .line("In edit mode, press the cycle key on a slot to add its column, then cycle it with the forward and backward keys.")
                 .choice("Beside the hotbar", Arrays.asList(HudMode.values()), SettingsTabs::hudName,
                         IPConfig::columnCyclerHudMode, IPConfig::setColumnCyclerHudMode, () -> false)
                 .checkbox("Show the Column Cycler button",
                         Bool.of(IPConfig::columnCyclerShowButton, IPConfig::setColumnCyclerShowButton))
-                .key(IPKeybinds.CYCLE_SLOT)
                 .key(IPKeybinds.CYCLE_FORWARD)
                 .key(IPKeybinds.CYCLE_BACKWARD)
                 // Turning this on turns Hotbar Cycler's off, since there is one
@@ -359,11 +364,9 @@ final class SettingsTabs {
                 .checkbox("Scroll to cycle", Bool.of(IPConfig::columnCyclerScrollToCycle,
                         IPConfig::setColumnCyclerScrollToCycle))
                 .feature("Hotbar Cycler", Bool.of(IPConfig::hotbarCyclerEnabled, IPConfig::setHotbarCyclerEnabled))
-                .line("Add rows with the buttons beside them, then cycle with the forward and backward keys.")
+                .line("In edit mode, add rows with the buttons beside them, then cycle with the forward and backward keys.")
                 .checkbox("Show the Hotbar Cycler button",
                         Bool.of(IPConfig::hotbarCyclerShowButton, IPConfig::setHotbarCyclerShowButton))
-                .checkbox("Show the row buttons",
-                        Bool.of(IPConfig::hotbarCyclerShowButtons, IPConfig::setHotbarCyclerShowButtons))
                 .key(IPKeybinds.HOTBAR_CYCLE_FORWARD)
                 .key(IPKeybinds.HOTBAR_CYCLE_BACKWARD)
                 .checkbox("Scroll to cycle", Bool.of(IPConfig::hotbarCyclerScrollToCycle,

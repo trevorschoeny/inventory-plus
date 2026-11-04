@@ -5,6 +5,7 @@ import static com.trevorschoeny.inventoryplus.checks.CarriedItems.count;
 import static com.trevorschoeny.inventoryplus.checks.CarriedItems.onServer;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.editmode.EditMode;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.mixin.AbstractContainerScreenAccessor;
@@ -23,6 +24,7 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -46,8 +48,8 @@ import net.minecraft.world.phys.Vec3;
  * the only thing that can stop it; the last click, out of the mode, shows vanilla's.
  * <ul>
  *   <li>Entering puts the cursor's item back in the inventory.</li>
- *   <li>Left-click locks a slot; right-click opens SlotKit's reserve popup for it,
- *       prefilled from what the slot holds. Neither click moves the stack.</li>
+ *   <li>L locks a slot (hold it and sweep for several); R opens SlotKit's reserve popup for it,
+ *       prefilled from what the slot holds. Neither moves the stack, and a click does nothing.</li>
  *   <li>Q on a slot does nothing in the mode.</li>
  *   <li>Escape leaves the mode and keeps the screen open.</li>
  *   <li>A placed box's Intake, set from its screen, holds on the box and comes off with
@@ -94,30 +96,56 @@ public class EditModeChecks implements FabricClientGameTest {
         onServer(world, p -> expect(count(p, Items.DIRT) == 5 && p.containerMenu.getCarried().isEmpty(),
                 "the dirt is back in the inventory"));
 
-        // Left-click locks, and the stone stays; again unlocks.
+        // A left-click on a full stack does nothing: no lock, nothing picked up.
         click(0, InputConstants.MOUSE_BUTTON_LEFT);
+        ctx.waitTicks(5);
+        expect(ctx.computeOnClient(mc -> !LockedSlots.isLockedSlot(chestSlot(mc.player.containerMenu, 0))
+                        && mc.player.containerMenu.getCarried().isEmpty()),
+                "a left-click in edit mode neither locks nor picks up");
+
+        // L locks, and the stone stays; again unlocks.
+        key(0, IPKeybinds.EDIT_LOCK);
         ctx.waitTicks(5);
         expect(ctx.computeOnClient(mc -> LockedSlots.isLockedSlot(chestSlot(mc.player.containerMenu, 0))
                         && mc.player.containerMenu.getCarried().isEmpty()),
-                "a left-click locks slot 0 and picks nothing up");
+                "L locks slot 0 and picks nothing up");
         onServer(world, p -> {
             Container chest = (Container) p.level().getBlockEntity(at[0]);
             expect(SlotLocks.CHANNEL.get(new Slot(chest, 0, 0, 0)) && chest.getItem(0).getCount() == 64,
                     "the chest holds the lock and keeps its stone");
         });
-        click(0, InputConstants.MOUSE_BUTTON_LEFT);
+        key(0, IPKeybinds.EDIT_LOCK);
         ctx.waitTicks(5);
         expect(!ctx.computeOnClient(mc -> LockedSlots.isLockedSlot(chestSlot(mc.player.containerMenu, 0))),
-                "a second left-click unlocks it");
+                "a second L unlocks it");
 
-        // Right-click opens the reserve popup, prefilled with what slot 1 holds; it
-        // picks nothing up. Done (SlotKit's own button, called directly here) reserves it.
-        click(1, InputConstants.MOUSE_BUTTON_RIGHT);
+        // Hold L on slot 3 and sweep across 4 and 5: all three lock; then sweep them off.
+        for (boolean lock : new boolean[] {true, false}) {
+            hover(3);
+            ctx.getInput().holdKey(IPKeybinds.EDIT_LOCK);
+            ctx.waitTicks(3);
+            hover(4);
+            ctx.waitTicks(3);
+            hover(5);
+            ctx.waitTicks(3);
+            ctx.getInput().releaseKey(IPKeybinds.EDIT_LOCK);
+            ctx.waitTicks(3);
+            expect(ctx.computeOnClient(mc -> {
+                        AbstractContainerMenu menu = mc.player.containerMenu;
+                        return LockedSlots.isLockedSlot(chestSlot(menu, 3)) == lock
+                                && LockedSlots.isLockedSlot(chestSlot(menu, 4)) == lock
+                                && LockedSlots.isLockedSlot(chestSlot(menu, 5)) == lock;
+                    }), lock ? "holding L and sweeping locks every slot passed" : "sweeping again unlocks them");
+        }
+
+        // R opens the reserve popup, prefilled with what slot 1 holds; it picks nothing
+        // up. Done (SlotKit's own button, called directly here) reserves it.
+        key(1, IPKeybinds.EDIT_RESERVE);
         ctx.waitTicks(5);
         expect(ctx.computeOnClient(mc -> ReservationEditor.isOpen()
                         && ReservationEditor.draft().matches(new ItemStack(Items.STONE))
                         && mc.player.containerMenu.getCarried().isEmpty()),
-                "a right-click opens the reserve popup, prefilled with the slot's stone, and picks nothing up");
+                "R opens the reserve popup, prefilled with the slot's stone, and picks nothing up");
         ctx.runOnClient(mc -> ReservationEditor.done());
         ctx.waitTicks(5);
         onServer(world, p -> {
@@ -127,10 +155,10 @@ public class EditModeChecks implements FabricClientGameTest {
                     "Done reserves slot 1 for stone and leaves the stone (" + r + ")");
         });
 
-        // A second right-click reopens it on the existing reservation; Remove clears it.
-        click(1, InputConstants.MOUSE_BUTTON_RIGHT);
+        // A second R reopens it on the existing reservation; Remove clears it.
+        key(1, IPKeybinds.EDIT_RESERVE);
         ctx.waitTicks(5);
-        expect(ctx.computeOnClient(mc -> ReservationEditor.isOpen()), "a second right-click reopens the popup");
+        expect(ctx.computeOnClient(mc -> ReservationEditor.isOpen()), "a second R reopens the popup");
         ctx.runOnClient(mc -> ReservationEditor.remove());
         ctx.waitTicks(5);
         onServer(world, p -> expect(Reservations.get(SlotRef.of((Container) p.level().getBlockEntity(at[0]), 1, null)).isNone(),
@@ -211,6 +239,13 @@ public class EditModeChecks implements FabricClientGameTest {
     private void click(int i, int button) {
         hover(i);
         ctx.getInput().pressMouse(button);
+        ctx.waitTicks(2);
+    }
+
+    /** Edit mode's {@code key} pressed with the real cursor over chest slot {@code i}. */
+    private void key(int i, KeyMapping key) {
+        hover(i);
+        ctx.getInput().pressKey(key);
         ctx.waitTicks(2);
     }
 

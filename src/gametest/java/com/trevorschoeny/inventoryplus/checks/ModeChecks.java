@@ -264,9 +264,16 @@ public class ModeChecks implements FabricClientGameTest {
             HotbarCycler.setRow(0, true);
         });
         ctx.waitTicks(2);
-        // Row 0 is toggled on, so its button stays visible without a hover.
+        // The row buttons are setup, so they show in edit mode only. Row 0 is on, so in
+        // the mode its button stays visible without a hover.
+        expect(ctx.computeOnClient(mc -> HotbarCyclerRowButtons.row0Panel().placedBounds() == null),
+                where + ": out of edit mode, row 0's cycle button is hidden");
+        ctx.runOnClient(mc -> EditMode.set(true));
+        ctx.waitTicks(2);
         expect(ctx.computeOnClient(mc -> HotbarCyclerRowButtons.row0Panel().placedBounds() != null),
-                where + ": row 0's cycle button shows");
+                where + ": in edit mode, row 0's cycle button shows");
+        ctx.runOnClient(mc -> EditMode.set(false));
+        ctx.waitTicks(2);
         ctx.getInput().pressKey(IPKeybinds.HOTBAR_CYCLE_FORWARD);
         ctx.waitTicks(10);
         onServer(world, p -> expect(p.getInventory().getItem(6).is(Items.OAK_LOG)
@@ -279,9 +286,9 @@ public class ModeChecks implements FabricClientGameTest {
     }
 
     /**
-     * On an open screen: locking the slot under the mouse (edit mode, outside
-     * creative), and C adding that slot to its column's cycle (Column Cycler on),
-     * which works on creative's tabs too.
+     * On an open screen, edit mode's keys on the slot under the mouse: L locks it, C adds it
+     * to its column's cycle (Column Cycler on). Neither works out of the mode, and a
+     * creative item tab has no edit mode.
      */
     private void keyChecks(int index, String where) {
         lockKeyCheck(index, where);
@@ -290,10 +297,18 @@ public class ModeChecks implements FabricClientGameTest {
             ColumnCycler.setCycle(index, false);
         });
         hover(index);
-        ctx.getInput().pressKey(IPKeybinds.CYCLE_SLOT);
+        // Out of edit mode, C does nothing; in it, C adds the slot.
+        ctx.getInput().pressKey(IPKeybinds.EDIT_CYCLE);
         ctx.waitTicks(4);
-        expect(ctx.computeOnClient(mc -> ColumnCycler.isCycleSlot(index)),
-                where + ": C adds the slot under the mouse to its column's cycle");
+        expect(!ctx.computeOnClient(mc -> ColumnCycler.isCycleSlot(index)), where + ": C out of edit mode does nothing");
+        if (ctx.computeOnClient(mc -> EditMode.available())) {
+            ctx.runOnClient(mc -> EditMode.set(true));
+            ctx.getInput().pressKey(IPKeybinds.EDIT_CYCLE);
+            ctx.waitTicks(4);
+            ctx.runOnClient(mc -> EditMode.set(false));
+            expect(ctx.computeOnClient(mc -> ColumnCycler.isCycleSlot(index)),
+                    where + ": C in edit mode adds the slot under the mouse to its column's cycle");
+        }
         ctx.runOnClient(mc -> {
             ColumnCycler.setCycle(index, false);
             IPConfig.setColumnCyclerEnabled(false);
@@ -310,9 +325,9 @@ public class ModeChecks implements FabricClientGameTest {
             return;
         }
         hover(index);
-        CarriedItems.editLockClick(ctx);
+        CarriedItems.editLock(ctx);
         expect(isLocked(index), where + ": edit mode's left-click locks the slot under the mouse");
-        CarriedItems.editLockClick(ctx);
+        CarriedItems.editLock(ctx);
         expect(!isLocked(index), where + ": a second left-click unlocks it");
     }
 

@@ -294,25 +294,25 @@ public class ContainerListChecks implements FabricClientGameTest {
     /** L on one container's slot locks that container's slot alone; a locked stack stays through a sort. */
     private void lockChecks(TestSingleplayerContext world) {
         hover(In.A, 3);
-        CarriedItems.editLockClick(ctx);
+        CarriedItems.editLock(ctx);
         expect(locked(In.A, 3), "L over box A's slot 3 locks it");
         expect(!locked(In.B, 3), "L over box A's slot 3 leaves box B's slot 3 free");
         expect(!locked(In.CHEST, 3), "L over box A's slot 3 leaves the chest's slot 3 free");
-        CarriedItems.editLockClick(ctx);
+        CarriedItems.editLock(ctx);
         expect(!locked(In.A, 3), "L again unlocks box A's slot 3");
 
         hover(In.CHEST, 3);
-        CarriedItems.editLockClick(ctx);
+        CarriedItems.editLock(ctx);
         expect(locked(In.CHEST, 3), "L over the chest's slot 3 locks it");
         expect(!locked(In.A, 3) && !locked(In.B, 3), "L over the chest's slot 3 leaves both boxes' slot 3 free");
-        CarriedItems.editLockClick(ctx);
+        CarriedItems.editLock(ctx);
         expect(!locked(In.CHEST, 3), "L again unlocks the chest's slot 3");
 
         // Box B: stone locked in slot 4, dirt either side; its sort leaves the stone where it is.
         fill(world, In.B, 1, Items.DIRT, 3); fill(world, In.B, 4, Items.STONE, 9); fill(world, In.B, 8, Items.DIRT, 2);
         ctx.waitTicks(10);
         hover(In.B, 4);
-        CarriedItems.editLockClick(ctx);
+        CarriedItems.editLock(ctx);
         expect(locked(In.B, 4), "L over box B's slot 4 locks it");
         hover(In.B, 8);
         ctx.getInput().pressKey(IPKeybinds.SORT);
@@ -325,7 +325,7 @@ public class ContainerListChecks implements FabricClientGameTest {
                     + stacks(p, In.B, Items.DIRT) + ")");
         });
         hover(In.B, 4);
-        CarriedItems.editLockClick(ctx);
+        CarriedItems.editLock(ctx);
         emptyAll(world);
     }
 

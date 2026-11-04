@@ -3,6 +3,7 @@ package com.trevorschoeny.inventoryplus.checks;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.mojang.blaze3d.platform.InputConstants;
+import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.editmode.EditMode;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.mixin.AbstractContainerScreenAccessor;
@@ -27,10 +28,9 @@ import net.minecraft.world.phys.Vec3;
 import testgallery.SceneWorld;
 
 /**
- * Edit mode in the slot-rules scene Trev walks, clicked as he clicks: the real cursor and the
- * real mouse buttons on station 2's chest. The pencil turns it on, a left-click locks the
- * cobblestone, a right-click opens the reserve popup. Trev's first walk found the two clicks
- * swapped and dead (buttons are numbered from 1 in this version); this is that walk.
+ * Edit mode in the slot-rules scene Trev walks, as he walks it: the real cursor, mouse and
+ * keys on station 2's chest. The pencil turns it on, L over the cobblestone locks it, R
+ * opens the reserve popup.
  */
 public class EditModeSceneChecks implements FabricClientGameTest {
 
@@ -72,16 +72,16 @@ public class EditModeSceneChecks implements FabricClientGameTest {
             });
             ctx.getInput().setCursorPos(cobble[0], cobble[1]);
             ctx.waitTicks(2);
-            ctx.getInput().pressMouse(InputConstants.MOUSE_BUTTON_LEFT);
+            ctx.getInput().pressKey(IPKeybinds.EDIT_LOCK);
             ctx.waitTicks(5);
             expect(ctx.computeOnClient(mc -> LockedSlots.isLockedSlot(chestSlot(mc.player.containerMenu, 0))
                             && mc.player.containerMenu.getCarried().isEmpty()),
-                    "a left-click on the cobblestone locks it and picks nothing up");
-            // A right-click opens SlotKit's reserve popup for it.
-            ctx.getInput().pressMouse(InputConstants.MOUSE_BUTTON_RIGHT);
+                    "L on the cobblestone locks it and picks nothing up");
+            // R opens SlotKit's reserve popup for it.
+            ctx.getInput().pressKey(IPKeybinds.EDIT_RESERVE);
             ctx.waitTicks(5);
             expect(ctx.computeOnClient(mc -> ReservationEditor.isOpen() && mc.player.containerMenu.getCarried().isEmpty()),
-                    "a right-click opens the reserve popup and picks nothing up");
+                    "R opens the reserve popup and picks nothing up");
             ctx.runOnClient(mc -> ReservationEditor.close());
             ctx.runOnClient(mc -> mc.player.closeContainer());
         }

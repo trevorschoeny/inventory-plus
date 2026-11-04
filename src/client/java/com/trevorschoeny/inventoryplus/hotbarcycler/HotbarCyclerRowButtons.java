@@ -2,6 +2,7 @@ package com.trevorschoeny.inventoryplus.hotbarcycler;
 
 import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
+import com.trevorschoeny.inventoryplus.editmode.EditMode;
 
 import com.trevlar.menukit.api.panel.Panel;
 import com.trevlar.menukit.api.element.PanelElement;
@@ -200,8 +201,8 @@ public final class HotbarCyclerRowButtons {
     }
 
     private static boolean buttonsVisible() {
-        return IPConfig.hotbarCyclerEnabled()
-                && IPConfig.hotbarCyclerShowButtons();
+        // Choosing rows is setup, so it lives in edit mode with locks and reservations.
+        return IPConfig.hotbarCyclerEnabled() && EditMode.isOn();
     }
 
     private static @Nullable SlotScreenRect slotRect(AbstractContainerScreen<?> screen, int containerSlot) {
