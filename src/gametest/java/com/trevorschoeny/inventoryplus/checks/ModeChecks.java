@@ -7,8 +7,6 @@ import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.editmode.EditMode;
-import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCycler;
-import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCyclerRowButtons;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.movematching.ScreenLayout;
 import com.trevorschoeny.inventoryplus.toolbar.PowerUsersToolbar;
@@ -124,7 +122,6 @@ public class ModeChecks implements FabricClientGameTest {
             selectTab(CreativeModeTabs.INVENTORY);
             sortChecks(world, "creative inventory tab");
             screenCycleCheck(world, 9 + HOTBAR_FREE, "creative inventory tab");
-            screenHotbarCycleCheck(world, "creative inventory tab");
             // Closed as a player closes it (E or Escape run onClose, which hands the
             // player back the inventory menu); setScreen(null) would leave creative's
             // item-picker menu in place.
@@ -247,45 +244,6 @@ public class ModeChecks implements FabricClientGameTest {
     }
 
     /**
-     * Hotbar Cycler's forward key with the screen named by {@code where} open
-     * (creative's inventory tab): no hover needed, since the key turns
-     * whichever rows are in the cycle (HotbarCyclerKeybind's class doc).
-     */
-    private void screenHotbarCycleCheck(TestSingleplayerContext world, String where) {
-        int row0col6 = HotbarCycler.firstSlotOf(0) + 6;
-        onServer(world, p -> {
-            clear(p);
-            p.getInventory().setItem(row0col6, new ItemStack(Items.OAK_LOG, 2));
-            p.getInventory().setItem(6, new ItemStack(Items.SAND, 5));
-        });
-        ctx.waitTicks(10);
-        ctx.runOnClient(mc -> {
-            IPConfig.setHotbarCyclerEnabled(true);
-            HotbarCycler.setRow(0, true);
-        });
-        ctx.waitTicks(2);
-        // The row buttons are setup, so they show in edit mode only. Row 0 is on, so in
-        // the mode its button stays visible without a hover.
-        expect(ctx.computeOnClient(mc -> HotbarCyclerRowButtons.row0Panel().placedBounds() == null),
-                where + ": out of edit mode, row 0's cycle button is hidden");
-        ctx.runOnClient(mc -> EditMode.set(true));
-        ctx.waitTicks(2);
-        expect(ctx.computeOnClient(mc -> HotbarCyclerRowButtons.row0Panel().placedBounds() != null),
-                where + ": in edit mode, row 0's cycle button shows");
-        ctx.runOnClient(mc -> EditMode.set(false));
-        ctx.waitTicks(2);
-        ctx.getInput().pressKey(IPKeybinds.HOTBAR_CYCLE_FORWARD);
-        ctx.waitTicks(10);
-        onServer(world, p -> expect(p.getInventory().getItem(6).is(Items.OAK_LOG)
-                        && p.getInventory().getItem(row0col6).is(Items.SAND),
-                where + ": the hotbar key turns the row through the hotbar with the screen open"));
-        ctx.runOnClient(mc -> {
-            HotbarCycler.setRow(0, false);
-            IPConfig.setHotbarCyclerEnabled(false);
-        });
-    }
-
-    /**
      * On an open screen, edit mode's keys on the slot under the mouse: L locks it, C adds it
      * to its column's cycle (Column Cycler on). Neither works out of the mode, and a
      * creative item tab has no edit mode.
@@ -337,17 +295,15 @@ public class ModeChecks implements FabricClientGameTest {
     }
 
     /**
-     * In creative, from gameplay: the column key turns a column's cycle and the
-     * hotbar key turns a row through the hotbar, and the server has the result.
+     * In creative, from gameplay: the column key turns a column's cycle, and the
+     * server has the result. (Hotbar Sets has its own checks.)
      */
     private void cyclerChecks(TestSingleplayerContext world) {
-        int top = 9 + 4, row0col6 = HotbarCycler.firstSlotOf(0) + 6;
+        int top = 9 + 4;
         onServer(world, p -> {
             clear(p);
             p.getInventory().setItem(top, new ItemStack(Items.COBBLESTONE, 3));
             p.getInventory().setItem(4, new ItemStack(Items.DIRT, 7));
-            p.getInventory().setItem(row0col6, new ItemStack(Items.OAK_LOG, 2));
-            p.getInventory().setItem(6, new ItemStack(Items.SAND, 5));
         });
         ctx.waitTicks(5);
         ctx.runOnClient(mc -> {
@@ -369,18 +325,6 @@ public class ModeChecks implements FabricClientGameTest {
         ctx.runOnClient(mc -> {
             ColumnCycler.setCycle(top, false);
             IPConfig.setColumnCyclerEnabled(false);
-            IPConfig.setHotbarCyclerEnabled(true);
-            HotbarCycler.setRow(0, true);
-        });
-        ctx.getInput().pressKey(IPKeybinds.HOTBAR_CYCLE_FORWARD);
-        ctx.waitTicks(10);
-        onServer(world, p -> {
-            expect(p.getInventory().getItem(6).is(Items.OAK_LOG) && p.getInventory().getItem(row0col6).is(Items.SAND),
-                    "creative, gameplay: the hotbar key turns the row through the hotbar");
-        });
-        ctx.runOnClient(mc -> {
-            HotbarCycler.setRow(0, false);
-            IPConfig.setHotbarCyclerEnabled(false);
         });
     }
 

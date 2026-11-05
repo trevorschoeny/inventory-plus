@@ -2,6 +2,7 @@ package com.trevorschoeny.inventoryplus.settings;
 
 import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
+import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSets;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.settings.SettingsBody.Bool;
@@ -102,10 +103,9 @@ final class SettingsTabs {
         resetKeys(IPKeybinds.CYCLE_FORWARD, IPKeybinds.CYCLE_BACKWARD);
     }
 
-    private static void resetHotbarCycler() {
-        IPConfig.reset("hotbarCyclerEnabled", "hotbarCyclerShowButton",
-                "hotbarCyclerScrollToCycle");
-        resetKeys(IPKeybinds.HOTBAR_CYCLE_FORWARD, IPKeybinds.HOTBAR_CYCLE_BACKWARD);
+    private static void resetHotbarSets() {
+        IPConfig.reset("hotbarSetsEnabled", "hotbarSetsShowButton", "hotbarSetsCreativeRows");
+        resetKeys(IPKeybinds.HOTBAR_SETS);
     }
 
     /** Slots' reset: edit mode's keys, and every lock kept on this computer, in every world. */
@@ -162,7 +162,7 @@ final class SettingsTabs {
         resetMoveMatching();
         resetAutoToolSwitch();
         resetColumnCycler();
-        resetHotbarCycler();
+        resetHotbarSets();
         resetLocks();
         SettingsMenu.runExternalResets();
     }
@@ -311,15 +311,25 @@ final class SettingsTabs {
         return b.build();
     }
 
-    /** Column Cycler and Hotbar Cycler; saved hotbars would join them here. */
+    /** Hotbar Sets and Column Cycler. */
     static List<PanelElement> hotbarsAndCyclers() {
         return new SettingsBody()
-                .frame("Hotbars & Cyclers", "Rotate items through your hotbar: one column at a time, "
-                        + "or whole inventory rows.",
+                .frame("Hotbars & Cyclers", "Bring other items into your hotbar: a whole row or saved set, "
+                        + "or one column at a time.",
                         confirmReset("Hotbars & Cyclers", () -> {
                             resetColumnCycler();
-                            resetHotbarCycler();
+                            resetHotbarSets();
                         }))
+                .feature("Hotbar Sets", Bool.of(IPConfig::hotbarSetsEnabled, IPConfig::setHotbarSetsEnabled))
+                .line("Hold the key and scroll to an inventory row, or in creative a saved set, then let go. "
+                        + "A row swaps with your hotbar; a saved set replaces it. Save sets with the stack "
+                        + "beside the hotbar in creative.")
+                .key(IPKeybinds.HOTBAR_SETS)
+                .choice("Inventory rows in creative", Arrays.asList(HotbarSets.CreativeRows.values()),
+                        SettingsTabs::creativeRowsName, IPConfig::hotbarSetsCreativeRows,
+                        IPConfig::setHotbarSetsCreativeRows, () -> false)
+                .checkbox("Show the Hotbar Sets button",
+                        Bool.of(IPConfig::hotbarSetsShowButton, IPConfig::setHotbarSetsShowButton))
                 .feature("Column Cycler", Bool.of(IPConfig::columnCyclerEnabled, IPConfig::setColumnCyclerEnabled))
                 .line("In edit mode, press the cycle key on a slot to add its column, then cycle it with the forward and backward keys.")
                 .choice("Beside the hotbar", Arrays.asList(HudMode.values()), SettingsTabs::hudName,
@@ -328,22 +338,21 @@ final class SettingsTabs {
                         Bool.of(IPConfig::columnCyclerShowButton, IPConfig::setColumnCyclerShowButton))
                 .key(IPKeybinds.CYCLE_FORWARD)
                 .key(IPKeybinds.CYCLE_BACKWARD)
-                // Turning this on turns Hotbar Cycler's off, since there is one
-                // wheel. The setter enforces it and both checkboxes read live.
                 .checkbox("Scroll to cycle", Bool.of(IPConfig::columnCyclerScrollToCycle,
                         IPConfig::setColumnCyclerScrollToCycle))
-                .feature("Hotbar Cycler", Bool.of(IPConfig::hotbarCyclerEnabled, IPConfig::setHotbarCyclerEnabled))
-                .line("In edit mode, add rows with the buttons beside them, then cycle with the forward and backward keys.")
-                .checkbox("Show the Hotbar Cycler button",
-                        Bool.of(IPConfig::hotbarCyclerShowButton, IPConfig::setHotbarCyclerShowButton))
-                .key(IPKeybinds.HOTBAR_CYCLE_FORWARD)
-                .key(IPKeybinds.HOTBAR_CYCLE_BACKWARD)
-                .checkbox("Scroll to cycle", Bool.of(IPConfig::hotbarCyclerScrollToCycle,
-                        IPConfig::setHotbarCyclerScrollToCycle))
                 .build();
     }
 
     // Shared
+
+    /** Where creative's inventory rows go: above the saved sets, below them, or not in the list. */
+    private static String creativeRowsName(HotbarSets.CreativeRows rows) {
+        return switch (rows) {
+            case TOP -> "Above saved sets";
+            case BOTTOM -> "Below saved sets";
+            case OFF -> "Off";
+        };
+    }
 
     /** A HUD mode's name: NONE reads "Off", the rest in sentence case. */
     private static String hudName(Enum<?> e) {

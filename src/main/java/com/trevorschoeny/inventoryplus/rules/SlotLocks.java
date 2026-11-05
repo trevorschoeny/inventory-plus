@@ -36,11 +36,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>A locked slot takes only deliberate moves: a click, a drag, a number key or F, a
  * pocket move, and a shift-click out of it. It refuses everything that would fill or
  * empty it on its own: a shift-click into it, Sort, Move Matching, Collect, pickups,
- * dropping with Q, Restock taking from it, pick block, and automation (hoppers,
- * droppers, copper golems, through SlotKit's {@code AUTOMATION_PUT} and
- * {@code AUTOMATION_TAKE}). Inventory Plus's own row moves (the cyclers), Auto Tool
- * Switch and Restock refilling the slot still work, as a slot lock always allowed:
- * they keep the slot's own item where the player put it.
+ * dropping with Q, Restock taking from it, pick block, Hotbar Sets swapping a row or
+ * loading a set (the column stays as it is), and automation (hoppers, droppers, copper
+ * golems, through SlotKit's {@code AUTOMATION_PUT} and {@code AUTOMATION_TAKE}). Column
+ * Cycler, Auto Tool Switch and Restock refilling the slot still work, as a slot lock
+ * always allowed: they keep the slot's own item where the player put it.
  *
  * <h2>Where a lock lives</h2>
  *
@@ -78,7 +78,7 @@ public final class SlotLocks {
             "menukit:drop", "menukit:drop_stack",
             "menukit:automation_put", "menukit:automation_take",
             "inventoryplus:sort", "inventoryplus:move_matching_out", "inventoryplus:move_matching_in",
-            "inventoryplus:restock_take", "inventoryplus:pick_block");
+            "inventoryplus:restock_take", "inventoryplus:pick_block", "inventoryplus:hotbar_cycle");
 
     /** Whether a lock refuses {@code operation}. */
     public static boolean refuses(BehaviorKey<?> operation) {

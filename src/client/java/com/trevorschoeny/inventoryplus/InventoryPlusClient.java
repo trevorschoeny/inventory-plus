@@ -6,10 +6,9 @@ import com.trevorschoeny.inventoryplus.autotoolswitch.AutoToolSwitch;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCycler;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerCyclable;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerRotationKeybind;
-import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCycler;
-import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCyclerHud;
-import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCyclerKeybind;
-import com.trevorschoeny.inventoryplus.hotbarcycler.HotbarCyclerRowButtons;
+import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSetsHud;
+import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSetsInput;
+import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSetsScreens;
 import com.trevorschoeny.inventoryplus.columncycler.hud.ColumnCyclerHudSource;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
@@ -126,19 +125,12 @@ public class InventoryPlusClient implements ClientModInitializer {
         ColumnCyclerRotationKeybind.register();
         ClientTickEvents.END_CLIENT_TICK.register(ColumnCyclerRotationKeybind::tick);
 
-        // Hotbar Cycler rotates whole inventory rows through the hotbar.
-        // Membership is per row (buttons, not a per-slot overlay), and the
-        // rotation reuses ColumnCyclerRotator's engine across all nine
-        // columns, which is what keeps items in their own column.
-        HotbarCycler.load();
-        HotbarCyclerRowButtons.register();
-        HotbarCyclerKeybind.register();
-        ClientTickEvents.END_CLIENT_TICK.register(HotbarCyclerKeybind::tick);
-        // The hotbar slide and the change-gated preview slides. Init order
-        // relative to the HUD sources below is irrelevant: this only adds a
-        // rotation listener now, and snapshots MenuKit's cycle strip at rotation
-        // time, which is also what lets another mod's ring take part.
-        HotbarCyclerHud.register();
+        // Hotbar Sets: hold the key, scroll to an inventory row (or in creative a
+        // saved set), let go. The swap rides ColumnCyclerRotator's engine, a ring
+        // of two per column, so locks and reservations hold as they do for cycles.
+        HotbarSetsInput.register();
+        HotbarSetsHud.register();
+        HotbarSetsScreens.register();
 
         // Column Cycler implements the "bring this slot's item to the hotbar"
         // contract that Auto Tool Switch uses. Going through the registry
@@ -170,6 +162,6 @@ public class InventoryPlusClient implements ClientModInitializer {
 
         LOGGER.info("[inventoryplus] Client initialized, auto-restock + "
                 + "move-matching + locked-slots + sort + column-cycler + "
-                + "hotbar-cycler active.");
+                + "hotbar-sets active.");
     }
 }

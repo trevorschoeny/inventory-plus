@@ -65,7 +65,10 @@ public final class InventoryPlusOperations {
      */
     public static final BehaviorKey<TriBool> COLUMN_CYCLE = operation("column_cycle");
 
-    /** Hotbar Cycler may rotate items through a slot. Role BOTH. */
+    /**
+     * Hotbar Sets may swap a row through a slot, or load a saved set into it. Role BOTH. A
+     * lock refuses it. The id keeps Hotbar Cycler's name, so a saved rule on it still applies.
+     */
     public static final BehaviorKey<TriBool> HOTBAR_CYCLE = operation("hotbar_cycle");
 
     /**

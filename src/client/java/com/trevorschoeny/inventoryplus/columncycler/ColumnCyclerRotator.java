@@ -8,7 +8,10 @@ import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.COLUMN_CYCLE;
 
+import com.trevlar.slotkit.api.reserve.Reservation;
+import com.trevlar.slotkit.api.reserve.Reservations;
 import com.trevlar.slotkit.api.window.BehaviorKey;
+import com.trevlar.slotkit.api.window.SlotRef;
 import com.trevlar.slotkit.api.window.SlotOperations;
 import com.trevlar.slotkit.api.window.TriBool;
 
@@ -192,6 +195,7 @@ public final class ColumnCyclerRotator {
         containerSlots = withoutRefused(containerSlots, menu, player, take, put, feature);
         int n = containerSlots.size();
         if (n < 2) return false;
+        if (reservationRefuses(containerSlots, direction, menu, player, feature)) return false;
 
         int[] menuSlots = new int[n];
         for (int i = 0; i < n; i++) {
@@ -260,6 +264,7 @@ public final class ColumnCyclerRotator {
         List<Integer> ring = withoutRefused(containerSlots, inventoryMenu, player, take, put, feature);
         int n = ring.size();
         if (n < 2) return false;
+        if (reservationRefuses(ring, direction, inventoryMenu, player, feature)) return false;
         int hotbar = ring.get(n - 1);
         if (hotbar < 0 || hotbar > 8) return false;
 
@@ -305,6 +310,35 @@ public final class ColumnCyclerRotator {
                     feature, kept.size(), containerSlots.size(), take.id());
         }
         return kept;
+    }
+
+    /**
+     * Whether a reserved slot in the ring would refuse the item the rotation
+     * brings it. Then the whole ring sits out, so nothing moves: a reservation
+     * isn't a slot that steps aside, as a lock is, but a promise about what
+     * the slot holds, and turning the ring around it would break that promise
+     * for whichever item landed there instead. Hotbar Sets' swaps are rings of
+     * two, where this is the rule "if either can't go, neither goes".
+     */
+    private static boolean reservationRefuses(List<Integer> ring, Direction direction, AbstractContainerMenu menu,
+                                              LocalPlayer player, String feature) {
+        int n = ring.size();
+        Inventory inv = player.getInventory();
+        for (int i = 0; i < n; i++) {
+            int menuIdx = PlayerMenuSlots.menuIndexOf(menu, player, ring.get(i));
+            if (menuIdx < 0) continue;
+            Reservation reservation = Reservations.get(SlotRef.of(menu, menu.getSlot(menuIdx), player));
+            if (reservation.isNone()) continue;
+            // Forward, each slot takes the item one place before it; backward, one place after.
+            int from = direction == Direction.FORWARD ? (i + n - 1) % n : (i + 1) % n;
+            ItemStack arriving = inv.getItem(ring.get(from));
+            if (!arriving.isEmpty() && !reservation.matches(arriving)) {
+                InventoryPlusClient.LOGGER.debug("[{}] rotate skipped, slot {} is reserved and refuses {}",
+                        feature, ring.get(i), arriving);
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

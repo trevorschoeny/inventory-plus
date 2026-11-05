@@ -75,11 +75,11 @@ public class SlotRulesChecks implements FabricClientGameTest {
                 BehaviorKeys.AUTOMATION_PUT, BehaviorKeys.AUTOMATION_TAKE,
                 InventoryPlusOperations.SORT, InventoryPlusOperations.MOVE_MATCHING_IN,
                 InventoryPlusOperations.MOVE_MATCHING_OUT, InventoryPlusOperations.RESTOCK_TAKE,
-                InventoryPlusOperations.PICK_BLOCK);
+                InventoryPlusOperations.PICK_BLOCK, InventoryPlusOperations.HOTBAR_CYCLE);
         List<BehaviorKey<?>> allowed = List.of(BehaviorKeys.CLICK_TAKE, BehaviorKeys.CLICK_PUT,
                 BehaviorKeys.DRAG_FILL, BehaviorKeys.HOTBAR_SWAP, BehaviorKeys.OFFHAND_SWAP,
                 BehaviorKeys.SHIFT_CLICK_OUT, InventoryPlusOperations.COLUMN_CYCLE,
-                InventoryPlusOperations.HOTBAR_CYCLE, InventoryPlusOperations.AUTO_TOOL_SWITCH,
+                InventoryPlusOperations.AUTO_TOOL_SWITCH,
                 InventoryPlusOperations.RESTOCK_PUT);
         for (BehaviorKey<?> op : refused) expect(SlotLocks.refuses(op), "a lock refuses " + op.id());
         for (BehaviorKey<?> op : allowed) expect(!SlotLocks.refuses(op), "a lock lets " + op.id() + " through");

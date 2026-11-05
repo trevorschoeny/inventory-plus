@@ -58,11 +58,11 @@ public final class FeatureToggleButtons {
                 null, () -> keyHint("In edit mode, hover over a slot", IPKeybinds.EDIT_CYCLE)).build();
     }
 
-    /** Hotbar Cycler: rows join with the buttons beside them, shown in edit mode. */
-    public static Toggle hotbarCycler(int x, int y) {
-        return builder(x, y, "hotbar_cycler_button", "Hotbar Cycler", SettingsMenu.HOTBAR_CYCLER,
-                IPConfig::hotbarCyclerEnabled, IPConfig::setHotbarCyclerEnabled, IPConfig::hotbarCyclerShowButton,
-                null, () -> "In edit mode, add rows with the button beside each row").build();
+    /** Hotbar Sets: hold the key, scroll to a row or a saved set, let go. */
+    public static Toggle hotbarSets(int x, int y) {
+        return builder(x, y, "hotbar_cycler_button", "Hotbar Sets", SettingsMenu.HOTBAR_SETS,
+                IPConfig::hotbarSetsEnabled, IPConfig::setHotbarSetsEnabled, IPConfig::hotbarSetsShowButton,
+                null, () -> "Hold " + IPKeybinds.HOTBAR_SETS.getTranslatedKeyMessage().getString() + ", scroll to a row, and let go").build();
     }
 
     /** A companion's switch ({@code InventoryPlusApi.addFeatureSwitch}). */

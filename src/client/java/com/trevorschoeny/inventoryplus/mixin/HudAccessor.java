@@ -13,11 +13,8 @@ import org.spongepowered.asm.mixin.gen.Invoker;
  * Invoker for {@link Hud}'s private {@code extractSlot}, the method that
  * emits one hotbar item into the HUD's render state.
  *
- * <p>{@link HudHotbarSlideMixin} cancels vanilla's call for a cell mid-slide
- * and re-emits through this, twice: the outgoing item on its way out and the
- * incoming item on its way in. Going back through the real method (rather
- * than calling {@code graphics.item} directly) keeps vanilla's own pop-scale
- * and item decorations exactly as they are, at the shifted position. The
+ * <p>Hotbar Sets draws its HUD layers' items through this, so each one gets vanilla's own
+ * pop-scale and decorations (count, durability bar), exactly as a hotbar slot does. The
  * method returns early on an empty stack, so an empty cell costs nothing.
  *
  * <p>Compile-time remapped like {@link AbstractContainerScreenAccessor}; the

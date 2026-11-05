@@ -100,18 +100,15 @@ public final class IPKeybinds {
             InputConstants.KEY_DOWN,
             CATEGORY);
 
-    /** Hotbar Cycler forward: rows shift down toward the hotbar. */
-    public static final KeyMapping HOTBAR_CYCLE_FORWARD = new KeyMapping(
-            "key.inventoryplus.hotbar_cycle_forward",
+    /**
+     * Hotbar Sets: held, the list of rows and saved sets is up; scroll to one, let go to use
+     * it. Tab, like the player list, which still shows too. Read as a raw held state
+     * ({@link #isHeld}), so it works on the inventory screens as on the HUD.
+     */
+    public static final KeyMapping HOTBAR_SETS = new KeyMapping(
+            "key.inventoryplus.hotbar_sets",
             InputConstants.Type.KEYBOARD,
-            InputConstants.KEY_RBRACKET,
-            CATEGORY);
-
-    /** Hotbar Cycler backward: rows shift up, away from the hotbar. */
-    public static final KeyMapping HOTBAR_CYCLE_BACKWARD = new KeyMapping(
-            "key.inventoryplus.hotbar_cycle_backward",
-            InputConstants.Type.KEYBOARD,
-            InputConstants.KEY_LBRACKET,
+            InputConstants.KEY_TAB,
             CATEGORY);
 
     /**
@@ -157,8 +154,7 @@ public final class IPKeybinds {
         KeyMappingHelper.registerKeyMapping(EDIT_CYCLE);
         KeyMappingHelper.registerKeyMapping(CYCLE_FORWARD);
         KeyMappingHelper.registerKeyMapping(CYCLE_BACKWARD);
-        KeyMappingHelper.registerKeyMapping(HOTBAR_CYCLE_FORWARD);
-        KeyMappingHelper.registerKeyMapping(HOTBAR_CYCLE_BACKWARD);
+        KeyMappingHelper.registerKeyMapping(HOTBAR_SETS);
         KeyMappingHelper.registerKeyMapping(OPEN_SETTINGS);
         KeyMappingHelper.registerKeyMapping(HIDE_TOOLTIPS);
     }

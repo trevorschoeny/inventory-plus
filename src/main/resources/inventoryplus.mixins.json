@@ -14,7 +14,6 @@
     "CreativeModeInventoryScreenEditModeMixin",
     "CompoundContainerAccessor",
     "HudAccessor",
-    "HudHotbarSlideMixin",
     "MinecraftPickBlockMixin",
     "MouseHandlerScrollMixin",
     "MultiPlayerGameModeAttackMixin",

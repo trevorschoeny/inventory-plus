@@ -9,6 +9,7 @@ import com.google.gson.JsonSyntaxException;
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.rules.Intake;
 import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
+import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSets;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -116,13 +117,13 @@ public final class IPConfig {
     // column rotates the cycle instead of switching the hotbar slot.
     private static boolean columnCyclerScrollToCycle = false;
 
-    // Hotbar Cycler (Power Users). Rotates whole inventory rows through the
-    // hotbar. Off by default like every Power Users feature. lockCycledRows is
-    // gone (read once below, for the upgrade).
-    private static boolean hotbarCyclerEnabled = false;
-    // The on/off switch in the inventory's right column, off by default.
-    private static boolean hotbarCyclerShowButton = false;
-    private static boolean hotbarCyclerScrollToCycle = false;
+    // Hotbar Sets: hold a key, scroll to a row or a saved set, let go. It replaced
+    // Hotbar Cycler (off by default); this one is on, since nothing happens until
+    // the key is held. Its switch in the inventory's right column keeps Hotbar
+    // Cycler's setting. Where the inventory rows go in creative's list.
+    private static boolean hotbarSetsEnabled = true;
+    private static boolean hotbarSetsShowButton = false;
+    private static HotbarSets.CreativeRows hotbarSetsCreativeRows = HotbarSets.CreativeRows.TOP;
     // Column Cycler HUD overlay mode. MINI_HOTBAR by default, so the HUD strip
     // shows as soon as Column Cycler is enabled. NONE disables the HUD without
     // disabling the feature. Persisted as the enum name.
@@ -253,9 +254,10 @@ public final class IPConfig {
         columnCyclerEnabled       = readBool(root, "columnCyclerEnabled",       columnCyclerEnabled);
         columnCyclerShowButton    = readBool(root, "columnCyclerShowButton",    columnCyclerShowButton);
         columnCyclerScrollToCycle = readBool(root, "columnCyclerScrollToCycle", columnCyclerScrollToCycle);
-        hotbarCyclerEnabled       = readBool(root, "hotbarCyclerEnabled",       hotbarCyclerEnabled);
-        hotbarCyclerShowButton    = readBool(root, "hotbarCyclerShowButton",    hotbarCyclerShowButton);
-        hotbarCyclerScrollToCycle = readBool(root, "hotbarCyclerScrollToCycle", hotbarCyclerScrollToCycle);
+        hotbarSetsEnabled         = readBool(root, "hotbarSetsEnabled",         hotbarSetsEnabled);
+        hotbarSetsShowButton      = readBool(root, "hotbarSetsShowButton",
+                readBool(root, "hotbarCyclerShowButton", hotbarSetsShowButton));
+        hotbarSetsCreativeRows    = creativeRows(readString(root, "hotbarSetsCreativeRows", null), hotbarSetsCreativeRows);
         columnCyclerHudMode       = HudMode.fromName(readString(root, "columnCyclerHudMode", null), columnCyclerHudMode);
         sortEnabled               = readBool(root, "sortEnabled",               sortEnabled);
         moveMatchingEnabled       = readBool(root, "moveMatchingEnabled",       moveMatchingEnabled);
@@ -343,9 +345,9 @@ public final class IPConfig {
         root.addProperty("columnCyclerEnabled",       columnCyclerEnabled);
         root.addProperty("columnCyclerShowButton",    columnCyclerShowButton);
         root.addProperty("columnCyclerScrollToCycle", columnCyclerScrollToCycle);
-        root.addProperty("hotbarCyclerEnabled",       hotbarCyclerEnabled);
-        root.addProperty("hotbarCyclerShowButton",    hotbarCyclerShowButton);
-        root.addProperty("hotbarCyclerScrollToCycle", hotbarCyclerScrollToCycle);
+        root.addProperty("hotbarSetsEnabled",         hotbarSetsEnabled);
+        root.addProperty("hotbarSetsShowButton",      hotbarSetsShowButton);
+        root.addProperty("hotbarSetsCreativeRows",    hotbarSetsCreativeRows.name());
         root.addProperty("columnCyclerHudMode",       columnCyclerHudMode.name());
         root.addProperty("sortEnabled",               sortEnabled);
         root.addProperty("moveMatchingEnabled",       moveMatchingEnabled);
@@ -526,9 +528,9 @@ public final class IPConfig {
     public static boolean columnCyclerEnabled()         { return columnCyclerEnabled; }
     public static boolean columnCyclerShowButton()      { return columnCyclerShowButton; }
     public static boolean columnCyclerScrollToCycle()   { return columnCyclerScrollToCycle; }
-    public static boolean hotbarCyclerEnabled()         { return hotbarCyclerEnabled; }
-    public static boolean hotbarCyclerShowButton()      { return hotbarCyclerShowButton; }
-    public static boolean hotbarCyclerScrollToCycle()   { return hotbarCyclerScrollToCycle; }
+    public static boolean hotbarSetsEnabled()           { return hotbarSetsEnabled; }
+    public static boolean hotbarSetsShowButton()        { return hotbarSetsShowButton; }
+    public static HotbarSets.CreativeRows hotbarSetsCreativeRows() { return hotbarSetsCreativeRows; }
     public static HudMode columnCyclerHudMode()         { return columnCyclerHudMode; }
 
     // Setters
@@ -545,20 +547,18 @@ public final class IPConfig {
     public static void setMoveMatchingShowButtons(boolean v)     { moveMatchingShowButtons = v; save(); }
     public static void setColumnCyclerEnabled(boolean v)         { columnCyclerEnabled = v; save(); }
     public static void setColumnCyclerShowButton(boolean v)      { columnCyclerShowButton = v; save(); }
-    // Scroll-to-cycle has a single owner: the wheel is one input, so turning
-    // it on for one cycler turns it off for the other. Both
-    // setters enforce it, so the rule holds wherever it's set from.
-    public static void setColumnCyclerScrollToCycle(boolean v) {
-        columnCyclerScrollToCycle = v;
-        if (v) hotbarCyclerScrollToCycle = false;
-        save();
-    }
-    public static void setHotbarCyclerEnabled(boolean v)         { hotbarCyclerEnabled = v; save(); }
-    public static void setHotbarCyclerShowButton(boolean v)      { hotbarCyclerShowButton = v; save(); }
-    public static void setHotbarCyclerScrollToCycle(boolean v) {
-        hotbarCyclerScrollToCycle = v;
-        if (v) columnCyclerScrollToCycle = false;
-        save();
+    public static void setColumnCyclerScrollToCycle(boolean v)   { columnCyclerScrollToCycle = v; save(); }
+    public static void setHotbarSetsEnabled(boolean v)           { hotbarSetsEnabled = v; save(); }
+    public static void setHotbarSetsShowButton(boolean v)        { hotbarSetsShowButton = v; save(); }
+    public static void setHotbarSetsCreativeRows(HotbarSets.CreativeRows v) { hotbarSetsCreativeRows = v; save(); }
+
+    private static HotbarSets.CreativeRows creativeRows(@Nullable String name, HotbarSets.CreativeRows fallback) {
+        if (name == null) return fallback;
+        try {
+            return HotbarSets.CreativeRows.valueOf(name);
+        } catch (IllegalArgumentException e) {
+            return fallback;
+        }
     }
     public static void setColumnCyclerHudMode(HudMode v)         { columnCyclerHudMode = v; save(); }
 }

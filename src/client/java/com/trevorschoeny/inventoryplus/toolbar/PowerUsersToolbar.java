@@ -95,7 +95,7 @@ public final class PowerUsersToolbar {
                 .add(FeatureToggleButtons.restock(0, 0))
                 .add(FeatureToggleButtons.autoToolSwitch(0, 0))
                 .add(FeatureToggleButtons.columnCycler(0, 0))
-                .add(FeatureToggleButtons.hotbarCycler(0, 0));
+                .add(FeatureToggleButtons.hotbarSets(0, 0));
         for (PanelElement c : FeatureToggleButtons.contributed(0, 0, 0)) column.add(c);
         return List.of(column.build());
     }

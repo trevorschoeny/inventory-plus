@@ -19,7 +19,8 @@
       "com.trevorschoeny.inventoryplus.checks.SlotRulesChecks",
       "com.trevorschoeny.inventoryplus.checks.EditModeChecks",
       "com.trevorschoeny.inventoryplus.checks.EditModeSceneChecks",
-      "com.trevorschoeny.inventoryplus.checks.AutoToolSwitchChecks"
+      "com.trevorschoeny.inventoryplus.checks.AutoToolSwitchChecks",
+      "com.trevorschoeny.inventoryplus.checks.HotbarSetsChecks"
     ],
     "main": [
       "com.trevorschoeny.inventoryplus.checks.ListFixture"

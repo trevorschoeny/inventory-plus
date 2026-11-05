@@ -87,7 +87,7 @@ public final class SettingsMenu extends MKScreen {
     public static final String RESTOCK = RESTOCK_AND_TOOLS;
     public static final String AUTO_TOOL_SWITCH = RESTOCK_AND_TOOLS;
     public static final String COLUMN_CYCLER = HOTBARS_AND_CYCLERS;
-    public static final String HOTBAR_CYCLER = HOTBARS_AND_CYCLERS;
+    public static final String HOTBAR_SETS = HOTBARS_AND_CYCLERS;
 
     /**
      * The open tab, kept across reopens for the rest of the session. MenuKit's
