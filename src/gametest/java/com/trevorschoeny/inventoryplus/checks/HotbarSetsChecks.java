@@ -8,9 +8,12 @@ import com.mojang.blaze3d.platform.InputConstants;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSets;
 import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSetsInput;
+import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSetsWindow;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevlar.slotkit.api.reserve.Reservation;
 import com.trevlar.slotkit.api.reserve.Reservations;
+import com.trevlar.slotkit.api.group.SlotScreenRect;
+import com.trevlar.slotkit.api.group.VanillaSlotResolver;
 
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -100,9 +103,14 @@ public class HotbarSetsChecks implements FabricClientGameTest {
             ctx.waitTicks(5);
             ctx.getInput().holdKey(IPKeybinds.HOTBAR_SETS);
             ctx.waitTicks(3);
-            for (int i = 0; i < 3; i++) ctx.getInput().scroll(1);
+            for (int i = 0; i < 3; i++) {
+                ctx.getInput().scroll(1);
+                ctx.waitTicks(1);
+            }
             ctx.waitTicks(2);
-            expect(ctx.computeOnClient(mc -> HotbarSetsInput.selected() == 3), "three notches up selects the top row");
+            int sel3 = ctx.computeOnClient(mc -> HotbarSetsInput.selected());
+            expect(sel3 == 3, "three notches up selects the top row (selected " + sel3 + ", open "
+                    + ctx.computeOnClient(mc -> HotbarSetsInput.isOpen()) + ")");
             ctx.getInput().releaseKey(IPKeybinds.HOTBAR_SETS);
             ctx.waitTicks(10);
             onServer(world, p -> {
@@ -117,7 +125,9 @@ public class HotbarSetsChecks implements FabricClientGameTest {
             ctx.getInput().pressKey(InputConstants.getKey("key.keyboard.escape"));
             ctx.waitTicks(3);
             expect(ctx.computeOnClient(mc -> mc.gui.screen() instanceof InventoryScreen && !HotbarSetsInput.isOpen()),
-                    "Escape closes the list and the screen stays open");
+                    "Escape closes the list and the screen stays open (screen "
+                            + ctx.computeOnClient(mc -> String.valueOf(mc.gui.screen())) + ", open "
+                            + ctx.computeOnClient(mc -> HotbarSetsInput.isOpen()) + ")");
             ctx.getInput().releaseKey(IPKeybinds.HOTBAR_SETS);
             ctx.waitTicks(10);
             onServer(world, p -> expectAt(p, 0, Items.STONE, 1, "an Escaped list moves nothing"));
@@ -164,9 +174,43 @@ public class HotbarSetsChecks implements FabricClientGameTest {
                 Reservations.reserve(mc.player, menuSlot(mc.player, HotbarSets.firstSlotOf(BOTTOM_ROW) + ROW_REFUSES), Reservation.NONE);
                 Reservations.reserve(mc.player, menuSlot(mc.player, HOTBAR_ACCEPTS), Reservation.NONE);
             });
+
+            // The window: the symbol opens it, Save adds the hotbar, the list moves and deletes,
+            // Escape closes it and the screen stays.
+            clickBesideHotbar(-9.5, 9);
+            expect(ctx.computeOnClient(mc -> HotbarSetsWindow.isOpen()), "the stack symbol opens the sets window");
+            clickBesideHotbar(-8 + 198 + 16, 9);
+            expect(ctx.computeOnClient(mc -> HotbarSets.savedSets().size() == 1
+                            && HotbarSets.savedSets().getFirst().get(0).is(Items.OAK_PLANKS)),
+                    "Save adds the hotbar as a set");
+            ctx.runOnClient(mc -> {
+                HotbarSets.saveHotbar(); // a second set, to move
+                HotbarSets.move(1, 0);
+                HotbarSets.delete(1);
+            });
+            expect(ctx.computeOnClient(mc -> HotbarSets.savedSets().size() == 1), "move and delete leave one set");
+            ctx.getInput().pressKey(InputConstants.getKey("key.keyboard.escape"));
+            ctx.waitTicks(3);
+            expect(ctx.computeOnClient(mc -> !HotbarSetsWindow.isOpen()
+                            && mc.gui.screen() instanceof CreativeModeInventoryScreen),
+                    "Escape closes the window and the screen stays open");
+            ctx.runOnClient(mc -> HotbarSets.delete(0));
             ctx.setScreen(() -> null);
             ctx.waitTicks(3);
         }
+    }
+
+    /** A left click at {@code (dx, dy)} from the creative screen's hotbar frame. */
+    private void clickBesideHotbar(double dx, double dy) {
+        double[] at = ctx.computeOnClient(mc -> {
+            SlotScreenRect h = VanillaSlotResolver.resolve((CreativeModeInventoryScreen) mc.gui.screen(), 0).orElseThrow();
+            double scale = mc.getWindow().getGuiScale();
+            return new double[] {(h.frameX() + dx) * scale, (h.frameY() + dy) * scale};
+        });
+        ctx.getInput().setCursorPos(at[0], at[1]);
+        ctx.waitTicks(2);
+        ctx.getInput().pressMouse(InputConstants.MOUSE_BUTTON_LEFT);
+        ctx.waitTicks(3);
     }
 
     /** Hotbar: dirt, one more in each column. Bottom row: cobblestone the same. Top row: stone, one each. */

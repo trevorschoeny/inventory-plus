@@ -9,6 +9,7 @@ import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerRotationKeybind;
 import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSetsHud;
 import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSetsInput;
 import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSetsScreens;
+import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSetsWindow;
 import com.trevorschoeny.inventoryplus.columncycler.hud.ColumnCyclerHudSource;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
@@ -131,6 +132,7 @@ public class InventoryPlusClient implements ClientModInitializer {
         HotbarSetsInput.register();
         HotbarSetsHud.register();
         HotbarSetsScreens.register();
+        HotbarSetsWindow.register();
 
         // Column Cycler implements the "bring this slot's item to the hotbar"
         // contract that Auto Tool Switch uses. Going through the registry

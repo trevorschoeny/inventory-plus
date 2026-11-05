@@ -37,7 +37,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * scrolling up selects the previous slot. Negative {@code dy}
  * maps to FORWARD.
  */
-@Mixin(MouseHandler.class)
+// Priority 700: this head runs before MenuKit's (1000), which gives the wheel to the opaque
+// panel under the cursor. While Hotbar Sets' list is up, the wheel is the list's wherever the
+// cursor is; otherwise this passes everything through.
+@Mixin(value = MouseHandler.class, priority = 700)
 public abstract class MouseHandlerScrollMixin {
 
     @Inject(method = "onScroll", at = @At("HEAD"), cancellable = true)

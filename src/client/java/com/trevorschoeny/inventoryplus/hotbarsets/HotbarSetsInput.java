@@ -111,9 +111,10 @@ public final class HotbarSetsInput {
         cancelled = true;
     }
 
-    /** No screen, or the player's own inventory with no text field typing. */
+    /** No screen, or the player's own inventory with no text field typing and the sets window shut. */
     private static boolean worksOn(Screen screen) {
         if (screen == null) return true;
+        if (HotbarSetsWindow.isOpen()) return false;
         return (screen instanceof InventoryScreen || screen instanceof CreativeModeInventoryScreen) && !typing(screen);
     }
 
