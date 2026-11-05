@@ -1,16 +1,12 @@
 package com.trevorschoeny.inventoryplus.settings;
 
-import com.trevorschoeny.inventoryplus.blueprints.Blueprints;
 import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.settings.SettingsBody.Bool;
 
-import com.trevlar.menukit.api.element.Button;
-import com.trevlar.menukit.api.element.Flow;
 import com.trevlar.menukit.api.element.PanelElement;
-import com.trevlar.menukit.api.element.TextField;
 import com.trevlar.menukit.api.element.Toggle;
 
 import com.trevorschoeny.keybindery.api.KeybinderyAPI;
@@ -112,7 +108,7 @@ final class SettingsTabs {
         resetKeys(IPKeybinds.HOTBAR_CYCLE_FORWARD, IPKeybinds.HOTBAR_CYCLE_BACKWARD);
     }
 
-    /** Slots' reset: edit mode's keys, and every lock kept on this computer, in every world. Blueprints stay. */
+    /** Slots' reset: edit mode's keys, and every lock kept on this computer, in every world. */
     private static void resetLocks() {
         LockedSlots.clearAll();
         resetKeys(IPKeybinds.EDIT_LOCK, IPKeybinds.EDIT_RESERVE, IPKeybinds.EDIT_CYCLE);
@@ -149,9 +145,6 @@ final class SettingsTabs {
                     SettingsMenu.reopen();
                 })
                 .build()), 20);
-        b.heading("Presets")
-                .actions("Save or load a file", "Save to file", "Load from file")
-                .actions("Share by pasting", "Copy to clipboard", "Paste from clipboard");
         // Its own category: it resets every tab.
         b.heading("Reset")
                 .actions(new SettingsBody.Action("Reset everything", () -> SettingsMenu.confirm("Reset everything?",
@@ -233,44 +226,20 @@ final class SettingsTabs {
 
     // Slots
 
-    /** Locks and the blueprint library. Locking and reserving happen in edit mode, on the container. */
+    /** Edit mode's keys. Locking and reserving happen in edit mode, on the container. */
     static List<PanelElement> slots() {
         SettingsBody b = new SettingsBody()
                 .frame("Slots", "Lock and reserve slots in edit mode: the edit button left of Sort on any "
                         + "container, then a key on the slot under your mouse. A lock keeps sorting and pickups "
                         + "out; a reservation takes one item only.",
                         () -> SettingsMenu.confirm("Reset Slots to defaults?",
-                                lockCount() + " kept on this computer are removed. Blueprints stay.",
+                                lockCount() + " kept on this computer are removed.",
                                 SettingsTabs::resetLocks));
         b.heading("Edit mode keys")
                 .key(IPKeybinds.EDIT_LOCK)
                 .key(IPKeybinds.EDIT_RESERVE)
                 .key(IPKeybinds.EDIT_CYCLE);
-        b.heading("Blueprints");
-        List<String> names = Blueprints.names();
-        if (names.isEmpty()) b.line("None yet. Save one with Save in edit mode.");
-        for (String name : names) b.row(y -> List.of(blueprintRow(name, y)), 20);
         return b.build();
-    }
-
-    /** One blueprint: its name to edit, Rename and Delete. */
-    private static PanelElement blueprintRow(String name, int y) {
-        String[] draft = {name};
-        return Flow.builder().at(0, y).gap(4, 4)
-                .add(TextField.builder().size(120, 16).maxLength(48).state(() -> draft[0], v -> draft[0] = v).build())
-                .add(Button.builder().label(Component.literal("Rename")).size(0, 16)
-                        .onClick(() -> {
-                            if (Blueprints.rename(name, draft[0])) SettingsMenu.rebuild();
-                        }).build())
-                .add(Button.builder().label(Component.literal("Delete")).size(0, 16)
-                        .onClick(() -> SettingsMenu.confirm("Delete " + name + "?",
-                                "The blueprint is removed. Containers it was loaded onto keep their locks and reservations.",
-                                () -> {
-                                    Blueprints.delete(name);
-                                    SettingsMenu.rebuild();
-                                }))
-                        .build())
-                .build();
     }
 
     // Tabs of several features

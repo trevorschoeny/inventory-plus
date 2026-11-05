@@ -5,7 +5,6 @@ import com.trevorschoeny.inventoryplus.rules.Intake;
 import com.trevorschoeny.inventoryplus.settings.SettingsMenu;
 import com.trevorschoeny.inventoryplus.toolbar.FeatureToggleButtons;
 
-import com.trevlar.menukit.api.element.Button;
 import com.trevlar.menukit.api.element.PanelElement;
 import com.trevlar.menukit.api.element.Toggle;
 import com.trevlar.slotkit.api.group.ResolvedSlotGroup;
@@ -21,50 +20,28 @@ import net.minecraft.world.inventory.Slot;
 
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * Edit mode's controls: the edit button left of Sort on every container toolbar, with
- * Save and Load (blueprints) beside it while the mode is on, and on a shulker box's
- * toolbar its Intake buttons too.
- *
- * <p>Each toolbar's buttons act on the container that toolbar sits above: the chest's
- * Save saves the chest, the inventory's saves the inventory. The edit button is one
- * mode for the whole screen on every toolbar.
+ * Edit mode's controls: the edit button left of Sort on every container toolbar, and on
+ * a shulker box's toolbar its Intake buttons too. The edit button is one mode for the
+ * whole screen on every toolbar.
  */
 public final class EditToolbar {
 
     private EditToolbar() {}
 
     private static final Identifier EDIT = Identifier.fromNamespaceAndPath("inventoryplus", "edit_button");
-    private static final Identifier SAVE = Identifier.fromNamespaceAndPath("inventoryplus", "blueprint_save_button");
-    private static final Identifier LOAD = Identifier.fromNamespaceAndPath("inventoryplus", "blueprint_load_button");
     private static final Identifier BEFORE = Identifier.fromNamespaceAndPath("inventoryplus", "intake_before_button");
     private static final Identifier AFTER = Identifier.fromNamespaceAndPath("inventoryplus", "intake_after_button");
     private static final Identifier MATCHING = Identifier.fromNamespaceAndPath("inventoryplus", "intake_matching_button");
 
     private static final int SIZE = FeatureToggleButtons.SIZE;
 
-    /**
-     * Save, Load and the edit button, left to right, for a toolbar whose container is
-     * {@code slots} (read on each click, in slot order, as a blueprint numbers them).
-     */
-    public static List<PanelElement> buttons(Supplier<List<Slot>> slots) {
+    /** The edit button. */
+    public static List<PanelElement> buttons() {
         return List.of(
-                Button.builder().sprite(SAVE).size(SIZE, SIZE)
-                        .onClick(() -> BlueprintDialogs.openSave(slots))
-                        .tooltip(Component.literal("Save blueprint")
-                                .append(Component.literal("\nSave these slot edits as a blueprint to copy onto other containers")
-                                        .withStyle(ChatFormatting.GRAY)))
-                        .visibleWhen(EditMode::isOn)
-                        .build(),
-                Button.builder().sprite(LOAD).size(SIZE, SIZE)
-                        .onClick(() -> BlueprintDialogs.openLoad(slots))
-                        .tooltip(Component.literal("Load blueprint"))
-                        .visibleWhen(EditMode::isOn)
-                        .build(),
                 Toggle.builder().sprite(EDIT).size(SIZE, SIZE)
                         .state(EditMode::isOn, v -> {
                             if (SettingsMenu.ctrlClickOpens(SettingsMenu.SLOTS)) return;
@@ -75,22 +52,6 @@ public final class EditToolbar {
                                         .withStyle(ChatFormatting.GRAY))))
                         .visibleWhen(EditMode::available)
                         .build());
-    }
-
-    /** The open menu's slots of the player's main inventory and hotbar, in inventory order. */
-    public static List<Slot> inventorySlots() {
-        AbstractContainerMenu menu = openMenu();
-        if (menu == null || Minecraft.getInstance().player == null) return List.of();
-        return menu.slots.stream()
-                .filter(s -> s.container == Minecraft.getInstance().player.getInventory() && s.getContainerSlot() < 36)
-                .sorted(Comparator.comparingInt(Slot::getContainerSlot))
-                .toList();
-    }
-
-    /** {@code group}'s slots in container order, or none where it isn't showing. */
-    public static List<Slot> groupSlots(@Nullable ResolvedSlotGroup group) {
-        return group == null ? List.of()
-                : group.slots().stream().sorted(Comparator.comparingInt(Slot::getContainerSlot)).toList();
     }
 
     private static @Nullable AbstractContainerMenu openMenu() {

@@ -10,7 +10,6 @@ import com.google.gson.JsonParser;
 
 import com.trevorschoeny.inventoryplus.api.InventoryPlusOperations;
 import com.trevorschoeny.inventoryplus.api.PlayerMenuSlots;
-import com.trevorschoeny.inventoryplus.blueprints.Blueprints;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
@@ -49,8 +48,8 @@ import java.util.Set;
 
 /**
  * Slot rules: what a lock refuses and lets through, the player's own locks held on
- * the client and by the server, a chest's lock held against a hopper, blueprints saved
- * and loaded, and the migrations from lock groups, Reach and the old restock switches.
+ * the client and by the server, a chest's lock held against a hopper, and the
+ * migrations from lock groups, Reach and the old restock switches.
  */
 public class SlotRulesChecks implements FabricClientGameTest {
 
@@ -165,7 +164,7 @@ public class SlotRulesChecks implements FabricClientGameTest {
         ctx.runOnClient(mc -> LockedSlots.setLocked(menuSlot(mc.player, 15), false));
     }
 
-    /** A chest's and a box's locks: SHARED, held against a hopper, seen and set by the client; and blueprints. */
+    /** A chest's and a box's locks: SHARED, held against a hopper, seen and set by the client. */
     private void chestLocks(TestSingleplayerContext world) {
         BlockPos[] at = {null, null};
         onServer(world, p -> {
@@ -207,47 +206,8 @@ public class SlotRulesChecks implements FabricClientGameTest {
         onServer(world, p -> expect(SlotLocks.CHANNEL.get(new Slot((Container) p.level().getBlockEntity(at[0]), 6, 0, 0)),
                 "the client's lock on slot 6 is on the chest"));
 
-        // Blueprints: capture this chest, read it back from its saved form, load it onto another.
-        Blueprints.Blueprint saved = ctx.computeOnClient(mc -> {
-            var bp = Blueprints.capture("check", mc.player, Blueprints.containerSlots(mc.player.containerMenu));
-            var registries = mc.level.registryAccess();
-            expect(bp.at(1).reservation().equals(Reservation.of(new ItemStack(Items.DIAMOND)).withCap(16))
-                            && bp.at(3).locked() && bp.at(6).locked() && bp.at(0).isEmpty(),
-                    "a blueprint captures the chest's reservation and locks (" + bp + ")");
-            expect(Blueprints.decode(Blueprints.encode(bp, registries), registries).equals(bp),
-                    "a blueprint reads back from its saved form");
-            Blueprints.save(bp, registries);
-            Blueprints.reloadForChecks();
-            expect(Blueprints.get("check", registries).orElseThrow().equals(bp), "a saved blueprint reads back from the file");
-            return bp;
-        });
         ctx.runOnClient(mc -> mc.player.closeContainer());
         ctx.waitTicks(5);
-        onServer(world, p -> {
-            BlockPos second = p.blockPosition().offset(-2, 0, 0);
-            p.level().setBlockAndUpdate(second, Blocks.CHEST.defaultBlockState());
-            Container chest = (Container) p.level().getBlockEntity(second);
-            chest.setItem(1, new ItemStack(Items.COBBLESTONE, 10));
-            Reservations.set(chest, 8, Reservation.of(new ItemStack(Items.DIRT)));
-            at[1] = second;
-        });
-        open(at[1]);
-        ctx.runOnClient(mc -> Blueprints.apply(saved, mc.player, Blueprints.containerSlots(mc.player.containerMenu)));
-        ctx.waitTicks(10);
-        onServer(world, p -> {
-            Container chest = (Container) p.level().getBlockEntity(at[1]);
-            expect(Reservations.get(SlotRef.of(chest, 1, null)).equals(saved.at(1).reservation()),
-                    "loading reserves slot 1 for diamonds");
-            expect(chest.getItem(1).isEmpty() && count(p, Items.COBBLESTONE) == 10,
-                    "the cobblestone that no longer belongs goes to the inventory");
-            expect(Reservations.get(SlotRef.of(chest, 8, null)).isNone(), "a reservation the blueprint lacks is cleared");
-            expect(SlotLocks.CHANNEL.get(new Slot(chest, 3, 0, 0)) && SlotLocks.CHANNEL.get(new Slot(chest, 6, 0, 0)),
-                    "loading locks slots 3 and 6");
-        });
-        ctx.runOnClient(mc -> {
-            mc.player.closeContainer();
-            Blueprints.delete("check");
-        });
     }
 
     /** Opens the chest as a player does, by using it, so Inventory Plus knows which chest it is. */

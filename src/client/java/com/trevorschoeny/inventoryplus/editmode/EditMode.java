@@ -93,17 +93,17 @@ public final class EditMode {
         ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
             if (!(screen instanceof AbstractContainerScreen<?>)) return;
             // Escape leaves the mode first, and the screen stays open. A dialog up
-            // over the screen (the blueprint prompts, SlotKit's reserve popup) has
+            // over the screen (SlotKit's reserve popup) has
             // Escape for itself.
             ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> {
-                if (!event.isEscape() || !isOn() || BlueprintDialogs.open() || ReservationEditor.isOpen()) return true;
+                if (!event.isEscape() || !isOn() || ReservationEditor.isOpen()) return true;
                 leave();
                 return false;
             });
             // Right after the screen's background: over its texture, under everything
             // else on it (toolbars, slots, dialogs, the reserve popup).
             ScreenKeyboardEvents.afterKeyPress(screen).register((s, event) -> {
-                if (!isOn() || BlueprintDialogs.open() || ReservationEditor.isOpen() || sweep != null) return;
+                if (!isOn() || ReservationEditor.isOpen() || sweep != null) return;
                 Slot slot = ScreenLayout.hoveredSlot((AbstractContainerScreen<?>) s);
                 if (slot == null || !slot.isActive()) return;
                 if (IPKeybinds.EDIT_LOCK.matches(event)) {
@@ -159,7 +159,6 @@ public final class EditMode {
 
     public static void leave() {
         on = null;
-        BlueprintDialogs.close();
     }
 
     // Keys
