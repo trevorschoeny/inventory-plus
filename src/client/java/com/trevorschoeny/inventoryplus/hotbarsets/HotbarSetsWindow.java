@@ -47,7 +47,6 @@ public final class HotbarSetsWindow {
     private static final int PADDING = 4;
 
     private static boolean open = false;
-    private static @Nullable Panel window;
 
     public static boolean isOpen() { return open; }
 
@@ -122,7 +121,7 @@ public final class HotbarSetsWindow {
                 .style(PanelStyle.RAISED)
                 // Shown only while open: a modal counts while visible, and would hold the screen's input.
                 .visibleWhen(() -> open && hotbar() != null)
-                .in(ModeScope.BOTH, Placement.screen(PanelPosition.pixel(HotbarSetsWindow::windowOrigin)))
+                .in(ModeScope.BOTH, Placement.screen(PanelPosition.pixelBottomLeft(HotbarSetsWindow::windowOrigin)))
                 .build()
                 // As wide as the rows, so an empty list doesn't shrink it to its message.
                 .pinnedWidth(9 * 18)
@@ -130,17 +129,17 @@ public final class HotbarSetsWindow {
                 .onEscape(() -> open = false)
                 .litWhileDimmed(HotbarSetsWindow::litHotbar);
         new ScreenPanelAdapter(panel, PADDING).onPlayerInventory();
-        window = panel;
     }
 
-    /** Above the hotbar, its left edge with the hotbar's, its bottom just over it. */
+    /**
+     * The window's outer bottom-left: its bottom 4 px over the hotbar, growing upward as sets
+     * are saved, and its left edge out by the padding, so its rows sit straight above the
+     * hotbar's slots.
+     */
     private static @Nullable ScreenOrigin windowOrigin() {
         SlotScreenRect h = hotbar();
-        if (!open || h == null || window == null) return null;
-        // The height it was placed at last frame, so the bottom sits on the hotbar as the list grows.
-        var placed = window.placedBounds();
-        int height = placed != null ? placed.imageHeight() : window.getHeight() + 2 * PADDING;
-        return new ScreenOrigin(h.frameX() - PADDING, h.frameY() - 4 - height);
+        if (!open || h == null) return null;
+        return new ScreenOrigin(h.frameX() - PADDING, h.frameY() - 4);
     }
 
     /** Right of the creative screen's frame, level with the hotbar. */
