@@ -29,7 +29,7 @@
     "fabric-api": "*",
     "minecraft": "~26.3",
     "menukit": ">=8.0.0 <9.0.0",
-    "slotkit": ">=2.4.0 <3.0.0",
+    "slotkit": ">=3.0.0 <4.0.0",
     "keybindery": ">=1.1.0"
   },
   "breaks": {
