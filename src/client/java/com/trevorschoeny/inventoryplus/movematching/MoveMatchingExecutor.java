@@ -87,7 +87,7 @@ public final class MoveMatchingExecutor {
 
         Inventory playerInv = player.getInventory();
         List<Slot> otherSlots = collectOtherSlots(menu, clickedGroup, playerInv);
-        // The player's side is the main inventory. Until 3.4.0 the hotbar could
+        // The player's side is the main inventory. Until 4.0.0 the hotbar could
         // join it by a box in Reach, unticked by default; Reach is retired, so
         // it stays out as it always did by default.
         List<Slot> playerSide = new ArrayList<>(clickedGroup.slots());

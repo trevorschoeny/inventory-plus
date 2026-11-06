@@ -53,7 +53,7 @@ public final class IntakeClient {
     }
 
     /**
-     * Reach's migration: before 3.4.0, pickups put into carried shulker boxes by the
+     * Reach's migration: before 4.0.0, pickups put into carried shulker boxes by the
      * player's Reach choice, one choice for every box. That choice becomes the Intake
      * of each box carried the first time a world is joined with Inventory Plus on its
      * server; a box that already has an Intake keeps it. Boxes not carried then start

@@ -84,7 +84,7 @@ public class SlotRulesChecks implements FabricClientGameTest {
         for (BehaviorKey<?> op : allowed) expect(!SlotLocks.refuses(op), "a lock lets " + op.id() + " through");
     }
 
-    /** Lock groups, Reach's pickup choice and the per-kind restock switches, read as 3.4.0 reads them. */
+    /** Lock groups, Reach's pickup choice and the per-kind restock switches, read as 4.0.0 reads them. */
     private void migrations() {
         expect(LockedSlots.readLocks(json("{\"9\":\"g2\",\"36\":\"slot_lock\"}"), Integer::parseInt).equals(Set.of(9, 36)),
                 "a version 2 lock of any group is a lock");

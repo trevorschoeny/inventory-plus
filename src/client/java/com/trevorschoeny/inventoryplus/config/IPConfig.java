@@ -412,7 +412,7 @@ public final class IPConfig {
 
     /**
      * The Intake that stands closest to what Reach's pickups did with carried shulker
-     * boxes before 3.4.0, or {@code null} when they left them alone (the default).
+     * boxes before 4.0.0, or {@code null} when they left them alone (the default).
      * IntakeClient puts it on the boxes the player carries, once per world.
      */
     private static @Nullable Intake legacyPickupIntake;
@@ -447,7 +447,7 @@ public final class IPConfig {
     }
 
     /**
-     * "Also restock from shulker boxes" as {@code root} has it. Before 3.4.0 each restock
+     * "Also restock from shulker boxes" as {@code root} has it. Before 4.0.0 each restock
      * type had its own Shulker Boxes, Bundles and Your Ender Chest switches: a file from
      * then turns it on if any type reached into shulker boxes, and so does Auto Tool
      * Switch's or pick block's own shulker box switch, which it now covers too. Bundles
