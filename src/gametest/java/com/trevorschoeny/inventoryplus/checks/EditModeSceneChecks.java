@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.checks;
 
+import com.trevorschoeny.inventoryplus.editmode.ReservePopup;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -10,7 +11,6 @@ import com.trevorschoeny.inventoryplus.mixin.AbstractContainerScreenAccessor;
 import com.trevorschoeny.inventoryplus.sort.SortButton;
 import com.trevorschoeny.inventoryplus.toolbar.Toolbar;
 import com.trevlar.menukit.api.panel.Reference;
-import com.trevlar.slotkit.api.reserve.ReservationEditor;
 
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -77,12 +77,12 @@ public class EditModeSceneChecks implements FabricClientGameTest {
             expect(ctx.computeOnClient(mc -> LockedSlots.isLockedSlot(chestSlot(mc.player.containerMenu, 0))
                             && mc.player.containerMenu.getCarried().isEmpty()),
                     "L on the cobblestone locks it and picks nothing up");
-            // R opens SlotKit's reserve popup for it.
+            // R opens the reserve popup for it.
             ctx.getInput().pressKey(IPKeybinds.EDIT_RESERVE);
             ctx.waitTicks(5);
-            expect(ctx.computeOnClient(mc -> ReservationEditor.isOpen() && mc.player.containerMenu.getCarried().isEmpty()),
+            expect(ctx.computeOnClient(mc -> ReservePopup.isOpen() && mc.player.containerMenu.getCarried().isEmpty()),
                     "R opens the reserve popup and picks nothing up");
-            ctx.runOnClient(mc -> ReservationEditor.close());
+            ctx.runOnClient(mc -> ReservePopup.close());
             ctx.runOnClient(mc -> mc.player.closeContainer());
         }
     }

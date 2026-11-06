@@ -1,10 +1,10 @@
 package com.trevorschoeny.inventoryplus.nested;
 
-import com.trevlar.slotkit.api.reserve.Reservation;
-import com.trevlar.slotkit.api.reserve.Reservations;
+import com.trevlar.menukit.api.element.ItemMatch;
 import com.trevlar.slotkit.api.window.Automation;
 
 import com.trevorschoeny.inventoryplus.rules.BoxSettings;
+import com.trevorschoeny.inventoryplus.rules.Reservations;
 import com.trevorschoeny.inventoryplus.rules.SlotLocks;
 
 import net.minecraft.core.NonNullList;
@@ -122,8 +122,8 @@ public final class CarriedPut {
         for (Box b : boxes) {
             for (int i = 0; i < b.items().size() && !stack.isEmpty(); i++) {
                 if (!b.items().get(i).isEmpty()) continue;
-                Reservation r = Reservations.get(b.stack(), i);
-                if (!r.isNone() && r.matches(stack)) put(b, i, stack);
+                ItemMatch r = Reservations.get(b.stack(), i);
+                if (!Reservations.isNone(r) && r.matches(stack)) put(b, i, stack);
             }
         }
         // 3. Empty slots in Matching only boxes that hold it; 4. then any box that takes anything.

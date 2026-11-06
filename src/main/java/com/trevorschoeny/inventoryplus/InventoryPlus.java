@@ -34,5 +34,6 @@ public final class InventoryPlus implements ModInitializer {
         SlotLocks.register();
         // Pickups into carried shulker boxes by their Intake: the server's half.
         CarriedPut.register();
+        com.trevorschoeny.inventoryplus.rules.Reservations.register();
     }
 }

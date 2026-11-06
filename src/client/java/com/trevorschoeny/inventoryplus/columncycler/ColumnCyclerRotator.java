@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.columncycler;
 
+import com.trevorschoeny.inventoryplus.rules.Reservations;
 import com.trevorschoeny.inventoryplus.autorestock.AutoRestockSuppression;
 
 import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
@@ -8,8 +9,7 @@ import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.COLUMN_CYCLE;
 
-import com.trevlar.slotkit.api.reserve.Reservation;
-import com.trevlar.slotkit.api.reserve.Reservations;
+import com.trevlar.menukit.api.element.ItemMatch;
 import com.trevlar.slotkit.api.window.BehaviorKey;
 import com.trevlar.slotkit.api.window.SlotRef;
 import com.trevlar.slotkit.api.window.SlotOperations;
@@ -327,8 +327,8 @@ public final class ColumnCyclerRotator {
         for (int i = 0; i < n; i++) {
             int menuIdx = PlayerMenuSlots.menuIndexOf(menu, player, ring.get(i));
             if (menuIdx < 0) continue;
-            Reservation reservation = Reservations.get(SlotRef.of(menu, menu.getSlot(menuIdx), player));
-            if (reservation.isNone()) continue;
+            ItemMatch reservation = Reservations.get(SlotRef.of(menu, menu.getSlot(menuIdx), player));
+            if (Reservations.isNone(reservation)) continue;
             // Forward, each slot takes the item one place before it; backward, one place after.
             int from = direction == Direction.FORWARD ? (i + n - 1) % n : (i + 1) % n;
             ItemStack arriving = inv.getItem(ring.get(from));

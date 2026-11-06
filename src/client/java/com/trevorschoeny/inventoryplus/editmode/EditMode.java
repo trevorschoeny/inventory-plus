@@ -9,10 +9,9 @@ import com.trevorschoeny.inventoryplus.movematching.ScreenLayout;
 import com.trevorschoeny.inventoryplus.operations.CursorShelf;
 
 import com.trevlar.menukit.api.panel.SlotDecorations;
-import com.trevlar.slotkit.api.reserve.Reservation;
-import com.trevlar.slotkit.api.reserve.ReservationDisplay;
-import com.trevlar.slotkit.api.reserve.ReservationEditor;
-import com.trevlar.slotkit.api.reserve.Reservations;
+import com.trevorschoeny.inventoryplus.rules.Reservations;
+
+import com.trevlar.menukit.api.element.ItemMatch;
 import com.trevlar.slotkit.api.window.SlotRef;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -82,26 +81,24 @@ public final class EditMode {
 
     public static void register() {
         SlotDecorations.under("inventoryplus:edit_mode", DECORATION);
-        // In the mode the rules take over: every item fades, and SlotKit draws the
-        // reservations' corner icons crisp above it (its decoration id sorts after this
-        // one and the padlocks', so it lands on top).
+        // In the mode the rules take over: every item fades, and the reservations'
+        // corner icons draw crisp above it (ReservedIcon).
         SlotDecorations.over("inventoryplus:edit_veil", (graphics, screen, slot, stack, x, y) -> {
             if (screen == on && !stack.isEmpty()) graphics.fill(x, y, x + 16, y + 16, VEIL);
         });
-        ReservationDisplay.emphasize(EditMode::isOn);
         ClientTickEvents.END_CLIENT_TICK.register(mc -> sweepTick());
         ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
             if (!(screen instanceof AbstractContainerScreen<?>)) return;
             // Escape leaves the mode first, and the screen stays open. A dialog up
-            // over the screen (SlotKit's reserve popup) has
+            // over the screen (the reserve popup) has
             // Escape for itself.
             ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> {
-                if (!event.isEscape() || !isOn() || ReservationEditor.isOpen()) return true;
+                if (!event.isEscape() || !isOn() || ReservePopup.isOpen()) return true;
                 leave();
                 return false;
             });
             ScreenKeyboardEvents.afterKeyPress(screen).register((s, event) -> {
-                if (!isOn() || ReservationEditor.isOpen() || sweep != null) return;
+                if (!isOn() || ReservePopup.isOpen() || sweep != null) return;
                 Slot slot = ScreenLayout.hoveredSlot((AbstractContainerScreen<?>) s);
                 if (slot == null || !slot.isActive()) return;
                 if (IPKeybinds.EDIT_LOCK.matches(event)) {
@@ -196,11 +193,11 @@ public final class EditMode {
         }
     }
 
-    /** R: open SlotKit's reserve popup for {@code slot}. */
+    /** R: open the reserve popup for {@code slot}. */
     static void reserve(Slot slot) {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null || !LockedSlots.isLockableHere(slot)) return;
-        ReservationEditor.open(SlotRef.of(player.containerMenu, slot, player));
+        ReservePopup.open(slot);
     }
 
     // The look
@@ -260,12 +257,12 @@ public final class EditMode {
     public static List<Component> tooltipFor(Slot slot, ItemStack stack) {
         List<Component> lines = new ArrayList<>();
         LocalPlayer player = Minecraft.getInstance().player;
-        Reservation reserved = player == null ? Reservation.NONE
+        ItemMatch reserved = player == null ? Reservations.NONE
                 : Reservations.get(SlotRef.of(player.containerMenu, slot, player));
-        ItemStack shown = !stack.isEmpty() ? stack : reserved.item();
+        ItemStack shown = !stack.isEmpty() ? stack : reserved.stack();
         Component name = shown.isEmpty() ? Component.literal("Empty slot") : shown.getHoverName();
-        String marks = (reserved.isNone() ? "" : "reserved") + (LockedSlots.isLockedSlot(slot)
-                ? (reserved.isNone() ? "locked" : ", locked") : "");
+        String marks = (Reservations.isNone(reserved) ? "" : "reserved") + (LockedSlots.isLockedSlot(slot)
+                ? (Reservations.isNone(reserved) ? "locked" : ", locked") : "");
         lines.add(marks.isEmpty() ? name
                 : name.copy().append(Component.literal(" (" + marks + ")").withStyle(ChatFormatting.GRAY)));
         if (!LockedSlots.isLockableHere(slot)) {

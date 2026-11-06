@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.sort;
 
+import com.trevorschoeny.inventoryplus.rules.Reservations;
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.operations.CursorShelf;
 import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
@@ -8,7 +9,6 @@ import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.SORT;
 
 import com.trevlar.slotkit.api.group.SlotGroupCategories;
 import com.trevlar.slotkit.api.group.SlotGroupCategory;
-import com.trevlar.slotkit.api.reserve.Reservations;
 import com.trevlar.slotkit.api.window.SlotOperations;
 import com.trevlar.slotkit.api.window.SlotRef;
 
@@ -118,7 +118,7 @@ public final class Sorter {
         List<Slot> unlocked = new ArrayList<>();
         for (Slot s : region) {
             if (!SlotOperations.allows(menu, s, player, SORT)) continue;
-            if (!Reservations.get(SlotRef.of(menu, s, player)).isNone()) continue;
+            if (!Reservations.isNone(Reservations.get(SlotRef.of(menu, s, player)))) continue;
             unlocked.add(s);
         }
         if (unlocked.size() < 2) return;

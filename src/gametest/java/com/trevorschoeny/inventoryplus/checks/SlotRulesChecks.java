@@ -1,5 +1,11 @@
 package com.trevorschoeny.inventoryplus.checks;
 
+import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.network.chat.Component;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.Holder;
 import static com.trevorschoeny.inventoryplus.checks.CarriedItems.clear;
 import static com.trevorschoeny.inventoryplus.checks.CarriedItems.count;
 import static com.trevorschoeny.inventoryplus.checks.CarriedItems.menuSlot;
@@ -14,10 +20,10 @@ import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
 import com.trevorschoeny.inventoryplus.rules.BoxSettings;
+import com.trevorschoeny.inventoryplus.rules.Reservations;
 import com.trevorschoeny.inventoryplus.rules.SlotLocks;
 
-import com.trevlar.slotkit.api.reserve.Reservation;
-import com.trevlar.slotkit.api.reserve.Reservations;
+import com.trevlar.menukit.api.element.ItemMatch;
 import com.trevlar.slotkit.api.window.Automation;
 import com.trevlar.slotkit.api.window.BehaviorKey;
 import com.trevlar.slotkit.api.window.BehaviorKeys;
@@ -193,7 +199,34 @@ public class SlotRulesChecks implements FabricClientGameTest {
             expect(chest.getItem(3).isEmpty() && chest.getItem(4).is(Items.DIRT),
                     "the hopper passes over the locked slot 3 (" + chest.getItem(3) + ", " + chest.getItem(4) + ")");
             p.level().removeBlock(at[0].above(), false);
-            Reservations.set(chest, 1, Reservation.of(new ItemStack(Items.DIAMOND)).withCap(16));
+            Reservations.set(chest, 1, new ItemMatch(new ItemStack(Items.DIAMOND), 16));
+        });
+
+        // A reservation checks only what its rule fills in: a named sword's slot refuses
+        // a plain sword and takes the named one; an any-level Sharpness slot takes
+        // Sharpness III and refuses a sword without it; a cap of 16 takes 16 of 64.
+        onServer(world, p -> {
+            Container chest = (Container) p.level().getBlockEntity(at[0]);
+            for (int i : new int[] {24, 25, 26}) chest.setItem(i, ItemStack.EMPTY);
+            Holder<Enchantment> sharpness = p.level().registryAccess().lookupOrThrow(Registries.ENCHANTMENT)
+                    .getOrThrow(Enchantments.SHARPNESS);
+            ItemStack named = new ItemStack(Items.DIAMOND_SWORD);
+            named.set(DataComponents.CUSTOM_NAME, Component.literal("Excalibur"));
+            ItemStack sharp = new ItemStack(Items.DIAMOND_SWORD);
+            sharp.enchant(sharpness, 3);
+            ItemStack anySharp = new ItemStack(Items.DIAMOND_SWORD);
+            anySharp.enchant(sharpness, 1);
+            Reservations.set(chest, 24, new ItemMatch(named, ItemMatch.NONE));
+            Reservations.set(chest, 25, new ItemMatch(anySharp, ItemMatch.NONE, Set.of(sharpness)));
+            Reservations.set(chest, 26, new ItemMatch(new ItemStack(Items.DIAMOND), 16));
+            ItemStack plain = new ItemStack(Items.DIAMOND_SWORD);
+            expect(Automation.room(chest, 24, plain) == 0 && Automation.room(chest, 24, named) == 1,
+                    "a named reservation refuses a plain sword and takes the named one");
+            expect(Automation.room(chest, 25, sharp) == 1 && Automation.room(chest, 25, plain) == 0,
+                    "an any-level Sharpness reservation takes Sharpness III and refuses no Sharpness");
+            expect(Automation.room(chest, 26, new ItemStack(Items.DIAMOND, 64)) == 16,
+                    "a reservation's count caps what goes in (" + Automation.room(chest, 26, new ItemStack(Items.DIAMOND, 64)) + ")");
+            for (int i : new int[] {24, 25, 26}) Reservations.set(chest, i, Reservations.NONE);
         });
 
         // The client sees the chest's lock, and L's write reaches the chest.

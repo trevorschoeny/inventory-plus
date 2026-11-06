@@ -11,13 +11,13 @@ import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.mixin.AbstractContainerScreenAccessor;
 import com.trevorschoeny.inventoryplus.carried.BoxSettingsPopup;
 import com.trevorschoeny.inventoryplus.rules.BoxSettings;
+import com.trevorschoeny.inventoryplus.rules.Reservations;
+import com.trevorschoeny.inventoryplus.editmode.ReservePopup;
 import com.trevorschoeny.inventoryplus.sort.SortButton;
 import com.trevorschoeny.inventoryplus.toolbar.Toolbar;
 import com.trevlar.menukit.api.panel.Reference;
 import com.trevorschoeny.inventoryplus.rules.SlotLocks;
-import com.trevlar.slotkit.api.reserve.Reservation;
-import com.trevlar.slotkit.api.reserve.ReservationEditor;
-import com.trevlar.slotkit.api.reserve.Reservations;
+import com.trevlar.menukit.api.element.ItemMatch;
 import com.trevlar.slotkit.api.window.SlotRef;
 
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
@@ -140,29 +140,29 @@ public class EditModeChecks implements FabricClientGameTest {
         }
 
         // R opens the reserve popup, prefilled with what slot 1 holds; it picks nothing
-        // up. Done (SlotKit's own button, called directly here) reserves it.
+        // up. Done (the picker's own button, called directly here) reserves it.
         key(1, IPKeybinds.EDIT_RESERVE);
         ctx.waitTicks(5);
-        expect(ctx.computeOnClient(mc -> ReservationEditor.isOpen()
-                        && ReservationEditor.draft().matches(new ItemStack(Items.STONE))
+        expect(ctx.computeOnClient(mc -> ReservePopup.isOpen()
+                        && ReservePopup.draft().matches(new ItemStack(Items.STONE))
                         && mc.player.containerMenu.getCarried().isEmpty()),
                 "R opens the reserve popup, prefilled with the slot's stone, and picks nothing up");
-        ctx.runOnClient(mc -> ReservationEditor.done());
+        ctx.runOnClient(mc -> ReservePopup.done());
         ctx.waitTicks(5);
         onServer(world, p -> {
             Container chest = (Container) p.level().getBlockEntity(at[0]);
-            Reservation r = Reservations.get(SlotRef.of(chest, 1, null));
-            expect(!r.isNone() && r.matches(new ItemStack(Items.STONE)) && chest.getItem(1).getCount() == 64,
+            ItemMatch r = Reservations.get(SlotRef.of(chest, 1, null));
+            expect(!Reservations.isNone(r) && r.matches(new ItemStack(Items.STONE)) && chest.getItem(1).getCount() == 64,
                     "Done reserves slot 1 for stone and leaves the stone (" + r + ")");
         });
 
         // A second R reopens it on the existing reservation; Remove clears it.
         key(1, IPKeybinds.EDIT_RESERVE);
         ctx.waitTicks(5);
-        expect(ctx.computeOnClient(mc -> ReservationEditor.isOpen()), "a second R reopens the popup");
-        ctx.runOnClient(mc -> ReservationEditor.remove());
+        expect(ctx.computeOnClient(mc -> ReservePopup.isOpen()), "a second R reopens the popup");
+        ctx.runOnClient(mc -> ReservePopup.remove());
         ctx.waitTicks(5);
-        onServer(world, p -> expect(Reservations.get(SlotRef.of((Container) p.level().getBlockEntity(at[0]), 1, null)).isNone(),
+        onServer(world, p -> expect(Reservations.get(SlotRef.of((Container) p.level().getBlockEntity(at[0]), 1, null)).equals(Reservations.NONE),
                 "Remove clears the reservation"));
 
         // Q over slot 2 throws nothing.

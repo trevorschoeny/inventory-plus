@@ -13,10 +13,10 @@ import com.trevorschoeny.inventoryplus.carried.CarriedFetch;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.nested.CarriedTake;
 import com.trevorschoeny.inventoryplus.rules.BoxSettings;
+import com.trevorschoeny.inventoryplus.rules.Reservations;
 import com.trevorschoeny.inventoryplus.rules.SlotLocks;
 
-import com.trevlar.slotkit.api.reserve.Reservation;
-import com.trevlar.slotkit.api.reserve.Reservations;
+import com.trevlar.menukit.api.element.ItemMatch;
 
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
@@ -108,7 +108,7 @@ public class IntakeChecks implements FabricClientGameTest {
                 BoxSettings.set(matching, BEFORE_MATCHING);
                 p.getInventory().setItem(1, matching);
                 ItemStack reserved = box(BEFORE);
-                Reservations.set(reserved, 7, Reservation.of(new ItemStack(Items.COBBLESTONE)));
+                Reservations.set(reserved, 7, new ItemMatch(new ItemStack(Items.COBBLESTONE), ItemMatch.NONE));
                 p.getInventory().setItem(2, reserved);
 
                 p.getInventory().add(new ItemStack(Items.COBBLESTONE, 5));

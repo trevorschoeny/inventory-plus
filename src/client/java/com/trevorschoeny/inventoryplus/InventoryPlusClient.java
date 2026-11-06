@@ -81,6 +81,8 @@ public class InventoryPlusClient implements ClientModInitializer {
         // and the one-time move of Reach's pickup choice onto the boxes carried.
         com.trevorschoeny.inventoryplus.carried.BoxSettingsClient.register();
         com.trevorschoeny.inventoryplus.carried.BoxSettingsPopup.register();
+        com.trevorschoeny.inventoryplus.editmode.ReservePopup.register();
+        com.trevorschoeny.inventoryplus.editmode.ReservedIcon.register();
 
         // Auto Tool Switch swaps in the right tool or weapon on hit, using the
         // HotbarCyclableRegistry for the cyclable tier. Off by default.

@@ -11,8 +11,9 @@ import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSetsInput;
 import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSetsWindow;
 import com.trevorschoeny.inventoryplus.mixin.AbstractContainerScreenAccessor;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
-import com.trevlar.slotkit.api.reserve.Reservation;
-import com.trevlar.slotkit.api.reserve.Reservations;
+import com.trevlar.menukit.api.element.ItemMatch;
+import com.trevorschoeny.inventoryplus.editmode.ReservePopup;
+import com.trevorschoeny.inventoryplus.rules.Reservations;
 import com.trevlar.slotkit.api.group.SlotScreenRect;
 import com.trevlar.slotkit.api.group.VanillaSlotResolver;
 
@@ -59,10 +60,8 @@ public class HotbarSetsChecks implements FabricClientGameTest {
             // moves that item out, so the stock goes in after.
             ctx.runOnClient(mc -> {
                 LockedSlots.setLocked(menuSlot(mc.player, LOCKED), true);
-                Reservations.reserve(mc.player, menuSlot(mc.player, HotbarSets.firstSlotOf(BOTTOM_ROW) + ROW_REFUSES),
-                        Reservation.of(new ItemStack(Items.DIAMOND)));
-                Reservations.reserve(mc.player, menuSlot(mc.player, HOTBAR_ACCEPTS),
-                        Reservation.of(new ItemStack(Items.COBBLESTONE)));
+                reserve(mc.player, HotbarSets.firstSlotOf(BOTTOM_ROW) + ROW_REFUSES, new ItemMatch(new ItemStack(Items.DIAMOND), ItemMatch.NONE));
+                reserve(mc.player, HOTBAR_ACCEPTS, new ItemMatch(new ItemStack(Items.COBBLESTONE), ItemMatch.NONE));
             });
             ctx.waitTicks(5);
             stock(world);
@@ -172,8 +171,8 @@ public class HotbarSetsChecks implements FabricClientGameTest {
                 HotbarSets.delete(0);
                 expect(HotbarSets.savedSets().isEmpty(), "deleting the set empties the list");
                 LockedSlots.setLocked(menuSlot(mc.player, LOCKED), false);
-                Reservations.reserve(mc.player, menuSlot(mc.player, HotbarSets.firstSlotOf(BOTTOM_ROW) + ROW_REFUSES), Reservation.NONE);
-                Reservations.reserve(mc.player, menuSlot(mc.player, HOTBAR_ACCEPTS), Reservation.NONE);
+                reserve(mc.player, HotbarSets.firstSlotOf(BOTTOM_ROW) + ROW_REFUSES, Reservations.NONE);
+                reserve(mc.player, HOTBAR_ACCEPTS, Reservations.NONE);
             });
 
             // The window: the symbol opens it, Save adds the hotbar, the list moves and deletes,
@@ -260,5 +259,11 @@ public class HotbarSetsChecks implements FabricClientGameTest {
 
     private static void expect(boolean ok, String what) {
         if (!ok) throw new AssertionError("Hotbar Sets: " + what);
+    }
+
+    /** Reserves inventory slot {@code index} as the popup does: a request the server applies. */
+    private static void reserve(net.minecraft.client.player.LocalPlayer player, int index, ItemMatch rule) {
+        var menu = player.containerMenu;
+        ReservePopup.request(menu, menu.slots.indexOf(menuSlot(player, index)), rule);
     }
 }

@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.hotbarsets;
 
+import com.trevorschoeny.inventoryplus.rules.Reservations;
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.HOTBAR_CYCLE;
 
 import com.google.gson.Gson;
@@ -17,7 +18,6 @@ import com.trevorschoeny.inventoryplus.autorestock.AutoRestockSuppression;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerRotator;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockedslots.WorldIdentity;
-import com.trevlar.slotkit.api.reserve.Reservations;
 import com.trevlar.slotkit.api.window.SlotOperations;
 import com.trevlar.slotkit.api.window.SlotRef;
 
@@ -153,7 +153,7 @@ public final class HotbarSets {
             if (menuIdx < 0) continue;
             Slot slot = menu.getSlot(menuIdx);
             if (!SlotOperations.allows(menu, slot, player, HOTBAR_CYCLE)) continue;
-            if (!now.isEmpty() && !Reservations.get(SlotRef.of(menu, slot, player)).matches(now)) continue;
+            if (!now.isEmpty() && !Reservations.allows(Reservations.get(SlotRef.of(menu, slot, player)), now)) continue;
             AutoRestockSuppression.markExternalChange(c);
             inv.setItem(c, now.copy());
             gameMode.handleCreativeModeItemAdd(now.copy(), menuIdx);
