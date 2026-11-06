@@ -8,7 +8,7 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
-import com.trevorschoeny.inventoryplus.rules.Intake;
+import com.trevorschoeny.inventoryplus.rules.BoxSettings;
 import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
 import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSets;
 
@@ -84,6 +84,10 @@ public final class IPConfig {
     // chest. Off by default. Auto Tool Switch and pick block follow it too: one
     // setting for everything that takes from a carried box.
     private static boolean restockFromShulkers = false;
+    // Whether pickups go into carried shulker boxes by each box's Intake. On by
+    // default, so boxes set up before this setting existed keep filling. The server
+    // applies it, so it is sent there (BoxSettingsClient).
+    private static boolean fillShulkersWithPickups = true;
     // Durability floor for the two Before-Break swaps (armor and tool share
     // it): a swap fires when remaining durability sits at or below this.
     private static int autoRestockBeforeBreakThreshold = 10;
@@ -221,12 +225,12 @@ public final class IPConfig {
             legacyCycleSlotsLocked = readBool(root, "cycleSlotsLocked", true);
             // Reach's pickup choice, kept as an Intake until every world has had it.
             legacyPickupIntake = root.has("legacyPickupIntake")
-                    ? Intake.CODEC.parse(JsonOps.INSTANCE, root.get("legacyPickupIntake"))
+                    ? BoxSettings.CODEC.parse(JsonOps.INSTANCE, root.get("legacyPickupIntake"))
                             .result().orElse(null)
                     : pickupIntakeOf(root.has("reach") && root.get("reach").isJsonObject()
                             ? root.getAsJsonObject("reach") : null);
             // The file is written without "reach" from now on; its pickup choice
-            // lives on in config until every world has had it (IntakeClient).
+            // lives on in config until every world has had it (BoxSettingsClient).
             if (legacyPickupIntake != null && root.has("intakeMigratedWorlds")) {
                 for (var w : root.getAsJsonArray("intakeMigratedWorlds")) intakeMigratedWorlds.add(w.getAsString());
             }
@@ -249,6 +253,7 @@ public final class IPConfig {
         autoRestockShulker           = readBool(root, "autoRestockShulker",           autoRestockShulker);
         autoRestockShulkerAmmo       = readBool(root, "autoRestockShulkerAmmo",       autoRestockShulkerAmmo);
         restockFromShulkers = restockFromShulkersOf(root, restockFromShulkers);
+        fillShulkersWithPickups      = readBool(root, "fillShulkersWithPickups",      fillShulkersWithPickups);
         autoRestockBeforeBreakThreshold = readInt(root, "autoRestockBeforeBreakThreshold",
                 autoRestockBeforeBreakThreshold);
         autoToolSwitchEnabled  = readBool(root, "autoToolSwitchEnabled",  autoToolSwitchEnabled);
@@ -332,7 +337,7 @@ public final class IPConfig {
                 : fallback;
     }
 
-    /** Every setting as the file writes it (without the version or the Intake migration record). */
+    /** Every setting as the file writes it (without the version or the BoxSettings migration record). */
     private static JsonObject settingsJson() {
         JsonObject root = new JsonObject();
         root.addProperty("autoRestockGear",             autoRestockGear);
@@ -341,6 +346,7 @@ public final class IPConfig {
         root.addProperty("autoRestockShulker",          autoRestockShulker);
         root.addProperty("autoRestockShulkerAmmo",      autoRestockShulkerAmmo);
         root.addProperty("restockFromShulkers",         restockFromShulkers);
+        root.addProperty("fillShulkersWithPickups",     fillShulkersWithPickups);
         root.addProperty("autoRestockBeforeBreakThreshold", autoRestockBeforeBreakThreshold);
         root.addProperty("autoToolSwitchEnabled",   autoToolSwitchEnabled);
         root.addProperty("autoToolSwitchSneakPauses", autoToolSwitchSneakPauses);
@@ -389,7 +395,7 @@ public final class IPConfig {
                 JsonArray worlds = new JsonArray();
                 for (String w : intakeMigratedWorlds) worlds.add(w);
                 root.add("intakeMigratedWorlds", worlds);
-                root.add("legacyPickupIntake", Intake.CODEC.encodeStart(JsonOps.INSTANCE,
+                root.add("legacyPickupIntake", BoxSettings.CODEC.encodeStart(JsonOps.INSTANCE,
                         legacyPickupIntake).getOrThrow());
             }
             Files.writeString(path, GSON.toJson(root));
@@ -413,12 +419,12 @@ public final class IPConfig {
     /**
      * The Intake that stands closest to what Reach's pickups did with carried shulker
      * boxes before 4.0.0, or {@code null} when they left them alone (the default).
-     * IntakeClient puts it on the boxes the player carries, once per world.
+     * BoxSettingsClient puts it on the boxes the player carries, once per world.
      */
-    private static @Nullable Intake legacyPickupIntake;
+    private static @Nullable BoxSettings legacyPickupIntake;
     private static final Set<String> intakeMigratedWorlds = new TreeSet<>();
 
-    public static @Nullable Intake legacyPickupIntake() { return legacyPickupIntake; }
+    public static @Nullable BoxSettings legacyPickupIntake() { return legacyPickupIntake; }
 
     /** Whether world {@code worldId}'s carried boxes still need {@link #legacyPickupIntake}. */
     public static boolean needsIntakeMigration(String worldId) {
@@ -436,13 +442,13 @@ public final class IPConfig {
      * held (Before inventory, Matching only). An untouched operation left boxes alone.
      * Bundles and the ender chest have no Intake, so their boxes are dropped.
      */
-    public static @Nullable Intake pickupIntakeOf(@Nullable JsonObject reach) {
+    public static @Nullable BoxSettings pickupIntakeOf(@Nullable JsonObject reach) {
         if (reach == null) return null;
         int version = reach.has("version") ? reach.get("version").getAsInt() : 0;
         if (version < 3) return null;   // version 2 had no carried places
         String op = "menukit:world_pickup", shulkers = "inventoryplus:place/shulker_boxes";
-        if (ticks(reach, "denied", op, shulkers)) return new Intake(Intake.When.BEFORE, false);
-        if (ticks(reach, "matching", op, shulkers)) return new Intake(Intake.When.BEFORE, true);
+        if (ticks(reach, "denied", op, shulkers)) return new BoxSettings(BoxSettings.When.BEFORE, false);
+        if (ticks(reach, "matching", op, shulkers)) return new BoxSettings(BoxSettings.When.BEFORE, true);
         return null;
     }
 
@@ -479,6 +485,7 @@ public final class IPConfig {
     public static boolean restockShowButton()        { return restockShowButton; }
     public static boolean autoToolSwitchShowButton() { return autoToolSwitchShowButton; }
     public static boolean restockFromShulkers()      { return restockFromShulkers; }
+    public static boolean fillShulkersWithPickups()  { return fillShulkersWithPickups; }
     public static boolean tooltipsEnabled()          { return tooltipsEnabled; }
     public static boolean tooltipDurability() { return tooltipDurability; }
     public static boolean tooltipFood() { return tooltipFood; }
@@ -501,6 +508,7 @@ public final class IPConfig {
     public static void setRestockShowButton(boolean v)        { restockShowButton = v; save(); }
     public static void setAutoToolSwitchShowButton(boolean v) { autoToolSwitchShowButton = v; save(); }
     public static void setRestockFromShulkers(boolean v)      { restockFromShulkers = v; save(); }
+    public static void setFillShulkersWithPickups(boolean v)  { fillShulkersWithPickups = v; save(); }
     public static void setTooltipsEnabled(boolean v)          { tooltipsEnabled = v; save(); }
     public static void setTooltipDurability(boolean v) { tooltipDurability = v; save(); }
     public static void setTooltipFood(boolean v) { tooltipFood = v; save(); }

@@ -9,6 +9,7 @@ import com.trevlar.slotkit.api.window.BehaviorKeys;
 import com.trevlar.slotkit.api.window.TriBool;
 
 import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
+import com.trevorschoeny.inventoryplus.rules.BoxSettings;
 
 import io.netty.buffer.ByteBuf;
 
@@ -213,6 +214,8 @@ public final class CarriedTake {
             if (ref.source() != ItemRef.Source.ENDER_CHEST || !wanted.test(ref.stack())) return true;
             int slot = ref.path().slot();
             if (slot < 32 && (request.lockedSlots() & (1 << slot)) != 0) return true;
+            // A box in the ender chest that the player keeps out of restock.
+            if (ref.path().depth() > 0 && !BoxSettings.of(player.getEnderChestInventory().getItem(slot)).restock()) return true;
             // Whatever lands must stack with what's in the target already (a swap replaces it).
             ItemStack inTarget = player.getInventory().getItem(request.target());
             if (purpose != Purpose.RESTOCK_SWAP && !inTarget.isEmpty()

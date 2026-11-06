@@ -1,5 +1,6 @@
 package com.trevorschoeny.inventoryplus.toolbar;
 
+import com.trevorschoeny.inventoryplus.carried.BoxSettingsPopup;
 import com.trevorschoeny.inventoryplus.editmode.EditToolbar;
 import com.trevorschoeny.inventoryplus.movematching.MoveMatchingButtons;
 import com.trevorschoeny.inventoryplus.sort.SortButton;
@@ -140,10 +141,10 @@ public final class Toolbar {
                         screen -> headerRow(group.box(screen), inventory.box(screen)));
                 Panel panel = Panel.builder(on.index() == 0 ? id : id + "." + on.index())
                         // The group is read on each click: a tab switch can move the panel to another.
-                        // A box's Intake, Save, Load and edit, then Sort at the right end; hidden ones are skipped.
+                        // A box's settings and edit, then Sort at the right end; hidden ones are skipped.
                         .elements(List.of(Flow.builder().gap(BUTTON_GAP, BUTTON_GAP)
                                 .addAll(category == SlotGroupCategory.SHULKER_STORAGE
-                                        ? EditToolbar.intakeButtons(on::group) : List.of())
+                                        ? BoxSettingsPopup.button(on::group) : List.of())
                                 .addAll(EditToolbar.buttons())
                                 .add(SortButton.externalToolbarButton(0, 0, on::group))
                                 .build()))

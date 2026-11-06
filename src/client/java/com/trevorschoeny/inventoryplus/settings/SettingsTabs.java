@@ -89,7 +89,8 @@ final class SettingsTabs {
     private static void resetRestock() {
         IPConfig.reset("restockEnabled", "restockShowButton", "autoRestockGear", "autoRestockGearBeforeBreak",
                 "autoRestockItem", "autoRestockShulker",
-                "autoRestockShulkerAmmo", "autoRestockBeforeBreakThreshold", "restockFromShulkers");
+                "autoRestockShulkerAmmo", "autoRestockBeforeBreakThreshold", "restockFromShulkers",
+                "fillShulkersWithPickups");
     }
 
     private static void resetAutoToolSwitch() {
@@ -290,6 +291,10 @@ final class SettingsTabs {
                         Bool.of(IPConfig::restockFromShulkers, IPConfig::setRestockFromShulkers))
                 .line("Restock, Auto Tool Switch and pick block take from shulker boxes in your inventory "
                         + "when the inventory has none.");
+        b.checkbox("Fill shulker boxes with pickups",
+                        Bool.of(IPConfig::fillShulkersWithPickups, IPConfig::setFillShulkersWithPickups))
+                .line("Pickups go into the shulker boxes in your inventory that are set to take them. "
+                        + "Set each box with its settings button. Needs Inventory Plus on the server.");
         b.feature("Restock", Bool.of(IPConfig::restockEnabled, IPConfig::setRestockEnabled))
                 .checkbox("Show the Restock button", Bool.of(IPConfig::restockShowButton, IPConfig::setRestockShowButton))
                 .checkbox("Restock items", item)

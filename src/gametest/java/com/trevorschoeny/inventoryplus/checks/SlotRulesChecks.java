@@ -13,7 +13,7 @@ import com.trevorschoeny.inventoryplus.api.PlayerMenuSlots;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
-import com.trevorschoeny.inventoryplus.rules.Intake;
+import com.trevorschoeny.inventoryplus.rules.BoxSettings;
 import com.trevorschoeny.inventoryplus.rules.SlotLocks;
 
 import com.trevlar.slotkit.api.reserve.Reservation;
@@ -94,9 +94,9 @@ public class SlotRulesChecks implements FabricClientGameTest {
         String pickupEmpty = "{\"version\":3,\"denied\":{\"menukit:world_pickup\":[]},\"matching\":{}}";
         String pickupMatching = "{\"version\":3,\"denied\":{\"menukit:world_pickup\":[\"inventoryplus:place/shulker_boxes\"]},"
                 + "\"matching\":{\"menukit:world_pickup\":[]}}";
-        expect(new Intake(Intake.When.BEFORE, false).equals(IPConfig.pickupIntakeOf(json(pickupEmpty))),
+        expect(new BoxSettings(BoxSettings.When.BEFORE, false).equals(IPConfig.pickupIntakeOf(json(pickupEmpty))),
                 "Shulker Boxes ticked under Empty slots becomes Before inventory");
-        expect(new Intake(Intake.When.BEFORE, true).equals(IPConfig.pickupIntakeOf(json(pickupMatching))),
+        expect(new BoxSettings(BoxSettings.When.BEFORE, true).equals(IPConfig.pickupIntakeOf(json(pickupMatching))),
                 "ticked under Matching only becomes Before inventory, Matching only");
         expect(IPConfig.pickupIntakeOf(json("{\"version\":3,\"denied\":{},\"matching\":{}}")) == null,
                 "an untouched pickup leaves boxes Off");

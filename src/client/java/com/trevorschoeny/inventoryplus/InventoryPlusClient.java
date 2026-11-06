@@ -79,7 +79,8 @@ public class InventoryPlusClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(AutoRestockTicker::tick);
         // Intake: a carried shulker box's pickups setting, set through the server,
         // and the one-time move of Reach's pickup choice onto the boxes carried.
-        com.trevorschoeny.inventoryplus.carried.IntakeClient.register();
+        com.trevorschoeny.inventoryplus.carried.BoxSettingsClient.register();
+        com.trevorschoeny.inventoryplus.carried.BoxSettingsPopup.register();
 
         // Auto Tool Switch swaps in the right tool or weapon on hit, using the
         // HotbarCyclableRegistry for the cyclable tier. Off by default.

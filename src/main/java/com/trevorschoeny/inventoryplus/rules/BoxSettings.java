@@ -31,9 +31,11 @@ import net.minecraft.world.level.block.entity.ShulkerBoxBlockEntity;
 import java.util.Locale;
 
 /**
- * A shulker box's Intake: whether pickups go into it while it is in the player's
- * inventory, and when. Set per box and stored on it, so it travels with the box.
+ * A shulker box's own settings, set per box in its settings popup and stored on it, so
+ * they travel with the box.
  *
+ * <p>Intake, {@code when}: whether pickups go into the box while it is in the player's
+ * inventory, and when.
  * <ul>
  *   <li>{@link When#OFF}: never (the default).</li>
  *   <li>{@link When#BEFORE}: before the inventory; the inventory takes what the box doesn't.</li>
@@ -46,77 +48,93 @@ import java.util.Locale;
  * slots are on screen. Automation ignores Intake; it honors reservations and locks.
  * Where pickups land is the server's, so Intake needs Inventory Plus on the server
  * ({@link com.trevorschoeny.inventoryplus.nested.CarriedPut}).
+ *
+ * <p>{@code restock}: whether Restock, Auto Tool Switch and pick block may take from
+ * this box when the player has "Restock from shulker boxes" on. On by default, so
+ * turning it off is the box's opt-out.
  */
-public record Intake(When when, boolean matchingOnly) {
+public record BoxSettings(When when, boolean matchingOnly, boolean restock) {
 
     public enum When { OFF, BEFORE, AFTER }
 
-    public static final Intake OFF = new Intake(When.OFF, false);
+    /** A box nobody has set: no Intake, restocked from. Writing it clears the box. */
+    public static final BoxSettings DEFAULT = new BoxSettings(When.OFF, false, true);
 
-    public Intake {
+    public BoxSettings {
         // Off has no Matching only: one value for "no Intake", so writing it clears the box.
         if (when == When.OFF) matchingOnly = false;
     }
 
+    /** An Intake alone, the box restocked from: Reach's old choice and the checks' shorthand. */
+    public BoxSettings(When when, boolean matchingOnly) {
+        this(when, matchingOnly, true);
+    }
+
+    public BoxSettings withWhen(When when) { return new BoxSettings(when, matchingOnly, restock); }
+    public BoxSettings withMatchingOnly(boolean on) { return new BoxSettings(when, on, restock); }
+    public BoxSettings withRestock(boolean on) { return new BoxSettings(when, matchingOnly, on); }
+
     private static final Codec<When> WHEN_CODEC = Codec.STRING.xmap(
             s -> When.valueOf(s.toUpperCase(Locale.ROOT)), w -> w.name().toLowerCase(Locale.ROOT));
 
-    public static final Codec<Intake> CODEC = RecordCodecBuilder.create(i -> i.group(
-            WHEN_CODEC.fieldOf("when").forGetter(Intake::when),
-            Codec.BOOL.optionalFieldOf("matching_only", false).forGetter(Intake::matchingOnly)
-    ).apply(i, Intake::new));
+    public static final Codec<BoxSettings> CODEC = RecordCodecBuilder.create(i -> i.group(
+            WHEN_CODEC.fieldOf("when").forGetter(BoxSettings::when),
+            Codec.BOOL.optionalFieldOf("matching_only", false).forGetter(BoxSettings::matchingOnly),
+            // Optional: boxes set before 4.0.0 held only their Intake, and are restocked from.
+            Codec.BOOL.optionalFieldOf("restock", true).forGetter(BoxSettings::restock)
+    ).apply(i, BoxSettings::new));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, Intake> STREAM_CODEC = StreamCodec.composite(
+    public static final StreamCodec<RegistryFriendlyByteBuf, BoxSettings> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.VAR_INT.map(n -> When.values()[Math.floorMod(n, When.values().length)], When::ordinal),
-            Intake::when,
-            ByteBufCodecs.BOOL, Intake::matchingOnly,
-            Intake::new);
+            BoxSettings::when,
+            ByteBufCodecs.BOOL, BoxSettings::matchingOnly,
+            ByteBufCodecs.BOOL, BoxSettings::restock,
+            BoxSettings::new);
 
     /**
      * Stored as SHARED slot state so it rides SlotKit's portable path: on the item, in
      * the placed box's block entity, back on the item when broken in survival. A plain
      * custom-data key would be dropped by the shulker box's loot table.
-     * The box-level value is kept on slot 0's entry, since SlotKit stores per-slot
-     * values only; a box-level SHARED value in SlotKit is the upgrade if a second
-     * box-level setting ever appears.
+     * The box's settings are one value on slot 0's entry, since SlotKit stores per-slot
+     * values only. The channel keeps Intake's id, so boxes set before keep their Intake.
      */
-    private static final SlotStateChannel<Intake> CHANNEL = SlotState.register(ModeScope.BOTH,
-            Identifier.fromNamespaceAndPath("inventoryplus", "intake"), CODEC, STREAM_CODEC, OFF,
+    private static final SlotStateChannel<BoxSettings> CHANNEL = SlotState.register(ModeScope.BOTH,
+            Identifier.fromNamespaceAndPath("inventoryplus", "intake"), CODEC, STREAM_CODEC, DEFAULT,
             SlotStateChannel.Visibility.SHARED, SlotStateChannel.CanWrite.DENY);
 
-    /** Whether {@code stack} is one shulker box, the only thing that has an Intake. */
+    /** Whether {@code stack} is one shulker box, the only thing that has an BoxSettings. */
     public static boolean isBox(ItemStack stack) {
         return stack.getCount() == 1 && stack.getItem() instanceof BlockItem block
                 && block.getBlock() instanceof ShulkerBoxBlock;
     }
 
-    /** {@code box}'s Intake; {@link #OFF} for anything that isn't a shulker box. Either side. */
-    public static Intake of(ItemStack box) {
-        return isBox(box) ? CHANNEL.get(box, 0) : OFF;
+    /** {@code box}'s BoxSettings; {@link #DEFAULT} for anything that isn't a shulker box. Either side. */
+    public static BoxSettings of(ItemStack box) {
+        return isBox(box) ? CHANNEL.get(box, 0) : DEFAULT;
     }
 
     /**
      * The Intake of the box whose slots the open menu shows, {@code slot} being any of
      * them: a placed box's, read off its block, or a box opened from the inventory, read
      * off its item. Read at the box's slot 0 as the menu shows it, so the client reads
-     * what the server synced for that slot. {@link #OFF} when the menu doesn't show it.
+     * what the server synced for that slot. {@link #DEFAULT} when the menu doesn't show it.
      */
-    public static Intake of(AbstractContainerMenu menu, Slot slot) {
+    public static BoxSettings of(AbstractContainerMenu menu, Slot slot) {
         for (Slot s : menu.slots) {
             if (s.container == slot.container && s.getContainerSlot() == 0) return CHANNEL.get(s);
         }
-        return OFF;
+        return DEFAULT;
     }
 
-    /** Sets {@code box}'s Intake. Server side; the caller puts the item back where it lives. */
-    public static void set(ItemStack box, Intake intake) {
+    /** Sets {@code box}'s BoxSettings. Server side; the caller puts the item back where it lives. */
+    public static void set(ItemStack box, BoxSettings intake) {
         if (isBox(box)) CHANNEL.set(box, 0, intake);
     }
 
     // The client's request
 
-    /** Set the Intake of the shulker box in the player's inventory slot {@code slot} (0 to 35). */
-    public record Set(int slot, Intake intake) implements CustomPacketPayload {
+    /** Set the BoxSettings of the shulker box in the player's inventory slot {@code slot} (0 to 35). */
+    public record Set(int slot, BoxSettings intake) implements CustomPacketPayload {
         public static final Type<Set> TYPE = new Type<>(Identifier.fromNamespaceAndPath("inventoryplus", "set_intake"));
         public static final StreamCodec<RegistryFriendlyByteBuf, Set> CODEC = StreamCodec.composite(
                 ByteBufCodecs.VAR_INT, Set::slot, STREAM_CODEC, Set::intake, Set::new);
@@ -132,7 +150,7 @@ public record Intake(When when, boolean matchingOnly) {
      * one of them, as a click names a slot: a placed box, or one opened from the
      * inventory. What edit mode's Intake row sends.
      */
-    public record SetOpen(int containerId, int menuSlot, Intake intake) implements CustomPacketPayload {
+    public record SetOpen(int containerId, int menuSlot, BoxSettings intake) implements CustomPacketPayload {
         public static final Type<SetOpen> TYPE = new Type<>(Identifier.fromNamespaceAndPath("inventoryplus", "set_open_intake"));
         public static final StreamCodec<RegistryFriendlyByteBuf, SetOpen> CODEC = StreamCodec.composite(
                 ByteBufCodecs.VAR_INT, SetOpen::containerId, ByteBufCodecs.VAR_INT, SetOpen::menuSlot,

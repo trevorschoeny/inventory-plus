@@ -1,7 +1,7 @@
 package com.trevorschoeny.inventoryplus.mixin;
 
 import com.trevorschoeny.inventoryplus.nested.CarriedPut;
-import com.trevorschoeny.inventoryplus.rules.Intake;
+import com.trevorschoeny.inventoryplus.rules.BoxSettings;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
@@ -30,12 +30,12 @@ public abstract class InventoryAddCarriedPutMixin {
     @Inject(method = "add(ILnet/minecraft/world/item/ItemStack;)Z", at = @At("HEAD"), cancellable = true)
     private void inventoryplus$beforeInventory(int slot, ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
         if (slot != -1 || stack.isEmpty() || !(player instanceof ServerPlayer sp)) return;
-        if (CarriedPut.into(sp, stack, Intake.When.BEFORE) > 0 && stack.isEmpty()) cir.setReturnValue(true);
+        if (CarriedPut.into(sp, stack, BoxSettings.When.BEFORE) > 0 && stack.isEmpty()) cir.setReturnValue(true);
     }
 
     @Inject(method = "add(ILnet/minecraft/world/item/ItemStack;)Z", at = @At("RETURN"), cancellable = true)
     private void inventoryplus$afterInventory(int slot, ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
         if (slot != -1 || stack.isEmpty() || !(player instanceof ServerPlayer sp)) return;
-        if (CarriedPut.into(sp, stack, Intake.When.AFTER) > 0) cir.setReturnValue(true);
+        if (CarriedPut.into(sp, stack, BoxSettings.When.AFTER) > 0) cir.setReturnValue(true);
     }
 }

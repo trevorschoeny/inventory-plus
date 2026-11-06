@@ -9,7 +9,8 @@ import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.editmode.EditMode;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.mixin.AbstractContainerScreenAccessor;
-import com.trevorschoeny.inventoryplus.rules.Intake;
+import com.trevorschoeny.inventoryplus.carried.BoxSettingsPopup;
+import com.trevorschoeny.inventoryplus.rules.BoxSettings;
 import com.trevorschoeny.inventoryplus.sort.SortButton;
 import com.trevorschoeny.inventoryplus.toolbar.Toolbar;
 import com.trevlar.menukit.api.panel.Reference;
@@ -187,7 +188,7 @@ public class EditModeChecks implements FabricClientGameTest {
         ctx.waitTicks(5);
     }
 
-    /** A placed box's Intake, set from its screen as edit mode's row sets it. */
+    /** A placed box's settings: its popup opens from its toolbar outside edit mode, and what it sets holds on the box. */
     private void box(TestSingleplayerContext world) {
         BlockPos[] at = {null};
         onServer(world, p -> {
@@ -197,25 +198,43 @@ public class EditModeChecks implements FabricClientGameTest {
             ((Container) p.level().getBlockEntity(at[0])).setItem(0, new ItemStack(Items.COBBLESTONE, 10));
         });
         open(at[0]);
+        // The box settings button, leftmost on the box's toolbar, with edit mode off.
+        ctx.runOnClient(mc -> EditMode.set(false));
+        double[] button = ctx.computeOnClient(mc -> {
+            Reference r = Toolbar.externalToolbars().stream()
+                    .filter(t -> t.id().equals("inventoryplus.toolbar.external.shulker_storage"))
+                    .findFirst().orElseThrow().placedBounds();
+            expect(r != null, "the box's toolbar shows");
+            double scale = mc.getWindow().getGuiScale();
+            return new double[] {(r.leftPos() + 4.5) * scale, (r.topPos() + r.imageHeight() / 2.0) * scale};
+        });
+        ctx.getInput().setCursorPos(button[0], button[1]);
+        ctx.waitTicks(2);
+        ctx.getInput().pressMouse(InputConstants.MOUSE_BUTTON_LEFT);
+        ctx.waitTicks(2);
+        expect(ctx.computeOnClient(mc -> BoxSettingsPopup.isOpen()), "the box settings button opens the popup outside edit mode");
+        ctx.getInput().pressKey(InputConstants.getKey("key.keyboard.escape"));
+        ctx.waitTicks(2);
+        expect(ctx.computeOnClient(mc -> !BoxSettingsPopup.isOpen() && mc.gui.screen() != null),
+                "Escape closes the popup and leaves the box open");
         ctx.runOnClient(mc -> {
-            EditMode.set(true);
             AbstractContainerMenu menu = mc.player.containerMenu;
-            ClientPlayNetworking.send(new Intake.SetOpen(menu.containerId, chestSlot(menu, 4).index,
-                    new Intake(Intake.When.BEFORE, true)));
+            ClientPlayNetworking.send(new BoxSettings.SetOpen(menu.containerId, chestSlot(menu, 4).index,
+                    new BoxSettings(BoxSettings.When.BEFORE, true)));
         });
         ctx.waitTicks(5);
-        expect(ctx.computeOnClient(mc -> Intake.of(mc.player.containerMenu, chestSlot(mc.player.containerMenu, 4)))
-                        .equals(new Intake(Intake.When.BEFORE, true)),
-                "the box's screen shows the Intake just set");
+        expect(ctx.computeOnClient(mc -> BoxSettings.of(mc.player.containerMenu, chestSlot(mc.player.containerMenu, 4)))
+                        .equals(new BoxSettings(BoxSettings.When.BEFORE, true)),
+                "the box's screen shows the BoxSettings just set");
         ctx.runOnClient(mc -> mc.player.closeContainer());
         ctx.waitTicks(5);
         onServer(world, p -> {
             p.gameMode.destroyBlock(at[0]);
             ItemEntity dropped = p.level().getEntitiesOfClass(ItemEntity.class, new AABB(at[0]).inflate(2)).stream()
-                    .filter(e -> Intake.isBox(e.getItem())).findFirst().orElse(null);
+                    .filter(e -> BoxSettings.isBox(e.getItem())).findFirst().orElse(null);
             expect(dropped != null, "breaking the box drops it");
-            expect(Intake.of(dropped.getItem()).equals(new Intake(Intake.When.BEFORE, true)),
-                    "the broken box carries its Intake (" + Intake.of(dropped.getItem()) + ")");
+            expect(BoxSettings.of(dropped.getItem()).equals(new BoxSettings(BoxSettings.When.BEFORE, true)),
+                    "the broken box carries its BoxSettings (" + BoxSettings.of(dropped.getItem()) + ")");
         });
     }
 

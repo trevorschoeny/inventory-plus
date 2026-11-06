@@ -4,7 +4,7 @@ import com.trevlar.slotkit.api.reserve.Reservation;
 import com.trevlar.slotkit.api.reserve.Reservations;
 import com.trevlar.slotkit.api.window.Automation;
 
-import com.trevorschoeny.inventoryplus.rules.Intake;
+import com.trevorschoeny.inventoryplus.rules.BoxSettings;
 import com.trevorschoeny.inventoryplus.rules.SlotLocks;
 
 import net.minecraft.core.NonNullList;
@@ -14,8 +14,21 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemContainerContents;
 
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.Identifier;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Pickups into carried shulker boxes, by each box's {@link Intake}: the server's half.
@@ -38,19 +51,47 @@ import java.util.List;
  *
  * <p>Only boxes in the main inventory and hotbar take part, never a box inside another,
  * a bundle or the ender chest. A player whose client doesn't run Inventory Plus
- * ({@link SlotLocks#known}) gets vanilla.
+ * ({@link SlotLocks#known}) gets vanilla, and so does one who turned off "Fill shulker
+ * boxes with pickups" ({@link Fill}).
  */
 public final class CarriedPut {
 
     private CarriedPut() {}
 
+    /**
+     * The player's "Fill shulker boxes with pickups" setting, which lives in their client's
+     * config: sent on joining and on every change. On until a client says otherwise.
+     */
+    public record Fill(boolean on) implements CustomPacketPayload {
+        public static final Type<Fill> TYPE = new Type<>(Identifier.fromNamespaceAndPath("inventoryplus", "fill_boxes"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, Fill> CODEC =
+                StreamCodec.composite(ByteBufCodecs.BOOL, Fill::on, Fill::new);
+
+        @Override
+        public Type<Fill> type() {
+            return TYPE;
+        }
+    }
+
+    /** The players who turned filling off. */
+    private static final Set<UUID> FILL_OFF = ConcurrentHashMap.newKeySet();
+
     /** Payloads and receivers. Once, from the common initializer. */
     public static void register() {
-        Intake.register();
+        BoxSettings.register();
+        PayloadTypeRegistry.serverboundPlay().register(Fill.TYPE, Fill.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(Fill.TYPE, (payload, context) -> setFill(context.player().getUUID(), payload.on()));
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> FILL_OFF.remove(handler.getPlayer().getUUID()));
+    }
+
+    /** Records a player's fill setting. The receiver's, and the checks'. */
+    public static void setFill(UUID player, boolean on) {
+        if (on) FILL_OFF.remove(player);
+        else FILL_OFF.add(player);
     }
 
     /** One carried box and its contents as a working copy, written back after each put. */
-    private record Box(ItemStack stack, Intake intake, NonNullList<ItemStack> items) {
+    private record Box(ItemStack stack, BoxSettings intake, NonNullList<ItemStack> items) {
         boolean holds(ItemStack item) {
             for (ItemStack s : items) if (ItemStack.isSameItem(s, item)) return true;
             return false;
@@ -62,8 +103,9 @@ public final class CarriedPut {
      * {@code when} ({@code BEFORE} or {@code AFTER}), shrinking it by what went in.
      * Returns how many went in.
      */
-    public static int into(ServerPlayer player, ItemStack stack, Intake.When when) {
-        if (stack.isEmpty() || when == Intake.When.OFF || player.isSpectator() || !SlotLocks.known(player)) return 0;
+    public static int into(ServerPlayer player, ItemStack stack, BoxSettings.When when) {
+        if (stack.isEmpty() || when == BoxSettings.When.OFF || player.isSpectator() || !SlotLocks.known(player)
+                || FILL_OFF.contains(player.getUUID())) return 0;
         // A shulker box never goes into another; vanilla's own rule for container items.
         if (!stack.getItem().canFitInsideContainerItems()) return 0;
         List<Box> boxes = boxes(player.getInventory(), when);
@@ -100,11 +142,11 @@ public final class CarriedPut {
     }
 
     /** The boxes in the main inventory and hotbar set to {@code when}, hotbar first. */
-    private static List<Box> boxes(Inventory inv, Intake.When when) {
+    private static List<Box> boxes(Inventory inv, BoxSettings.When when) {
         List<Box> out = new ArrayList<>();
         for (int slot = 0; slot < 36; slot++) {
             ItemStack stack = inv.getItem(slot);
-            Intake intake = Intake.of(stack);
+            BoxSettings intake = BoxSettings.of(stack);
             if (intake.when() != when) continue;
             ItemContainerContents contents = stack.getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY);
             NonNullList<ItemStack> items = NonNullList.withSize(Math.max(27, contents.size()), ItemStack.EMPTY);

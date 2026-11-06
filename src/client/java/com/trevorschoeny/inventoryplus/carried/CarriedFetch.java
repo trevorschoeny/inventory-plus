@@ -9,6 +9,7 @@ import com.trevlar.slotkit.api.window.SlotOperations;
 import com.trevlar.slotkit.api.window.TriBool;
 
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
+import com.trevorschoeny.inventoryplus.rules.BoxSettings;
 import com.trevorschoeny.inventoryplus.api.PlayerMenuSlots;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.nested.CarriedTake;
@@ -100,6 +101,8 @@ public final class CarriedFetch {
             for (ItemSources.Found found : ItemSources.find(player, scope, test)) {
                 ItemPath path = found.path();
                 if (path.depth() == 0) continue;   // the inventory's own slots are the feature's to search
+                // A box the player keeps out of restock (its settings popup).
+                if (!BoxSettings.of(player.getInventory().getItem(path.slot())).restock()) continue;
                 if (!IPSlotOperations.allowsPlayerSlot(player, path.slot(), purpose.take())) continue;
                 // Without the server mod only a bundle directly in a slot can be reached.
                 if (!serverHelps && !(path.depth() == 1

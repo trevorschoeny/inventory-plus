@@ -8,12 +8,18 @@ import static com.trevorschoeny.inventoryplus.checks.CarriedItems.count;
 import static com.trevorschoeny.inventoryplus.checks.CarriedItems.onServer;
 import static com.trevorschoeny.inventoryplus.checks.CarriedItems.shulker;
 
-import com.trevorschoeny.inventoryplus.carried.IntakeClient;
-import com.trevorschoeny.inventoryplus.rules.Intake;
+import com.trevorschoeny.inventoryplus.carried.BoxSettingsClient;
+import com.trevorschoeny.inventoryplus.carried.CarriedFetch;
+import com.trevorschoeny.inventoryplus.config.IPConfig;
+import com.trevorschoeny.inventoryplus.nested.CarriedTake;
+import com.trevorschoeny.inventoryplus.rules.BoxSettings;
 import com.trevorschoeny.inventoryplus.rules.SlotLocks;
 
 import com.trevlar.slotkit.api.reserve.Reservation;
 import com.trevlar.slotkit.api.reserve.Reservations;
+
+import com.google.gson.JsonParser;
+import com.mojang.serialization.JsonOps;
 
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -27,13 +33,14 @@ import net.minecraft.world.item.Items;
  * Intake ({@code nested/CarriedPut}): pickups go into a carried shulker box by the box's
  * own Intake, before or after the inventory, and within a tier to the most specific
  * home. Off by default, never a bundle or the ender chest, and the client's request
- * reaches the server.
+ * reaches the server. The player's "Fill shulker boxes with pickups" turns it off, and a
+ * box's own "Restock from this box" keeps restock out of it.
  */
 public class IntakeChecks implements FabricClientGameTest {
 
-    private static final Intake BEFORE = new Intake(Intake.When.BEFORE, false);
-    private static final Intake BEFORE_MATCHING = new Intake(Intake.When.BEFORE, true);
-    private static final Intake AFTER = new Intake(Intake.When.AFTER, false);
+    private static final BoxSettings BEFORE = new BoxSettings(BoxSettings.When.BEFORE, false);
+    private static final BoxSettings BEFORE_MATCHING = new BoxSettings(BoxSettings.When.BEFORE, true);
+    private static final BoxSettings AFTER = new BoxSettings(BoxSettings.When.AFTER, false);
 
     @Override
     public void runTest(ClientGameTestContext ctx) {
@@ -55,16 +62,16 @@ public class IntakeChecks implements FabricClientGameTest {
                                 && contents(p.getInventory().getItem(20)).get(4).getCount() == 10
                                 && bundleItems(p.getInventory().getItem(21)).get(0).getCount() == 1
                                 && p.getEnderChestInventory().getItem(0).getCount() == 5,
-                        "with no Intake, pickups land in the inventory, never a box, bundle or ender chest");
+                        "with no BoxSettings, pickups land in the inventory, never a box, bundle or ender chest");
             });
 
             // The client's request: Before inventory on the box in slot 20.
             stock(world);
             ctx.waitTicks(5);   // the box reaches the client
-            ctx.runOnClient(mc -> expect(IntakeClient.set(mc.player, 20, BEFORE), "the client can ask for an Intake"));
+            ctx.runOnClient(mc -> expect(BoxSettingsClient.set(mc.player, 20, BEFORE), "the client can ask for an Intake"));
             ctx.waitTicks(5);
             onServer(world, p -> {
-                expect(Intake.of(p.getInventory().getItem(20)).equals(BEFORE), "the server set the box's Intake");
+                expect(BoxSettings.of(p.getInventory().getItem(20)).equals(BEFORE), "the server set the box's Intake");
                 ItemStack give = new ItemStack(Items.COBBLESTONE, 30);
                 p.getInventory().add(give);
                 expect(give.isEmpty() && contents(p.getInventory().getItem(20)).get(4).getCount() == 40
@@ -72,8 +79,8 @@ public class IntakeChecks implements FabricClientGameTest {
                         "Before inventory: a pickup tops up the box's cobblestone, not the inventory");
             });
             ctx.waitTicks(5);
-            ctx.runOnClient(mc -> expect(IntakeClient.of(mc.player, 20).equals(BEFORE),
-                    "the client reads the box's Intake off the item"));
+            ctx.runOnClient(mc -> expect(BoxSettingsClient.of(mc.player, 20).equals(BEFORE),
+                    "the client reads the box's BoxSettings off the item"));
 
             // After inventory: only what the inventory has no room for.
             onServer(world, p -> {
@@ -98,7 +105,7 @@ public class IntakeChecks implements FabricClientGameTest {
                 clear(p);
                 p.getInventory().setItem(0, box(BEFORE));
                 ItemStack matching = shulker(0, new ItemStack(Items.COBBLESTONE, 64));
-                Intake.set(matching, BEFORE_MATCHING);
+                BoxSettings.set(matching, BEFORE_MATCHING);
                 p.getInventory().setItem(1, matching);
                 ItemStack reserved = box(BEFORE);
                 Reservations.set(reserved, 7, Reservation.of(new ItemStack(Items.COBBLESTONE)));
@@ -143,13 +150,59 @@ public class IntakeChecks implements FabricClientGameTest {
                 expect(contents(p.getInventory().getItem(5)).get(0).isEmpty() && count(p, Items.SHULKER_BOX) == 2,
                         "a picked-up shulker box never goes into another");
             });
+
+            // "Fill shulker boxes with pickups" off: the same Before box, the same pickup,
+            // and only the client's global setting differs.
+            ctx.runOnClient(mc -> IPConfig.setFillShulkersWithPickups(false));
+            ctx.waitTicks(3);   // the setting reaches the server
+            onServer(world, p -> {
+                clear(p);
+                p.getInventory().setItem(20, box(BEFORE));
+                p.getInventory().add(new ItemStack(Items.DIRT, 4));
+                expect(count(p, Items.DIRT) == 4 && contents(p.getInventory().getItem(20)).get(0).isEmpty(),
+                        "with filling off, a Before box is left alone");
+            });
+            ctx.runOnClient(mc -> IPConfig.setFillShulkersWithPickups(true));
+            ctx.waitTicks(3);
+            onServer(world, p -> {
+                p.getInventory().add(new ItemStack(Items.DIRT, 4));
+                expect(contents(p.getInventory().getItem(20)).get(0).getCount() == 4,
+                        "with filling back on, the same box takes the pickup");
+            });
+
+            // Restock from this box: the same box of torches, an empty hotbar slot to fill;
+            // only the box's restock setting differs.
+            for (boolean restock : new boolean[] {false, true}) {
+                onServer(world, p -> {
+                    clear(p);
+                    ItemStack box = shulker(0, new ItemStack(Items.TORCH, 16));
+                    BoxSettings.set(box, BoxSettings.DEFAULT.withRestock(restock));
+                    p.getInventory().setItem(20, box);
+                });
+                ctx.waitTicks(5);   // the box reaches the client
+                boolean asked = ctx.computeOnClient(mc -> CarriedFetch.fetch(mc.gameMode, mc.player,
+                        new CarriedFetch.Reach(true, false, false), CarriedTake.Purpose.RESTOCK,
+                        s -> s.is(Items.TORCH), null, new ItemStack(Items.TORCH), 0));
+                ctx.waitTicks(5);
+                onServer(world, p -> {
+                    boolean filled = p.getInventory().getItem(0).is(Items.TORCH);
+                    expect(asked == restock && filled == restock,
+                            "restock " + (restock ? "takes from" : "skips") + " a box with Restock from this box "
+                                    + (restock ? "on" : "off") + " (asked " + asked + ", filled " + filled + ")");
+                });
+            }
+
+            // A box set before the restock setting existed reads as restocked from.
+            expect(BoxSettings.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString("{\"when\":\"before\",\"matching_only\":true}"))
+                            .getOrThrow().equals(new BoxSettings(BoxSettings.When.BEFORE, true, true)),
+                    "an old box's settings keep their Intake and restock on");
         }
     }
 
     /** An empty shulker box with {@code intake}. */
-    private static ItemStack box(Intake intake) {
+    private static ItemStack box(BoxSettings intake) {
         ItemStack box = shulker();
-        Intake.set(box, intake);
+        BoxSettings.set(box, intake);
         return box;
     }
 
