@@ -102,13 +102,13 @@ public record BoxSettings(When when, boolean matchingOnly, boolean restock) {
             Identifier.fromNamespaceAndPath("inventoryplus", "intake"), CODEC, STREAM_CODEC, DEFAULT,
             SlotStateChannel.Visibility.SHARED, SlotStateChannel.CanWrite.DENY);
 
-    /** Whether {@code stack} is one shulker box, the only thing that has an BoxSettings. */
+    /** Whether {@code stack} is one shulker box, the only thing that has settings. */
     public static boolean isBox(ItemStack stack) {
         return stack.getCount() == 1 && stack.getItem() instanceof BlockItem block
                 && block.getBlock() instanceof ShulkerBoxBlock;
     }
 
-    /** {@code box}'s BoxSettings; {@link #DEFAULT} for anything that isn't a shulker box. Either side. */
+    /** {@code box}'s settings; {@link #DEFAULT} for anything that isn't a shulker box. Either side. */
     public static BoxSettings of(ItemStack box) {
         return isBox(box) ? CHANNEL.get(box, 0) : DEFAULT;
     }
@@ -126,14 +126,14 @@ public record BoxSettings(When when, boolean matchingOnly, boolean restock) {
         return DEFAULT;
     }
 
-    /** Sets {@code box}'s BoxSettings. Server side; the caller puts the item back where it lives. */
+    /** Sets {@code box}'s settings. Server side; the caller puts the item back where it lives. */
     public static void set(ItemStack box, BoxSettings intake) {
         if (isBox(box)) CHANNEL.set(box, 0, intake);
     }
 
     // The client's request
 
-    /** Set the BoxSettings of the shulker box in the player's inventory slot {@code slot} (0 to 35). */
+    /** Set the settings of the shulker box in the player's inventory slot {@code slot} (0 to 35). */
     public record Set(int slot, BoxSettings intake) implements CustomPacketPayload {
         public static final Type<Set> TYPE = new Type<>(Identifier.fromNamespaceAndPath("inventoryplus", "set_intake"));
         public static final StreamCodec<RegistryFriendlyByteBuf, Set> CODEC = StreamCodec.composite(

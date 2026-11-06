@@ -337,7 +337,7 @@ public final class IPConfig {
                 : fallback;
     }
 
-    /** Every setting as the file writes it (without the version or the BoxSettings migration record). */
+    /** Every setting as the file writes it (without the version or the Intake migration record). */
     private static JsonObject settingsJson() {
         JsonObject root = new JsonObject();
         root.addProperty("autoRestockGear",             autoRestockGear);

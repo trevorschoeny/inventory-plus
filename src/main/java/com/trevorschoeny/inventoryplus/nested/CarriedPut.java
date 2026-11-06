@@ -31,7 +31,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Pickups into carried shulker boxes, by each box's {@link Intake}: the server's half.
+ * Pickups into carried shulker boxes, by each box's Intake ({@link BoxSettings}): the server's half.
  * Hooked at {@code Inventory.add} ({@code InventoryAddCarriedPutMixin}), so it covers
  * every item given to the inventory with no slot named: pickups, {@code /give}, a
  * crafting grid's returns.

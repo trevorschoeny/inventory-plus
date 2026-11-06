@@ -1,6 +1,5 @@
 package com.trevorschoeny.inventoryplus.hotbarsets;
 
-import com.trevorschoeny.inventoryplus.rules.Reservations;
 import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.HOTBAR_CYCLE;
 
 import com.google.gson.Gson;
@@ -18,6 +17,7 @@ import com.trevorschoeny.inventoryplus.autorestock.AutoRestockSuppression;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerRotator;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockedslots.WorldIdentity;
+import com.trevorschoeny.inventoryplus.rules.Reservations;
 import com.trevlar.slotkit.api.window.SlotOperations;
 import com.trevlar.slotkit.api.window.SlotRef;
 

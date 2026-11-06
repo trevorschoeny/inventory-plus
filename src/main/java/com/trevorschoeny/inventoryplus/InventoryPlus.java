@@ -4,6 +4,7 @@ import com.trevorschoeny.inventoryplus.nested.CarriedPut;
 import com.trevorschoeny.inventoryplus.nested.CarriedTake;
 
 import com.trevorschoeny.inventoryplus.operations.IPSlotOperations;
+import com.trevorschoeny.inventoryplus.rules.Reservations;
 import com.trevorschoeny.inventoryplus.rules.SlotLocks;
 
 import net.fabricmc.api.ModInitializer;
@@ -34,6 +35,7 @@ public final class InventoryPlus implements ModInitializer {
         SlotLocks.register();
         // Pickups into carried shulker boxes by their Intake: the server's half.
         CarriedPut.register();
-        com.trevorschoeny.inventoryplus.rules.Reservations.register();
+        // Reserved slots: the refusal, the cap, the pickup preference and the client's request.
+        Reservations.register();
     }
 }

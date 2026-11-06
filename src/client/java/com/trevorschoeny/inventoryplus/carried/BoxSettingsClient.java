@@ -64,7 +64,7 @@ public final class BoxSettingsClient {
         return ClientPlayNetworking.canSend(BoxSettings.Set.TYPE);
     }
 
-    /** The BoxSettings of what sits in inventory slot {@code slot}: {@link Intake#OFF} for anything but a shulker box. */
+    /** The settings of what sits in inventory slot {@code slot}: {@link BoxSettings#DEFAULT} for anything but a shulker box. */
     public static BoxSettings of(LocalPlayer player, int slot) {
         return BoxSettings.of(player.getInventory().getItem(slot));
     }
