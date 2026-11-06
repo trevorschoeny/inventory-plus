@@ -4,6 +4,7 @@ import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevlar.menukit.api.element.AbstractPanelElement;
 import com.trevlar.menukit.api.element.Button;
 import com.trevlar.menukit.api.element.Floating;
+import com.trevlar.menukit.api.element.Flow;
 import com.trevlar.menukit.api.element.ListView;
 import com.trevlar.menukit.api.element.PanelElement;
 import com.trevlar.menukit.api.element.RenderContext;
@@ -107,20 +108,24 @@ public final class HotbarSetsWindow {
                 .empty(TextLabel.builder().text(Component.literal("No saved sets yet.")).build())
                 .build();
         PanelElement save = Floating.at(HotbarSetsWindow::saveOrigin,
-                Button.builder().label(Component.literal("Save")).size(32, 16)
+                Button.builder().label(Component.literal("Save")).size(0, 16)
                         .onClick(HotbarSets::saveHotbar)
                         .tooltip(Component.literal("Save the hotbar as a new set"))
                         .build());
         Panel panel = Panel.builder("inventoryplus:hotbar_sets_window")
                 .elements(List.of(
-                        TextLabel.builder().text(Component.literal("Hotbar sets")).build(),
-                        sets,
+                        Flow.builder().vertical().gap(4)
+                                .add(TextLabel.builder().text(Component.literal("Hotbar sets")).build())
+                                .add(sets)
+                                .build(),
                         save))
                 .style(PanelStyle.RAISED)
                 // Shown only while open: a modal counts while visible, and would hold the screen's input.
                 .visibleWhen(() -> open && hotbar() != null)
                 .in(ModeScope.BOTH, Placement.screen(PanelPosition.pixel(HotbarSetsWindow::windowOrigin)))
                 .build()
+                // As wide as the rows, so an empty list doesn't shrink it to its message.
+                .pinnedWidth(9 * 18)
                 .modal()
                 .onEscape(() -> open = false)
                 .litWhileDimmed(HotbarSetsWindow::litHotbar);
@@ -132,7 +137,9 @@ public final class HotbarSetsWindow {
     private static @Nullable ScreenOrigin windowOrigin() {
         SlotScreenRect h = hotbar();
         if (!open || h == null || window == null) return null;
-        int height = window.getHeight() + 2 * PADDING;
+        // The height it was placed at last frame, so the bottom sits on the hotbar as the list grows.
+        var placed = window.placedBounds();
+        int height = placed != null ? placed.imageHeight() : window.getHeight() + 2 * PADDING;
         return new ScreenOrigin(h.frameX() - PADDING, h.frameY() - 4 - height);
     }
 
