@@ -2,8 +2,6 @@ package com.trevorschoeny.inventoryplus.settings;
 
 import com.trevlar.menukit.api.element.Button;
 import com.trevlar.menukit.api.element.Checkbox;
-import com.trevlar.menukit.api.element.ItemMatch;
-import com.trevlar.menukit.api.element.ItemPicker;
 import com.trevlar.menukit.api.element.Divider;
 import com.trevlar.menukit.api.element.Dropdown;
 import com.trevlar.menukit.api.element.Flow;
@@ -16,9 +14,7 @@ import com.trevorschoeny.keybindery.chord.ChordButton;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -377,27 +373,6 @@ final class SettingsBody {
                 .disabledWhen(gated(unavailable))
                 .build());
         y += CONTROL_ROW;
-        return this;
-    }
-
-    /**
-     * A list of items: its text above MenuKit's {@link ItemPicker}, a row of
-     * slots that opens the creative-search grid. {@code match} is how the
-     * setting compares stacks ({@code ITEM}: the kind only; {@code EXACT}: the
-     * whole stack, editable). Put it last in a section, where a row that wraps
-     * has nothing below it to push.
-     */
-    SettingsBody items(String label, Supplier<List<ItemStack>> get, Consumer<List<ItemStack>> set,
-                       ItemMatch.Match match, BooleanSupplier unavailable) {
-        label(0, Component.literal(label));
-        ItemPicker.Builder picker = ItemPicker.builder().at(0, y).label(Component.literal(label))
-                .stacks(get, set).match(match).disabledWhen(gated(unavailable));
-        // An exact item lock holds through durability damage, and ignores stack
-        // count (MenuKit 7.3.0 ItemMatch.ignoring/ignoringCount); the only EXACT
-        // picker in this file is LockedItems's, so this is always what it wants.
-        if (match == ItemMatch.Match.EXACT) picker.ignoring(DataComponents.DAMAGE).ignoringCount();
-        out.add(picker.build());
-        y += ItemPicker.SIZE + 2;
         return this;
     }
 
