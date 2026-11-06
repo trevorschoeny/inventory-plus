@@ -229,6 +229,25 @@ public class SlotRulesChecks implements FabricClientGameTest {
             for (int i : new int[] {24, 25, 26}) Reservations.set(chest, i, Reservations.NONE);
         });
 
+        // Pickups and a reserved slot: a stack with room is topped up first; then an empty
+        // reserved slot that matches beats every earlier empty slot.
+        onServer(world, p -> {
+            CarriedItems.clear(p);
+            Slot home = p.inventoryMenu.slots.stream()
+                    .filter(sl -> sl.container == p.getInventory() && sl.getContainerSlot() == 20).findFirst().orElseThrow();
+            Reservations.reserve(p, home, new ItemMatch(new ItemStack(Items.COBBLESTONE), ItemMatch.NONE));
+            p.getInventory().add(new ItemStack(Items.COBBLESTONE, 5));
+            expect(p.getInventory().getItem(20).getCount() == 5 && p.getInventory().getItem(0).isEmpty(),
+                    "a pickup goes into the empty reserved slot before the first empty slot");
+            p.getInventory().setItem(20, ItemStack.EMPTY);
+            p.getInventory().setItem(3, new ItemStack(Items.COBBLESTONE, 10));
+            p.getInventory().add(new ItemStack(Items.COBBLESTONE, 5));
+            expect(p.getInventory().getItem(3).getCount() == 15 && p.getInventory().getItem(20).isEmpty(),
+                    "a pickup tops up a stack with room before the empty reserved slot");
+            Reservations.reserve(p, home, Reservations.NONE);
+            CarriedItems.clear(p);
+        });
+
         // The client sees the chest's lock, and L's write reaches the chest.
         open(at[0]);
         expect(ctx.computeOnClient(mc -> LockedSlots.isLockedSlot(chestSlot(mc.player.containerMenu, 3))),

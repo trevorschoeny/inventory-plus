@@ -44,7 +44,10 @@ import org.jspecify.annotations.Nullable;
  * <p>Built on SlotKit's general rules, as locks are: the value is SHARED slot state, so
  * it lives on a placed container's block entity, travels on a shulker box's item, and
  * stays on the player for their inventory; the refusal is a put veto and the cap a
- * limit, both for both modes, so every put seam and automation honors them.
+ * limit, both for both modes, so every put seam and automation honors them. A matching
+ * reserved slot is also preferred: a pickup or shift-click tops up stacks with room
+ * first (a reserved slot's own first), then fills an empty matching reserved slot before
+ * any other empty slot.
  *
  * <p>The server stores and enforces reservations, so setting one needs Inventory Plus
  * on the server. A client asks with {@link Reserve}.
@@ -147,10 +150,15 @@ public final class Reservations {
         }
     }
 
-    /** The veto, the limit and the request. Once, from the common initializer. */
+    /** The veto, the limit, the preference and the request. Once, from the common initializer. */
     public static void register() {
         SlotOperations.vetoPut(ModeScope.BOTH, Reservations::refuses);
         SlotOperations.limit(ModeScope.BOTH, Reservations::cap);
+        // Synced slot state, so client and server prefer the same slots.
+        SlotOperations.prefer(ModeScope.BOTH, (ref, group, incoming) -> {
+            ItemMatch rule = get(ref);
+            return !isNone(rule) && rule.matches(incoming);
+        });
         PayloadTypeRegistry.serverboundPlay().register(Reserve.TYPE, Reserve.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(Reserve.TYPE,
                 (payload, context) -> context.server().execute(() -> handle(context.player(), payload)));
