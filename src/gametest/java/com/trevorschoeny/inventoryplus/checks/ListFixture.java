@@ -5,7 +5,7 @@ import com.trevlar.slotkit.api.group.SlotGroupCategory;
 import com.trevlar.slotkit.api.slot.CreatedSlot;
 import com.trevlar.slotkit.api.slot.ParityGroup;
 import com.trevlar.slotkit.api.slot.SlotSpec;
-import com.trevlar.slotkit.api.storage.EphemeralStorage;
+import com.trevlar.slotkit.api.storage.StorageAttachment;
 import com.trevlar.slotkit.api.storage.Storage;
 import com.trevlar.slotkit.api.window.Address;
 import com.trevlar.slotkit.api.window.GatingContext;
@@ -37,8 +37,8 @@ public class ListFixture implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        BOX_A = group("inventoryplus_checks:box_a", SlotGroupCategory.SHULKER_STORAGE, player -> EphemeralStorage.of(SIZE));
-        BOX_B = group("inventoryplus_checks:box_b", SlotGroupCategory.SHULKER_STORAGE, player -> EphemeralStorage.of(SIZE));
+        BOX_A = group("inventoryplus_checks:box_a", SlotGroupCategory.SHULKER_STORAGE, player -> StorageAttachment.ephemeral(SIZE).bind((Void) null));
+        BOX_B = group("inventoryplus_checks:box_b", SlotGroupCategory.SHULKER_STORAGE, player -> StorageAttachment.ephemeral(SIZE).bind((Void) null));
         BUNDLE = group("inventoryplus_checks:bundle", SlotGroupCategory.BUNDLE_STORAGE, player -> new BundleLike());
         for (int i = 0; i < SIZE; i++) Window.slot(ModeScope.BOTH, Address.createdSlot(BUNDLE.id(), i)).gate(BUNDLE_RULES);
     }

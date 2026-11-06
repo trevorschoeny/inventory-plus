@@ -90,7 +90,7 @@ public final class ColumnCyclerRotator {
 
     /**
      * Listener for rotation events, fired after a successful rotation
-     * sends its click packets. {@code ColumnCyclerHudSource} uses it to
+     * sends its click packets. {@code ColumnCyclerHud} uses it to
      * slide the column's HUD strip.
      *
      * <p>Not fired for no-op cases (cycle has fewer than 2 slots, cursor

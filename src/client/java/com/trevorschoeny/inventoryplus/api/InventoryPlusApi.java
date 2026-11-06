@@ -49,8 +49,8 @@ import java.util.function.Consumer;
  *
  * <p>The types a companion <em>implements</em> or <em>passes</em> live here as
  * real types: {@link HotbarCyclable} and {@link CyclerOperation}. A ring on
- * the HUD beside the hotbar is MenuKit's cycle strip since 3.0.0
- * ({@code com.trevlar.menukit.api.hud.HudCycleStrip}), not this API. The registries behind them stay internal, and this
+ * the HUD beside the hotbar is the companion's own to draw, in a MenuKit
+ * {@code HudPanel} or with {@code HotbarDecorations}, not this API. The registries behind them stay internal, and this
  * class exposes only the operations a companion actually needs. A registry's
  * other public methods are Inventory Plus talking to
  * itself, and promising them would freeze internals that have no business

@@ -10,7 +10,7 @@ import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSetsHud;
 import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSetsInput;
 import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSetsScreens;
 import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSetsWindow;
-import com.trevorschoeny.inventoryplus.columncycler.hud.ColumnCyclerHudSource;
+import com.trevorschoeny.inventoryplus.columncycler.hud.ColumnCyclerHud;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.cyclable.HotbarCyclableRegistry;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
@@ -141,10 +141,9 @@ public class InventoryPlusClient implements ClientModInitializer {
         // keeps consumers independent of any one cycler.
         HotbarCyclableRegistry.register(ColumnCyclerCyclable.INSTANCE);
 
-        // Column Cycler's ring on MenuKit's cycle strip (7.1.0), right of the
-        // vanilla hotbar. MenuKit draws it; ColumnCyclerHudSource says what
-        // the column holds and when it turned.
-        ColumnCyclerHudSource.register();
+        // Column Cycler's strip right of the vanilla hotbar, in a MenuKit HUD
+        // panel; ColumnCyclerHud draws the column and slides it on each turn.
+        ColumnCyclerHud.register();
 
         // The right column: Settings, then each feature's on/off switch,
         // companions' after ours (built at client start).
