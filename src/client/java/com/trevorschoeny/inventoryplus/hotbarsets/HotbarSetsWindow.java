@@ -1,6 +1,7 @@
 package com.trevorschoeny.inventoryplus.hotbarsets;
 
 import com.trevorschoeny.inventoryplus.config.IPConfig;
+import com.trevorschoeny.inventoryplus.mixin.AbstractContainerScreenAccessor;
 import com.trevlar.menukit.api.element.AbstractPanelElement;
 import com.trevlar.menukit.api.element.Button;
 import com.trevlar.menukit.api.element.Floating;
@@ -49,8 +50,6 @@ public final class HotbarSetsWindow {
     private static boolean open = false;
 
     public static boolean isOpen() { return open; }
-
-    public static void setOpen(boolean on) { open = on; }
 
     public static void register() {
         registerSymbol();
@@ -142,12 +141,12 @@ public final class HotbarSetsWindow {
         return new ScreenOrigin(h.frameX() - PADDING, h.frameY() - 4);
     }
 
-    /** Right of the creative screen's frame, level with the hotbar. */
-    private static ScreenOrigin saveOrigin() {
+    /** Just right of the creative screen's frame, level with the hotbar. */
+    private static @Nullable ScreenOrigin saveOrigin() {
         SlotScreenRect h = hotbar();
-        if (h == null) return new ScreenOrigin(-1000, -1000);
-        // The hotbar's frame starts 8 px into creative's 195-wide frame.
-        return new ScreenOrigin(h.frameX() - 8 + 195 + 3, h.frameY() + 1);
+        if (h == null || !(Minecraft.getInstance().gui.screen() instanceof CreativeModeInventoryScreen cs)) return null;
+        AbstractContainerScreenAccessor frame = (AbstractContainerScreenAccessor) cs;
+        return new ScreenOrigin(frame.inventoryPlus$getLeftPos() + frame.inventoryPlus$getImageWidth() + 3, h.frameY() + 1);
     }
 
     /** The hotbar row, lit through the dim. */

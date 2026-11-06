@@ -26,13 +26,13 @@ import net.minecraft.resources.Identifier;
  * <h3>Defaults</h3>
  *
  * <ul>
- *   <li>{@code L}: Lock Slot toggle (Locked Slots)</li>
  *   <li>{@code I}: Move Matching in</li>
  *   <li>{@code O}: Move Matching out</li>
  *   <li>{@code S}: Sort</li>
- *   <li>{@code C}: Toggle Cycle Slot (Column Cycler)</li>
+ *   <li>{@code L}, {@code R}, {@code C}: Lock, Reserve and Cycle in edit mode</li>
  *   <li>Up and Down: Cycle Forward and Backward (Column Cycler)</li>
- *   <li>{@code ]} and {@code [}: Cycle Forward and Backward (Hotbar Cycler)</li>
+ *   <li>{@code Tab}: Hotbar Sets</li>
+ *   <li>Space: Hide Tooltips</li>
  * </ul>
  *
  * <p>Translation keys follow the convention
@@ -83,11 +83,10 @@ public final class IPKeybinds {
     public static final KeyMapping EDIT_CYCLE = new KeyMapping(
             "key.inventoryplus.edit_cycle", InputConstants.Type.KEYBOARD, InputConstants.KEY_C, EDIT_CATEGORY);
 
-    // Column Cycler moved off the brackets to the arrows so Hotbar Cycler
-    // could take them. Minecraft stores bindings in options.txt, so existing
-    // installs keep the brackets and get Hotbar Cycler double-bound until
-    // rebound. Up cycles forward and Down backward, because the other way
-    // round reads backwards.
+    // Column Cycler cycles on the arrows. Up cycles forward and Down
+    // backward, because the other way round reads backwards. Minecraft
+    // stores bindings in options.txt, so an older install keeps whatever
+    // it had bound before.
     public static final KeyMapping CYCLE_FORWARD = new KeyMapping(
             "key.inventoryplus.cycle_forward",
             InputConstants.Type.KEYBOARD,

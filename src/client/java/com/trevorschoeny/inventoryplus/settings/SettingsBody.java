@@ -2,16 +2,13 @@ package com.trevorschoeny.inventoryplus.settings;
 
 import com.trevlar.menukit.api.element.Button;
 import com.trevlar.menukit.api.element.Checkbox;
-import com.trevlar.menukit.api.element.ColorField;
 import com.trevlar.menukit.api.element.ItemMatch;
 import com.trevlar.menukit.api.element.ItemPicker;
 import com.trevlar.menukit.api.element.Divider;
 import com.trevlar.menukit.api.element.Dropdown;
 import com.trevlar.menukit.api.element.Flow;
 import com.trevlar.menukit.api.element.PanelElement;
-import com.trevlar.menukit.api.element.Section;
 import com.trevlar.menukit.api.element.Slider;
-import com.trevlar.menukit.api.element.TextField;
 import com.trevlar.menukit.api.element.TextLabel;
 import com.trevlar.menukit.api.element.TextRole;
 import com.trevlar.menukit.api.element.Toggle;
@@ -20,16 +17,13 @@ import com.trevorschoeny.keybindery.chord.ChordButton;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -74,13 +68,6 @@ final class SettingsBody {
      */
     private static final int LINE_COLOR = 0xFF8B8B8B;
 
-    /**
-     * Which sections are open, for the session, by key: the title for Reach's
-     * moves (unique there), the group id for a lock group's section, so a
-     * rename never moves another section's state onto it.
-     */
-    private static final Map<String, Boolean> OPEN = new HashMap<>();
-
     private final List<PanelElement> out = new ArrayList<>();
     private int y = 0;
 
@@ -111,8 +98,8 @@ final class SettingsBody {
      * The top of every tab: the tab's title, its description, one row at the
      * left with Reset to Defaults and (on a feature tab) the On/Off switch
      * after it, then the line, so the row sits right under the description.
-     * The settings follow. For a tab with no feature to turn off (Reach),
-     * Reset stands alone. {@code onReset} runs on the button,
+     * The settings follow. For a tab with no feature to turn off, Reset
+     * stands alone. {@code onReset} runs on the button,
      * normally a confirm ({@link SettingsMenu#confirm}); {@code null} leaves
      * it grayed.
      */
@@ -226,54 +213,6 @@ final class SettingsBody {
         return this;
     }
 
-    /**
-     * A collapsible section: MenuKit's {@link Section}, closed to start. Its
-     * header is an arrow, an optional color swatch, the title and a gray
-     * {@code summary} read every frame; a click opens it. {@code content}
-     * fills a fresh body laid out from the section's own top-left.
-     *
-     * <p>Rows after it are placed as if it were closed. Opening it reports
-     * its content height to the panel's reflow, which pushes them down.
-     */
-    SettingsBody section(String title, Supplier<Component> summary, @Nullable Integer swatch,
-                         Consumer<SettingsBody> content) {
-        if (y > 0) y += 4;
-        out.add(sectionElement(title, title, summary, swatch, content, 0, y));
-        y += Section.HEADER_HEIGHT + 2;
-        return this;
-    }
-
-    /**
-     * A section as an element, at {@code (x, y)}, its open state kept under
-     * {@code openKey}: for a row of a {@link com.trevlar.menukit.api.element.ListView},
-     * which places it itself. Its content grays with this body's feature.
-     */
-    PanelElement sectionElement(String openKey, String title, Supplier<Component> summary, @Nullable Integer swatch,
-                                Consumer<SettingsBody> content, int x, int y) {
-        Component fixed = Component.literal(title);
-        return sectionElement(openKey, () -> fixed, summary, swatch == null ? null : () -> swatch, content, x, y);
-    }
-
-    /**
-     * The same with its title and swatch read every frame (MenuKit 7.3.0), so
-     * a lock group's rename or recolor shows on the same section, no rebuild.
-     */
-    PanelElement sectionElement(String openKey, Supplier<Component> title, Supplier<Component> summary,
-                                @Nullable IntSupplier swatch, Consumer<SettingsBody> content, int x, int y) {
-        SettingsBody inner = new SettingsBody();
-        inner.featureOn = featureOn;
-        content.accept(inner);
-        Section.Builder section = Section.builder(title)
-                .at(x, y)
-                // Open state lives here, not in the Section, so a rebuild of the
-                // menu (a switch of tab after the groups changed) leaves open what was.
-                .state(() -> OPEN.getOrDefault(openKey, false), v -> OPEN.put(openKey, v))
-                .summary(summary)
-                .content(inner.build());
-        if (swatch != null) section.swatch(swatch);
-        return section.build();
-    }
-
     /** Places {@code element} at the next row; {@code height} is what it takes before it grows. */
     SettingsBody element(java.util.function.IntFunction<PanelElement> atY, int height) {
         out.add(atY.apply(y));
@@ -290,7 +229,7 @@ final class SettingsBody {
         return line(indent, text, null);
     }
 
-    /** A line that explains more on hover (a lock group's kind). */
+    /** A line that explains more on hover. */
     SettingsBody line(int indent, Component text, @Nullable Component tooltip) {
         out.add(settingText(indent, y, text, TextRole.BODY, tooltip));
         y += TEXT_ROW;
@@ -414,22 +353,6 @@ final class SettingsBody {
         return this;
     }
 
-    /**
-     * A setting that is a line of text: its label above, then a field holding
-     * {@code value} and a button that hands the field's text to {@code apply}.
-     */
-    SettingsBody textSetting(String label, String value, String button, Consumer<String> apply) {
-        label(0, Component.literal(label));
-        // The field is a lens (MenuKit 6.0.0): its draft lives here, starting at
-        // the saved value, and the button hands the draft on.
-        String[] draft = {value};
-        out.add(TextField.builder().at(0, y).size(120, 16).state(() -> draft[0], v -> draft[0] = v).build());
-        out.add(Button.builder().at(124, y).label(Component.literal(button)).size(0, 16)
-                .onClick(() -> apply.accept(draft[0])).disabledWhen(gated(() -> false)).build());
-        y += CONTROL_ROW;
-        return this;
-    }
-
     /** A button that already works, for the few actions the scaffold keeps. */
     SettingsBody button(String label, Runnable action) {
         out.add(Button.builder().at(0, y).label(Component.literal(label)).size(0, 16).onClick(action).build());
@@ -453,19 +376,6 @@ final class SettingsBody {
                 .state(get, set)
                 .disabledWhen(gated(unavailable))
                 .build());
-        y += CONTROL_ROW;
-        return this;
-    }
-
-    /**
-     * A color setting: its text above MenuKit's {@link ColorField}, a swatch
-     * that opens the color dialog (Basic: the 16 dyes; Custom: HSV and hex).
-     * {@code get} and {@code set} are {@code 0xRRGGBB}.
-     */
-    SettingsBody colour(String label, IntSupplier get, IntConsumer set) {
-        label(0, Component.literal(label));
-        out.add(ColorField.builder().at(0, y).label(Component.literal(label)).state(get, set)
-                .disabledWhen(gated(() -> false)).build());
         y += CONTROL_ROW;
         return this;
     }
@@ -514,7 +424,7 @@ final class SettingsBody {
         return key(key, Component.translatable(key.getName()));
     }
 
-    /** A key under text of its own ("Key" in a lock group's section). */
+    /** A key under text of its own. */
     SettingsBody key(KeyMapping key, Component label) {
         return key(key, label, null);
     }

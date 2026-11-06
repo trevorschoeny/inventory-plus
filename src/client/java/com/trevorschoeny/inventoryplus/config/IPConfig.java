@@ -2,6 +2,7 @@ package com.trevorschoeny.inventoryplus.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
@@ -11,6 +12,8 @@ import com.trevorschoeny.inventoryplus.rules.Intake;
 import com.trevorschoeny.inventoryplus.columncycler.hud.HudMode;
 import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSets;
 
+import com.mojang.serialization.JsonOps;
+
 import org.jetbrains.annotations.Nullable;
 
 import net.fabricmc.loader.api.FabricLoader;
@@ -18,6 +21,8 @@ import net.fabricmc.loader.api.FabricLoader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Global IP config: toggle state for the features. Loaded once at client
@@ -63,7 +68,7 @@ public final class IPConfig {
     private IPConfig() {}
 
     private static final int CURRENT_VERSION = 1;
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().serializeNulls().create();   // reach groups write "key": null
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     // Auto-Restock. Offhand restock is always on: the offhand is just another
     // active slot, so there is no reason to gate it.
@@ -88,10 +93,10 @@ public final class IPConfig {
     // but changes nothing in game. ArmorBeforeBreak and ToolBeforeBreak are
     // live (AutoRestockTicker section 4).
 
-    // Auto Tool Switch, off by default. When on, hitting a block (or attacking
-    // a mob, with the Weapons sub-toggle) swaps the right tool into the active
-    // hand. See the AutoToolSwitch class javadoc for the three-tier resolution
-    // and the switch back.
+    // Auto Tool Switch, off by default. When on, hitting a block or attacking a
+    // hostile mob swaps the right tool or weapon into the active hand. See the
+    // AutoToolSwitch class javadoc for the three-tier resolution and the switch
+    // back.
     private static boolean autoToolSwitchEnabled = false;
     // The only two choices besides on/off: Sneak pauses it (the player's
     // always-available override), and it leaves a held weapon alone when a
@@ -216,7 +221,7 @@ public final class IPConfig {
             legacyCycleSlotsLocked = readBool(root, "cycleSlotsLocked", true);
             // Reach's pickup choice, kept as an Intake until every world has had it.
             legacyPickupIntake = root.has("legacyPickupIntake")
-                    ? Intake.CODEC.parse(com.mojang.serialization.JsonOps.INSTANCE, root.get("legacyPickupIntake"))
+                    ? Intake.CODEC.parse(JsonOps.INSTANCE, root.get("legacyPickupIntake"))
                             .result().orElse(null)
                     : pickupIntakeOf(root.has("reach") && root.get("reach").isJsonObject()
                             ? root.getAsJsonObject("reach") : null);
@@ -327,7 +332,7 @@ public final class IPConfig {
                 : fallback;
     }
 
-    /** Every setting as the file writes it (without the version or the reach record). */
+    /** Every setting as the file writes it (without the version or the Intake migration record). */
     private static JsonObject settingsJson() {
         JsonObject root = new JsonObject();
         root.addProperty("autoRestockGear",             autoRestockGear);
@@ -381,10 +386,10 @@ public final class IPConfig {
             root.addProperty("version", CURRENT_VERSION);
             settingsJson().entrySet().forEach(e -> root.add(e.getKey(), e.getValue()));
             if (legacyPickupIntake != null) {
-                com.google.gson.JsonArray worlds = new com.google.gson.JsonArray();
+                JsonArray worlds = new JsonArray();
                 for (String w : intakeMigratedWorlds) worlds.add(w);
                 root.add("intakeMigratedWorlds", worlds);
-                root.add("legacyPickupIntake", Intake.CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE,
+                root.add("legacyPickupIntake", Intake.CODEC.encodeStart(JsonOps.INSTANCE,
                         legacyPickupIntake).getOrThrow());
             }
             Files.writeString(path, GSON.toJson(root));
@@ -411,7 +416,7 @@ public final class IPConfig {
      * IntakeClient puts it on the boxes the player carries, once per world.
      */
     private static @Nullable Intake legacyPickupIntake;
-    private static final java.util.Set<String> intakeMigratedWorlds = new java.util.TreeSet<>();
+    private static final Set<String> intakeMigratedWorlds = new TreeSet<>();
 
     public static @Nullable Intake legacyPickupIntake() { return legacyPickupIntake; }
 

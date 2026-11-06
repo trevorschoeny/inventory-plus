@@ -10,7 +10,6 @@ import com.google.gson.JsonSyntaxException;
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;
 import com.trevorschoeny.inventoryplus.api.WorldStore;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
-import com.trevorschoeny.inventoryplus.lockedslots.WorldIdentity;
 
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -21,10 +20,7 @@ import net.minecraft.world.inventory.Slot;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 /**

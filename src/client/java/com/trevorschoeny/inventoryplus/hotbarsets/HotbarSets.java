@@ -17,7 +17,6 @@ import com.trevorschoeny.inventoryplus.autorestock.AutoRestockSuppression;
 import com.trevorschoeny.inventoryplus.columncycler.ColumnCyclerRotator;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockedslots.WorldIdentity;
-import com.trevlar.slotkit.api.reserve.Reservation;
 import com.trevlar.slotkit.api.reserve.Reservations;
 import com.trevlar.slotkit.api.window.SlotOperations;
 import com.trevlar.slotkit.api.window.SlotRef;
@@ -154,8 +153,7 @@ public final class HotbarSets {
             if (menuIdx < 0) continue;
             Slot slot = menu.getSlot(menuIdx);
             if (!SlotOperations.allows(menu, slot, player, HOTBAR_CYCLE)) continue;
-            Reservation reservation = Reservations.get(SlotRef.of(menu, slot, player));
-            if (!reservation.isNone() && !now.isEmpty() && !reservation.matches(now)) continue;
+            if (!now.isEmpty() && !Reservations.get(SlotRef.of(menu, slot, player)).matches(now)) continue;
             AutoRestockSuppression.markExternalChange(c);
             inv.setItem(c, now.copy());
             gameMode.handleCreativeModeItemAdd(now.copy(), menuIdx);
@@ -246,16 +244,19 @@ public final class HotbarSets {
         if (world == null || mc.level == null || SETS.has() || DECODED.contains(world)) return;
         DECODED.add(world);
         JsonElement raw = RAW.get(world);
-        if (raw == null) return;
+        if (raw == null || !raw.isJsonArray()) return;
         RegistryOps<JsonElement> ops = RegistryOps.create(JsonOps.INSTANCE, mc.level.registryAccess());
         List<List<ItemStack>> sets = new ArrayList<>();
+        // A hand-edited file reads what it can: an entry that isn't a list of stacks is skipped,
+        // and a stack this world can't read (a removed mod's item) comes back empty.
         for (JsonElement setJson : raw.getAsJsonArray()) {
+            if (!setJson.isJsonArray()) continue;
             List<ItemStack> set = new ArrayList<>(COLUMNS);
             for (JsonElement stack : setJson.getAsJsonArray()) {
-                // A stack this world can't read (a removed mod's item) comes back empty.
                 set.add(ItemStack.OPTIONAL_CODEC.parse(ops, stack).result().orElse(ItemStack.EMPTY));
             }
-            sets.add(List.copyOf(set));
+            while (set.size() < COLUMNS) set.add(ItemStack.EMPTY);
+            sets.add(List.copyOf(set.subList(0, COLUMNS)));
         }
         SETS.load(world, sets);
     }

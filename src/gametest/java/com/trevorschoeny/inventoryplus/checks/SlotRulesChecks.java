@@ -21,7 +21,6 @@ import com.trevlar.slotkit.api.reserve.Reservations;
 import com.trevlar.slotkit.api.window.Automation;
 import com.trevlar.slotkit.api.window.BehaviorKey;
 import com.trevlar.slotkit.api.window.BehaviorKeys;
-import com.trevlar.slotkit.api.window.SlotRef;
 
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;

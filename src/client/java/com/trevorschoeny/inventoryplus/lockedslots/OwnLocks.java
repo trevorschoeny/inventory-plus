@@ -25,7 +25,6 @@ import org.jetbrains.annotations.Nullable;
  * <p>The veto judges only the local player, matched by UUID so the integrated server's
  * copy of that player counts too. With no acting player (a hopper), or another player
  * (a LAN guest of this host), it has no opinion: these locks are this player's alone.
- * The locks switch pauses them, and the masks sent say none while paused.
  */
 public final class OwnLocks {
 
@@ -37,14 +36,18 @@ public final class OwnLocks {
     public static void register() {
         SlotOperations.veto(ModeScope.BOTH, (ref, group, operation) ->
                 SlotLocks.refuses(operation) && isLocalPlayer(ref.player()) && locked(ref));
-        // Twice a second, and again on joining: only what changed is sent.
+        // LockedSlots sends a change as it happens. This poll, twice a second, is the
+        // fallback, and joining resets what was sent: only what changed is sent.
         ClientTickEvents.END_CLIENT_TICK.register(mc -> {
             if (mc.player != null && mc.player.tickCount % 10 == 0) sync();
         });
         ClientPlayConnectionEvents.JOIN.register((handler, sender, mc) -> sent = null);
     }
 
-    /** Sends the masks now if they changed, to a server that hears them. */
+    /**
+     * Sends the masks now if they changed, to a server that hears them. Safe at any
+     * time: without a connection {@code canSend} is false and nothing is sent.
+     */
     public static void sync() {
         if (!ClientPlayNetworking.canSend(SlotLocks.Masks.TYPE)) return;
         SlotLocks.Masks now = masks();

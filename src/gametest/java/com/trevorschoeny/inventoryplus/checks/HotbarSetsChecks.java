@@ -9,6 +9,7 @@ import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSets;
 import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSetsInput;
 import com.trevorschoeny.inventoryplus.hotbarsets.HotbarSetsWindow;
+import com.trevorschoeny.inventoryplus.mixin.AbstractContainerScreenAccessor;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevlar.slotkit.api.reserve.Reservation;
 import com.trevlar.slotkit.api.reserve.Reservations;
@@ -179,16 +180,23 @@ public class HotbarSetsChecks implements FabricClientGameTest {
             // Escape closes it and the screen stays.
             clickBesideHotbar(-9.5, 9);
             expect(ctx.computeOnClient(mc -> HotbarSetsWindow.isOpen()), "the stack symbol opens the sets window");
-            clickBesideHotbar(-8 + 198 + 16, 9);
+            clickSave();
             expect(ctx.computeOnClient(mc -> HotbarSets.savedSets().size() == 1
                             && HotbarSets.savedSets().getFirst().get(0).is(Items.OAK_PLANKS)),
                     "Save adds the hotbar as a set");
-            ctx.runOnClient(mc -> {
-                HotbarSets.saveHotbar(); // a second set, to move
-                HotbarSets.move(1, 0);
-                HotbarSets.delete(1);
-            });
-            expect(ctx.computeOnClient(mc -> HotbarSets.savedSets().size() == 1), "move and delete leave one set");
+            // A second, different set, saved last; moving it first puts it at the top.
+            onServer(world, p -> p.getInventory().setItem(0, new ItemStack(Items.BRICKS)));
+            ctx.waitTicks(5);
+            clickSave();
+            ctx.runOnClient(mc -> HotbarSets.move(1, 0));
+            expect(ctx.computeOnClient(mc -> HotbarSets.savedSets().size() == 2
+                            && HotbarSets.savedSets().get(0).get(0).is(Items.BRICKS)
+                            && HotbarSets.savedSets().get(1).get(0).is(Items.OAK_PLANKS)),
+                    "moving the newer set up puts it first");
+            ctx.runOnClient(mc -> HotbarSets.delete(0));
+            expect(ctx.computeOnClient(mc -> HotbarSets.savedSets().size() == 1
+                            && HotbarSets.savedSets().getFirst().get(0).is(Items.OAK_PLANKS)),
+                    "deleting the first set leaves the other");
             ctx.getInput().pressKey(InputConstants.getKey("key.keyboard.escape"));
             ctx.waitTicks(3);
             expect(ctx.computeOnClient(mc -> !HotbarSetsWindow.isOpen()
@@ -198,6 +206,22 @@ public class HotbarSetsChecks implements FabricClientGameTest {
             ctx.setScreen(() -> null);
             ctx.waitTicks(3);
         }
+    }
+
+    /** A click on Save, just right of the creative screen's frame, level with the hotbar. */
+    private void clickSave() {
+        double[] at = ctx.computeOnClient(mc -> {
+            var screen = (CreativeModeInventoryScreen) mc.gui.screen();
+            var frame = (AbstractContainerScreenAccessor) screen;
+            SlotScreenRect h = VanillaSlotResolver.resolve(screen, 0).orElseThrow();
+            double scale = mc.getWindow().getGuiScale();
+            return new double[] {(frame.inventoryPlus$getLeftPos() + frame.inventoryPlus$getImageWidth() + 3 + 8) * scale,
+                    (h.frameY() + 9) * scale};
+        });
+        ctx.getInput().setCursorPos(at[0], at[1]);
+        ctx.waitTicks(2);
+        ctx.getInput().pressMouse(InputConstants.MOUSE_BUTTON_LEFT);
+        ctx.waitTicks(3);
     }
 
     /** A left click at {@code (dx, dy)} from the creative screen's hotbar frame. */

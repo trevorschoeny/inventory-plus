@@ -6,8 +6,11 @@ import com.trevlar.menukit.api.panel.ModeScope;
 import com.trevlar.slotkit.api.state.SlotState;
 import com.trevlar.slotkit.api.state.SlotStateChannel;
 import com.trevlar.slotkit.api.window.BehaviorKey;
+import com.trevlar.slotkit.api.window.BehaviorKeys;
 import com.trevlar.slotkit.api.window.SlotOperations;
 import com.trevlar.slotkit.api.window.SlotRef;
+
+import com.trevorschoeny.inventoryplus.api.InventoryPlusOperations;
 
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -26,6 +29,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Slot locks, the half both sides share: what a lock refuses, and where it is stored
@@ -69,16 +74,19 @@ public final class SlotLocks {
             SlotStateChannel.Visibility.SHARED, SlotStateChannel.CanWrite.ANY);
 
     /**
-     * The operations a lock refuses, by id. Named as text so an operation of a mod that
-     * isn't installed costs nothing. Anything not here gets through, as with every
-     * lock since 1.5.0, so a new mod's deliberate move isn't refused by surprise.
+     * The operations a lock refuses, as ids read off their own keys, so an id can't
+     * drift from its key's name. {@link #refuses} compares ids. Anything not here gets through, as with every lock since 1.5.0, so a new mod's
+     * deliberate move isn't refused by surprise.
      */
-    private static final Set<String> REFUSED = Set.of(
-            "menukit:shift_click_in", "menukit:collect", "menukit:world_pickup",
-            "menukit:drop", "menukit:drop_stack",
-            "menukit:automation_put", "menukit:automation_take",
-            "inventoryplus:sort", "inventoryplus:move_matching_out", "inventoryplus:move_matching_in",
-            "inventoryplus:restock_take", "inventoryplus:pick_block", "inventoryplus:hotbar_cycle");
+    private static final Set<String> REFUSED = Stream.of(
+                    BehaviorKeys.SHIFT_CLICK_IN, BehaviorKeys.COLLECT, BehaviorKeys.INVENTORY_INSERT,
+                    BehaviorKeys.DROP, BehaviorKeys.DROP_STACK,
+                    BehaviorKeys.AUTOMATION_PUT, BehaviorKeys.AUTOMATION_TAKE,
+                    InventoryPlusOperations.SORT, InventoryPlusOperations.MOVE_MATCHING_OUT,
+                    InventoryPlusOperations.MOVE_MATCHING_IN, InventoryPlusOperations.RESTOCK_TAKE,
+                    InventoryPlusOperations.PICK_BLOCK, InventoryPlusOperations.HOTBAR_CYCLE)
+            .map(key -> key.id().toString())
+            .collect(Collectors.toUnmodifiableSet());
 
     /** Whether a lock refuses {@code operation}. */
     public static boolean refuses(BehaviorKey<?> operation) {

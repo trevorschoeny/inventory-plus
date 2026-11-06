@@ -2,7 +2,6 @@ package com.trevorschoeny.inventoryplus.checks;
 
 import static com.trevorschoeny.inventoryplus.checks.CarriedItems.menuSlot;
 
-import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
 import com.trevorschoeny.inventoryplus.lockedslots.SlotMarks;
 

@@ -32,7 +32,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * Auto Tool Switch: on hit, swaps the right tool or weapon for the target
- * into the hand, optionally switching back when the action completes.
+ * into the hand, switching back one second after the player stops.
  *
  * <h3>Trigger</h3>
  *
@@ -116,24 +116,24 @@ public final class AutoToolSwitch {
     private AutoToolSwitch() {}
 
     /**
-     * In-flight state, null when no switch is active. Set on switch (if it
-     * switches back at all) and cleared on return. Read by the event handlers
+     * In-flight state, null when no switch is active. Set on switch and
+     * cleared when the action completes. Read by the event handlers
      * (for commit-at-start gating) and the tick handler (for the return).
      */
     private static InFlight inFlight = null;
 
     /**
-     * Delayed return state, waiting out the window or the key to the
-     * previous tool. Kept separate from {@link #inFlight} on purpose: inFlight
+     * Delayed return state, waiting out {@link #RETURN_DELAY_TICKS} before
+     * going back to the previous tool. Kept separate from {@link #inFlight} on purpose: inFlight
      * stays short-lived, cleared the moment the action completes, which keeps
      * the anti-thrash commit-at-start guard and re-switching working. When the
      * action completes, inFlight's captured state moves here and survives past
-     * the action so the window or the key can return it later. Null when
+     * the action so the delay can run out. Null when
      * nothing is awaiting a delayed return.
      */
     private static InFlight pendingReturn = null;
 
-    /** {@code player.tickCount} when the pending-return window opened (windowed modes). */
+    /** {@code player.tickCount} when the pending-return delay last started. */
     private static int pendingReturnWindowStart = -1;
 
     /**

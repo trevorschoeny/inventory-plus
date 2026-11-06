@@ -264,17 +264,25 @@ public final class InventoryPlusApi {
      * a pickup, a shift-click in or a sort would otherwise fill them or empty them.
      * The companion's own operation belongs in {@code allowed}. Call once at client init.
      *
-     * <p>Before 3.4.0 these were unticked boxes in the Reach tab the player could
-     * tick. Reach is retired, so this is a fixed rule now, judged on this client only;
-     * a companion that wants a player's choice keeps that setting itself and gates its
-     * own groups with SlotKit.
+     * <p>A fixed rule, judged on this client only. A companion that wants a player's
+     * choice keeps that setting itself and gates its own groups with SlotKit.
      */
-    public static void protectInReach(Collection<SlotGroupId> groups, Collection<BehaviorKey<?>> allowed) {
+    public static void protectGroups(Collection<SlotGroupId> groups, Collection<BehaviorKey<?>> allowed) {
         Set<SlotGroupId> protectedGroups = Set.copyOf(groups);
         Set<String> allowedIds = new java.util.HashSet<>();
         for (BehaviorKey<?> op : allowed) allowedIds.add(op.id().toString());
         com.trevlar.slotkit.api.window.SlotOperations.veto(com.trevlar.menukit.api.panel.ModeScope.BOTH,
                 (ref, group, operation) -> group != null && protectedGroups.contains(group)
                         && !allowedIds.contains(operation.id().toString()));
+    }
+
+    /**
+     * The old name of {@link #protectGroups}, kept for companions built against it.
+     *
+     * @deprecated use {@link #protectGroups}, which does the same.
+     */
+    @Deprecated
+    public static void protectInReach(Collection<SlotGroupId> groups, Collection<BehaviorKey<?>> allowed) {
+        protectGroups(groups, allowed);
     }
 }

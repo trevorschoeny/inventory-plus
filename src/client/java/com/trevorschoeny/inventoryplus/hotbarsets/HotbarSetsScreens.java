@@ -1,7 +1,17 @@
 package com.trevorschoeny.inventoryplus.hotbarsets;
 
 import com.trevorschoeny.inventoryplus.config.IPConfig;
+import com.trevlar.menukit.api.element.AbstractPanelElement;
+import com.trevlar.menukit.api.element.Floating;
+import com.trevlar.menukit.api.element.RenderContext;
 import com.trevlar.menukit.api.element.SlotRendering;
+import com.trevlar.menukit.api.panel.ModeScope;
+import com.trevlar.menukit.api.panel.Panel;
+import com.trevlar.menukit.api.panel.PanelPosition;
+import com.trevlar.menukit.api.panel.PanelStyle;
+import com.trevlar.menukit.api.panel.Placement;
+import com.trevlar.menukit.api.panel.ScreenOrigin;
+import com.trevlar.menukit.api.panel.ScreenPanelAdapter;
 import com.trevlar.slotkit.api.group.SlotScreenRect;
 import com.trevlar.slotkit.api.group.VanillaSlotResolver;
 
@@ -10,11 +20,10 @@ import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
-import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
@@ -30,20 +39,19 @@ import java.util.List;
  *       over the real rows, drawn over the screen's background, so under the items and under
  *       Inventory Plus's buttons.</li>
  *   <li><b>Creative's screen</b> always shows two faint cards peeking out under the hotbar, the
- *       sets behind it. While the key is held the list is a panel over the dimmed screen, with
- *       the screen's own hotbar, drawn again over the dimming, as its bottom entry.</li>
+ *       sets behind it. While the key is held the list is a MenuKit panel over the dimmed screen,
+ *       its bottom on the hotbar, with the hotbar lit through the dim as its bottom entry.</li>
  * </ul>
  */
 public final class HotbarSetsScreens {
 
     private HotbarSetsScreens() {}
 
-    /** MenuKit's modal dim ({@code LayerPlan.DIM_COLOR}), so the list and the sets window match. */
-    static final int DIM = 0xC0000000;
-    private static final Identifier PANEL = Identifier.fromNamespaceAndPath("menukit", "panel_raised");
     private static final int LABEL = 0xFF404040;
+    private static final int PADDING = 4;
 
     public static void register() {
+        registerList();
         ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
             if (screen instanceof InventoryScreen inv) {
                 ScreenEvents.afterBackground(screen).register((s, g, mx, my, d) -> {
@@ -52,9 +60,6 @@ public final class HotbarSetsScreens {
             } else if (screen instanceof CreativeModeInventoryScreen cs) {
                 ScreenEvents.afterBackground(screen).register((s, g, mx, my, d) -> {
                     if (IPConfig.hotbarSetsEnabled()) drawCards(g, cs);
-                });
-                ScreenEvents.afterExtract(screen).register((s, g, mx, my, d) -> {
-                    if (HotbarSetsInput.isOpen()) drawList(g, cs);
                 });
             }
         });
@@ -107,38 +112,121 @@ public final class HotbarSetsScreens {
 
     // Creative: the list while the key is held
 
-    private static void drawList(GuiGraphicsExtractor g, CreativeModeInventoryScreen screen) {
-        Minecraft mc = Minecraft.getInstance();
-        Player player = mc.player;
-        SlotScreenRect hotbar = slot(screen, 0);
-        if (player == null || hotbar == null) return;
-        Font font = mc.font;
-        g.fill(0, 0, screen.width, screen.height, DIM);
+    /**
+     * The list as a MenuKit panel: its bottom 4 px over the hotbar, the screen dimmed behind it
+     * and the hotbar lit, as the sets window does. It shows the entries and takes no input (the
+     * key, the wheel and the cancel are {@link HotbarSetsInput}'s). The selection box on the
+     * hotbar itself floats over the lit row, outside the panel.
+     */
+    private static void registerList() {
+        Panel panel = Panel.builder("inventoryplus:hotbar_sets_list")
+                .elements(List.of(new ListContent(),
+                        Floating.at(HotbarSetsScreens::hotbarSelectionOrigin, new HotbarSelection())))
+                .style(PanelStyle.RAISED)
+                .visibleWhen(() -> HotbarSetsInput.isOpen() && creativeHotbar() != null)
+                .in(ModeScope.BOTH, Placement.screen(PanelPosition.pixelBottomLeft(HotbarSetsScreens::listOrigin)))
+                .build()
+                .opaque(false)
+                .dimsBehind(true)
+                .litWhileDimmed(HotbarSetsScreens::litHotbar);
+        new ScreenPanelAdapter(panel, PADDING).onPlayerInventory();
+    }
 
-        int x = hotbar.frameX(), hy = hotbar.frameY();
-        List<HotbarSets.Entry> entries = HotbarSets.entries(player);
-        int y = hy - 6;
-        int[] rowY = new int[entries.size()];
-        int[][] labels = new int[2][];
-        for (int i = 0; i < entries.size(); i++) {
-            HotbarSets.Entry e = entries.get(i);
-            if (i > 0 && e.saved() != entries.get(i - 1).saved()) y -= 6;
-            y -= 20;
-            rowY[i] = y;
-            boolean groupEnd = i == entries.size() - 1 || entries.get(i + 1).saved() != e.saved();
-            if (groupEnd) {
-                y -= 11;
-                labels[e.saved() ? 1 : 0] = new int[] {x, y + 1};
+    /** The creative screen's hotbar, or null when creative's screen isn't open. */
+    static @Nullable SlotScreenRect creativeHotbar() {
+        return Minecraft.getInstance().gui.screen() instanceof CreativeModeInventoryScreen cs ? slot(cs, 0) : null;
+    }
+
+    private static @Nullable ScreenOrigin listOrigin() {
+        SlotScreenRect h = creativeHotbar();
+        return h == null ? null : new ScreenOrigin(h.frameX() - PADDING, h.frameY() - 4);
+    }
+
+    private static @Nullable ScreenOrigin hotbarSelectionOrigin() {
+        SlotScreenRect h = creativeHotbar();
+        return h == null ? null : new ScreenOrigin(h.x() - 4, h.y() - 4);
+    }
+
+    /** The hotbar row, lit through the dim: the list's bottom entry. */
+    static List<ScreenRectangle> litHotbar() {
+        SlotScreenRect h = creativeHotbar();
+        return h == null ? List.of() : List.of(new ScreenRectangle(h.frameX(), h.frameY(), 9 * 18, 18));
+    }
+
+    /** The widened selection box on the hotbar itself, while it's the selected entry. */
+    private static final class HotbarSelection extends AbstractPanelElement {
+        HotbarSelection() {
+            this.width = 168;
+            this.height = 24;
+            this.authoredWidth = width;
+        }
+
+        @Override public int getWidth() { return width; }
+        @Override public int getHeight() { return height; }
+
+        @Override
+        public void render(RenderContext ctx) {
+            if (HotbarSetsInput.selected() != 0) return;
+            HotbarSetsHud.wideSelection(ctx.graphics(), ctx.originX() + getChildX(), ctx.originY() + getChildY(), width, height);
+        }
+    }
+
+    /**
+     * The entries above the hotbar, top down: each group's label, then its rows, a gap between
+     * groups. Sized from the entries every frame, so the panel grows upward as sets are saved.
+     */
+    private static final class ListContent extends AbstractPanelElement {
+        private static final int ROW = 20, GROUP_GAP = 6, LABEL_ROW = 11;
+
+        ListContent() {
+            this.width = 9 * 18;
+            this.authoredWidth = width;
+        }
+
+        private static List<HotbarSets.Entry> entries() {
+            Player player = Minecraft.getInstance().player;
+            return player == null ? List.of() : HotbarSets.entries(player);
+        }
+
+        @Override public int getWidth() { return width; }
+
+        @Override
+        public int getHeight() {
+            List<HotbarSets.Entry> entries = entries();
+            int h = 0;
+            for (int i = 0; i < entries.size(); i++) {
+                boolean groupStart = i == 0 || entries.get(i).saved() != entries.get(i - 1).saved();
+                if (groupStart) h += LABEL_ROW + (i > 0 ? GROUP_GAP : 0);
+                h += ROW;
+            }
+            return Math.max(0, h - 2);
+        }
+
+        @Override
+        public void render(RenderContext ctx) {
+            Minecraft mc = Minecraft.getInstance();
+            Player player = mc.player;
+            if (player == null) return;
+            GuiGraphicsExtractor g = ctx.graphics();
+            Font font = mc.font;
+            int x = ctx.originX() + getChildX();
+            // Bottom up from the content's bottom, as the HUD stacks them.
+            int y = ctx.originY() + getChildY() + getHeight() + 2;
+            List<HotbarSets.Entry> entries = entries();
+            int selected = HotbarSetsInput.selected();
+            for (int i = 0; i < entries.size(); i++) {
+                HotbarSets.Entry e = entries.get(i);
+                if (i > 0 && e.saved() != entries.get(i - 1).saved()) y -= GROUP_GAP;
+                y -= ROW;
+                row(g, font, x, y, e.items(player));
+                if (selected == i + 1) HotbarSetsHud.wideSelection(g, x - 3, y - 3, 168, 24);
+                boolean groupEnd = i == entries.size() - 1 || entries.get(i + 1).saved() != e.saved();
+                if (groupEnd) {
+                    y -= LABEL_ROW;
+                    g.text(font, e.saved() ? "Load saved set" : "Swap with inventory", x, y + 1, LABEL, false);
+                }
             }
         }
-        if (!entries.isEmpty()) g.blitSprite(RenderPipelines.GUI_TEXTURED, PANEL, x - 5, y - 4, 162 + 10, hy - 4 - (y - 4));
-        if (labels[0] != null) g.text(font, "Swap with inventory", labels[0][0], labels[0][1], LABEL, false);
-        if (labels[1] != null) g.text(font, "Load saved set", labels[1][0], labels[1][1], LABEL, false);
-        for (int i = 0; i < entries.size(); i++) row(g, font, x, rowY[i], entries.get(i).items(player));
-        hotbarThroughDim(g, screen);
-        int selected = HotbarSetsInput.selected();
-        int sy = selected == 0 ? hy : rowY[selected - 1];
-        HotbarSetsHud.wideSelection(g, x - 3, sy - 3, 168, 24);
     }
 
     /** Nine slot frames at {@code (x, y)} with {@code items} in them. */
@@ -149,15 +237,5 @@ public final class HotbarSetsScreens {
             g.item(items.get(c), x + c * 18 + 1, y + 1);
             g.itemDecorations(font, items.get(c), x + c * 18 + 1, y + 1);
         }
-    }
-
-    /** The creative screen's hotbar, drawn again over the dimming. */
-    static void hotbarThroughDim(GuiGraphicsExtractor g, CreativeModeInventoryScreen screen) {
-        Minecraft mc = Minecraft.getInstance();
-        SlotScreenRect hotbar = slot(screen, 0);
-        if (mc.player == null || hotbar == null) return;
-        List<ItemStack> items = new java.util.ArrayList<>(HotbarSets.COLUMNS);
-        for (int c = 0; c < HotbarSets.COLUMNS; c++) items.add(mc.player.getInventory().getItem(c));
-        row(g, mc.font, hotbar.frameX(), hotbar.frameY(), items);
     }
 }

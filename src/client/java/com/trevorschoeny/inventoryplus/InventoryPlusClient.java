@@ -95,8 +95,7 @@ public class InventoryPlusClient implements ClientModInitializer {
         // player's own are kept here per world (LockedSlots) and judged by this
         // client's veto (OwnLocks), which also sends them to a server with
         // Inventory Plus; a chest's or box's are SHARED slot state the common
-        // veto judges on both sides. L locks the hovered slot; the lock button
-        // in the toolbar (Toolbar.register below) pauses the player's own.
+        // veto judges on both sides. In edit mode, L locks the hovered slot.
         // Column Cycler's membership loads first: upgrading a 1.5.x lock file
         // drops the locks its old pairing wrote (LockedSlots.load).
         ColumnCycler.load();

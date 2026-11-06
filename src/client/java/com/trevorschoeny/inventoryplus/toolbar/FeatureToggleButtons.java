@@ -1,6 +1,5 @@
 package com.trevorschoeny.inventoryplus.toolbar;
 
-import com.trevorschoeny.inventoryplus.buttonmode.PressFeedback;
 import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.settings.SettingsMenu;

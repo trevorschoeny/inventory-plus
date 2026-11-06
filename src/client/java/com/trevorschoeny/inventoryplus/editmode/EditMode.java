@@ -100,8 +100,6 @@ public final class EditMode {
                 leave();
                 return false;
             });
-            // Right after the screen's background: over its texture, under everything
-            // else on it (toolbars, slots, dialogs, the reserve popup).
             ScreenKeyboardEvents.afterKeyPress(screen).register((s, event) -> {
                 if (!isOn() || ReservationEditor.isOpen() || sweep != null) return;
                 Slot slot = ScreenLayout.hoveredSlot((AbstractContainerScreen<?>) s);
@@ -117,6 +115,8 @@ public final class EditMode {
                     startSweep(IPKeybinds.EDIT_CYCLE, slot, ColumnCycler.isCycleSlot(slot));
                 }
             });
+            // Right after the screen's background: over its texture, under everything
+            // else on it (toolbars, slots, dialogs, the reserve popup).
             ScreenEvents.afterBackground(screen).register((s, graphics, mouseX, mouseY, delta) -> {
                 if (s == on) drawFrame(graphics, (AbstractContainerScreen<?>) s);
             });
@@ -270,7 +270,6 @@ public final class EditMode {
                 : name.copy().append(Component.literal(" (" + marks + ")").withStyle(ChatFormatting.GRAY)));
         if (!LockedSlots.isLockableHere(slot)) {
             lines.add(Component.literal("Can't be locked or reserved here").withStyle(ChatFormatting.GRAY));
-            return lines;
         }
         return lines;
     }

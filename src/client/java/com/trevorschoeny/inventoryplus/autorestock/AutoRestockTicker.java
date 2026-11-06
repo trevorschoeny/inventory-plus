@@ -1,6 +1,5 @@
 package com.trevorschoeny.inventoryplus.autorestock;
 
-import com.trevorschoeny.inventoryplus.api.HotbarCyclable;
 import com.trevorschoeny.inventoryplus.api.HotbarCyclable.ExtraSlot;
 import com.trevorschoeny.inventoryplus.api.PlayerMenuSlots;
 import com.trevorschoeny.inventoryplus.InventoryPlusClient;

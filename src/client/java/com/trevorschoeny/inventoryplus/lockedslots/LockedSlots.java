@@ -112,14 +112,14 @@ public final class LockedSlots {
     // only when a write actually changes something. See WorldStore for why.
 
     /** Player-owned slot locks (inventory, hotbar, armor, offhand), by container-slot index. */
-    private static final WorldStore<Set<Integer>> PLAYER = WorldStore.sortedSet(LockedSlots::save);
+    private static final WorldStore<Set<Integer>> PLAYER = WorldStore.sortedSet(LockedSlots::saveAndSync);
 
     /**
      * Ender chest slot locks. Separate from {@link #PLAYER} because ender slot indices
      * (0-26) overlap player container-slot indices. The ender chest is the player's
      * own, so it stays here like the inventory, and works on a vanilla server.
      */
-    private static final WorldStore<Set<Integer>> ENDER = WorldStore.sortedSet(LockedSlots::save);
+    private static final WorldStore<Set<Integer>> ENDER = WorldStore.sortedSet(LockedSlots::saveAndSync);
 
     /**
      * Created-slot keys ({@link CreatedSlotKey}): SlotKit slots (pockets, equipment).
@@ -275,7 +275,6 @@ public final class LockedSlots {
     /**
      * Whether {@code slot} is locked, in whichever home its lock lives: the player's
      * own namespaces, an old per-player chest lock, or the container's SHARED lock.
-     * Not paused by the locks switch; callers that draw or judge ask that first.
      */
     public static boolean isLockedSlot(Slot slot) {
         return isOwnLocked(slot) || !(slot.container instanceof Inventory) && SlotLocks.CHANNEL.get(slot);
@@ -494,6 +493,15 @@ public final class LockedSlots {
     }
 
     // Persistence
+
+    /**
+     * For the two stores the masks carry (inventory and ender chest): a change also
+     * reaches a server with Inventory Plus at once, not on {@link OwnLocks}' next poll.
+     */
+    private static void saveAndSync() {
+        save();
+        OwnLocks.sync();
+    }
 
     private static void save() {
         Path path = filePath();

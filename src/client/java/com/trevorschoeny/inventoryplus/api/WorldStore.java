@@ -221,8 +221,8 @@ public final class WorldStore<V> {
 
     /**
      * Replaces every world's value with {@code fn}'s answer, for a change that
-     * has to reach all worlds at once (deleting a lock group moves its locks
-     * everywhere; the Lock groups tab's Reset removes every lock). An empty or
+     * has to reach all worlds at once (the Slots tab's Reset removes every
+     * lock in every world). An empty or
      * {@code null} answer drops the world. Notifies once, if anything changed.
      */
     public void replaceAll(BiFunction<String, V, @Nullable V> fn) {

@@ -90,8 +90,8 @@ public final class ColumnCyclerRotator {
 
     /**
      * Listener for rotation events, fired after a successful rotation
-     * sends its click packets. The HUD overlay uses it to drive its slide
-     * animation.
+     * sends its click packets. {@code ColumnCyclerHudSource} uses it to
+     * slide the column's HUD strip.
      *
      * <p>Not fired for no-op cases (cycle has fewer than 2 slots, cursor
      * is holding an item, slot lookup failed), so the listener only sees
@@ -141,12 +141,12 @@ public final class ColumnCyclerRotator {
      * The rotation engine: physically rotate an arbitrary ordered list of
      * the local player's container slots by one step.
      *
-     * <p>Public and membership-agnostic so Hotbar Cycler can reuse it
-     * rather than growing a second rotator. Column Cycler passes one
-     * column's cycle members; Hotbar Cycler passes one column's toggled
-     * row slots plus that column's hotbar slot, nine times over. The
-     * click sequence, the cursor rule, and the wrap semantics are
-     * identical either way. Only the choice of slots differs.
+     * <p>Public and membership-agnostic so other features reuse it rather
+     * than growing a second rotator. Column Cycler passes one column's
+     * cycle members; Hotbar Sets passes rings of two, a row slot and the
+     * hotbar slot below it. The click sequence, the cursor rule, and the
+     * wrap semantics are identical either way. Only the choice of slots
+     * differs.
      *
      * <p>{@code containerSlots} is ordered visually top to bottom with
      * the destination (hotbar) slot last, matching {@link #buildCycleList}.
@@ -157,7 +157,7 @@ public final class ColumnCyclerRotator {
      * consecutive calls compose safely.
      *
      * @param feature label for the debug log, so a skipped rotation names
-     *                the cycler that asked for it
+     *                the feature that asked for it
      * @return true if clicks were sent; false for any no-op case (fewer
      *         than 2 slots, cursor occupied, slot not in the open menu)
      */
@@ -189,9 +189,9 @@ public final class ColumnCyclerRotator {
         }
 
         // A slot that refuses the operation sits the rotation out: it keeps its
-        // item and the ring turns around it. Locks refuse through the veto
-        // (Locks), so a locked item stays put the same way. Both cyclers
-        // inherit it; Hotbar Cycler rotates its nine columns through here too.
+        // item and the ring turns around it. Locks refuse through SlotKit's
+        // veto, so a locked item stays put the same way. Column Cycler and
+        // Hotbar Sets (rings of two) both rotate through here.
         containerSlots = withoutRefused(containerSlots, menu, player, take, put, feature);
         int n = containerSlots.size();
         if (n < 2) return false;
