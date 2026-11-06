@@ -181,8 +181,8 @@ public final class IPConfig {
     private static boolean tooltipDock = false;
     // When a screen opens, tooltips stay hidden until the mouse moves, so the
     // slot under the cursor doesn't pop one up the moment it opens. On by
-    // default. Replaces tooltipCursorAboveSlots, which moved the cursor (Trev,
-    // 2026-10-15: it moved it even with the game window in the background);
+    // default. Replaces tooltipCursorAboveSlots, which moved the cursor
+    // even with the game window in the background;
     // that old key is read by nobody and the next save drops it.
     private static boolean tooltipHideUntilMouseMoves = true;
 

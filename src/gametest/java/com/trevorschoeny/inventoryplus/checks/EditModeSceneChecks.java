@@ -28,7 +28,7 @@ import net.minecraft.world.phys.Vec3;
 import testgallery.SceneWorld;
 
 /**
- * Edit mode in the slot-rules scene Trev walks, as he walks it: the real cursor, mouse and
+ * Edit mode in the slot-rules scene, played as a player would: the real cursor, mouse and
  * keys on station 2's chest. The pencil turns it on, L over the cobblestone locks it, R
  * opens the reserve popup.
  */
@@ -41,7 +41,7 @@ public class EditModeSceneChecks implements FabricClientGameTest {
             scene.standAt(st, 30);
             JsonArray o = st.getAsJsonArray("origin");
             BlockPos chest = new BlockPos(o.get(0).getAsInt() + 2, o.get(1).getAsInt(), o.get(2).getAsInt() + 2);
-            // Walked up to it, within reach, as Trev does.
+            // Walked up to it, within reach, as a player would.
             scene.world().getServer().runCommand("tp @p " + (chest.getX() + 0.5) + " " + chest.getY() + " " + (chest.getZ() - 1.5) + " 0 30");
             ctx.waitTicks(10);
             ctx.runOnClient(mc -> mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND,

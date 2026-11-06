@@ -282,7 +282,7 @@ public class LaggyServerChecks implements FabricClientGameTest {
         });
     }
 
-    // ── Lag ─────────────────────────────────────────────────────────────
+    // Lag
 
     /** Holds every packet LAG_MS on the client's side of the connection, each way, in order. */
     private static void addLag(Minecraft mc) {
@@ -321,7 +321,7 @@ public class LaggyServerChecks implements FabricClientGameTest {
         ctx.waitTicks(30);
     }
 
-    // ── Server side ─────────────────────────────────────────────────────
+    // Server side
 
     private <T> T onServer(Function<ServerPlayer, T> action) {
         return server.computeOnServer((MinecraftServer s) -> action.apply(s.getPlayerList().getPlayers().get(0)));
@@ -382,7 +382,7 @@ public class LaggyServerChecks implements FabricClientGameTest {
                 + " (server: " + serverView + " client: " + clientView + ")");
     }
 
-    // ── Input ───────────────────────────────────────────────────────────
+    // Input
 
     private void hoverChest(int i) {
         hoverChest(i, 8);

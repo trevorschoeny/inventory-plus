@@ -381,7 +381,7 @@ public class ContainerListChecks implements FabricClientGameTest {
         emptyAll(world);
     }
 
-    // ── Slots ───────────────────────────────────────────────────────────
+    // Slots
 
     /** The slot for {@code in}'s local index {@code i} on {@code menu}, or null. */
     private static @Nullable Slot slot(AbstractContainerMenu menu, In in, int i) {
@@ -448,7 +448,7 @@ public class ContainerListChecks implements FabricClientGameTest {
         return ctx.computeOnClient(mc -> LockedSlots.isLockedSlot(slot(mc.player.containerMenu, in, i)));
     }
 
-    // ── Input ───────────────────────────────────────────────────────────
+    // Input
 
     /** The cursor over {@code in}'s slot {@code i} on the open screen. */
     private void hover(In in, int i) {

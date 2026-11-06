@@ -76,7 +76,7 @@ public record Intake(When when, boolean matchingOnly) {
      * Stored as SHARED slot state so it rides SlotKit's portable path: on the item, in
      * the placed box's block entity, back on the item when broken in survival. A plain
      * custom-data key would be dropped by the shulker box's loot table.
-     * ponytail: a box-level value kept on slot 0's entry, since SlotKit stores per-slot
+     * The box-level value is kept on slot 0's entry, since SlotKit stores per-slot
      * values only; a box-level SHARED value in SlotKit is the upgrade if a second
      * box-level setting ever appears.
      */

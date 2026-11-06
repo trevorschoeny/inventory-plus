@@ -52,7 +52,7 @@ public class CarriedRestockChecks implements FabricClientGameTest {
                 IPConfig.setRestockFromShulkers(true);
             });
 
-            // ── With Inventory Plus on the server (path 1) ──
+            // With Inventory Plus on the server (path 1)
 
             // A shulker in slot 20 holds 30 cobblestone in its slot 4.
             ranOut(ctx, world, 0, p -> {
@@ -96,7 +96,7 @@ public class CarriedRestockChecks implements FabricClientGameTest {
                     "a shulker in a locked slot is left alone (" + p.getInventory().getItem(0) + ")"));
             ctx.runOnClient(mc -> LockedSlots.setLocked(menuSlot(mc.player, 20), false));
 
-            // ── The server's own checks, by sending requests directly ──
+            // The server's own checks, by sending requests directly
 
             ItemPath shulkerSlot4 = new ItemPath(ItemRef.Source.INVENTORY, 20, List.of(4));
             onServer(world, p -> {
@@ -139,7 +139,7 @@ public class CarriedRestockChecks implements FabricClientGameTest {
                     "the ender chest fills the hand from slot 5, passing over locked slot 2 ("
                             + p.getInventory().getItem(0) + ")"));
 
-            // ── A server without Inventory Plus (path 2, plain clicks) ──
+            // A server without Inventory Plus (path 2, plain clicks)
 
             ctx.runOnClient(mc -> System.setProperty(NO_SERVER_MOD, "true"));
 

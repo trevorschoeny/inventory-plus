@@ -54,7 +54,7 @@ import static com.trevorschoeny.inventoryplus.api.InventoryPlusOperations.RESTOC
  * </ul>
  *
  * <p>Locks: a slot the purpose's operation may not take from also stops the reach into a
- * container in it (Trev, 2026-10-20). Locks on items inside containers are not modelled
+ * container in it. Locks on items inside containers are not modelled
  * yet.
  */
 public final class CarriedFetch {

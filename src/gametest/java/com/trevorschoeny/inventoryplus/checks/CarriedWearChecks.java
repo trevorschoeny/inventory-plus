@@ -100,7 +100,7 @@ public class CarriedWearChecks implements FabricClientGameTest {
                             && contents(p.getInventory().getItem(20)).get(2).isEmpty(),
                     "a bow with nothing to fire gets the shulker's arrows (" + count(p, Items.ARROW) + ")"));
 
-            // ── The server's own checks ──
+            // The server's own checks
 
             ItemPath shulkerSlot4 = new ItemPath(ItemRef.Source.INVENTORY, 20, List.of(4));
             // A swap whose spare slot isn't empty does nothing; the same request with an empty
@@ -139,7 +139,7 @@ public class CarriedWearChecks implements FabricClientGameTest {
             onServer(world, p -> expect(count(p, Items.ARROW) == 0,
                     "ammo with no ranged weapon in hand does nothing"));
 
-            // ── A server without Inventory Plus: a bundle is never restocked from ──
+            // A server without Inventory Plus: a bundle is never restocked from
 
             ctx.runOnClient(mc -> System.setProperty(NO_SERVER_MOD, "true"));
             change(ctx, world, p -> {

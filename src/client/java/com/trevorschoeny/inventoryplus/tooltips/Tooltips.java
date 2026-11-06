@@ -72,7 +72,7 @@ public final class Tooltips {
             boolean held = IPKeybinds.isHeld(IPKeybinds.HIDE_TOOLTIPS);
             return IPConfig.tooltipKeyShows() ? kind == MKTooltip.Kind.ITEM && !held : held;
         });
-        // Hide until the mouse moves (Trev, 2026-10-15): a screen that opens
+        // Hide until the mouse moves: a screen that opens
         // shows no tooltip until the mouse leaves where it was when it opened,
         // so the slot that happens to sit under the cursor doesn't pop one up.
         // The cursor itself is never moved.
