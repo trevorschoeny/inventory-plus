@@ -12,6 +12,14 @@ import com.trevlar.menukit.api.panel.SlotDecorations;
 import com.trevorschoeny.inventoryplus.rules.Reservations;
 
 import com.trevlar.menukit.api.element.ItemMatch;
+import com.trevlar.menukit.api.element.TextLabel;
+import com.trevlar.menukit.api.panel.ModeScope;
+import com.trevlar.menukit.api.panel.OutsideRegion;
+import com.trevlar.menukit.api.panel.Panel;
+import com.trevlar.menukit.api.panel.PanelPosition;
+import com.trevlar.menukit.api.panel.PanelStyle;
+import com.trevlar.menukit.api.panel.Placement;
+import com.trevlar.menukit.api.panel.ScreenPanelAdapter;
 import com.trevlar.slotkit.api.window.SlotRef;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -21,7 +29,6 @@ import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -61,7 +68,9 @@ import java.util.Set;
  *       takes it with it, and the next screen opens out of it.</li>
  * </ul>
  * The look: the screen's frame glows gold, every slot is outlined and every item
- * fades, and the keys are named above the panel. Locks and reservations draw crisp
+ * fades, and the keys are named above the frame ({@link #HINT_PANEL}, MenuKit's
+ * {@link OutsideRegion#TOP_CENTER}, so the region system keeps it above a screen's
+ * own chrome like creative's item-tab row). Locks and reservations draw crisp
  * over the faded items (the padlock, SlotKit's corner icon). On creative's screen,
  * only its inventory tab.
  */
@@ -79,7 +88,16 @@ public final class EditMode {
     /** The screen edit mode is on for, or null. Any other screen is out of it. */
     private static @Nullable Screen on;
 
+    /** The keys named above the frame the whole time the mode is on. */
+    private static final Panel HINT_PANEL = Panel.builder("inventoryplus:edit_mode_hint")
+            .elements(List.of(TextLabel.builder().text(EditMode::hint).color(0xFFFFFFFF).shadow(true).build()))
+            .style(PanelStyle.NONE)
+            .visibleWhen(EditMode::isOn)
+            .in(ModeScope.BOTH, Placement.screen(PanelPosition.region(OutsideRegion.TOP_CENTER)))
+            .build();
+
     public static void register() {
+        new ScreenPanelAdapter(HINT_PANEL);
         SlotDecorations.under("inventoryplus:edit_mode", DECORATION);
         // In the mode the rules take over: every item fades, and the reservations'
         // corner icons draw crisp above it (ReservedIcon).
@@ -218,10 +236,7 @@ public final class EditMode {
         return key.getTranslatedKeyMessage().copy().withStyle(ChatFormatting.YELLOW);
     }
 
-    /**
-     * The frame and a glow fading out from it, outside the screen's image so nothing on it
-     * is covered, and the key hint centered just above it.
-     */
+    /** The frame and a glow fading out from it, outside the screen's image so nothing on it is covered. */
     private static void drawFrame(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
         AbstractContainerScreenAccessor a = (AbstractContainerScreenAccessor) screen;
         int x = a.inventoryPlus$getLeftPos();
@@ -233,9 +248,6 @@ public final class EditMode {
             int alpha = 0x90 >> (i - 2);
             graphics.outline(x - i, y - i, w + 2 * i, h + 2 * i, GLOW | alpha << 24);
         }
-        Font font = Minecraft.getInstance().font;
-        Component hint = hint();
-        graphics.text(font, hint, x + (w - font.width(hint)) / 2, y - 5 - font.lineHeight, 0xFFFFFFFF, true);
     }
 
     /** Every slot outlined, and its rules named on hover. Public for the self-checks. */
