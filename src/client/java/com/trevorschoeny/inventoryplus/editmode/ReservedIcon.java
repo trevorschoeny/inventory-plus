@@ -13,16 +13,13 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * A reserved slot's icon: its item at half size in the slot's top-left corner, under a
- * faint veil, so a reserved slot reads as reserved whether it is empty or full. In edit
- * mode the veil comes off and the icon draws crisp, above the mode's own fade.
+ * A reserved slot's icon: its item at half size in the slot's top-left corner, so a
+ * reserved slot reads as reserved whether it is empty or full. In edit mode it draws
+ * above the mode's own fade. No veil: a square over the icon read as a box around it.
  */
 public final class ReservedIcon {
 
     private ReservedIcon() {}
-
-    // Vanilla's slot background (0x8B8B8B), about 45% opaque.
-    private static final int VEIL = 0x738B8B8B;
 
     /** Once, at client init. The id sorts after edit mode's veil and the padlocks, so the icon lands on top. */
     public static void register() {
@@ -38,6 +35,5 @@ public final class ReservedIcon {
         g.pose().scale(0.5f, 0.5f);
         g.item(rule.stack(), 0, 0);
         g.pose().popMatrix();
-        if (!EditMode.isOn()) g.fill(x - 1, y - 1, x + 7, y + 7, VEIL);
     }
 }

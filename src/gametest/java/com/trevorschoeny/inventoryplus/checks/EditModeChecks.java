@@ -23,7 +23,6 @@ import com.trevlar.slotkit.api.window.SlotRef;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -42,6 +41,19 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.core.NonNullList;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.SimpleMenuProvider;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.ShulkerBoxMenu;
+import net.minecraft.world.item.component.ItemContainerContents;
+import com.trevlar.slotkit.api.item.ItemContents;
+import com.trevlar.slotkit.api.item.ItemPath;
+import com.trevlar.slotkit.api.item.ItemRef;
+
+import java.util.List;
 
 /**
  * Edit mode on a chest and on a shulker box. Each guarded click is one vanilla would
@@ -69,6 +81,7 @@ public class EditModeChecks implements FabricClientGameTest {
             world.getServer().runCommand("gamemode survival @a");
             chest(world);
             box(world);
+            openedBox(world);
         }
     }
 
@@ -200,6 +213,113 @@ public class EditModeChecks implements FabricClientGameTest {
         open(at[0]);
         // The box settings button, leftmost on the box's toolbar, with edit mode off.
         ctx.runOnClient(mc -> EditMode.set(false));
+        pressBoxSettingsButton();
+        expect(ctx.computeOnClient(mc -> BoxSettingsPopup.isOpen()), "the box settings button opens the popup outside edit mode");
+        // Its controls, clicked with the real mouse: Before your inventory, then Only matching.
+        BoxSettings beforeMatching = new BoxSettings(BoxSettings.When.BEFORE, true);
+        clickPopup(BoxSettingsPopup.Control.BEFORE);
+        expect(ctx.computeOnClient(mc -> BoxSettings.of(mc.player.containerMenu, chestSlot(mc.player.containerMenu, 4)))
+                        .equals(new BoxSettings(BoxSettings.When.BEFORE, false)),
+                "clicking Before your inventory sets it, and the popup reads it back");
+        clickPopup(BoxSettingsPopup.Control.MATCHING_ONLY);
+        expect(ctx.computeOnClient(mc -> BoxSettings.of(mc.player.containerMenu, chestSlot(mc.player.containerMenu, 4)))
+                        .equals(beforeMatching),
+                "clicking Only items already in this box sets it");
+        onServer(world, p -> expect(BoxSettings.of(p.containerMenu, chestSlot(p.containerMenu, 4)).equals(beforeMatching),
+                "the server's box holds what the popup shows"));
+        ctx.getInput().pressKey(InputConstants.getKey("key.keyboard.escape"));
+        ctx.waitTicks(2);
+        expect(ctx.computeOnClient(mc -> !BoxSettingsPopup.isOpen() && mc.gui.screen() != null),
+                "Escape closes the popup and leaves the box open");
+        ctx.runOnClient(mc -> mc.player.closeContainer());
+        ctx.waitTicks(5);
+        onServer(world, p -> {
+            p.gameMode.destroyBlock(at[0]);
+            ItemEntity dropped = p.level().getEntitiesOfClass(ItemEntity.class, new AABB(at[0]).inflate(2)).stream()
+                    .filter(e -> BoxSettings.isBox(e.getItem())).findFirst().orElse(null);
+            expect(dropped != null, "breaking the box drops it");
+            expect(BoxSettings.of(dropped.getItem()).equals(beforeMatching),
+                    "the broken box carries its BoxSettings (" + BoxSettings.of(dropped.getItem()) + ")");
+            // Carried: the box goes into the inventory, and real pickups follow its settings.
+            p.getInventory().setItem(9, dropped.getItem().copy());
+            dropped.discard();
+            drop(p, new ItemStack(Items.COBBLESTONE, 5));
+            drop(p, new ItemStack(Items.DIRT, 3));
+        });
+        ctx.waitTicks(20);
+        onServer(world, p -> {
+            ItemStack box = p.getInventory().getItem(9);
+            int boxCobble = 0, boxDirt = 0;
+            for (ItemStack s : box.getOrDefault(DataComponents.CONTAINER,
+                    ItemContainerContents.EMPTY).nonEmptyItemCopyStream().toList()) {
+                if (s.is(Items.COBBLESTONE)) boxCobble += s.getCount();
+                if (s.is(Items.DIRT)) boxDirt += s.getCount();
+            }
+            expect(boxCobble == 15 && count(p, Items.COBBLESTONE) == 0,
+                    "a picked-up cobblestone goes into the box set Before + Only matching (box holds " + boxCobble + ")");
+            expect(boxDirt == 0 && count(p, Items.DIRT) == 3,
+                    "a picked-up dirt, which the box doesn't hold, stays out of it (box holds " + boxDirt + ")");
+        });
+    }
+
+    /**
+     * A box opened from the inventory, as Open Anywhere opens one: the screen's container
+     * names its box item ({@link ItemContents}), so its settings are the item's. The box
+     * was set before (Reach's migration sets carried boxes so), and the popup has to show
+     * and change those, not a blank slot's.
+     */
+    private void openedBox(TestSingleplayerContext world) {
+        BoxSettings beforeMatching = new BoxSettings(BoxSettings.When.BEFORE, true);
+        onServer(world, p -> {
+            clear(p);
+            ItemStack box = new ItemStack(Items.SHULKER_BOX);
+            NonNullList<ItemStack> items = NonNullList.withSize(27, ItemStack.EMPTY);
+            items.set(0, new ItemStack(Items.COBBLESTONE, 10));
+            box.set(DataComponents.CONTAINER, ItemContainerContents.fromItems(items));
+            BoxSettings.set(box, beforeMatching);
+            p.getInventory().setItem(9, box);
+            p.openMenu(new SimpleMenuProvider((id, inv, pl) -> new ShulkerBoxMenu(id, inv, new OpenedBox(box, 9)),
+                    Component.literal("Opened box")));
+        });
+        ctx.waitTicks(8);
+        ctx.runOnClient(mc -> EditMode.set(false));
+        pressBoxSettingsButton();
+        expect(ctx.computeOnClient(mc -> BoxSettingsPopup.isOpen()), "the opened box's settings button opens the popup");
+        expect(ctx.computeOnClient(mc -> BoxSettings.of(mc.player.containerMenu, chestSlot(mc.player.containerMenu, 0)))
+                        .equals(beforeMatching),
+                "the popup shows the opened box's own settings, Before + Only matching ("
+                        + ctx.computeOnClient(mc -> BoxSettings.of(mc.player.containerMenu, chestSlot(mc.player.containerMenu, 0))) + ")");
+        clickPopup(BoxSettingsPopup.Control.AFTER);
+        onServer(world, p -> expect(BoxSettings.of(p.getInventory().getItem(9))
+                        .equals(new BoxSettings(BoxSettings.When.AFTER, true)),
+                "clicking After changes only when, on the box item (" + BoxSettings.of(p.getInventory().getItem(9)) + ")"));
+        expect(ctx.computeOnClient(mc -> BoxSettings.of(mc.player.containerMenu, chestSlot(mc.player.containerMenu, 0)))
+                        .equals(new BoxSettings(BoxSettings.When.AFTER, true)),
+                "the popup reads the change back");
+        ctx.getInput().pressKey(InputConstants.getKey("key.keyboard.escape"));
+        ctx.waitTicks(2);
+        ctx.runOnClient(mc -> mc.player.closeContainer());
+        ctx.waitTicks(5);
+    }
+
+    /** An opened box's container, as an opener mod declares it: the box's slots, naming the box at inventory slot {@code slot}. */
+    private static final class OpenedBox extends SimpleContainer implements ItemContents {
+        private final int slot;
+
+        OpenedBox(ItemStack box, int slot) {
+            super(27);
+            this.slot = slot;
+            box.getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).copyInto(getItems());
+        }
+
+        @Override
+        public ItemPath itemPath(Player player) {
+            return new ItemPath(ItemRef.Source.INVENTORY, slot, List.of());
+        }
+    }
+
+    /** The box settings button, leftmost on the box's toolbar, pressed with the real mouse. */
+    private void pressBoxSettingsButton() {
         double[] button = ctx.computeOnClient(mc -> {
             Reference r = Toolbar.externalToolbars().stream()
                     .filter(t -> t.id().equals("inventoryplus.toolbar.external.shulker_storage"))
@@ -212,30 +332,27 @@ public class EditModeChecks implements FabricClientGameTest {
         ctx.waitTicks(2);
         ctx.getInput().pressMouse(InputConstants.MOUSE_BUTTON_LEFT);
         ctx.waitTicks(2);
-        expect(ctx.computeOnClient(mc -> BoxSettingsPopup.isOpen()), "the box settings button opens the popup outside edit mode");
-        ctx.getInput().pressKey(InputConstants.getKey("key.keyboard.escape"));
+    }
+
+    /** Drops {@code stack} at the player's feet with no pickup delay, as a mined block's drop lands. */
+    private static void drop(net.minecraft.server.level.ServerPlayer p, ItemStack stack) {
+        ItemEntity e = new ItemEntity(p.level(), p.getX(), p.getY(), p.getZ(), stack);
+        e.setNoPickUpDelay();
+        p.level().addFreshEntity(e);
+    }
+
+    /** One of the box settings popup's controls, clicked with the real mouse. */
+    private void clickPopup(BoxSettingsPopup.Control control) {
+        double[] at = ctx.computeOnClient(mc -> {
+            double[] c = BoxSettingsPopup.centerOf(control);
+            expect(c != null, "the box settings popup is placed");
+            double scale = mc.getWindow().getGuiScale();
+            return new double[] {c[0] * scale, c[1] * scale};
+        });
+        ctx.getInput().setCursorPos(at[0], at[1]);
         ctx.waitTicks(2);
-        expect(ctx.computeOnClient(mc -> !BoxSettingsPopup.isOpen() && mc.gui.screen() != null),
-                "Escape closes the popup and leaves the box open");
-        ctx.runOnClient(mc -> {
-            AbstractContainerMenu menu = mc.player.containerMenu;
-            ClientPlayNetworking.send(new BoxSettings.SetOpen(menu.containerId, chestSlot(menu, 4).index,
-                    new BoxSettings(BoxSettings.When.BEFORE, true)));
-        });
+        ctx.getInput().pressMouse(InputConstants.MOUSE_BUTTON_LEFT);
         ctx.waitTicks(5);
-        expect(ctx.computeOnClient(mc -> BoxSettings.of(mc.player.containerMenu, chestSlot(mc.player.containerMenu, 4)))
-                        .equals(new BoxSettings(BoxSettings.When.BEFORE, true)),
-                "the box's screen shows the BoxSettings just set");
-        ctx.runOnClient(mc -> mc.player.closeContainer());
-        ctx.waitTicks(5);
-        onServer(world, p -> {
-            p.gameMode.destroyBlock(at[0]);
-            ItemEntity dropped = p.level().getEntitiesOfClass(ItemEntity.class, new AABB(at[0]).inflate(2)).stream()
-                    .filter(e -> BoxSettings.isBox(e.getItem())).findFirst().orElse(null);
-            expect(dropped != null, "breaking the box drops it");
-            expect(BoxSettings.of(dropped.getItem()).equals(new BoxSettings(BoxSettings.When.BEFORE, true)),
-                    "the broken box carries its BoxSettings (" + BoxSettings.of(dropped.getItem()) + ")");
-        });
     }
 
     // Helpers

@@ -76,30 +76,52 @@ public final class BoxSettingsPopup {
                 .build());
     }
 
+    /** The popup's controls, in {@link Control} order, and the popup; set at register. */
+    private static final List<PanelElement> controls = new java.util.ArrayList<>();
+    private static @Nullable Panel panel;
+
+    /** The popup's controls, as a check names one to click. */
+    public enum Control { NEVER, BEFORE, AFTER, MATCHING_ONLY, RESTOCK }
+
+    /**
+     * Where {@code control} sits on screen now, its centre in GUI pixels, or null while
+     * the popup isn't placed. For the checks, which click it with the real mouse.
+     */
+    public static double @Nullable [] centerOf(Control control) {
+        var r = panel == null ? null : panel.placedBounds();
+        if (r == null) return null;
+        PanelElement e = controls.get(control.ordinal());
+        int pad = ScreenPanelAdapter.DEFAULT_PADDING;
+        return new double[] {r.leftPos() + pad + e.getChildX() + e.getWidth() / 2.0,
+                r.topPos() + pad + e.getChildY() + e.getHeight() / 2.0};
+    }
+
     /** The popup. Once, at client init. */
     public static void register() {
         RadioGroup<BoxSettings.When> when = RadioGroup.state(() -> current().when(),
                 v -> send(current().withWhen(v)));
+        controls.add(Radio.builder(when, BoxSettings.When.OFF).label(Component.literal("Never")).build());
+        controls.add(Radio.builder(when, BoxSettings.When.BEFORE).label(Component.literal("Before your inventory")).build());
+        controls.add(Radio.builder(when, BoxSettings.When.AFTER).label(Component.literal("After your inventory")).build());
+        controls.add(Checkbox.builder().label(Component.literal("Only items already in this box"))
+                .state(() -> current().matchingOnly(), v -> send(current().withMatchingOnly(v)))
+                // Matching only refines an Intake; with none there is nothing to refine.
+                .disabledWhen(() -> current().when() == BoxSettings.When.OFF)
+                .build());
+        controls.add(Checkbox.builder().label(Component.literal("Restock from this box"))
+                .state(() -> current().restock(), v -> send(current().withRestock(v)))
+                .build());
         Flow pickups = Flow.builder().vertical().gap(4)
                 .visibleWhen(IPConfig::fillShulkersWithPickups)
                 .add(TextLabel.builder().text(Component.literal("Pickups go into this box").withStyle(ChatFormatting.DARK_GRAY)).build())
-                .add(Radio.builder(when, BoxSettings.When.OFF).label(Component.literal("Never")).build())
-                .add(Radio.builder(when, BoxSettings.When.BEFORE).label(Component.literal("Before your inventory")).build())
-                .add(Radio.builder(when, BoxSettings.When.AFTER).label(Component.literal("After your inventory")).build())
-                .add(Checkbox.builder().label(Component.literal("Only items already in this box"))
-                        .state(() -> current().matchingOnly(), v -> send(current().withMatchingOnly(v)))
-                        // Matching only refines an Intake; with none there is nothing to refine.
-                        .disabledWhen(() -> current().when() == BoxSettings.When.OFF)
-                        .build())
+                .addAll(controls.subList(0, 4))
                 .build();
         Flow restock = Flow.builder().vertical().gap(4)
                 .visibleWhen(IPConfig::restockFromShulkers)
                 .add(TextLabel.builder().text(Component.literal("Restock").withStyle(ChatFormatting.DARK_GRAY)).build())
-                .add(Checkbox.builder().label(Component.literal("Restock from this box"))
-                        .state(() -> current().restock(), v -> send(current().withRestock(v)))
-                        .build())
+                .add(controls.get(4))
                 .build();
-        Panel panel = Panel.builder("inventoryplus:box_settings")
+        panel = Panel.builder("inventoryplus:box_settings")
                 .elements(List.of(Flow.builder().vertical().gap(4)
                         .add(TextLabel.builder().text(Component.literal("Shulker Box settings")).build())
                         .add(Divider.horizontal().build())
