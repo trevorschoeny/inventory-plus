@@ -385,7 +385,7 @@ public class EditModeChecks implements FabricClientGameTest {
         ctx.waitTicks(2);
     }
 
-    /** The chest toolbar's pencil, left of Sort, pressed with the real mouse. */
+    /** The chest toolbar's edit button, left of Sort, pressed with the real mouse. */
     private void pressEditButton() {
         double[] at = ctx.computeOnClient(mc -> {
             Reference r = Toolbar.externalToolbars().stream()
