@@ -5,6 +5,7 @@ import static com.trevorschoeny.inventoryplus.checks.CarriedItems.count;
 import static com.trevorschoeny.inventoryplus.checks.CarriedItems.onServer;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import com.trevorschoeny.inventoryplus.config.IPConfig;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
 import com.trevorschoeny.inventoryplus.editmode.EditMode;
 import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
@@ -16,7 +17,6 @@ import com.trevorschoeny.inventoryplus.editmode.ReservePopup;
 import com.trevorschoeny.inventoryplus.sort.SortButton;
 import com.trevorschoeny.inventoryplus.toolbar.Toolbar;
 import com.trevlar.menukit.api.panel.Reference;
-import com.trevorschoeny.inventoryplus.rules.SlotLocks;
 import com.trevlar.menukit.api.element.ItemMatch;
 import com.trevlar.slotkit.api.window.SlotRef;
 
@@ -24,7 +24,14 @@ import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 
+import net.fabricmc.fabric.api.client.creativetab.v1.FabricCreativeModeInventoryScreen;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.gui.screens.inventory.ShulkerBoxScreen;
+import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -43,20 +50,12 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.SimpleContainer;
-import net.minecraft.world.SimpleMenuProvider;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.ShulkerBoxMenu;
 import net.minecraft.world.item.component.ItemContainerContents;
-import com.trevlar.slotkit.api.item.ItemContents;
-import com.trevlar.slotkit.api.item.ItemPath;
-import com.trevlar.slotkit.api.item.ItemRef;
 
 import java.util.List;
 
 /**
- * Edit mode on a chest and on a shulker box. Each guarded click is one vanilla would
+ * Edit mode on the inventory screen, and box settings. Each guarded click is one vanilla would
  * act on (a left-click on a full stack picks it up, Q on it throws one), so the mode is
  * the only thing that can stop it; the last click, out of the mode, shows vanilla's.
  * <ul>
@@ -65,8 +64,10 @@ import java.util.List;
  *       prefilled from what the slot holds. Neither moves the stack, and a click does nothing.</li>
  *   <li>Q on a slot does nothing in the mode.</li>
  *   <li>Escape leaves the mode and keeps the screen open.</li>
+ *   <li>A chest's screen has no edit mode, for now.</li>
  *   <li>A placed box's Intake, set from its screen, holds on the box and comes off with
- *       it when it is broken.</li>
+ *       it when it is broken. A box opened on Open Anywhere's screen, from the inventory
+ *       or from inside a chest, shows and sets its own item's settings.</li>
  * </ul>
  */
 public class EditModeChecks implements FabricClientGameTest {
@@ -79,23 +80,26 @@ public class EditModeChecks implements FabricClientGameTest {
         try (TestSingleplayerContext world = ctx.worldBuilder().create()) {
             ctx.waitTicks(20);
             world.getServer().runCommand("gamemode survival @a");
+            inventory(world);
             chest(world);
             box(world);
             openedBox(world);
         }
     }
 
-    private void chest(TestSingleplayerContext world) {
-        BlockPos[] at = {null};
+    /**
+     * Edit mode on the inventory screen, on the main inventory's top row (inventory slots
+     * 9 on, "row slot" 0 on here).
+     */
+    private void inventory(TestSingleplayerContext world) {
         onServer(world, p -> {
             clear(p);
             p.getInventory().setItem(0, new ItemStack(Items.DIRT, 5));
-            at[0] = p.blockPosition().offset(2, 0, 0);
-            p.level().setBlockAndUpdate(at[0], Blocks.CHEST.defaultBlockState());
-            Container chest = (Container) p.level().getBlockEntity(at[0]);
-            for (int i = 0; i < 3; i++) chest.setItem(i, new ItemStack(Items.STONE, 64));
+            for (int i = 0; i < 3; i++) p.getInventory().setItem(ROW + i, new ItemStack(Items.STONE, 64));
         });
-        open(at[0]);
+        ctx.waitTicks(5);
+        ctx.setScreen(() -> new InventoryScreen(Minecraft.getInstance().player));
+        ctx.waitTicks(5);
 
         // Dirt on the cursor, then into edit mode: it goes back to the inventory.
         ctx.runOnClient(mc -> {
@@ -113,24 +117,21 @@ public class EditModeChecks implements FabricClientGameTest {
         // A left-click on a full stack does nothing: no lock, nothing picked up.
         click(0, InputConstants.MOUSE_BUTTON_LEFT);
         ctx.waitTicks(5);
-        expect(ctx.computeOnClient(mc -> !LockedSlots.isLockedSlot(chestSlot(mc.player.containerMenu, 0))
+        expect(ctx.computeOnClient(mc -> !LockedSlots.isLockedSlot(rowSlot(mc.player.containerMenu, 0))
                         && mc.player.containerMenu.getCarried().isEmpty()),
                 "a left-click in edit mode neither locks nor picks up");
 
         // L locks, and the stone stays; again unlocks.
         key(0, IPKeybinds.EDIT_LOCK);
         ctx.waitTicks(5);
-        expect(ctx.computeOnClient(mc -> LockedSlots.isLockedSlot(chestSlot(mc.player.containerMenu, 0))
+        expect(ctx.computeOnClient(mc -> LockedSlots.isLockedSlot(rowSlot(mc.player.containerMenu, 0))
                         && mc.player.containerMenu.getCarried().isEmpty()),
                 "L locks slot 0 and picks nothing up");
-        onServer(world, p -> {
-            Container chest = (Container) p.level().getBlockEntity(at[0]);
-            expect(SlotLocks.CHANNEL.get(new Slot(chest, 0, 0, 0)) && chest.getItem(0).getCount() == 64,
-                    "the chest holds the lock and keeps its stone");
-        });
+        // The inventory's locks are the player's own (client config), so only the stone is the server's to keep.
+        onServer(world, p -> expect(p.getInventory().getItem(ROW).getCount() == 64, "the locked slot keeps its stone"));
         key(0, IPKeybinds.EDIT_LOCK);
         ctx.waitTicks(5);
-        expect(!ctx.computeOnClient(mc -> LockedSlots.isLockedSlot(chestSlot(mc.player.containerMenu, 0))),
+        expect(!ctx.computeOnClient(mc -> LockedSlots.isLockedSlot(rowSlot(mc.player.containerMenu, 0))),
                 "a second L unlocks it");
 
         // Hold L on slot 3 and sweep across 4 and 5: all three lock; then sweep them off.
@@ -146,9 +147,9 @@ public class EditModeChecks implements FabricClientGameTest {
             ctx.waitTicks(3);
             expect(ctx.computeOnClient(mc -> {
                         AbstractContainerMenu menu = mc.player.containerMenu;
-                        return LockedSlots.isLockedSlot(chestSlot(menu, 3)) == lock
-                                && LockedSlots.isLockedSlot(chestSlot(menu, 4)) == lock
-                                && LockedSlots.isLockedSlot(chestSlot(menu, 5)) == lock;
+                        return LockedSlots.isLockedSlot(rowSlot(menu, 3)) == lock
+                                && LockedSlots.isLockedSlot(rowSlot(menu, 4)) == lock
+                                && LockedSlots.isLockedSlot(rowSlot(menu, 5)) == lock;
                     }), lock ? "holding L and sweeping locks every slot passed" : "sweeping again unlocks them");
         }
 
@@ -163,9 +164,8 @@ public class EditModeChecks implements FabricClientGameTest {
         ctx.runOnClient(mc -> ReservePopup.done());
         ctx.waitTicks(5);
         onServer(world, p -> {
-            Container chest = (Container) p.level().getBlockEntity(at[0]);
-            ItemMatch r = Reservations.get(SlotRef.of(chest, 1, null));
-            expect(!Reservations.isNone(r) && r.matches(new ItemStack(Items.STONE)) && chest.getItem(1).getCount() == 64,
+            ItemMatch r = Reservations.get(SlotRef.of(p.getInventory(), ROW + 1, p));
+            expect(!Reservations.isNone(r) && r.matches(new ItemStack(Items.STONE)) && p.getInventory().getItem(ROW + 1).getCount() == 64,
                     "Done reserves slot 1 for stone and leaves the stone (" + r + ")");
         });
 
@@ -175,28 +175,44 @@ public class EditModeChecks implements FabricClientGameTest {
         expect(ctx.computeOnClient(mc -> ReservePopup.isOpen()), "a second R reopens the popup");
         ctx.runOnClient(mc -> ReservePopup.remove());
         ctx.waitTicks(5);
-        onServer(world, p -> expect(Reservations.get(SlotRef.of((Container) p.level().getBlockEntity(at[0]), 1, null)).equals(Reservations.NONE),
+        onServer(world, p -> expect(Reservations.get(SlotRef.of(p.getInventory(), ROW + 1, p)).equals(Reservations.NONE),
                 "Remove clears the reservation"));
 
         // Q over slot 2 throws nothing.
         hover(2);
         ctx.getInput().pressKey(o -> o.keyDrop);
         ctx.waitTicks(5);
-        onServer(world, p -> expect(((Container) p.level().getBlockEntity(at[0])).getItem(2).getCount() == 64,
+        onServer(world, p -> expect(p.getInventory().getItem(ROW + 2).getCount() == 64,
                 "Q in edit mode throws nothing"));
 
         // Escape leaves the mode, and the chest stays open.
         ctx.getInput().pressKey(InputConstants.KEY_ESCAPE);
         ctx.waitTicks(2);
         expect(ctx.computeOnClient(mc -> !EditMode.isOn() && mc.gui.screen() instanceof AbstractContainerScreen<?>),
-                "Escape leaves edit mode and the chest stays open");
+                "Escape leaves edit mode and the inventory stays open");
 
         // Out of the mode, the same Q throws one: the mode was what held it.
         hover(2);
         ctx.getInput().pressKey(o -> o.keyDrop);
         ctx.waitTicks(5);
-        onServer(world, p -> expect(((Container) p.level().getBlockEntity(at[0])).getItem(2).getCount() == 63,
+        onServer(world, p -> expect(p.getInventory().getItem(ROW + 2).getCount() == 63,
                 "out of edit mode, Q throws one"));
+        ctx.runOnClient(mc -> mc.player.closeContainer());
+        ctx.waitTicks(5);
+    }
+
+    /** A chest's screen can't be edited for now: no edit button on its toolbar or the inventory's there. */
+    private void chest(TestSingleplayerContext world) {
+        BlockPos[] at = {null};
+        onServer(world, p -> {
+            clear(p);
+            at[0] = p.blockPosition().offset(2, 0, 0);
+            p.level().setBlockAndUpdate(at[0], Blocks.CHEST.defaultBlockState());
+        });
+        open(at[0]);
+        expect(!ctx.computeOnClient(mc -> EditMode.available()), "a chest's screen has no edit mode, so no edit button");
+        ctx.runOnClient(mc -> EditMode.set(true));
+        expect(!ctx.computeOnClient(mc -> EditMode.isOn()), "edit mode doesn't turn on over a chest");
         ctx.runOnClient(mc -> mc.player.closeContainer());
         ctx.waitTicks(5);
     }
@@ -263,10 +279,9 @@ public class EditModeChecks implements FabricClientGameTest {
     }
 
     /**
-     * A box opened from the inventory, as Open Anywhere opens one: the screen's container
-     * names its box item ({@link ItemContents}), so its settings are the item's. The box
-     * was set before (Reach's migration sets carried boxes so), and the popup has to show
-     * and change those, not a blank slot's.
+     * A box carried in the inventory, opened on Open Anywhere's real screen (a double-click
+     * on it), not a stand-in container: the popup reads the box's own settings, and its
+     * clicks change them on the item.
      */
     private void openedBox(TestSingleplayerContext world) {
         BoxSettings beforeMatching = new BoxSettings(BoxSettings.When.BEFORE, true);
@@ -278,44 +293,141 @@ public class EditModeChecks implements FabricClientGameTest {
             box.set(DataComponents.CONTAINER, ItemContainerContents.fromItems(items));
             BoxSettings.set(box, beforeMatching);
             p.getInventory().setItem(9, box);
-            p.openMenu(new SimpleMenuProvider((id, inv, pl) -> new ShulkerBoxMenu(id, inv, new OpenedBox(box, 9)),
-                    Component.literal("Opened box")));
         });
-        ctx.waitTicks(8);
-        ctx.runOnClient(mc -> EditMode.set(false));
+        ctx.waitTicks(5);
+        ctx.setScreen(() -> new InventoryScreen(Minecraft.getInstance().player));
+        ctx.waitTicks(5);
+        doubleClickInventory(9);
+        expect(ctx.computeOnClient(mc -> mc.gui.screen() instanceof ShulkerBoxScreen),
+                "a double-click on the carried box opens it on Open Anywhere's screen");
+        // Both of the popup's sections showing, as with both globals on.
+        ctx.runOnClient(mc -> {
+            EditMode.set(false);
+            IPConfig.setRestockFromShulkers(true);
+        });
         pressBoxSettingsButton();
         expect(ctx.computeOnClient(mc -> BoxSettingsPopup.isOpen()), "the opened box's settings button opens the popup");
         expect(ctx.computeOnClient(mc -> BoxSettings.of(mc.player.containerMenu, chestSlot(mc.player.containerMenu, 0)))
                         .equals(beforeMatching),
                 "the popup shows the opened box's own settings, Before + Only matching ("
                         + ctx.computeOnClient(mc -> BoxSettings.of(mc.player.containerMenu, chestSlot(mc.player.containerMenu, 0))) + ")");
-        clickPopup(BoxSettingsPopup.Control.AFTER);
-        onServer(world, p -> expect(BoxSettings.of(p.getInventory().getItem(9))
-                        .equals(new BoxSettings(BoxSettings.When.AFTER, true)),
-                "clicking After changes only when, on the box item (" + BoxSettings.of(p.getInventory().getItem(9)) + ")"));
-        expect(ctx.computeOnClient(mc -> BoxSettings.of(mc.player.containerMenu, chestSlot(mc.player.containerMenu, 0)))
-                        .equals(new BoxSettings(BoxSettings.When.AFTER, true)),
-                "the popup reads the change back");
+        // Each control the player sets, read back on the item and in the popup.
+        BoxSettings[] expected = {
+                new BoxSettings(BoxSettings.When.AFTER, true),
+                new BoxSettings(BoxSettings.When.AFTER, false),
+                new BoxSettings(BoxSettings.When.AFTER, false, false)};
+        BoxSettingsPopup.Control[] clicks = {BoxSettingsPopup.Control.AFTER,
+                BoxSettingsPopup.Control.MATCHING_ONLY, BoxSettingsPopup.Control.RESTOCK};
+        for (int i = 0; i < clicks.length; i++) {
+            BoxSettings want = expected[i];
+            String what = clicks[i].name();
+            clickPopup(clicks[i]);
+            onServer(world, p -> expect(BoxSettings.of(p.getInventory().getItem(9)).equals(want),
+                    "clicking " + what + " sets " + want + " on the box item (" + BoxSettings.of(p.getInventory().getItem(9)) + ")"));
+            expect(ctx.computeOnClient(mc -> BoxSettings.of(mc.player.containerMenu, chestSlot(mc.player.containerMenu, 0)))
+                            .equals(want),
+                    "the popup reads " + what + " back ("
+                            + ctx.computeOnClient(mc -> BoxSettings.of(mc.player.containerMenu, chestSlot(mc.player.containerMenu, 0))) + ")");
+        }
+        // Restock alone on: the popup shows only its Restock section, and its checkbox still sets the box.
+        ctx.runOnClient(mc -> IPConfig.setFillShulkersWithPickups(false));
+        ctx.waitTicks(2);
+        clickPopup(BoxSettingsPopup.Control.RESTOCK);
+        onServer(world, p -> expect(BoxSettings.of(p.getInventory().getItem(9)).restock(),
+                "with only Restock shown, its checkbox sets the box (" + BoxSettings.of(p.getInventory().getItem(9)) + ")"));
+        ctx.runOnClient(mc -> IPConfig.setFillShulkersWithPickups(true));
         ctx.getInput().pressKey(InputConstants.getKey("key.keyboard.escape"));
         ctx.waitTicks(2);
         ctx.runOnClient(mc -> mc.player.closeContainer());
         ctx.waitTicks(5);
+
+        // In creative, the box opened from creative's inventory tab.
+        world.getServer().runCommand("gamemode creative @a");
+        ctx.waitTicks(5);
+        ctx.getInput().pressKey(o -> o.keyInventory);
+        ctx.waitTicks(3);
+        ctx.runOnClient(mc -> ((FabricCreativeModeInventoryScreen) mc.gui.screen()).setSelectedTab(CreativeModeTabs.allTabs()
+                .stream().filter(t -> t.getType() == CreativeModeTab.Type.INVENTORY).findFirst().orElseThrow()));
+        ctx.waitTicks(3);
+        doubleClickInventory(9);
+        expect(ctx.computeOnClient(mc -> mc.gui.screen() instanceof ShulkerBoxScreen),
+                "in creative, a double-click on the box in the inventory tab opens it");
+        pressBoxSettingsButton();
+        clickPopup(BoxSettingsPopup.Control.BEFORE);
+        onServer(world, p -> expect(BoxSettings.of(p.getInventory().getItem(9)).when() == BoxSettings.When.BEFORE,
+                "in creative, clicking Before sets the box (" + BoxSettings.of(p.getInventory().getItem(9)) + ")"));
+        expect(ctx.computeOnClient(mc -> BoxSettings.of(mc.player.containerMenu, chestSlot(mc.player.containerMenu, 0)).when())
+                        == BoxSettings.When.BEFORE, "in creative, the popup reads Before back");
+        ctx.getInput().pressKey(InputConstants.getKey("key.keyboard.escape"));
+        ctx.waitTicks(2);
+        ctx.runOnClient(mc -> mc.player.closeContainer());
+        world.getServer().runCommand("gamemode survival @a");
+        ctx.waitTicks(5);
+
+        // A box in a chest, opened from the chest's screen: its item is the chest's, not the player's.
+        BlockPos[] at = {null};
+        onServer(world, p -> {
+            clear(p);
+            at[0] = p.blockPosition().offset(-2, 0, 0);
+            p.level().setBlockAndUpdate(at[0], Blocks.CHEST.defaultBlockState());
+            ItemStack box = new ItemStack(Items.SHULKER_BOX);
+            BoxSettings.set(box, beforeMatching);
+            ((Container) p.level().getBlockEntity(at[0])).setItem(4, box);
+        });
+        open(at[0]);
+        doubleClickChest(4);
+        expect(ctx.computeOnClient(mc -> mc.gui.screen() instanceof ShulkerBoxScreen),
+                "a double-click on the box in the chest opens it");
+        pressBoxSettingsButton();
+        expect(ctx.computeOnClient(mc -> BoxSettings.of(mc.player.containerMenu, chestSlot(mc.player.containerMenu, 0)))
+                        .equals(beforeMatching),
+                "the popup shows the chest's box's own settings ("
+                        + ctx.computeOnClient(mc -> BoxSettings.of(mc.player.containerMenu, chestSlot(mc.player.containerMenu, 0))) + ")");
+        clickPopup(BoxSettingsPopup.Control.AFTER);
+        onServer(world, p -> {
+            ItemStack box = ((Container) p.level().getBlockEntity(at[0])).getItem(4);
+            expect(BoxSettings.of(box).when() == BoxSettings.When.AFTER,
+                    "clicking After sets the box in the chest (" + BoxSettings.of(box) + ")");
+        });
+        expect(ctx.computeOnClient(mc -> BoxSettings.of(mc.player.containerMenu, chestSlot(mc.player.containerMenu, 0)).when())
+                        == BoxSettings.When.AFTER, "the popup reads the chest's box's After back");
+        ctx.getInput().pressKey(InputConstants.getKey("key.keyboard.escape"));
+        ctx.waitTicks(2);
+        ctx.runOnClient(mc -> {
+            mc.player.closeContainer();
+            IPConfig.setRestockFromShulkers(false);
+        });
+        ctx.waitTicks(5);
     }
 
-    /** An opened box's container, as an opener mod declares it: the box's slots, naming the box at inventory slot {@code slot}. */
-    private static final class OpenedBox extends SimpleContainer implements ItemContents {
-        private final int slot;
+    /** A double-click with the real mouse on chest slot {@code i}. */
+    private void doubleClickChest(int i) {
+        hoverSlot(m -> chestSlot(m, i));
+        ctx.runOnClient(mc -> {
+            var mouse = (net.fabricmc.fabric.mixin.client.gametest.input.MouseHandlerAccessor) mc.mouseHandler;
+            for (int n = 0; n < 2; n++) for (int action : new int[] {1, 0})
+                mouse.invokeOnButton(mc.getWindow().handle(), new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0), action);
+        });
+        ctx.waitTicks(8);
+    }
 
-        OpenedBox(ItemStack box, int slot) {
-            super(27);
-            this.slot = slot;
-            box.getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).copyInto(getItems());
-        }
-
-        @Override
-        public ItemPath itemPath(Player player) {
-            return new ItemPath(ItemRef.Source.INVENTORY, slot, List.of());
-        }
+    /** A double-click with the real mouse on inventory slot {@code i}, as Open Anywhere opens an item. */
+    private void doubleClickInventory(int i) {
+        double[] at = ctx.computeOnClient(mc -> {
+            AbstractContainerScreenAccessor a = (AbstractContainerScreenAccessor) mc.gui.screen();
+            Slot slot = inventorySlot(mc.player.containerMenu, i);
+            double scale = mc.getWindow().getGuiScale();
+            return new double[] {(a.inventoryPlus$getLeftPos() + slot.x + 8) * scale,
+                    (a.inventoryPlus$getTopPos() + slot.y + 8) * scale};
+        });
+        ctx.getInput().setCursorPos(at[0], at[1]);
+        ctx.waitTicks(2);
+        ctx.runOnClient(mc -> {
+            var mouse = (net.fabricmc.fabric.mixin.client.gametest.input.MouseHandlerAccessor) mc.mouseHandler;
+            for (int n = 0; n < 2; n++) for (int action : new int[] {1, 0})
+                mouse.invokeOnButton(mc.getWindow().handle(), new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0), action);
+        });
+        ctx.waitTicks(8);
     }
 
     /** The box settings button, leftmost on the box's toolbar, pressed with the real mouse. */
@@ -366,7 +478,7 @@ public class EditModeChecks implements FabricClientGameTest {
     }
 
     /**
-     * Chest slot {@code i} clicked with mouse {@code button} as the player clicks it: the real
+     * Row slot {@code i} clicked with mouse {@code button} as the player clicks it: the real
      * cursor moved over it, then a real press and release, so the click goes the whole way
      * the game sends it (MouseHandler, every mod's hooks, the screen) with that slot hovered.
      * {@code button} is an {@link InputConstants} constant: buttons are numbered from 1 here,
@@ -378,20 +490,18 @@ public class EditModeChecks implements FabricClientGameTest {
         ctx.waitTicks(2);
     }
 
-    /** Edit mode's {@code key} pressed with the real cursor over chest slot {@code i}. */
+    /** Edit mode's {@code key} pressed with the real cursor over row slot {@code i}. */
     private void key(int i, KeyMapping key) {
         hover(i);
         ctx.getInput().pressKey(key);
         ctx.waitTicks(2);
     }
 
-    /** The chest toolbar's edit button, left of Sort, pressed with the real mouse. */
+    /** The inventory toolbar's edit button, left of Sort, pressed with the real mouse. */
     private void pressEditButton() {
         double[] at = ctx.computeOnClient(mc -> {
-            Reference r = Toolbar.externalToolbars().stream()
-                    .filter(t -> t.id().equals("inventoryplus.toolbar.external.chest_storage"))
-                    .findFirst().orElseThrow().placedBounds();
-            expect(r != null, "the chest's toolbar shows");
+            Reference r = Toolbar.inventoryToolbar().placedBounds();
+            expect(r != null, "the inventory's toolbar shows");
             double scale = mc.getWindow().getGuiScale();
             return new double[] {(r.leftPos() + r.imageWidth() - SortButton.SIZE - Toolbar.BUTTON_GAP - SortButton.SIZE / 2.0) * scale,
                     (r.topPos() + r.imageHeight() / 2.0) * scale};
@@ -402,17 +512,28 @@ public class EditModeChecks implements FabricClientGameTest {
         ctx.waitTicks(2);
     }
 
-    /** Puts the real cursor over chest slot {@code i}, so the screen hovers it. */
+    /** Puts the real cursor over row slot {@code i}, so the screen hovers it. */
     private void hover(int i) {
+        hoverSlot(m -> rowSlot(m, i));
+    }
+
+    private void hoverSlot(java.util.function.Function<AbstractContainerMenu, Slot> which) {
         double[] at = ctx.computeOnClient(mc -> {
             AbstractContainerScreenAccessor a = (AbstractContainerScreenAccessor) mc.gui.screen();
-            Slot slot = chestSlot(mc.player.containerMenu, i);
+            Slot slot = which.apply(mc.player.containerMenu);
             double scale = mc.getWindow().getGuiScale();
             return new double[] {(a.inventoryPlus$getLeftPos() + slot.x + 8) * scale,
                     (a.inventoryPlus$getTopPos() + slot.y + 8) * scale};
         });
         ctx.getInput().setCursorPos(at[0], at[1]);
         ctx.waitTicks(2);
+    }
+
+    /** The main inventory's top row, where the inventory section edits: inventory slot 9 on. */
+    private static final int ROW = 9;
+
+    private static Slot rowSlot(AbstractContainerMenu menu, int i) {
+        return inventorySlot(menu, ROW + i);
     }
 
     private static Slot chestSlot(AbstractContainerMenu menu, int i) {

@@ -141,11 +141,11 @@ public final class Toolbar {
                         screen -> headerRow(group.box(screen), inventory.box(screen)));
                 Panel panel = Panel.builder(on.index() == 0 ? id : id + "." + on.index())
                         // The group is read on each click: a tab switch can move the panel to another.
-                        // A box's settings and edit, then Sort at the right end; hidden ones are skipped.
+                        // A box's settings, then Sort at the right end; hidden ones are skipped. No
+                        // edit button: edit mode is the inventory screen's only, for now.
                         .elements(List.of(Flow.builder().gap(BUTTON_GAP, BUTTON_GAP)
                                 .addAll(category == SlotGroupCategory.SHULKER_STORAGE
                                         ? BoxSettingsPopup.button(on::group) : List.of())
-                                .addAll(EditToolbar.buttons())
                                 .add(SortButton.externalToolbarButton(0, 0, on::group))
                                 .build()))
                         .style(PanelStyle.NONE)

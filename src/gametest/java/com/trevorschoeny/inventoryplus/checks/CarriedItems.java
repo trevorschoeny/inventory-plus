@@ -3,11 +3,12 @@ package com.trevorschoeny.inventoryplus.checks;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 
-import com.trevorschoeny.inventoryplus.config.IPKeybinds;
-import com.trevorschoeny.inventoryplus.editmode.EditMode;
+import com.trevorschoeny.inventoryplus.lockedslots.LockedSlots;
+import com.trevorschoeny.inventoryplus.mixin.AbstractContainerScreenAccessor;
 
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.Items;
@@ -26,14 +27,17 @@ final class CarriedItems {
 
     private CarriedItems() {}
 
-    /** Locks or unlocks the slot under the mouse as the player does: edit mode on, L, edit mode off. */
+    /**
+     * Locks or unlocks the slot under the mouse. Directly, not through edit mode: the mode is
+     * the inventory screen's only for now, and these checks lock containers' slots too.
+     */
     static void editLock(ClientGameTestContext ctx) {
-        ctx.runOnClient(mc -> EditMode.set(true));
-        ctx.waitTicks(1);
-        ctx.getInput().pressKey(IPKeybinds.EDIT_LOCK);
-        ctx.waitTicks(4);
-        ctx.runOnClient(mc -> EditMode.set(false));
-        ctx.waitTicks(1);
+        ctx.runOnClient(mc -> {
+            Slot hovered = ((AbstractContainerScreenAccessor) mc.gui.screen()).inventoryPlus$getHoveredSlot();
+            if (hovered == null) throw new AssertionError("no slot under the mouse to lock");
+            LockedSlots.toggle(hovered);
+        });
+        ctx.waitTicks(5);
     }
 
     static void onServer(TestSingleplayerContext world, Consumer<ServerPlayer> action) {

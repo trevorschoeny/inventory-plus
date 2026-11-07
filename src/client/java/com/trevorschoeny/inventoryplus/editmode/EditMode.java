@@ -33,6 +33,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -47,7 +48,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Edit mode: a container screen's slots stop moving items and start taking rules.
+ * Edit mode: the inventory screen's slots stop moving items and start taking rules.
  * Toggled by the edit button left of Sort ({@link EditToolbar}); one mode for the
  * whole screen.
  *
@@ -147,13 +148,14 @@ public final class EditMode {
     }
 
     /**
-     * Whether the open screen can be edited: a container screen, and on creative's screen
-     * only its inventory tab (an item tab's slots are the catalog, not the player's).
+     * Whether the open screen can be edited: the inventory screen, and on creative's screen
+     * only its inventory tab (an item tab's slots are the catalog, not the player's). A
+     * container's screen isn't, for now: its locks and reservations wait for a later release.
      */
     public static boolean available() {
         Screen screen = Minecraft.getInstance().gui.screen();
         if (screen instanceof CreativeModeInventoryScreen creative) return creative.isInventoryOpen();
-        return screen instanceof AbstractContainerScreen<?>;
+        return screen instanceof InventoryScreen;
     }
 
     /** The edit button's lens. */

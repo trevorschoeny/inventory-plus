@@ -95,6 +95,12 @@ fabricApi {
     }
 }
 apply from: rootProject.file('Trevlar Mods Codebases/test-gallery/kit/checks.gradle')   // SceneWorld
+// Open Anywhere as a built jar, so the box settings checks open a carried box on OA's
+// real screen. By path and lazily: OA is evaluated after this project (it compiles
+// against Inventory Plus), so its jar task doesn't exist yet here.
+dependencies {
+    gametestRuntimeOnly files({ rootProject.project(':open-anywhere').tasks.named('jar').get().archiveFile }).builtBy(':open-anywhere:jar')
+}
 
 // Client-only dependencies, after loom {} so its client configurations exist.
 dependencies {

@@ -5,9 +5,6 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import com.trevlar.menukit.api.panel.ModeScope;
 import com.trevlar.slotkit.api.item.ItemContents;
-import com.trevlar.slotkit.api.item.ItemPath;
-import com.trevlar.slotkit.api.item.ItemSources;
-import com.trevlar.slotkit.api.item.LiveItem;
 import com.trevlar.slotkit.api.state.SlotState;
 import com.trevlar.slotkit.api.state.SlotStateChannel;
 
@@ -183,14 +180,17 @@ public record BoxSettings(When when, boolean matchingOnly, boolean restock) {
         if (menu.containerId != request.containerId()
                 || request.menuSlot() < 0 || request.menuSlot() >= menu.slots.size()) return;
         Container box = menu.slots.get(request.menuSlot()).container;
-        if (box instanceof ShulkerBoxBlockEntity) {
-            CHANNEL.set(new Slot(box, 0, 0, 0), request.intake());
-        } else if (box instanceof ItemContents contents) {
-            ItemPath path = contents.itemPath(player);
-            LiveItem live = path == null ? null : ItemSources.live(player, path);
-            if (live == null || !isBox(live.stack())) return;
-            set(live.stack(), request.intake());
-            live.commit();
+        boolean shulker = box instanceof ShulkerBoxBlockEntity
+                || box instanceof ItemContents contents && isBox(contents.item(player));
+        if (!shulker) return;
+        // Written at the box's slot 0 through SlotKit, which puts it where the box lives: a
+        // placed box's block, or the item of a box opened from the inventory or from inside
+        // a chest, put back up any box-in-box chain.
+        for (Slot s : menu.slots) {
+            if (s.container == box && s.getContainerSlot() == 0) {
+                CHANNEL.set(player, s, request.intake());
+                return;
+            }
         }
     }
 

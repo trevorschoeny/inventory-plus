@@ -1,7 +1,6 @@
 package com.trevorschoeny.inventoryplus.checks;
 
 import com.trevorschoeny.inventoryplus.editmode.ReservePopup;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.trevorschoeny.inventoryplus.config.IPKeybinds;
@@ -15,45 +14,34 @@ import com.trevlar.menukit.api.panel.Reference;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.InteractionHand;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
 
 import testgallery.SceneWorld;
 
 /**
  * Edit mode in the slot-rules scene, played as a player would: the real cursor, mouse and
- * keys on station 2's chest. The pencil turns it on, L over the cobblestone locks it, R
- * opens the reserve popup.
+ * keys on the inventory screen at station 1. The pencil turns it on, L over the hotbar's
+ * cobblestone locks it, R opens the reserve popup.
  */
 public class EditModeSceneChecks implements FabricClientGameTest {
 
     @Override
     public void runTest(ClientGameTestContext ctx) {
         try (SceneWorld.Opened scene = SceneWorld.open(ctx, "inventory-plus", "slot-rules")) {
-            JsonObject st = scene.stations().get(1).getAsJsonObject();
+            JsonObject st = scene.stations().get(0).getAsJsonObject();
             scene.standAt(st, 30);
-            JsonArray o = st.getAsJsonArray("origin");
-            BlockPos chest = new BlockPos(o.get(0).getAsInt() + 2, o.get(1).getAsInt(), o.get(2).getAsInt() + 2);
-            // Walked up to it, within reach, as a player would.
-            scene.world().getServer().runCommand("tp @p " + (chest.getX() + 0.5) + " " + chest.getY() + " " + (chest.getZ() - 1.5) + " 0 30");
+            scene.world().getServer().runCommand("item replace entity @p hotbar.0 with minecraft:cobblestone 32");
             ctx.waitTicks(10);
-            ctx.runOnClient(mc -> mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND,
-                    new BlockHitResult(Vec3.atCenterOf(chest), Direction.UP, chest, false)));
-            ctx.waitTicks(10);
-            expect(ctx.computeOnClient(mc -> mc.gui.screen() instanceof AbstractContainerScreen<?>), "the chest opens");
+            ctx.setScreen(() -> new InventoryScreen(Minecraft.getInstance().player));
+            ctx.waitTicks(5);
 
             double[] pencil = ctx.computeOnClient(mc -> {
-                Reference r = Toolbar.externalToolbars().stream()
-                        .filter(t -> t.id().equals("inventoryplus.toolbar.external.chest_storage"))
-                        .findFirst().orElseThrow().placedBounds();
-                expect(r != null, "the chest's toolbar shows");
+                Reference r = Toolbar.inventoryToolbar().placedBounds();
+                expect(r != null, "the inventory's toolbar shows");
                 double scale = mc.getWindow().getGuiScale();
                 return new double[] {(r.leftPos() + r.imageWidth() - SortButton.SIZE - Toolbar.BUTTON_GAP - SortButton.SIZE / 2.0) * scale,
                         (r.topPos() + r.imageHeight() / 2.0) * scale};
@@ -66,7 +54,7 @@ public class EditModeSceneChecks implements FabricClientGameTest {
 
             double[] cobble = ctx.computeOnClient(mc -> {
                 AbstractContainerScreenAccessor a = (AbstractContainerScreenAccessor) mc.gui.screen();
-                Slot s = chestSlot(mc.player.containerMenu, 0);
+                Slot s = hotbarSlot(mc.player.containerMenu, 0);
                 double scale = mc.getWindow().getGuiScale();
                 return new double[] {(a.inventoryPlus$getLeftPos() + s.x + 8) * scale, (a.inventoryPlus$getTopPos() + s.y + 8) * scale};
             });
@@ -74,7 +62,7 @@ public class EditModeSceneChecks implements FabricClientGameTest {
             ctx.waitTicks(2);
             ctx.getInput().pressKey(IPKeybinds.EDIT_LOCK);
             ctx.waitTicks(5);
-            expect(ctx.computeOnClient(mc -> LockedSlots.isLockedSlot(chestSlot(mc.player.containerMenu, 0))
+            expect(ctx.computeOnClient(mc -> LockedSlots.isLockedSlot(hotbarSlot(mc.player.containerMenu, 0))
                             && mc.player.containerMenu.getCarried().isEmpty()),
                     "L on the cobblestone locks it and picks nothing up");
             // R opens the reserve popup for it.
@@ -83,13 +71,15 @@ public class EditModeSceneChecks implements FabricClientGameTest {
             expect(ctx.computeOnClient(mc -> ReservePopup.isOpen() && mc.player.containerMenu.getCarried().isEmpty()),
                     "R opens the reserve popup and picks nothing up");
             ctx.runOnClient(mc -> ReservePopup.close());
+            // The lock is the player's, kept in config: take it off for the checks after this one.
+            ctx.runOnClient(mc -> LockedSlots.setLocked(hotbarSlot(mc.player.containerMenu, 0), false));
             ctx.runOnClient(mc -> mc.player.closeContainer());
         }
     }
 
-    private static Slot chestSlot(AbstractContainerMenu menu, int i) {
-        for (Slot s : menu.slots) if (!(s.container instanceof Inventory) && s.getContainerSlot() == i) return s;
-        throw new AssertionError("Edit mode scene: no container slot " + i);
+    private static Slot hotbarSlot(AbstractContainerMenu menu, int i) {
+        for (Slot s : menu.slots) if (s.container instanceof Inventory && s.getContainerSlot() == i) return s;
+        throw new AssertionError("Edit mode scene: no hotbar slot " + i);
     }
 
     private static void expect(boolean ok, String what) {
