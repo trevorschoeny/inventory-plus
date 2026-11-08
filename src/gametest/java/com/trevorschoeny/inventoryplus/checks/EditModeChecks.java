@@ -55,7 +55,7 @@ import net.minecraft.world.item.component.ItemContainerContents;
 import java.util.List;
 
 /**
- * Edit mode on the inventory screen, and box settings. Each guarded click is one vanilla would
+ * Edit mode on the inventory screen and over a chest, and box settings. Each guarded click is one vanilla would
  * act on (a left-click on a full stack picks it up, Q on it throws one), so the mode is
  * the only thing that can stop it; the last click, out of the mode, shows vanilla's.
  * <ul>
@@ -64,7 +64,8 @@ import java.util.List;
  *       prefilled from what the slot holds. Neither moves the stack, and a click does nothing.</li>
  *   <li>Q on a slot does nothing in the mode.</li>
  *   <li>Escape leaves the mode and keeps the screen open.</li>
- *   <li>A chest's screen has no edit mode, for now.</li>
+ *   <li>Over a chest, the inventory toolbar's one edit button edits the chest's slots too:
+ *       L locks one, R reserves one.</li>
  *   <li>A placed box's Intake, set from its screen, holds on the box and comes off with
  *       it when it is broken. A box opened on Open Anywhere's screen, from the inventory
  *       or from inside a chest, shows and sets its own item's settings.</li>
@@ -201,18 +202,49 @@ public class EditModeChecks implements FabricClientGameTest {
         ctx.waitTicks(5);
     }
 
-    /** A chest's screen can't be edited for now: no edit button on its toolbar or the inventory's there. */
+    /**
+     * A chest's screen: the one edit button is the inventory toolbar's, and the mode covers the
+     * chest's slots too. L locks a chest slot, R reserves one (on the server, for the chest).
+     */
     private void chest(TestSingleplayerContext world) {
         BlockPos[] at = {null};
         onServer(world, p -> {
             clear(p);
             at[0] = p.blockPosition().offset(2, 0, 0);
             p.level().setBlockAndUpdate(at[0], Blocks.CHEST.defaultBlockState());
+            Container chest = (Container) p.level().getBlockEntity(at[0]);
+            chest.setItem(0, new ItemStack(Items.STONE, 64));
+            chest.setItem(1, new ItemStack(Items.IRON_INGOT, 10));
         });
         open(at[0]);
-        expect(!ctx.computeOnClient(mc -> EditMode.available()), "a chest's screen has no edit mode, so no edit button");
-        ctx.runOnClient(mc -> EditMode.set(true));
-        expect(!ctx.computeOnClient(mc -> EditMode.isOn()), "edit mode doesn't turn on over a chest");
+        pressEditButton();
+        expect(ctx.computeOnClient(mc -> EditMode.isOn()), "the inventory toolbar's pencil turns edit mode on over a chest");
+
+        // L on the chest's first slot locks it and leaves the stone; a second L unlocks it.
+        keyOn(m -> chestSlot(m, 0), IPKeybinds.EDIT_LOCK);
+        ctx.waitTicks(5);
+        expect(ctx.computeOnClient(mc -> LockedSlots.isLockedSlot(chestSlot(mc.player.containerMenu, 0))
+                        && mc.player.containerMenu.getCarried().isEmpty()),
+                "L locks the chest's slot 0 and picks nothing up");
+        keyOn(m -> chestSlot(m, 0), IPKeybinds.EDIT_LOCK);
+        ctx.waitTicks(5);
+        expect(!ctx.computeOnClient(mc -> LockedSlots.isLockedSlot(chestSlot(mc.player.containerMenu, 0))),
+                "a second L unlocks the chest's slot");
+
+        // R on the chest's second slot opens the popup on its iron; Done reserves it in the chest.
+        keyOn(m -> chestSlot(m, 1), IPKeybinds.EDIT_RESERVE);
+        ctx.waitTicks(5);
+        expect(ctx.computeOnClient(mc -> ReservePopup.isOpen() && ReservePopup.draft().matches(new ItemStack(Items.IRON_INGOT))),
+                "R on a chest slot opens the reserve popup, prefilled with its iron");
+        ctx.runOnClient(mc -> ReservePopup.done());
+        ctx.waitTicks(5);
+        onServer(world, p -> {
+            Container chest = (Container) p.level().getBlockEntity(at[0]);
+            ItemMatch r = Reservations.get(SlotRef.of(chest, 1, p));
+            expect(!Reservations.isNone(r) && r.matches(new ItemStack(Items.IRON_INGOT)) && chest.getItem(1).getCount() == 10,
+                    "Done reserves the chest's slot 1 for iron and leaves the iron (" + r + ")");
+        });
+        ctx.runOnClient(mc -> EditMode.leave());
         ctx.runOnClient(mc -> mc.player.closeContainer());
         ctx.waitTicks(5);
     }
@@ -492,7 +524,12 @@ public class EditModeChecks implements FabricClientGameTest {
 
     /** Edit mode's {@code key} pressed with the real cursor over row slot {@code i}. */
     private void key(int i, KeyMapping key) {
-        hover(i);
+        keyOn(m -> rowSlot(m, i), key);
+    }
+
+    /** {@code key} pressed with the real cursor over the slot {@code which} picks. */
+    private void keyOn(java.util.function.Function<AbstractContainerMenu, Slot> which, KeyMapping key) {
+        hoverSlot(which);
         ctx.getInput().pressKey(key);
         ctx.waitTicks(2);
     }

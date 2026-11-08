@@ -13,8 +13,9 @@ import net.minecraft.resources.Identifier;
 import java.util.List;
 
 /**
- * Edit mode's control: the edit button left of Sort on every container toolbar, one
- * mode for the whole screen on every toolbar. A shulker box's own settings are box
+ * Edit mode's control: the edit button left of Sort on the inventory's toolbar, the only
+ * one on any screen. It edits every slot on the screen, a chest's too, so the container's
+ * own toolbar has none. A shulker box's own settings are box
  * settings, not slot settings, so they live in its settings popup instead
  * ({@link com.trevorschoeny.inventoryplus.carried.BoxSettingsPopup}).
  */
