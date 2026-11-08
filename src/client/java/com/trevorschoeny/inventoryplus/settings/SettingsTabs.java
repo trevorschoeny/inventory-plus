@@ -230,8 +230,8 @@ final class SettingsTabs {
     /** Edit mode's keys. Locking and reserving happen in edit mode, on the container. */
     static List<PanelElement> slots() {
         SettingsBody b = new SettingsBody()
-                .frame("Slots", "Lock and reserve slots in edit mode: the edit button left of Sort on any "
-                        + "container, then a key on the slot under your mouse. A lock keeps sorting and pickups "
+                .frame("Slots", "Lock and reserve slots in edit mode: the edit button on the inventory's toolbar, "
+                        + "then a key on the slot under your mouse. A lock keeps sorting and pickups "
                         + "out; a reservation takes one item only.",
                         () -> SettingsMenu.confirm("Reset Slots to defaults?",
                                 lockCount() + " kept on this computer are removed.",
