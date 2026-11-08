@@ -24,6 +24,7 @@ import net.minecraft.world.CompoundContainer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.PlayerEnderChestContainer;
+import net.minecraft.world.inventory.ShulkerBoxMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.level.block.EnderChestBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -312,11 +313,12 @@ public final class LockedSlots {
 
     /**
      * True if {@code slot} can be locked here: one of the player's own, or a placed
-     * container's when the server keeps container locks. Used by {@code L} and its drag.
+     * container's or an opened box's when the server keeps container locks. Used by
+     * {@code L} and its drag.
      */
     public static boolean isLockableHere(Slot slot) {
         if (isLockable(slot) || isEnderSlot(slot) || isCreatedSlot(slot)) return true;
-        return isPlacedContainerSlot(slot) && Presence.serverHasChannel(SlotLocks.ID);
+        return (isPlacedContainerSlot(slot) || isOpenedBoxSlot(slot)) && Presence.serverHasChannel(SlotLocks.ID);
     }
 
     // Writing
@@ -341,6 +343,8 @@ public final class LockedSlots {
             // An old per-player lock comes off here too, so unlocking always unlocks.
             String key = containerKeyFor(slot);
             if (!locked && key != null) dropOldLock(key, slot.getContainerSlot());
+            SlotLocks.CHANNEL.set(slot, locked);
+        } else if (isOpenedBoxSlot(slot)) {
             SlotLocks.CHANNEL.set(slot, locked);
         }
     }
@@ -431,6 +435,23 @@ public final class LockedSlots {
         if (slot.container instanceof Inventory) return false;
         if (isEnderSlot(slot)) return false;
         return containerKeyFor(slot) != null;
+    }
+
+    /**
+     * True if {@code slot} is a slot of a box item opened on its own screen (Open Anywhere:
+     * a box carried, or inside a chest or another box). On the client its container is a
+     * bare copy naming nothing, but a shulker box screen's container slots are always a
+     * box's, and with no block behind the screen, a box item's. SlotKit keeps their SHARED
+     * values on that item, however deep it sits, and the server refuses a write to any slot
+     * that keeps none, so a guess wrong here locks nothing. Render thread only.
+     */
+    public static boolean isOpenedBoxSlot(Slot slot) {
+        if (!isRenderThread() || slot.container instanceof Inventory || isCreatedSlot(slot)) return false;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.player == null) return false;
+        AbstractContainerMenu menu = mc.player.containerMenu;
+        return menu instanceof ShulkerBoxMenu && ContainerOpenTracker.settled(menu)
+                && ContainerOpenTracker.getBlockPos(menu.containerId) == null;
     }
 
     /**

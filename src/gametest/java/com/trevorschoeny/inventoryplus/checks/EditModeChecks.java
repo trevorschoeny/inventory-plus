@@ -13,6 +13,7 @@ import com.trevorschoeny.inventoryplus.mixin.AbstractContainerScreenAccessor;
 import com.trevorschoeny.inventoryplus.carried.BoxSettingsPopup;
 import com.trevorschoeny.inventoryplus.rules.BoxSettings;
 import com.trevorschoeny.inventoryplus.rules.Reservations;
+import com.trevorschoeny.inventoryplus.rules.SlotLocks;
 import com.trevorschoeny.inventoryplus.editmode.ReservePopup;
 import com.trevorschoeny.inventoryplus.sort.SortButton;
 import com.trevorschoeny.inventoryplus.toolbar.Toolbar;
@@ -69,6 +70,8 @@ import java.util.List;
  *   <li>A placed box's Intake, set from its screen, holds on the box and comes off with
  *       it when it is broken. A box opened on Open Anywhere's screen, from the inventory
  *       or from inside a chest, shows and sets its own item's settings.</li>
+ *   <li>A box opened inside a carried box, on Open Anywhere's screen: L locks one of its
+ *       slots and R reserves another, both held on the inner box's item.</li>
  * </ul>
  */
 public class EditModeChecks implements FabricClientGameTest {
@@ -85,6 +88,7 @@ public class EditModeChecks implements FabricClientGameTest {
             chest(world);
             box(world);
             openedBox(world);
+            nestedBox(world);
         }
     }
 
@@ -428,6 +432,92 @@ public class EditModeChecks implements FabricClientGameTest {
         ctx.runOnClient(mc -> {
             mc.player.closeContainer();
             IPConfig.setRestockFromShulkers(false);
+        });
+        ctx.waitTicks(5);
+    }
+
+    /**
+     * A box inside a carried box, opened on Open Anywhere's real screen (the outer one by a
+     * double-click, the inner one with the Open key): edit mode locks and reserves the inner
+     * box's slots, and both land on the inner box's item, inside the outer one.
+     */
+    private void nestedBox(TestSingleplayerContext world) {
+        onServer(world, p -> {
+            clear(p);
+            NonNullList<ItemStack> innerItems = NonNullList.withSize(27, ItemStack.EMPTY);
+            innerItems.set(0, new ItemStack(Items.STONE, 64));
+            innerItems.set(1, new ItemStack(Items.IRON_INGOT, 10));
+            ItemStack inner = new ItemStack(Items.SHULKER_BOX);
+            inner.set(DataComponents.CONTAINER, ItemContainerContents.fromItems(innerItems));
+            NonNullList<ItemStack> outerItems = NonNullList.withSize(27, ItemStack.EMPTY);
+            outerItems.set(0, inner);
+            ItemStack outer = new ItemStack(Items.SHULKER_BOX);
+            outer.set(DataComponents.CONTAINER, ItemContainerContents.fromItems(outerItems));
+            p.getInventory().setItem(9, outer);
+        });
+        ctx.waitTicks(5);
+        ctx.setScreen(() -> new InventoryScreen(Minecraft.getInstance().player));
+        ctx.waitTicks(5);
+        doubleClickInventory(9);
+        // A box's slot refuses a box, so a double-click's lift can't go back: the inner box
+        // opens with Open Anywhere's Open key held instead, which never lifts it. The key is
+        // unbound by default, and OA is only on the runtime classpath, so it's found by name.
+        KeyMapping openKey = ctx.computeOnClient(mc -> {
+            for (KeyMapping k : mc.options.keyMappings) {
+                if (k.getName().equals("key.openanywhere.open")) {
+                    k.setKey(InputConstants.Type.KEYBOARD.getOrCreate(InputConstants.KEY_O));
+                    KeyMapping.resetMapping();
+                    return k;
+                }
+            }
+            throw new AssertionError("Edit mode: Open Anywhere's Open key is registered");
+        });
+        hoverSlot(m -> chestSlot(m, 0));
+        ctx.getInput().holdKey(openKey);
+        ctx.waitTick();
+        ctx.getInput().pressMouse(InputConstants.MOUSE_BUTTON_LEFT);
+        ctx.getInput().releaseKey(openKey);
+        ctx.waitTicks(8);
+        expect(ctx.computeOnClient(mc -> mc.gui.screen() instanceof ShulkerBoxScreen
+                        && chestSlot(mc.player.containerMenu, 1).getItem().is(Items.IRON_INGOT)),
+                "the Open key opens the box inside the carried box");
+        pressEditButton();
+        expect(ctx.computeOnClient(mc -> EditMode.isOn()), "the edit button turns edit mode on over the inner box");
+        expect(ctx.computeOnClient(mc -> LockedSlots.isLockableHere(chestSlot(mc.player.containerMenu, 0))),
+                "the inner box's slots take locks and reservations");
+
+        // The write lands on the inner box's item inside the outer one, and the inner box stays
+        // open: the item it shows is the one written, not a copy that leaves it stale.
+        keyOn(m -> chestSlot(m, 0), IPKeybinds.EDIT_LOCK);
+        ctx.waitTicks(5);
+        expect(ctx.computeOnClient(mc -> chestSlot(mc.player.containerMenu, 1).getItem().is(Items.IRON_INGOT)),
+                "the inner box stays open after L");
+        expect(ctx.computeOnClient(mc -> LockedSlots.isLockedSlot(chestSlot(mc.player.containerMenu, 0))
+                        && mc.player.containerMenu.getCarried().isEmpty()),
+                "L locks the inner box's slot 0 and picks nothing up");
+        keyOn(m -> chestSlot(m, 1), IPKeybinds.EDIT_RESERVE);
+        ctx.waitTicks(5);
+        expect(ctx.computeOnClient(mc -> ReservePopup.isOpen() && ReservePopup.draft().matches(new ItemStack(Items.IRON_INGOT))),
+                "R on the inner box's slot opens the reserve popup, prefilled with its iron");
+        ctx.runOnClient(mc -> ReservePopup.done());
+        ctx.waitTicks(5);
+        onServer(world, p -> {
+            NonNullList<ItemStack> outerItems = NonNullList.withSize(27, ItemStack.EMPTY);
+            p.getInventory().getItem(9).getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).copyInto(outerItems);
+            ItemStack inner = outerItems.get(0);
+            expect(SlotLocks.CHANNEL.get(inner, 0), "the lock is on the inner box's item");
+            ItemMatch r = Reservations.get(inner, 1);
+            expect(!Reservations.isNone(r) && r.matches(new ItemStack(Items.IRON_INGOT)),
+                    "the reservation for iron is on the inner box's item (" + r + ")");
+        });
+        expect(ctx.computeOnClient(mc -> !Reservations.isNone(Reservations.get(
+                        SlotRef.of(mc.player.containerMenu, chestSlot(mc.player.containerMenu, 1), mc.player)))),
+                "the client sees the inner slot's reservation");
+        ctx.runOnClient(mc -> {
+            EditMode.leave();
+            mc.player.closeContainer();
+            openKey.setKey(InputConstants.UNKNOWN);
+            KeyMapping.resetMapping();
         });
         ctx.waitTicks(5);
     }

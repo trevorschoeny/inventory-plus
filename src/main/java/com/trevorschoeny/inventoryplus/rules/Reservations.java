@@ -3,10 +3,6 @@ package com.trevorschoeny.inventoryplus.rules;
 import com.trevlar.menukit.api.element.ItemMatch;
 import com.trevlar.menukit.api.panel.ModeScope;
 import com.trevlar.slotkit.api.group.SlotGroupId;
-import com.trevlar.slotkit.api.item.ItemContents;
-import com.trevlar.slotkit.api.item.ItemPath;
-import com.trevlar.slotkit.api.item.ItemSources;
-import com.trevlar.slotkit.api.item.LiveItem;
 import com.trevlar.slotkit.api.state.SlotState;
 import com.trevlar.slotkit.api.state.SlotStateChannel;
 import com.trevlar.slotkit.api.window.BehaviorKey;
@@ -105,17 +101,8 @@ public final class Reservations {
      * than the cap) goes into the player's inventory, or is dropped when it doesn't fit.
      */
     public static void reserve(ServerPlayer player, Slot slot, ItemMatch rule) {
-        int index = slot.getContainerSlot();
-        if (slot.container instanceof ItemContents contents) {
-            // A box opened from the inventory: the reservation goes on the box item.
-            ItemPath path = contents.itemPath(player);
-            LiveItem live = path == null ? null : ItemSources.live(player, path);
-            if (live == null) return;
-            CHANNEL.set(live.stack(), index, rule);
-            live.commit();
-        } else {
-            CHANNEL.set(player, slot, rule);
-        }
+        // A box opened as an item (Open Anywhere) included: SlotKit puts it on the box item.
+        CHANNEL.set(player, slot, rule);
         ItemStack there = slot.getItem();
         if (isNone(rule) || there.isEmpty()) return;
         int keep = rule.matches(there) ? Math.min(there.getCount(), limit(rule, there)) : 0;
